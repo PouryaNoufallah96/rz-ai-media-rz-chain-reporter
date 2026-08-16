@@ -1,7 +1,11 @@
 "use client";
 
+import {
+  Field,
+  FieldError,
+  FieldLabel,
+} from "@rz-chain-reporter/ui/components/field";
 import { Input } from "@rz-chain-reporter/ui/components/input";
-import { Label } from "@rz-chain-reporter/ui/components/label";
 import type { ComponentProps } from "react";
 import {
   type Control,
@@ -38,8 +42,11 @@ export function FormInputField<TFieldValues extends FieldValues>({
     : undefined;
 
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+    <Field
+      data-disabled={inputProps.disabled || undefined}
+      data-invalid={fieldState.invalid || undefined}
+    >
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Input
         {...inputProps}
         {...field}
@@ -47,11 +54,7 @@ export function FormInputField<TFieldValues extends FieldValues>({
         aria-invalid={Boolean(fieldState.error)}
         id={id}
       />
-      {message ? (
-        <p className="text-destructive text-sm" id={errorId} role="alert">
-          {message}
-        </p>
-      ) : null}
-    </div>
+      <FieldError id={errorId}>{message}</FieldError>
+    </Field>
   );
 }

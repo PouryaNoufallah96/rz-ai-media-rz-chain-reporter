@@ -40,10 +40,30 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
   --font-ui-sans: var(--font-geist-sans);
+  --tracking-display: -0.02em;
+  --tracking-label: 0.08em;
+  --text-transform-label: uppercase;
+  --font-weight-label: 500;
+  --text-size-label: 10.5px;
 }
 
-:root:lang(fa) {
-  --font-ui-sans: var(--font-vazirmatn);
+:root[data-script="arab"] {
+  --tracking-display: 0;
+  --tracking-label: 0;
+  --text-transform-label: none;
+  --font-weight-label: 600;
+  --text-size-label: 11px;
+}
+
+@utility ticket-label {
+  font-size: var(--text-size-label);
+  font-weight: var(--font-weight-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: var(--text-transform-label);
+}
+
+@utility tracking-display {
+  letter-spacing: var(--tracking-display);
 }
 
 .dark {

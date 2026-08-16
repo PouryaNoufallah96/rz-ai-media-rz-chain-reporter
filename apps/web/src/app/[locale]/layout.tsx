@@ -1,4 +1,10 @@
-import { DIRECTION, isLocale, LOCALES } from "@rz-chain-reporter/i18n";
+import {
+  DIRECTION,
+  isLocale,
+  LOCALES,
+  SCRIPT,
+  UI_FONT,
+} from "@rz-chain-reporter/i18n";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Vazirmatn } from "next/font/google";
 import { notFound } from "next/navigation";
@@ -55,8 +61,14 @@ export default async function RootLayout({
   return (
     <html
       className={`${geistSans.variable} ${geistMono.variable} ${vazirmatn.variable}`}
+      data-script={SCRIPT[locale]}
       dir={DIRECTION[locale]}
       lang={locale}
+      style={
+        {
+          "--font-ui-sans": UI_FONT[locale],
+        } as React.CSSProperties
+      }
       suppressHydrationWarning
     >
       <body className="antialiased">

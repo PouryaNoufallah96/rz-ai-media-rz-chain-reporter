@@ -1,11 +1,25 @@
 "use client";
 
-import { DEFAULT_LOCALE, DIRECTION } from "@rz-chain-reporter/i18n";
+import {
+  DEFAULT_LOCALE,
+  DIRECTION,
+  SCRIPT,
+  UI_FONT,
+} from "@rz-chain-reporter/i18n";
 
 // Replaces the root layout — no locale or catalog. English-only (ADR 0002).
 export default function GlobalError() {
   return (
-    <html dir={DIRECTION[DEFAULT_LOCALE]} lang={DEFAULT_LOCALE}>
+    <html
+      data-script={SCRIPT[DEFAULT_LOCALE]}
+      dir={DIRECTION[DEFAULT_LOCALE]}
+      lang={DEFAULT_LOCALE}
+      style={
+        {
+          "--font-ui-sans": UI_FONT[DEFAULT_LOCALE],
+        } as React.CSSProperties
+      }
+    >
       <body
         style={{
           alignItems: "center",
