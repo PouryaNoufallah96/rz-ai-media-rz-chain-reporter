@@ -10,6 +10,7 @@ import {
   IntlErrorCode,
   NextIntlClientProvider,
 } from "next-intl";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { FORMATS, NOW, TIME_ZONE } from "@/i18n/config";
 import { getQueryClient } from "@/lib/query-client";
@@ -36,30 +37,35 @@ export default function Providers({
   const queryClient = getQueryClient();
   const direction = DIRECTION[locale];
 
+  // The adapter only publishes the framework binding through context; nothing
+  // reads `useSearchParams` until a `useQueryStates` consumer mounts, so the
+  // static shell survives mounting it above every boundary.
   return (
-    <NextIntlClientProvider
-      formats={FORMATS}
-      locale={locale}
-      now={NOW}
-      onError={onIntlError}
-      timeZone={TIME_ZONE}
-    >
-      <DirectionProvider direction={direction}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <QueryClientProvider client={queryClient}>
-            {children}
-            {process.env.NODE_ENV === "development" ? (
-              <ReactQueryDevtools />
-            ) : null}
-          </QueryClientProvider>
-          <Toaster dir={direction} richColors />
-        </ThemeProvider>
-      </DirectionProvider>
-    </NextIntlClientProvider>
+    <NuqsAdapter>
+      <NextIntlClientProvider
+        formats={FORMATS}
+        locale={locale}
+        now={NOW}
+        onError={onIntlError}
+        timeZone={TIME_ZONE}
+      >
+        <DirectionProvider direction={direction}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <QueryClientProvider client={queryClient}>
+              {children}
+              {process.env.NODE_ENV === "development" ? (
+                <ReactQueryDevtools />
+              ) : null}
+            </QueryClientProvider>
+            <Toaster dir={direction} richColors />
+          </ThemeProvider>
+        </DirectionProvider>
+      </NextIntlClientProvider>
+    </NuqsAdapter>
   );
 }
