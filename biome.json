@@ -1,0 +1,174 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": false,
+    "clientKind": "git",
+    "useIgnoreFile": false
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "apps/**",
+      "packages/**",
+      ".vscode/settings.json",
+      "package.json",
+      "tsconfig.json",
+      "turbo.json",
+      "biome.json",
+      "bts.jsonc",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/dist",
+      "!**/.turbo",
+      "!**/routeTree.gen.ts"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space"
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "correctness": {
+        "useExhaustiveDependencies": "info"
+      },
+      "nursery": {
+        "useSortedClasses": {
+          "level": "warn",
+          "fix": "safe",
+          "options": {
+            "functions": ["clsx", "cva", "cn"]
+          }
+        }
+      },
+      "style": {
+        "noParameterAssign": "error",
+        "useAsConstAssertion": "error",
+        "useDefaultParameterLast": "error",
+        "useEnumInitializers": "error",
+        "useSelfClosingElements": "error",
+        "useSingleVarDeclarator": "error",
+        "noUnusedTemplateLiteral": "error",
+        "useNumberNamespace": "error",
+        "noInferrableTypes": "error",
+        "noUselessElse": "error"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "apps/web/**/*.ts",
+        "apps/web/**/*.tsx",
+        "packages/ui/**/*.ts",
+        "packages/ui/**/*.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useExhaustiveDependencies": "warn"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/**/*.ts", "apps/web/src/**/*.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/features/*/actions/**", "@/features/*/db/**"],
+                    "message": "A slice's actions/ and db/ are private. Within a slice import relatively; across a slice go through api/server/, schemas/, or lib/. See chainreporter-feature-slice."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/features/shared/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/features/*", "@/features/*/**"],
+                    "message": "features/shared is the leaf-less hub: it must not import any other slice."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/server/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/features/*/components/**", "@/components/**"],
+                    "message": "server/rpc may import a slice's schemas/, db/, and lib/ \u2014 never its components."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/ui/**/*.ts", "packages/ui/**/*.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["next", "next/**", "next-intl", "next-intl/**"],
+                    "message": "packages/ui takes direction and every string as props; it never imports next or next-intl."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

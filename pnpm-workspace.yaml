@@ -1,0 +1,43 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  '@parcel/watcher': false
+  '@swc/core': false
+  esbuild: true
+  inngest-cli: true
+  protobufjs: true
+  sharp: true
+minimumReleaseAge: 1440
+catalog:
+  dotenv: 17.4.2
+  zod: 4.4.3
+  typescript: 7.0.2
+  lucide-react: 1.31.0
+  next: 16.3.0
+  next-intl: 4.13.6
+  next-themes: 0.4.6
+  react: 19.2.8
+  react-dom: 19.2.8
+  sonner: 2.0.8
+  "@orpc/server": 1.15.0
+  "@orpc/client": 1.15.0
+  "@orpc/openapi": 1.15.0
+  "@orpc/zod": 1.15.0
+  better-auth: 1.6.27
+  "@tailwindcss/postcss": 4.3.3
+  "@types/react": 19.2.18
+  "@types/react-dom": 19.2.4
+  tailwindcss: 4.3.3
+  ai: 7.0.65
+  "@openrouter/ai-sdk-provider": 3.0.0
+  "@hookform/resolvers": 5.7.1
+  react-hook-form: 7.85.0
+  "@tanstack/react-query": 5.101.4
+  "@tanstack/react-table": 9.1.2
+  inngest: 4.18.1
+minimumReleaseAgeExclude:
+  - '@ai-sdk/gateway@4.0.52'
+  - ai@7.0.65
+  - inngest@4.18.1
+  - shadcn@4.18.0

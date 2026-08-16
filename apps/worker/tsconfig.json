@@ -1,0 +1,7 @@
+{
+  "extends": "@rz-chain-reporter/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts"]
+}

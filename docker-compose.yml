@@ -1,0 +1,99 @@
+name: rz-chain-reporter
+
+services:
+  migrate:
+    build:
+      context: .
+      dockerfile: packages/db/Dockerfile
+    environment:
+      MIGRATION_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/rz-chain-reporter
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    init: true
+    ports:
+      - "127.0.0.1:3001:3001"
+    env_file:
+      - path: apps/web/.env
+        required: false
+    environment:
+      BETTER_AUTH_URL: http://localhost:3001
+      CORS_ORIGIN: http://localhost:3001
+      APP_URL: http://localhost:3001
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/rz-chain-reporter
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3001/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  worker:
+    profiles: ["worker"]
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    init: true
+    env_file:
+      - path: apps/worker/.env
+        required: true
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/rz-chain-reporter
+      WORKER_HEALTH_PORT: 3002
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3002/health/ready').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  postgres:
+    image: postgres:18
+    container_name: rz-chain-reporter-postgres
+    environment:
+      POSTGRES_DB: rz-chain-reporter
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - rz-chain-reporter_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  rz-chain-reporter_postgres_data:

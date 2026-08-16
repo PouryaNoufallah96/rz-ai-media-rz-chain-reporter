@@ -1,0 +1,21 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
+      "env": [
+        "$TURBO_EXTENDS$",
+        "DATABASE_URL",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "CORS_ORIGIN",
+        "APP_URL"
+      ],
+      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"]
+    },
+    "check-types": {
+      "outputs": ["tsconfig.tsbuildinfo"]
+    }
+  }
+}

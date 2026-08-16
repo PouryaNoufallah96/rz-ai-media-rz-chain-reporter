@@ -1,0 +1,25 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "base-lyra",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@rz-chain-reporter/ui/components",
+    "utils": "@rz-chain-reporter/ui/lib/utils",
+    "hooks": "@rz-chain-reporter/ui/hooks",
+    "lib": "@rz-chain-reporter/ui/lib",
+    "ui": "@rz-chain-reporter/ui/components"
+  },
+  "menuColor": "default",
+  "menuAccent": "subtle",
+  "registries": {},
+  "rtl": true
+}

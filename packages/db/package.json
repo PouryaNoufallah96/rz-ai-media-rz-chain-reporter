@@ -1,0 +1,42 @@
+{
+  "name": "@rz-chain-reporter/db",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./browser": {
+      "default": "./src/browser.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "browser": {
+    ".": "./src/browser.ts",
+    "./src/index.ts": "./src/browser.ts"
+  },
+  "scripts": {
+    "check": "biome check .",
+    "check-types": "tsc --noEmit",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio",
+    "db:migrate": "tsx src/migrate.ts",
+    "fix": "biome check --write ."
+  },
+  "dependencies": {
+    "@rz-chain-reporter/env": "workspace:*",
+    "drizzle-orm": "0.45.2",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@rz-chain-reporter/config": "workspace:*",
+    "@types/pg": "8.21.0",
+    "dotenv": "catalog:",
+    "drizzle-kit": "0.31.10",
+    "tsx": "4.23.12",
+    "typescript": "catalog:"
+  }
+}

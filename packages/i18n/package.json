@@ -1,0 +1,23 @@
+{
+  "name": "@rz-chain-reporter/i18n",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "check": "biome check .",
+    "check-types": "tsc --noEmit",
+    "fix": "biome check --write ."
+  },
+  "devDependencies": {
+    "@rz-chain-reporter/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

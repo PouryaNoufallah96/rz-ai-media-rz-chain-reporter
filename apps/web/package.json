@@ -1,0 +1,49 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "check": "biome check .",
+    "check-types": "tsc --noEmit",
+    "fix": "biome check --write .",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "catalog:",
+    "@orpc/client": "catalog:",
+    "@orpc/openapi": "catalog:",
+    "@orpc/server": "catalog:",
+    "@orpc/zod": "catalog:",
+    "@rz-chain-reporter/api": "workspace:*",
+    "@rz-chain-reporter/auth": "workspace:*",
+    "@rz-chain-reporter/env": "workspace:*",
+    "@rz-chain-reporter/i18n": "workspace:*",
+    "@rz-chain-reporter/ui": "workspace:*",
+    "@swc/helpers": "0.5.23",
+    "@tanstack/react-query": "catalog:",
+    "@tanstack/react-table": "catalog:",
+    "better-auth": "catalog:",
+    "lucide-react": "catalog:",
+    "next": "catalog:",
+    "next-intl": "catalog:",
+    "next-themes": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-hook-form": "catalog:",
+    "sonner": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@rz-chain-reporter/config": "workspace:*",
+    "@tailwindcss/postcss": "catalog:",
+    "@tanstack/react-query-devtools": "5.101.4",
+    "@types/node": "26.2.0",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "babel-plugin-react-compiler": "1.0.0",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:"
+  }
+}

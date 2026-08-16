@@ -1,0 +1,31 @@
+{
+  "name": "worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --packages=bundle --platform=node --format=esm --target=node24 --banner:js=\"import { createRequire as __chainReporterCreateRequire } from 'node:module'; const require = __chainReporterCreateRequire(import.meta.url);\" --sourcemap --outfile=dist/main.js",
+    "check": "biome check .",
+    "check-types": "tsc --noEmit",
+    "dev": "tsx watch src/main.ts",
+    "dev:inngest": "inngest-cli dev --no-discovery",
+    "fix": "biome check --write .",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@openrouter/ai-sdk-provider": "catalog:",
+    "@rz-chain-reporter/db": "workspace:*",
+    "@rz-chain-reporter/env": "workspace:*",
+    "ai": "catalog:",
+    "inngest": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@rz-chain-reporter/config": "workspace:*",
+    "@types/node": "26.2.0",
+    "esbuild": "0.28.2",
+    "inngest-cli": "1.41.1",
+    "tsx": "4.23.12",
+    "typescript": "catalog:"
+  }
+}

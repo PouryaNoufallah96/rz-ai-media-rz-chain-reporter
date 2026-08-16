@@ -1,0 +1,45 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "transit": {
+      "dependsOn": ["^transit"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "env": ["NODE_ENV"],
+      "outputs": ["dist/**"]
+    },
+    "check-types": {
+      "dependsOn": ["transit"],
+      "outputs": []
+    },
+    "check": {
+      "outputs": []
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "dev:inngest": {
+      "cache": false,
+      "persistent": true
+    },
+    "fix": {
+      "cache": false
+    },
+    "db:push": {
+      "cache": false
+    },
+    "db:generate": {
+      "cache": false
+    },
+    "db:migrate": {
+      "cache": false
+    },
+    "db:studio": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

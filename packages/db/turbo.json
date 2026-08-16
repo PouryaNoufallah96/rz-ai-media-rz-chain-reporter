@@ -1,0 +1,21 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "check-types": {
+      "outputs": ["dist/tsconfig.tsbuildinfo"]
+    },
+    "db:push": {
+      "env": ["MIGRATION_DATABASE_URL"]
+    },
+    "db:generate": {
+      "env": ["MIGRATION_DATABASE_URL"]
+    },
+    "db:migrate": {
+      "env": ["MIGRATION_DATABASE_URL"]
+    },
+    "db:studio": {
+      "env": ["MIGRATION_DATABASE_URL"]
+    }
+  }
+}

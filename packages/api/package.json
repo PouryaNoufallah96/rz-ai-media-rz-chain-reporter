@@ -1,0 +1,27 @@
+{
+  "name": "@rz-chain-reporter/api",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "check": "biome check .",
+    "check-types": "tsc --noEmit",
+    "fix": "biome check --write ."
+  },
+  "dependencies": {
+    "@orpc/server": "catalog:",
+    "@rz-chain-reporter/auth": "workspace:*",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@rz-chain-reporter/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "rz-chain-reporter",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "engines": {
+    "node": "24.19.0",
+    "pnpm": "11.21.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:stack": "docker compose up -d postgres --wait && turbo run dev",
+    "build": "turbo run build",
+    "check-types": "turbo run check-types",
+    "dev:web": "turbo run dev --filter=web",
+    "db:push": "turbo run db:push --filter=@rz-chain-reporter/db",
+    "db:studio": "turbo run db:studio --filter=@rz-chain-reporter/db",
+    "db:generate": "turbo run db:generate --filter=@rz-chain-reporter/db",
+    "db:migrate": "turbo run db:migrate --filter=@rz-chain-reporter/db",
+    "db:start": "docker compose up -d postgres",
+    "db:watch": "docker compose up postgres",
+    "db:stop": "docker compose stop postgres",
+    "db:down": "docker compose down postgres",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "check": "pnpm run check:root && turbo run check",
+    "check:root": "biome check .vscode/settings.json biome.json bts.jsonc package.json tsconfig.json turbo.json",
+    "fix": "pnpm run fix:root && turbo run fix",
+    "fix:root": "biome check --write .vscode/settings.json biome.json bts.jsonc package.json tsconfig.json turbo.json",
+    "doctor": "pnpm dlx -y react-doctor@latest .",
+    "validate": "pnpm run check && pnpm run check-types && pnpm run doctor"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.8",
+    "@rz-chain-reporter/config": "workspace:*",
+    "@types/node": "26.2.0",
+    "turbo": "2.10.9",
+    "typescript": "catalog:"
+  },
+  "packageManager": "pnpm@11.21.0"
+}

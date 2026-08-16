@@ -1,0 +1,47 @@
+{
+  "shared": {
+    "metadata": {
+      "title": "RZ ChainReporter",
+      "description": "Editorial discovery, generation, scheduling, and publishing operations."
+    },
+    "header": {
+      "skipToContent": "Skip to content",
+      "primaryNav": "Primary",
+      "home": "Home",
+      "dashboard": "Dashboard"
+    },
+    "theme": {
+      "toggle": "Toggle theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "userMenu": {
+      "signIn": "Sign in",
+      "account": "My account",
+      "signOut": "Sign out"
+    },
+    "loader": {
+      "loading": "Loading"
+    },
+    "error": {
+      "message": "Something went wrong.",
+      "retry": "Try again",
+      "invalid": "Invalid value"
+    },
+    "landing": {
+      "eyebrow": "Editorial operations",
+      "title": "RZ ChainReporter",
+      "body": "The target workspace is ready for the phased migration of discovery, editorial, media, scheduling, publishing, and account workflows."
+    },
+    "dashboard": {
+      "title": "Editorial workspace",
+      "body": "Product modules will be introduced through the approved migration phases."
+    },
+    "notFound": {
+      "title": "Page not found",
+      "body": "The page you requested does not exist in this workspace.",
+      "home": "Back to home"
+    }
+  }
+}
