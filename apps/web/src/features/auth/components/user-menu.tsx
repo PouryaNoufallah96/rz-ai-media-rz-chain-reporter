@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@rz-chain-reporter/ui/components/dropdown-menu";
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -19,6 +20,7 @@ import { authClient } from "../lib/auth-client";
 
 export default function UserMenu() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const t = useTranslations(SHARED_NAMESPACE);
   const { data: session, isPending } = authClient.useSession();
 
@@ -55,6 +57,10 @@ export default function UserMenu() {
             onClick={async () => {
               const [error] = await signOutAction();
               if (error) return;
+              // A request still in flight would resolve into the cache after the
+              // clear and hand the next session the previous user's rows.
+              await queryClient.cancelQueries();
+              queryClient.clear();
               // Cookie is cleared server-side; the client atom only refetches on this signal.
               authClient.$store.notify("$sessionSignal");
               router.push("/");

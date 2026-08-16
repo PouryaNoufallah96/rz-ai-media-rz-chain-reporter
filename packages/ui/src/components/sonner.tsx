@@ -19,14 +19,19 @@ const Toaster = ({
   return (
     <Sonner
       dir={dir}
+      // DESIGN.md anchors the toast at the inline end; sonner's own positions
+      // are physical, and its runtime-injected CSS outranks a plain utility.
+      position={dir === "rtl" ? "bottom-left" : "bottom-right"}
       theme={theme as ToasterProps["theme"]}
-      className="toaster group"
+      className="toaster group motion-reduce:transition-none!"
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
         warning: <TriangleAlertIcon className="size-4" />,
         error: <OctagonXIcon className="size-4" />,
-        loading: <Loader2Icon className="size-4 animate-spin" />,
+        loading: (
+          <Loader2Icon className="size-4 animate-spin motion-reduce:animate-none" />
+        ),
       }}
       style={
         {
@@ -38,7 +43,8 @@ const Toaster = ({
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast:
+            "cn-toast motion-reduce:animate-none! motion-reduce:transition-none!",
         },
       }}
       {...props}

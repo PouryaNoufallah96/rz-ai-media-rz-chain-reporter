@@ -1,8 +1,10 @@
 import { createServer } from "node:http";
-import { createDb } from "@rz-chain-reporter/db";
+import { createDb, DB_PROBE_TIMEOUT_MS } from "@rz-chain-reporter/db";
 import { workerEnv } from "@rz-chain-reporter/env/worker";
 
-const database = createDb(workerEnv.DATABASE_URL);
+const database = createDb(workerEnv.DATABASE_URL, {
+  connectionTimeoutMillis: DB_PROBE_TIMEOUT_MS,
+});
 let acceptingWork = true;
 
 const healthServer = createServer((request, response) => {

@@ -24,6 +24,7 @@ export interface ActionState<TOutput, TCode extends string = string> {
   code?: TCode;
   data?: TOutput;
   fieldErrors?: Record<string, string>;
+  requestId?: string;
   status: ActionStatus;
 }
 
@@ -61,6 +62,12 @@ function extractFieldErrors(error: unknown) {
   }
 
   return Object.keys(fields).length > 0 ? fields : undefined;
+}
+
+function extractRequestId(error: unknown) {
+  if (!isRecord(error) || !isRecord(error.data)) return;
+  const { requestId } = error.data;
+  return typeof requestId === "string" ? requestId : undefined;
 }
 
 function extractCode<TCode extends string>(
@@ -134,6 +141,7 @@ export function useAction<
         return {
           code: extractCode<Code>(error),
           fieldErrors: extractFieldErrors(error),
+          requestId: extractRequestId(error),
           status: "error",
         };
       }

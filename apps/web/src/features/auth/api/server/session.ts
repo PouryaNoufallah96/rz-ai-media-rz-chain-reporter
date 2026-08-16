@@ -19,3 +19,13 @@ export async function requireSession() {
 
   return redirect({ href: "/login", locale: await currentLocale() });
 }
+
+export async function requireGuest() {
+  const session = await getSession();
+
+  if (session?.user) {
+    return redirect({ href: "/dashboard", locale: await currentLocale() });
+  }
+
+  return null;
+}
