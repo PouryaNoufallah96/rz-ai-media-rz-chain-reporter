@@ -3,6 +3,8 @@ import path from "node:path";
 import { validateBuildEnv } from "@rz-chain-reporter/env/build";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+// Relative: the config loader does not resolve the `@/*` tsconfig alias.
+import { MAX_CONTROL_PAYLOAD_BYTES } from "./src/lib/payload-limits";
 
 validateBuildEnv(process.env);
 
@@ -21,6 +23,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     globalNotFound: true,
+    serverActions: { bodySizeLimit: MAX_CONTROL_PAYLOAD_BYTES },
   },
 };
 
