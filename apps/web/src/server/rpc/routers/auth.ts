@@ -20,7 +20,7 @@ export const signOut = publicProcedure
 export const signIn = publicProcedure
   .input(signInSchema)
   .output(signedIn)
-  .errors({ INVALID_CREDENTIALS: {} })
+  .errors({ INVALID_CREDENTIALS: { status: 401 } })
   .handler(async ({ context, errors, input }) => {
     try {
       const result = await auth.api.signInEmail({
@@ -39,7 +39,10 @@ export const signIn = publicProcedure
 export const signUp = publicProcedure
   .input(signUpSchema)
   .output(signedIn)
-  .errors({ EMAIL_TAKEN: {}, SIGN_UP_REJECTED: {} })
+  .errors({
+    EMAIL_TAKEN: { status: 409 },
+    SIGN_UP_REJECTED: { status: 400 },
+  })
   .handler(async ({ context, errors, input }) => {
     try {
       const result = await auth.api.signUpEmail({
@@ -49,7 +52,7 @@ export const signUp = publicProcedure
       return { userId: result.user.id };
     } catch (error) {
       if (error instanceof APIError) {
-        throw error.body?.code === "USER_ALREADY_EXISTS"
+        throw error.body?.code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL"
           ? errors.EMAIL_TAKEN()
           : errors.SIGN_UP_REJECTED();
       }
