@@ -8,6 +8,8 @@
     "check": "biome check .",
     "check-types": "tsc --noEmit",
     "fix": "biome check --write .",
+    "openapi:generate": "node --conditions=react-server --import tsx scripts/generate-openapi.ts",
+    "operator:create": "node --conditions=react-server --import tsx scripts/create-operator.ts",
     "start": "next start"
   },
   "dependencies": {
@@ -19,6 +21,7 @@
     "@orpc/zod": "catalog:",
     "@rz-chain-reporter/api": "workspace:*",
     "@rz-chain-reporter/auth": "workspace:*",
+    "@rz-chain-reporter/contracts": "workspace:*",
     "@rz-chain-reporter/db": "workspace:*",
     "@rz-chain-reporter/env": "workspace:*",
     "@rz-chain-reporter/i18n": "workspace:*",
@@ -35,6 +38,7 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-hook-form": "catalog:",
+    "server-only": "0.0.1",
     "sonner": "catalog:",
     "zod": "catalog:"
   },
@@ -47,6 +51,7 @@
     "@types/react-dom": "catalog:",
     "babel-plugin-react-compiler": "1.0.0",
     "tailwindcss": "catalog:",
+    "tsx": "4.23.12",
     "typescript": "catalog:"
   }
 }

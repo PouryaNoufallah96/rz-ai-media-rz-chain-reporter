@@ -1,5 +1,6 @@
 {
-  "name": "@rz-chain-reporter/api",
+  "name": "@rz-chain-reporter/contracts",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -16,10 +17,7 @@
     "fix": "biome check --write ."
   },
   "dependencies": {
-    "@orpc/server": "catalog:",
-    "@rz-chain-reporter/auth": "workspace:*",
-    "@rz-chain-reporter/contracts": "workspace:*",
-    "server-only": "0.0.1"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@rz-chain-reporter/config": "workspace:*",
