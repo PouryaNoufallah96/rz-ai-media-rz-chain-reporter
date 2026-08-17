@@ -29,9 +29,9 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "check": "pnpm run check:root && turbo run check",
-    "check:root": "biome check .vscode/settings.json biome.json bts.jsonc package.json tsconfig.json turbo.json",
+    "check:root": "biome check .vscode/settings.json biome.json package.json tsconfig.json turbo.json",
     "fix": "pnpm run fix:root && turbo run fix",
-    "fix:root": "biome check --write .vscode/settings.json biome.json bts.jsonc package.json tsconfig.json turbo.json",
+    "fix:root": "biome check --write .vscode/settings.json biome.json package.json tsconfig.json turbo.json",
     "doctor": "pnpm dlx -y react-doctor@latest .",
     "validate": "pnpm run check && pnpm run check-types && pnpm run doctor"
   },
@@ -39,7 +39,7 @@
     "@biomejs/biome": "2.5.8",
     "@rz-chain-reporter/config": "workspace:*",
     "@types/node": "26.2.0",
-    "turbo": "2.10.9",
+    "turbo": "2.10.10",
     "typescript": "catalog:"
   },
   "packageManager": "pnpm@11.21.0"

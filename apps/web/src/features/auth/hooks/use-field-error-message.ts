@@ -6,14 +6,8 @@ import { AUTH_NAMESPACE } from "../constants";
 
 const MESSAGE_KEYS = {
   emailInvalid: "errors.emailInvalid",
-  emailTaken: "errors.emailTaken",
-  nameTooLong: "errors.nameTooLong",
-  nameTooShort: "errors.nameTooShort",
   passwordRequired: "errors.passwordRequired",
-  passwordTooShort: "errors.passwordTooShort",
-  EMAIL_TAKEN: "errors.emailTaken",
   INVALID_CREDENTIALS: "errors.invalidCredentials",
-  SIGN_UP_REJECTED: "errors.signUpRejected",
 } as const;
 
 type FieldErrorCode = keyof typeof MESSAGE_KEYS;

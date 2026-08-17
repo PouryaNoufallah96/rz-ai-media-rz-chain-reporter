@@ -4,14 +4,27 @@ Next.js 16.3 and React 19.2 target for the ChainReporter migration. The project
 is a pnpm/Turborepo modular monolith with an independently deployed durable
 worker.
 
+## Product model
+
+ChainReporter is one reusable product, deployed and configured as a separate
+installation per customer. Each installation has its own host, database, object
+storage, and provider credentials; its media brands, sources, destination
+accounts, models, and editorial behavior are configuration rather than code. The
+crypto ChainReporter is one such installation — another customer could work in an
+entirely different domain. There is no public signup and no shared multi-tenant
+instance: operator accounts are provisioned when a deployment is set up.
+
 ## Current foundation
 
 - `apps/web`: App Router, Better Auth, oRPC, React Compiler, Cache Components/PPR, and Partial Prefetching.
 - `apps/worker`: Node 24 boundary for durable AI, media, acquisition, publishing, scheduling, and reconciliation.
 - `packages/api`: typed oRPC contracts and transport middleware.
 - `packages/auth`: Better Auth server configuration.
+- `packages/config`: shared TypeScript compiler base for every app and package.
+- `packages/contracts`: framework-free Zod factories shared by `apps/web` and `packages/db`.
 - `packages/db`: PostgreSQL/Drizzle schema and migrations.
 - `packages/env`: client, web-server, and worker environment validation.
+- `packages/i18n`: framework-free locale, direction, script, and font facts.
 - `packages/ui`: owned shadcn/Base UI source and Tailwind 4 tokens.
 
 The scaffold is not the product implementation. Feature work proceeds through
@@ -20,10 +33,10 @@ reviewed migration phases and explicit product decisions.
 ## Bootstrap status
 
 The dependency graph and lockfile are installed with the pinned Node, pnpm,
-Turbo, Next, React, and diagnostic versions. The initial Better Auth
-schema migration is generated and reviewed in `packages/db/src/migrations`;
-it has not been applied to any database. Compose keeps web and worker startup
-gated on successful migration completion.
+Turbo, Next, React, and diagnostic versions. `packages/db/src/migrations` holds
+eight reviewed migrations, `0000_initial_auth` through `0007_configured_source`,
+applied to the local development database with `pnpm db:migrate`. Compose keeps
+web and worker startup gated on successful migration completion.
 
 Current local verification:
 
@@ -35,7 +48,9 @@ pnpm run build
 ```
 
 Copy root `.env.example` to a local ignored `.env` and set `POSTGRES_PASSWORD`
-before using Compose. Local stack (Postgres, Next, worker, Inngest):
+before using Compose. Copy `apps/web/.env.example` and `apps/worker/.env.example`
+the same way. Live secrets never belong in tracked files. Local stack
+(Postgres, Next, worker, Inngest):
 
 ```bash
 pnpm dev:stack
@@ -47,7 +62,9 @@ floating `npx`, `pnpm dlx`, or `@latest` command in project instructions.
 ## Database safety
 
 - `db:generate` and reviewed SQL migrations are the normal workflow.
-- `db:push` is local disposable-database tooling only; never use it for shared or production data.
+- `db:push` is sanctioned local disposable-database tooling. Keep the script.
+  Use it only on a proven disposable local database; never against shared or
+  production data. Applying product or phase schema uses reviewed `db:migrate`.
 - Runtime and migration identities are separate in deployed environments.
 
 ## Delivery boundary

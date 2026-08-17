@@ -18,6 +18,7 @@
   "dependencies": {
     "@orpc/server": "catalog:",
     "@rz-chain-reporter/auth": "workspace:*",
+    "@rz-chain-reporter/contracts": "workspace:*",
     "server-only": "0.0.1"
   },
   "devDependencies": {

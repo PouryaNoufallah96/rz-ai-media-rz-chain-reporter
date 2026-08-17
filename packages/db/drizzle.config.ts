@@ -9,7 +9,7 @@ dotenv.config({
 const migrationEnv = validateMigrationEnv(process.env);
 
 export default defineConfig({
-  schema: "./src/schema",
+  schema: "./src/schema/index.ts",
   out: "./src/migrations",
   dialect: "postgresql",
   dbCredentials: {

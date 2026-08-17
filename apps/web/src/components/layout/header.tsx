@@ -1,4 +1,6 @@
 import UserMenu from "@/features/auth/components/user-menu";
+import { OperationsIndicator } from "@/features/operations/components/operations-indicator";
+import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
 import { Localized } from "@/i18n/client";
 import { Link } from "@/i18n/navigation";
@@ -10,9 +12,9 @@ export default async function Header() {
   const t = await getT(SHARED_NAMESPACE);
 
   return (
-    <header className="border-b">
+    <header className="relative border-b">
       <a
-        className="sr-only z-50 bg-background px-3 py-2 focus:not-sr-only focus:absolute focus:start-2 focus:top-2"
+        className="sr-only z-50 bg-background px-3 py-2 focus:not-sr-only focus:absolute focus:inset-s-2 focus:top-2"
         href="#main-content"
       >
         {t("header.skipToContent")}
@@ -23,6 +25,9 @@ export default async function Header() {
           <Link href="/dashboard">{t("header.dashboard")}</Link>
         </nav>
         <div className="flex items-center gap-2">
+          <Localized namespaces={[SHARED_NAMESPACE, OPERATIONS_NAMESPACE]}>
+            <OperationsIndicator />
+          </Localized>
           <Localized namespaces={[SHARED_NAMESPACE]}>
             <ModeToggle />
             <UserMenu />

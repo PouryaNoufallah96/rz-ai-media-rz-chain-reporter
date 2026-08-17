@@ -1,0 +1,26 @@
+{
+  "name": "@rz-chain-reporter/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "check": "biome check .",
+    "check-types": "tsc --noEmit",
+    "fix": "biome check --write ."
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@rz-chain-reporter/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

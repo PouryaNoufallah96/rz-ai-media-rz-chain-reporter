@@ -2,9 +2,6 @@
   "$schema": "https://turbo.build/schema.json",
   "extends": ["//"],
   "tasks": {
-    "check-types": {
-      "outputs": ["dist/tsconfig.tsbuildinfo"]
-    },
     "db:push": {
       "env": ["MIGRATION_DATABASE_URL"]
     },

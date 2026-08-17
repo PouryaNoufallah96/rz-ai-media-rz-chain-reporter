@@ -1,7 +1,6 @@
 {
   "shared": {
     "metadata": {
-      "title": "RZ ChainReporter",
       "description": "Editorial discovery, generation, scheduling, and publishing operations."
     },
     "header": {
@@ -31,7 +30,6 @@
     },
     "landing": {
       "eyebrow": "Editorial operations",
-      "title": "RZ ChainReporter",
       "body": "The target workspace is ready for the phased migration of discovery, editorial, media, scheduling, publishing, and account workflows."
     },
     "dashboard": {

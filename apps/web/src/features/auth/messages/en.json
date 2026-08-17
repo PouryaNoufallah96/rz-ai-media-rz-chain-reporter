@@ -10,30 +10,13 @@
       "password": "Password",
       "submit": "Sign in",
       "submitting": "Signing in…",
-      "switch": "Need an account? Sign up",
       "success": "Signed in",
       "failure": "Unable to sign in with those credentials"
     },
-    "signUp": {
-      "title": "Create account",
-      "name": "Name",
-      "email": "Email",
-      "password": "Password",
-      "submit": "Create account",
-      "submitting": "Creating account…",
-      "switch": "Already have an account? Sign in",
-      "success": "Account created",
-      "failure": "Unable to create account"
-    },
     "errors": {
       "emailInvalid": "Enter a valid email address",
-      "emailTaken": "An account with this email already exists",
       "invalidCredentials": "Unable to sign in with those credentials",
-      "nameTooLong": "Name must be at most 120 characters",
-      "nameTooShort": "Name must be at least 2 characters",
       "passwordRequired": "Enter your password",
-      "passwordTooShort": "Password must be at least 8 characters",
-      "signUpRejected": "Unable to create account",
       "unknown": "Something went wrong. Please try again."
     }
   }
