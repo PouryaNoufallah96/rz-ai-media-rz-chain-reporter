@@ -15,12 +15,10 @@
       "tsconfig.json",
       "turbo.json",
       "biome.json",
-      "bts.jsonc",
       "!**/node_modules",
       "!**/.next",
       "!**/dist",
-      "!**/.turbo",
-      "!**/routeTree.gen.ts"
+      "!**/.turbo"
     ]
   },
   "formatter": {

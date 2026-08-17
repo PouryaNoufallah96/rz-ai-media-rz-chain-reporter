@@ -4,6 +4,15 @@
   "tasks": {
     "dev": {
       "with": ["worker#dev:inngest"],
+      "env": [
+        "DATABASE_URL",
+        "INNGEST_EVENT_KEY",
+        "INNGEST_SIGNING_KEY",
+        "NODE_ENV",
+        "OLLAMA_BASE_URL",
+        "OPENROUTER_API_KEY",
+        "WORKER_HEALTH_PORT"
+      ],
       "persistent": true,
       "cache": false
     }
