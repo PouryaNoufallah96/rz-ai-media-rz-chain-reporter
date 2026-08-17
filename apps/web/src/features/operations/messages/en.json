@@ -1,0 +1,39 @@
+{
+  "operations": {
+    "panel": {
+      "title": "Operations",
+      "empty": "Nothing is running. Runs, publishes, and syncs appear here.",
+      "close": "Close"
+    },
+    "indicator": {
+      "label": "Operations status",
+      "count": "{count, number}",
+      "countCapped": "99+"
+    },
+    "state": {
+      "queued": "Queued",
+      "running": "Running",
+      "retrying": "Retrying (attempt {n, number})",
+      "succeeded": "Done",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "unknown": "Delivery unknown — check the destination before retrying"
+    },
+    "transport": {
+      "offline": "Connection lost. Reconnecting…",
+      "restored": "Connection restored",
+      "updating": "Updating results…"
+    },
+    "errors": {
+      "idempotencyKeyReused": "This request key was already used with different details. Send the original request or start a new one.",
+      "validationFailed": "Some details were rejected. Correct them and send the request again.",
+      "unauthorized": "The session ended. Sign in and send the request again.",
+      "forbidden": "This account cannot perform that action.",
+      "notFound": "The target of this operation is no longer available.",
+      "versionConflict": "This operation changed while it was open. Reload to see its current state.",
+      "savedCardAlreadyActive": "This draft is already saved. Open the existing saved card.",
+      "transientConflict": "The workspace was busy. Send the identical request again.",
+      "internalServerError": "The operation could not be completed."
+    }
+  }
+}
