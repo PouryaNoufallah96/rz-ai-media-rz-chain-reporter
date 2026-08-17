@@ -13,11 +13,7 @@ import { AUTH_NAMESPACE } from "../constants";
 import { useFieldErrorMessage } from "../hooks/use-field-error-message";
 import { type SignInInput, signInSchema } from "../schemas/sign-in";
 
-export default function SignInForm({
-  onSwitchToSignUp,
-}: {
-  onSwitchToSignUp: () => void;
-}) {
+export default function SignInForm() {
   const router = useRouter();
   const t = useTranslations(AUTH_NAMESPACE);
   const resolveError = useFieldErrorMessage();
@@ -92,12 +88,6 @@ export default function SignInForm({
           {isPending ? t("signIn.submitting") : t("signIn.submit")}
         </Button>
       </form>
-
-      <div className="mt-4 text-center">
-        <Button onClick={onSwitchToSignUp} type="button" variant="link">
-          {t("signIn.switch")}
-        </Button>
-      </div>
     </div>
   );
 }
