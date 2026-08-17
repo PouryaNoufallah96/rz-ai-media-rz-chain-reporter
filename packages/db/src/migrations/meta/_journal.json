@@ -8,6 +8,55 @@
       "when": 1786693899759,
       "tag": "0000_initial_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786919584886,
+      "tag": "0001_fold_unique_name_v1",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786920560955,
+      "tag": "0002_workspace",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786921701854,
+      "tag": "0003_source_analysis",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786921818093,
+      "tag": "0004_content_media",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786940133652,
+      "tag": "0005_operation_control",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786968278209,
+      "tag": "0006_product_model_correction",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786970817169,
+      "tag": "0007_configured_source",
+      "breakpoints": true
     }
   ]
 }
