@@ -12,11 +12,6 @@ import { operationLifecycle } from "./enums";
 import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
 import { workspace } from "./workspace";
 
-// The command intent and idempotency root. request_hash is stored beside the
-// identity tuple and deliberately outside it: the 23505 fires first, then the
-// use case compares the stored hash to tell a replay from a same-key changed
-// payload. Inside the constraint, that retry would insert and execute a second
-// operation -- the duplicate-publish defect this table exists to correct.
 export const operation = pgTable(
   "operation",
   {

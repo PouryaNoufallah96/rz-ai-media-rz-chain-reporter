@@ -5,6 +5,7 @@ export * from "./approval";
 export * from "./assistant-conversation";
 export * from "./assistant-message";
 export * from "./auth";
+export * from "./auth-throttle";
 export * from "./destination-account";
 export * from "./draft-revision";
 export * from "./editorial-selection";

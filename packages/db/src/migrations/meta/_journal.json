@@ -57,6 +57,20 @@
       "when": 1786970817169,
       "tag": "0007_configured_source",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787023371890,
+      "tag": "0008_installation_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787023477015,
+      "tag": "0009_auth_abuse_protection",
+      "breakpoints": true
     }
   ]
 }

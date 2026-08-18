@@ -10,8 +10,6 @@ import { contentLocale, sourceOrigin } from "./enums";
 import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
 import { workspace } from "./workspace";
 
-// Immutable provenance: rows are never edited after ingestion and every
-// referencing table restricts, so a source item outlives what it produced.
 export const sourceItem = pgTable(
   "source_item",
   {

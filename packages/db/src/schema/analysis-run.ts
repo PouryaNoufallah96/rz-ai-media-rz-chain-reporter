@@ -5,8 +5,6 @@ import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
 import { operation } from "./operation";
 import { workspace } from "./workspace";
 
-// The run id is the anchor a late asynchronous write is compared against, so it
-// is stable for the life of the run; execution state belongs to the operation.
 export const analysisRun = pgTable(
   "analysis_run",
   {

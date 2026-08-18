@@ -12,10 +12,7 @@ import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
 import { operation } from "./operation";
 import { workspace } from "./workspace";
 
-// The effect record committed in the same transaction as the state change.
-// Payloads carry opaque identifiers only -- never prompts, article bodies,
-// generated content, credentials, or base64. Phase 4 owns the dispatcher and
-// revalidates a payload against its schema_version before acting on it.
+// Phase 4 owns the dispatcher and revalidates payloads against schema_version.
 export const outboxEvent = pgTable(
   "outbox_event",
   {

@@ -19,10 +19,7 @@ export const softDelete = {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 };
 
-// The restrict edge to `workspace` is declared per table as a named
-// `foreignKey()`, because the constraint grammar the SQLSTATE walker
-// discriminates on needs `fk_<table>_workspace_id` and `.references()` cannot
-// spell a constraint name.
+// Named `fk_<table>_workspace_id`: `.references()` cannot spell the SQLSTATE walker name.
 export const workspaceScope = {
   workspaceId: uuid("workspace_id").notNull(),
 };

@@ -4,8 +4,6 @@ import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
 import { mediaAsset } from "./media-asset";
 import { workspace } from "./workspace";
 
-// Promotion creates a derivation; it never rewrites the meaning of an existing
-// object key, so both keys stay immutable and unique within the workspace.
 export const mediaDerivation = pgTable(
   "media_derivation",
   {

@@ -6,13 +6,8 @@ import {
 } from "@rz-chain-reporter/contracts";
 import { pgEnum } from "drizzle-orm/pg-core";
 
-// Content locale is the language of the editorial artifact, a different field
-// from the operator's UI locale that packages/i18n owns.
 export const contentLocale = pgEnum("content_locale", ["en", "fa"]);
 
-// A destination platform is a code capability: a value exists only once its
-// adapter ships, so the closed set belongs to the code rather than to a
-// customer template.
 export const platform = pgEnum("platform", ["x", "telegram", "instagram"]);
 
 export const sourceOrigin = pgEnum("source_origin", ["rss", "telegram_public"]);
