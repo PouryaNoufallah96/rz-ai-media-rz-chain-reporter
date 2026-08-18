@@ -25,10 +25,12 @@
     "db:studio": "drizzle-kit studio",
     "db:migrate": "tsx src/migrate.ts",
     "db:seed": "tsx src/seed/dev.ts",
+    "template:reconcile": "tsx src/reconcile/cli.ts",
     "fix": "biome check --write ."
   },
   "dependencies": {
     "@rz-chain-reporter/contracts": "workspace:*",
+    "@rz-chain-reporter/customer-template": "workspace:*",
     "@rz-chain-reporter/env": "workspace:*",
     "drizzle-orm": "0.45.2",
     "pg": "8.23.0"
