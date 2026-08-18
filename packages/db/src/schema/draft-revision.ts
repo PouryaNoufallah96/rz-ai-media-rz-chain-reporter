@@ -15,10 +15,6 @@ import { mediaAsset } from "./media-asset";
 import { platformDraft } from "./platform-draft";
 import { workspace } from "./workspace";
 
-// Immutable once written: approval and schedule pin one exact revision, which is
-// what makes "the currently edited content" a pinnable artifact. content_locale
-// is denormalized from the draft at creation so a pinned revision keeps the
-// locale it was written in.
 export const draftRevision = pgTable(
   "draft_revision",
   {
@@ -57,8 +53,6 @@ export const draftRevision = pgTable(
       columns: [t.authoredBy],
       foreignColumns: [user.id],
     }).onDelete("restrict"),
-    // Assembled name is 64 bytes; stored under the §7.3 truncation of
-    // uq_draft_revision_workspace_id_platform_draft_id_revision_number.
     unique(
       "uq_draft_revision_workspace_id_platform_draft_id_revis_570bf336",
     ).on(t.workspaceId, t.platformDraftId, t.revisionNumber),

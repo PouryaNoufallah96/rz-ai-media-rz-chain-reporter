@@ -1,5 +1,9 @@
 name: rz-chain-reporter
 
+# Deploy order: migrate, then template:reconcile from a checkout, then web and
+# worker. Their prestart assertions refuse to start until the loaded template
+# is the applied one, so bringing the stack up before reconciling fails loudly.
+
 services:
   migrate:
     build:
@@ -16,6 +20,10 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      # Unset stays empty (no compose interpolation failure); Dockerfile and
+      # prestart reject an empty or mismatched key.
+      args:
+        CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY}
     init: true
     ports:
       - "127.0.0.1:3001:3001"
@@ -23,6 +31,7 @@ services:
       - path: apps/web/.env
         required: false
     environment:
+      CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY}
       BETTER_AUTH_URL: http://localhost:3001
       CORS_ORIGIN: http://localhost:3001
       APP_URL: http://localhost:3001
@@ -51,11 +60,14 @@ services:
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
+      args:
+        CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY}
     init: true
     env_file:
       - path: apps/worker/.env
         required: true
     environment:
+      CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY}
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/rz-chain-reporter
       WORKER_HEALTH_PORT: 3002
     depends_on:

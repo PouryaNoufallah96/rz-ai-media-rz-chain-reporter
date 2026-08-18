@@ -12,8 +12,6 @@ import { mediaBrand } from "./media-brand";
 import { sourceItem } from "./source-item";
 import { workspace } from "./workspace";
 
-// The stable content identity: edits append revisions instead of mutating this
-// row, so `version` guards only the draft's own mutable fields.
 export const platformDraft = pgTable(
   "platform_draft",
   {

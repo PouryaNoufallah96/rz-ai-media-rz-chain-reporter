@@ -8,6 +8,7 @@
       "title": "Welcome back",
       "email": "Email",
       "password": "Password",
+      "rememberMe": "Keep me signed in",
       "submit": "Sign in",
       "submitting": "Signing in…",
       "success": "Signed in",
@@ -17,6 +18,7 @@
       "emailInvalid": "Enter a valid email address",
       "invalidCredentials": "Unable to sign in with those credentials",
       "passwordRequired": "Enter your password",
+      "rateLimited": "Too many sign-in attempts. Wait a few minutes and try again.",
       "unknown": "Something went wrong. Please try again."
     }
   }

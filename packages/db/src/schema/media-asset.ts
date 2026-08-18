@@ -12,9 +12,6 @@ import { mediaAssetLifecycle } from "./enums";
 import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
 import { workspace } from "./workspace";
 
-// Declared bytes come from the upload capability, actual bytes and checksum from
-// observing the stored object; `version` makes each transition a conditional
-// update. Object I/O stays outside the transaction that moves the lifecycle.
 export const mediaAsset = pgTable(
   "media_asset",
   {

@@ -1,0 +1,48 @@
+{
+  "installation": {
+    "title": "نصب",
+    "intro": "این استقرار برای چه چیزی پیکربندی شده است. همهٔ مقادیر زیر از قالب مشتری می‌آید و هنگام استقرار نصب اعمال می‌شود.",
+    "loading": "در حال بارگذاری پیکربندی نصب",
+    "labels": {
+      "workspace": "فضای کاری",
+      "template": "قالب مشتری",
+      "schemaVersion": "نسخهٔ شمای قالب",
+      "fingerprint": "اثر انگشت قالب",
+      "appliedAt": "آخرین اعمال",
+      "key": "کلید",
+      "origin": "نوع منبع",
+      "endpoint": "نشانی",
+      "platform": "پلتفرم",
+      "professionalAccountId": "شناسهٔ حساب حرفه‌ای",
+      "username": "نام کاربری"
+    },
+    "identity": {
+      "title": "هویت",
+      "notRecorded": "ثبت نشده"
+    },
+    "mediaBrands": {
+      "title": "برندهای رسانه‌ای"
+    },
+    "sources": {
+      "title": "منبع‌ها",
+      "empty": "هیچ منبعی پیکربندی نشده است."
+    },
+    "destinations": {
+      "title": "حساب‌های مقصد",
+      "empty": "هیچ حساب مقصدی پیکربندی نشده است.",
+      "checkedAt": "بررسی‌شده در {date}",
+      "neverChecked": "هنوز بررسی‌ای ثبت نشده است"
+    },
+    "mapping": {
+      "title": "نگاشت برند به مقصد",
+      "none": "بدون حساب مقصد"
+    },
+    "state": {
+      "enabled": "فعال",
+      "disabledByTemplate": "غیرفعال‌شده در قالب",
+      "bound": "متصل",
+      "unbound": "بدون اتصال",
+      "unchecked": "بررسی‌نشده"
+    }
+  }
+}

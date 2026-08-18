@@ -4,9 +4,7 @@ import { user } from "./auth";
 import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
 import { workspace } from "./workspace";
 
-// Retention is recorded, not enforced: legacy expired a whole conversation 60
-// minutes after it began, so the deadline is stored per row and Phase 9 owns
-// the process that acts on it.
+// Retention is stored, not enforced; Phase 9 owns the process that acts on expires_at.
 export const assistantConversation = pgTable(
   "assistant_conversation",
   {

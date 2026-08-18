@@ -8,15 +8,15 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { sourceOrigin } from "./enums";
-import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
+import {
+  softDelete,
+  timestamps,
+  uuidPrimaryKey,
+  workspaceScope,
+} from "./helpers";
 import { workspace } from "./workspace";
 
-// A configured origin the installation draws material from, seeded from the
-// customer template rather than operator CRUD. `endpoint` holds the feed URL for
-// `rss` and the public channel handle for `telegram_public`; the origin's
-// SourceFetcher reads it. Keywords, weights, thresholds, caps and source
-// authority are template configuration Phase 6 consumes, deliberately not
-// columns here, and `metadata` carries only non-secret fetch detail.
+// Keywords, weights, thresholds, and source authority stay off this row; Phase 6 consumes them from the template.
 export const source = pgTable(
   "source",
   {
@@ -29,6 +29,7 @@ export const source = pgTable(
     enabled: boolean("enabled").notNull().default(true),
     metadata: jsonb("metadata"),
     ...timestamps,
+    ...softDelete,
   },
   (t) => [
     foreignKey({

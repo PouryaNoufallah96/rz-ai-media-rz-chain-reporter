@@ -6,12 +6,14 @@ import {
   unique,
 } from "drizzle-orm/pg-core";
 
-import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
+import {
+  softDelete,
+  timestamps,
+  uuidPrimaryKey,
+  workspaceScope,
+} from "./helpers";
 import { workspace } from "./workspace";
 
-// Customer-template reference data seeded at provisioning, not operator CRUD and
-// not a value set the code owns: which brands exist varies per installation, so
-// `key` is the template's stable handle and every reference restricts against it.
 export const mediaBrand = pgTable(
   "media_brand",
   {
@@ -21,6 +23,7 @@ export const mediaBrand = pgTable(
     name: text("name").notNull(),
     sortOrder: integer("sort_order").notNull(),
     ...timestamps,
+    ...softDelete,
   },
   (t) => [
     foreignKey({

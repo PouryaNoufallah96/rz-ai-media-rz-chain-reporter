@@ -3,7 +3,7 @@ import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
 import { Suspended } from "@/components/fetcher/suspended";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
 import { getT } from "@/i18n/server";
-import { PRODUCT_NAME } from "@/lib/branding";
+import { customerProductName } from "@/lib/customer-template.server";
 
 export default function Home() {
   return (
@@ -21,7 +21,7 @@ export default function Home() {
               {t("landing.eyebrow")}
             </p>
             <h1 className="max-w-3xl text-balance font-semibold text-4xl sm:text-6xl">
-              {PRODUCT_NAME}
+              {customerProductName}
             </h1>
             <p className="mt-5 max-w-2xl text-pretty text-lg text-muted-foreground">
               {t("landing.body")}

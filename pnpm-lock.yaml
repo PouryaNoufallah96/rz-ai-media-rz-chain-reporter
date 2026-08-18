@@ -140,6 +140,9 @@ importers:
       '@rz-chain-reporter/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@rz-chain-reporter/customer-template':
+        specifier: workspace:*
+        version: link:../../packages/customer-template
       '@rz-chain-reporter/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -234,6 +237,9 @@ importers:
       '@openrouter/ai-sdk-provider':
         specifier: 'catalog:'
         version: 3.0.0(ai@7.0.66(zod@4.4.3))(zod@4.4.3)
+      '@rz-chain-reporter/customer-template':
+        specifier: workspace:*
+        version: link:../../packages/customer-template
       '@rz-chain-reporter/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -328,11 +334,30 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  packages/customer-template:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@rz-chain-reporter/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 26.2.0
+        version: 26.2.0
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   packages/db:
     dependencies:
       '@rz-chain-reporter/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@rz-chain-reporter/customer-template':
+        specifier: workspace:*
+        version: link:../customer-template
       '@rz-chain-reporter/env':
         specifier: workspace:*
         version: link:../env
@@ -364,6 +389,9 @@ importers:
 
   packages/env:
     dependencies:
+      '@rz-chain-reporter/customer-template':
+        specifier: workspace:*
+        version: link:../customer-template
       '@t3-oss/env-core':
         specifier: 0.13.11
         version: 0.13.11(typescript@7.0.2)(zod@4.4.3)

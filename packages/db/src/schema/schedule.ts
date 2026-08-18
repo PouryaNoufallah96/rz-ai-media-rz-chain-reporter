@@ -11,10 +11,6 @@ import { platform, scheduleStatus } from "./enums";
 import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
 import { workspace } from "./workspace";
 
-// Immutable intent pinned to one exact revision: scheduled_at is what the
-// operator asked for in `timezone`, effective_at is the canonical instant every
-// retry and replay reuses instead of recomputing from the clock. Execution
-// state lives on the operation, so status only records the intent's own end.
 export const schedule = pgTable(
   "schedule",
   {

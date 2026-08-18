@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "customer": {
+    "key": "demo-sports",
+    "productName": "Demo Sports Desk"
+  },
+  "workspace": {
+    "name": "Demo Sports Desk"
+  },
+  "mediaBrands": [
+    { "key": "match-day", "name": "Match Day" },
+    { "key": "transfer-desk", "name": "Transfer Desk" },
+    { "key": "training-ground", "name": "Training Ground" }
+  ],
+  "sources": [
+    {
+      "key": "demo-league-rss",
+      "origin": "rss",
+      "endpoint": "https://feeds.example.com/demo-league.xml",
+      "name": "Demo League Wire",
+      "enabled": true
+    },
+    {
+      "key": "demo-transfers-rss",
+      "origin": "rss",
+      "endpoint": "https://feeds.example.com/demo-transfers.xml",
+      "name": "Demo Transfer Wire",
+      "enabled": true
+    },
+    {
+      "key": "demo-scores-telegram",
+      "origin": "telegram_public",
+      "endpoint": "demo_scores",
+      "name": "Demo Scores Channel",
+      "enabled": true
+    },
+    {
+      "key": "demo-archive-rss",
+      "origin": "rss",
+      "endpoint": "https://feeds.example.com/demo-archive.xml",
+      "name": "Demo Archive",
+      "enabled": false
+    }
+  ],
+  "destinationAccounts": [
+    {
+      "key": "match-day-telegram",
+      "platform": "telegram",
+      "enabled": true,
+      "metadata": { "label": "Match Day Telegram", "channel": "demo_match_day" }
+    },
+    {
+      "key": "transfer-desk-x",
+      "platform": "x",
+      "enabled": true,
+      "metadata": { "label": "Transfer Desk X" }
+    },
+    {
+      "key": "match-day-instagram",
+      "platform": "instagram",
+      "enabled": false,
+      "metadata": {
+        "label": "Match Day Instagram",
+        "professionalAccountId": "17841400000000000",
+        "username": "demo_match_day"
+      }
+    }
+  ],
+  "brandDestinations": [
+    { "brandKey": "match-day", "destinationKey": "match-day-telegram" },
+    { "brandKey": "match-day", "destinationKey": "match-day-instagram" },
+    { "brandKey": "transfer-desk", "destinationKey": "transfer-desk-x" },
+    { "brandKey": "training-ground", "destinationKey": "match-day-telegram" }
+  ]
+}

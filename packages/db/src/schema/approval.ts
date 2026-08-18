@@ -11,8 +11,6 @@ import { draftRevision } from "./draft-revision";
 import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
 import { workspace } from "./workspace";
 
-// Editorial acceptance of one exact revision and nothing else: it does not
-// publish. Append-only, so the pinned revision restricts.
 export const approval = pgTable(
   "approval",
   {

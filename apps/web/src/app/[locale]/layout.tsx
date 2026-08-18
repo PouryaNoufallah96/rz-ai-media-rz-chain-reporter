@@ -16,7 +16,7 @@ import Providers from "@/components/providers";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
 import { Localized } from "@/i18n/client";
 import { getT } from "@/i18n/server";
-import { PRODUCT_NAME } from "@/lib/branding";
+import { customerProductName } from "@/lib/customer-template.server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,7 +43,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getT(SHARED_NAMESPACE);
 
   return {
-    title: PRODUCT_NAME,
+    title: customerProductName,
     description: t("metadata.description"),
   };
 }

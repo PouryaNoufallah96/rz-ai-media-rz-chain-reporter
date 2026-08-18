@@ -75,8 +75,6 @@ const sortDirectionSchema = z.enum(["asc", "desc"], {
   error: "orderByInvalid",
 });
 
-// Page and page-size policy belongs to the surface that owns the URL. The wire
-// only bounds what a client may ask for, so nothing here carries a default.
 export function createListInput<
   const TColumns extends readonly [string, ...string[]],
 >(orderableColumns: TColumns) {
@@ -126,8 +124,6 @@ export const setActiveSchema = idSchema.extend({
 
 export type SetActiveInput = z.infer<typeof setActiveSchema>;
 
-// The reorder pass renumbers under a per-workspace lock, so the submitted set
-// is bounded at the contract rather than inside it.
 const MAX_REORDERED_IDS = 500;
 
 export const reorderSchema = z.object({

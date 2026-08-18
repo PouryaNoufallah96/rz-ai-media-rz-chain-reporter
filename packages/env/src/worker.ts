@@ -2,10 +2,11 @@ import "dotenv/config";
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
-import { httpUrl, postgresUrl } from "./schema";
+import { customerTemplateKey, httpUrl, postgresUrl } from "./schema";
 
 export const workerEnv = createEnv({
   server: {
+    CUSTOMER_TEMPLATE_KEY: customerTemplateKey,
     DATABASE_URL: postgresUrl,
     INNGEST_EVENT_KEY: z.string().min(1).optional(),
     INNGEST_SIGNING_KEY: z.string().min(1).optional(),

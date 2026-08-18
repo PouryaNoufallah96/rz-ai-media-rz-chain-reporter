@@ -5,5 +5,5 @@ export const TIME_ZONE = "UTC";
 
 export const FORMATS: Formats = {};
 
-// Epoch: next-intl's default `now` is build time. Relative-time callers pass their own.
+// next-intl's default `now` is build time; relative-time callers pass their own.
 export const NOW = new Date(0);

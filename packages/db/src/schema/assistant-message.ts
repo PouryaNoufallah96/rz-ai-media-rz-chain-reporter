@@ -4,8 +4,7 @@ import { assistantConversation } from "./assistant-conversation";
 import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
 import { workspace } from "./workspace";
 
-// Owned by its conversation and discarded with it. Reviewed knowledge lives in
-// no table this phase: chunks and vectors are Phase 9.
+// Chunks and vectors are Phase 9; no table this phase.
 export const assistantMessage = pgTable(
   "assistant_message",
   {

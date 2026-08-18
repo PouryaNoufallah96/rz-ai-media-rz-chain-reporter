@@ -1,13 +1,22 @@
-import { foreignKey, jsonb, pgTable, text, unique } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  foreignKey,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+} from "drizzle-orm/pg-core";
 
 import { platform } from "./enums";
-import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
+import {
+  softDelete,
+  timestamps,
+  uuidPrimaryKey,
+  workspaceScope,
+} from "./helpers";
 import { workspace } from "./workspace";
 
-// `key` is the domain identity of a concrete publishing destination; deployment
-// configuration resolves it to a credential. Neither the credential nor the name
-// of the variable holding it is ever stored here, and `metadata` carries only
-// non-secret platform detail.
 export const destinationAccount = pgTable(
   "destination_account",
   {
@@ -15,8 +24,12 @@ export const destinationAccount = pgTable(
     ...workspaceScope,
     key: text("key").notNull(),
     platform: platform("platform").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
     metadata: jsonb("metadata"),
+    bindingPresent: boolean("binding_present"),
+    bindingCheckedAt: timestamp("binding_checked_at", { withTimezone: true }),
     ...timestamps,
+    ...softDelete,
   },
   (t) => [
     foreignKey({

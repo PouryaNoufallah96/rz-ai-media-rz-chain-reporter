@@ -8,6 +8,7 @@ const MESSAGE_KEYS = {
   emailInvalid: "errors.emailInvalid",
   passwordRequired: "errors.passwordRequired",
   INVALID_CREDENTIALS: "errors.invalidCredentials",
+  RATE_LIMITED: "errors.rateLimited",
 } as const;
 
 type FieldErrorCode = keyof typeof MESSAGE_KEYS;

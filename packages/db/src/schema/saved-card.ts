@@ -13,10 +13,6 @@ import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
 import { platformDraft } from "./platform-draft";
 import { workspace } from "./workspace";
 
-// `id` is the saved-row identity and `content_card_id` the editorial identity
-// schedules carry; legacy sent one where it meant the other, so both stay
-// explicit columns. The partial unique is what collapses duplicate
-// saves: discarding releases the pair, saving again reuses it.
 export const savedCard = pgTable(
   "saved_card",
   {

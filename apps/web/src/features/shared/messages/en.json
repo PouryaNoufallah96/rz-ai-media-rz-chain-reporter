@@ -7,7 +7,8 @@
       "skipToContent": "Skip to content",
       "primaryNav": "Primary",
       "home": "Home",
-      "dashboard": "Dashboard"
+      "dashboard": "Dashboard",
+      "installation": "Installation"
     },
     "theme": {
       "toggle": "Toggle theme",

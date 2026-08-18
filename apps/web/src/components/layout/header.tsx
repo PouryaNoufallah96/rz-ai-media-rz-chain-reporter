@@ -23,6 +23,7 @@ export default async function Header() {
         <nav aria-label={t("header.primaryNav")} className="flex gap-4 text-lg">
           <Link href="/">{t("header.home")}</Link>
           <Link href="/dashboard">{t("header.dashboard")}</Link>
+          <Link href="/installation">{t("header.installation")}</Link>
         </nav>
         <div className="flex items-center gap-2">
           <Localized namespaces={[SHARED_NAMESPACE, OPERATIONS_NAMESPACE]}>

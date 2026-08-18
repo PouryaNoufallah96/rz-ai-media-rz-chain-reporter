@@ -4,12 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3001",
-    "build": "next build",
+    "build": "pnpm run build:template && next build",
+    "build:template": "node --import tsx scripts/validate-template-build.ts",
     "check": "biome check .",
     "check-types": "tsc --noEmit",
     "fix": "biome check --write .",
+    "openapi:check": "node --conditions=react-server --import tsx scripts/generate-openapi.ts --check",
     "openapi:generate": "node --conditions=react-server --import tsx scripts/generate-openapi.ts",
     "operator:create": "node --conditions=react-server --import tsx scripts/create-operator.ts",
+    "operator:reset-password": "node --conditions=react-server --import tsx scripts/reset-operator-password.ts",
     "start": "next start"
   },
   "dependencies": {
@@ -22,6 +25,7 @@
     "@rz-chain-reporter/api": "workspace:*",
     "@rz-chain-reporter/auth": "workspace:*",
     "@rz-chain-reporter/contracts": "workspace:*",
+    "@rz-chain-reporter/customer-template": "workspace:*",
     "@rz-chain-reporter/db": "workspace:*",
     "@rz-chain-reporter/env": "workspace:*",
     "@rz-chain-reporter/i18n": "workspace:*",

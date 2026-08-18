@@ -1,0 +1,25 @@
+{
+  "name": "@rz-chain-reporter/customer-template",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./fingerprint": "./src/fingerprint.ts",
+    "./load": "./src/load.ts",
+    "./schema": "./src/schema.ts",
+    "./stable-key": "./src/stable-key.ts"
+  },
+  "scripts": {
+    "check": "biome check .",
+    "check-types": "tsc --noEmit",
+    "fix": "biome check --write ."
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@rz-chain-reporter/config": "workspace:*",
+    "@types/node": "26.2.0",
+    "typescript": "catalog:"
+  }
+}

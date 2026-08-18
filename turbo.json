@@ -7,7 +7,8 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "env": ["NODE_ENV"],
+      "env": ["CUSTOMER_TEMPLATE_KEY", "NODE_ENV"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/customer-templates/**"],
       "outputs": ["dist/**"]
     },
     "check-types": {
@@ -16,6 +17,10 @@
     },
     "check": {
       "outputs": []
+    },
+    "openapi:check": {
+      "env": ["CUSTOMER_TEMPLATE_KEY"],
+      "cache": false
     },
     "dev": {
       "cache": false,

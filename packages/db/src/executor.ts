@@ -11,9 +11,7 @@ export type Executor = PgDatabase<NodePgQueryResultHKT, Schema, Tables>;
 
 export type Transaction = PgTransaction<NodePgQueryResultHKT, Schema, Tables>;
 
-// The third `set_config` argument is what makes the setting transaction-local:
-// a session-local one outlives the checkout and leaks workspace context to the
-// next borrower of the pooled connection.
+// The third argument is transaction-local; session-local would leak to the next pool borrower.
 export async function withWorkspaceContext(
   tx: Transaction,
   workspaceId: string,

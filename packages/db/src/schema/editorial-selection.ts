@@ -14,10 +14,6 @@ import { mediaBrand } from "./media-brand";
 import { sourceItem } from "./source-item";
 import { workspace } from "./workspace";
 
-// A selection is provenance for every draft made from it, so it restricts
-// against its run rather than being owned by it. `editorial_model` is the plain
-// key of the model that produced the selection: provenance, not a closed set,
-// because models reach code through ModelGateway and are template configuration.
 export const editorialSelection = pgTable(
   "editorial_selection",
   {
@@ -53,8 +49,6 @@ export const editorialSelection = pgTable(
       columns: [t.sourceItemId],
       foreignColumns: [sourceItem.id],
     }).onDelete("restrict"),
-    // Assembled name is 87 bytes; stored under the §7.3 truncation of
-    // uq_editorial_selection_workspace_id_analysis_run_id_editorial_model_media_brand_id_rank.
     unique(
       "uq_editorial_selection_workspace_id_analysis_run_id_ed_838762e6",
     ).on(

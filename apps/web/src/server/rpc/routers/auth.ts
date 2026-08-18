@@ -2,6 +2,7 @@ import "server-only";
 
 import { publicProcedure } from "@rz-chain-reporter/api";
 import { auth } from "@rz-chain-reporter/auth";
+import { signInThrottleRetryAfter } from "@rz-chain-reporter/auth/sign-in-throttle";
 import { APIError } from "better-auth/api";
 import { z } from "zod";
 
@@ -19,7 +20,17 @@ export const signOut = publicProcedure
 export const signIn = publicProcedure
   .input(signInSchema)
   .output(signedIn)
-  .errors({ INVALID_CREDENTIALS: { status: 401 } })
+  .errors({
+    INVALID_CREDENTIALS: { status: 401 },
+    RATE_LIMITED: {
+      status: 429,
+      // Loose so the shared request-id middleware's correlation key survives
+      // the declared shape.
+      data: z
+        .object({ retryAfterSeconds: z.number().int().positive() })
+        .loose(),
+    },
+  })
   .handler(async ({ context, errors, input }) => {
     try {
       const result = await auth.api.signInEmail({
@@ -28,6 +39,10 @@ export const signIn = publicProcedure
       });
       return { userId: result.user.id };
     } catch (error) {
+      const retryAfterSeconds = signInThrottleRetryAfter(error);
+      if (retryAfterSeconds !== null) {
+        throw errors.RATE_LIMITED({ data: { retryAfterSeconds } });
+      }
       if (error instanceof APIError) {
         throw errors.INVALID_CREDENTIALS();
       }

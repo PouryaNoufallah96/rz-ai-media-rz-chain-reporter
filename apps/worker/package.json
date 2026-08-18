@@ -4,7 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --packages=bundle --platform=node --format=esm --target=node24 --banner:js=\"import { createRequire as __chainReporterCreateRequire } from 'node:module'; const require = __chainReporterCreateRequire(import.meta.url);\" --sourcemap --outfile=dist/main.js",
+    "bindings:preflight": "tsx src/bindings/check-cli.ts preflight",
+    "bindings:prestart": "tsx src/bindings/check-cli.ts prestart",
+    "bindings:record": "tsx src/bindings/record-cli.ts",
+    "build": "pnpm run build:template && pnpm run build:bundle",
+    "build:bundle": "esbuild main=src/main.ts prestart=src/identity/prestart-cli.ts --bundle --packages=bundle --platform=node --format=esm --target=node24 --banner:js=\"import { createRequire as __chainReporterCreateRequire } from 'node:module'; const require = __chainReporterCreateRequire(import.meta.url);\" --sourcemap --outdir=dist",
+    "build:template": "tsx src/identity/build-cli.ts",
     "check": "biome check .",
     "check-types": "tsc --noEmit",
     "dev": "tsx watch src/main.ts",
@@ -14,6 +19,7 @@
   },
   "dependencies": {
     "@openrouter/ai-sdk-provider": "catalog:",
+    "@rz-chain-reporter/customer-template": "workspace:*",
     "@rz-chain-reporter/db": "workspace:*",
     "@rz-chain-reporter/env": "workspace:*",
     "ai": "catalog:",

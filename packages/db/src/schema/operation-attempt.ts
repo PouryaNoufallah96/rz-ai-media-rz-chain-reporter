@@ -13,10 +13,6 @@ import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
 import { operation } from "./operation";
 import { workspace } from "./workspace";
 
-// One recorded execution, append-only: the row says what came back, and the
-// lifecycle move it implies is a separate conditional update in the same
-// transaction. failure_code carries a stable public code, never driver or
-// provider text.
 export const operationAttempt = pgTable(
   "operation_attempt",
   {

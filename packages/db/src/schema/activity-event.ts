@@ -12,10 +12,6 @@ import { operation } from "./operation";
 import { platformDraft } from "./platform-draft";
 import { workspace } from "./workspace";
 
-// The operator's recorded approvals, schedules, and publishing outcomes.
-// Subjects are enforced references rather than a (type, id) pair, because an
-// unenforced polymorphic id is the legacy defect this schema corrects. What a
-// historical count means stays a cutover question, not a column.
 export const activityEvent = pgTable(
   "activity_event",
   {

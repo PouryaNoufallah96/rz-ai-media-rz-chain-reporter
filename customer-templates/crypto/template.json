@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "customer": {
+    "key": "crypto",
+    "productName": "RZ ChainReporter"
+  },
+  "workspace": {
+    "name": "RZ ChainReporter"
+  },
+  "mediaBrands": [
+    { "key": "rz-prime", "name": "RZ Prime" },
+    { "key": "coin-hall", "name": "Coin Hall" },
+    { "key": "chain-reporter", "name": "ChainReporter" },
+    { "key": "meta-coin-guard", "name": "Meta Coin Guard" }
+  ],
+  "sources": [
+    {
+      "key": "coindesk-rss",
+      "origin": "rss",
+      "endpoint": "https://www.coindesk.com/arc/outboundfeeds/rss/",
+      "name": "CoinDesk",
+      "enabled": true
+    },
+    {
+      "key": "cointelegraph-rss",
+      "origin": "rss",
+      "endpoint": "https://cointelegraph.com/rss",
+      "name": "Cointelegraph",
+      "enabled": true
+    },
+    {
+      "key": "the-block-rss",
+      "origin": "rss",
+      "endpoint": "https://www.theblock.co/rss.xml",
+      "name": "The Block",
+      "enabled": true
+    },
+    {
+      "key": "decrypt-rss",
+      "origin": "rss",
+      "endpoint": "https://decrypt.co/feed",
+      "name": "Decrypt",
+      "enabled": false
+    },
+    {
+      "key": "cointelegraph-telegram",
+      "origin": "telegram_public",
+      "endpoint": "cointelegraph",
+      "name": "Cointelegraph Channel",
+      "enabled": true
+    }
+  ],
+  "destinationAccounts": [
+    {
+      "key": "chainreporter-telegram",
+      "platform": "telegram",
+      "enabled": true,
+      "metadata": { "label": "ChainReporter Telegram" }
+    },
+    {
+      "key": "chainreporter-x",
+      "platform": "x",
+      "enabled": true,
+      "metadata": { "label": "ChainReporter X" }
+    }
+  ],
+  "brandDestinations": [
+    { "brandKey": "rz-prime", "destinationKey": "chainreporter-telegram" },
+    { "brandKey": "rz-prime", "destinationKey": "chainreporter-x" },
+    { "brandKey": "coin-hall", "destinationKey": "chainreporter-telegram" },
+    { "brandKey": "coin-hall", "destinationKey": "chainreporter-x" },
+    { "brandKey": "chain-reporter", "destinationKey": "chainreporter-telegram" },
+    { "brandKey": "chain-reporter", "destinationKey": "chainreporter-x" },
+    { "brandKey": "meta-coin-guard", "destinationKey": "chainreporter-telegram" },
+    { "brandKey": "meta-coin-guard", "destinationKey": "chainreporter-x" }
+  ]
+}

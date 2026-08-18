@@ -1,13 +1,9 @@
 import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
 import { SimpleCsrfProtectionHandlerPlugin } from "@orpc/server/plugins";
-import { createContext } from "@rz-chain-reporter/api/context";
-import {
-  problemResponse,
-  resolveRequestId,
-  withRequestId,
-} from "@rz-chain-reporter/api/request";
+import { problemResponse, withRequestId } from "@rz-chain-reporter/api/request";
 import type { NextRequest } from "next/server";
 import { MAX_CONTROL_PAYLOAD_BYTES } from "@/lib/payload-limits";
+import { createInstallationContext } from "@/server/rpc/context";
 import { appRouter } from "@/server/rpc/routers/index";
 
 const rpcHandler = new RPCHandler(appRouter, {
@@ -33,10 +29,9 @@ function toPlainRequest(req: NextRequest): Request {
 }
 
 async function handleRequest(req: NextRequest) {
-  const requestId = resolveRequestId(req.headers);
+  const context = createInstallationContext(req.headers);
+  const { requestId } = context;
 
-  // Declared oversize answers in the product's problem shape; the plugin still
-  // guards streamed bodies that understate or omit their length.
   if (Number(req.headers.get("content-length")) > MAX_CONTROL_PAYLOAD_BYTES) {
     return problemResponse(
       requestId,
@@ -48,7 +43,7 @@ async function handleRequest(req: NextRequest) {
 
   const rpcResult = await rpcHandler.handle(toPlainRequest(req), {
     prefix: "/api/rpc",
-    context: await createContext(req.headers, requestId),
+    context,
   });
   if (rpcResult.response) return withRequestId(rpcResult.response, requestId);
 

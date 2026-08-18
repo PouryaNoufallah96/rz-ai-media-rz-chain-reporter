@@ -1,8 +1,10 @@
-import { auth } from "@rz-chain-reporter/auth";
+import {
+  createOperatorAccount,
+  operatorPasswordPolicy,
+} from "@rz-chain-reporter/auth/operator-accounts";
 import { z } from "zod";
 
-// Provisioning tool, not a dev seed: it runs against a real customer
-// deployment, so it deliberately carries no NODE_ENV guard.
+import { readNewPassword } from "./operator-prompt";
 
 function fail(message: string): never {
   console.error(message);
@@ -10,66 +12,42 @@ function fail(message: string): never {
 }
 
 async function createOperator() {
-  const email = process.env.OPERATOR_EMAIL ?? process.argv[2];
-  // Password is environment-only: an argument would land in shell history and
-  // in `ps` output on the customer's box.
-  const password = process.env.OPERATOR_PASSWORD;
+  const email = process.argv[2];
+  const name = process.argv[3];
 
   if (!email || !z.email().safeParse(email).success) {
-    fail(
-      "Set OPERATOR_EMAIL to an email address, or pass one as the first argument.",
-    );
-  }
-  if (!password) {
-    fail(
-      "Set OPERATOR_PASSWORD in the environment. It is never read from an argument.",
-    );
+    fail("Usage: operator:create <email> [name]");
   }
 
-  const name = process.env.OPERATOR_NAME ?? process.argv[3] ?? email;
-  const ctx = await auth.$context;
-  const { minPasswordLength } = ctx.password.config;
+  const password = await readNewPassword(await operatorPasswordPolicy());
+  if (password === null) process.exit(1);
 
-  if (password.length < minPasswordLength) {
-    fail(`OPERATOR_PASSWORD must be at least ${minPasswordLength} characters.`);
-  }
-
-  const existing = await ctx.internalAdapter.findUserByEmail(email, {
-    includeAccounts: true,
-  });
-
-  if (existing) {
-    fail(
-      existing.accounts.some((account) => account.providerId === "credential")
-        ? `An operator account already exists for ${email}.`
-        : `A user row exists for ${email} with no credential account, so it cannot sign in. Repair it before retrying.`,
-    );
-  }
-
-  // Better Auth owns the hash and the credential account row. `disableSignUp`
-  // closes /sign-up/email to every caller including this script, so the
-  // internal adapter is the supported path; these are the same two writes
-  // sign-up performs and the same two rows sign-in reads.
-  const hash = await ctx.password.hash(password);
-  const user = await ctx.internalAdapter.createUser({
+  const result = await createOperatorAccount({
     email,
-    emailVerified: false,
-    name,
+    name: name ?? email,
+    password,
   });
 
-  await ctx.internalAdapter.linkAccount({
-    accountId: user.id,
-    password: hash,
-    providerId: "credential",
-    userId: user.id,
-  });
-
-  console.log(`Created operator ${user.email} (${user.id}).`);
+  switch (result.status) {
+    case "created":
+      console.log(`Created operator ${result.email} (${result.userId}).`);
+      return;
+    case "email-taken":
+      fail(`An operator account already exists for ${email}.`);
+      break;
+    case "no-credential-account":
+      fail(
+        `A user row exists for ${email} with no credential account, so it cannot sign in. Repair it before retrying.`,
+      );
+      break;
+    case "password-rejected":
+      fail(
+        `The password must be between ${result.policy.minPasswordLength} and ${result.policy.maxPasswordLength} characters.`,
+      );
+  }
 }
 
-// apps/web is not `"type": "module"`, so tsx compiles this file to CJS, where
-// top-level await is unavailable. The auth module opens a connection pool it
-// never exposes, so exit explicitly instead of waiting for an idle event loop.
+// tsx compiles this to CJS (no top-level await); the auth pool needs an explicit exit.
 createOperator().then(
   () => process.exit(0),
   (error: unknown) => {

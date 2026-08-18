@@ -20,6 +20,10 @@
     "db:studio": "turbo run db:studio --filter=@rz-chain-reporter/db",
     "db:generate": "turbo run db:generate --filter=@rz-chain-reporter/db",
     "db:migrate": "turbo run db:migrate --filter=@rz-chain-reporter/db",
+    "template:reconcile": "pnpm --filter @rz-chain-reporter/db template:reconcile",
+    "bindings:preflight": "pnpm --filter worker bindings:preflight",
+    "bindings:prestart": "pnpm --filter worker bindings:prestart",
+    "bindings:record": "pnpm --filter worker bindings:record",
     "db:start": "docker compose up -d postgres",
     "db:watch": "docker compose up postgres",
     "db:stop": "docker compose stop postgres",
@@ -33,7 +37,8 @@
     "fix": "pnpm run fix:root && turbo run fix",
     "fix:root": "biome check --write .vscode/settings.json biome.json package.json tsconfig.json turbo.json",
     "doctor": "pnpm dlx -y react-doctor@latest .",
-    "validate": "pnpm run check && pnpm run check-types && pnpm run doctor"
+    "openapi:check": "turbo run openapi:check --filter=web",
+    "validate": "pnpm run check && pnpm run check-types && pnpm run openapi:check && pnpm run doctor"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.8",
