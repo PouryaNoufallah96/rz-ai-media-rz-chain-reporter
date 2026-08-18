@@ -8,10 +8,14 @@
         "DATABASE_URL",
         "INNGEST_EVENT_KEY",
         "INNGEST_SIGNING_KEY",
+        "INNGEST_DEV",
+        "INNGEST_CONNECT_MAX_WORKER_CONCURRENCY",
         "NODE_ENV",
         "OLLAMA_BASE_URL",
         "OPENROUTER_API_KEY",
-        "WORKER_HEALTH_PORT"
+        "WORKER_HEALTH_PORT",
+        "WORKER_MODE",
+        "APP_VERSION"
       ],
       "persistent": true,
       "cache": false
