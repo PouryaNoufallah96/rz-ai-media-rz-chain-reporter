@@ -4,9 +4,7 @@ import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { cn } from "@rz-chain-reporter/ui/lib/utils";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 
-// Base UI resolves `inline-start`/`inline-end` against the mounted direction
-// provider and keeps the logical name on `data-side`, so the physical members of
-// its `Side` union are withheld from the public prop.
+// Public API omits physical sides; Base UI maps logical sides via the direction provider.
 type SelectSide = "bottom" | "inline-end" | "inline-start" | "top";
 
 const Select = SelectPrimitive.Root;

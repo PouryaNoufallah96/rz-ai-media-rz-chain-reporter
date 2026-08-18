@@ -12,7 +12,7 @@ const PANEL_STATES = [
 
 export type PanelState = (typeof PANEL_STATES)[number];
 
-// The retry tick is a panel-row mark: §4.2 counts retrying with running.
+// Retrying shares the running chip; ChipState omits it.
 export type ChipState = Exclude<PanelState, "retrying">;
 
 export type Chip = { count: number; state: ChipState };

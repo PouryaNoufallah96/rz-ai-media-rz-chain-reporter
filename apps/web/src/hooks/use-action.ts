@@ -46,7 +46,6 @@ function extractFieldErrors(error: unknown) {
   const { issues } = error.data;
   if (!Array.isArray(issues)) return;
 
-  // First issue per field, matching zodResolver.
   const fields: Record<string, string> = {};
   for (const issue of issues) {
     if (!isRecord(issue) || typeof issue.message !== "string") continue;
