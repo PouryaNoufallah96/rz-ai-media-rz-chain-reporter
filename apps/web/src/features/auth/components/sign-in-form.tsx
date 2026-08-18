@@ -2,10 +2,15 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@rz-chain-reporter/ui/components/button";
+import { FieldGroup } from "@rz-chain-reporter/ui/components/field";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { FormInputField } from "@/components/form/form-field";
+import {
+  FormCheckboxField,
+  FormInputField,
+  FormRootError,
+} from "@/components/form/form-field";
 import { applyActionErrorToForm, useAction } from "@/hooks/use-action";
 import { useRouter } from "@/i18n/navigation";
 import { signInAction } from "../actions/auth-actions";
@@ -26,7 +31,7 @@ export default function SignInForm() {
     handleSubmit,
     setError,
   } = useForm<SignInInput>({
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: "", password: "", rememberMe: false },
     mode: "onSubmit",
     resolver: zodResolver(signInSchema),
   });
@@ -40,7 +45,9 @@ export default function SignInForm() {
 
     if (result.status === "error") {
       applyActionErrorToForm(setError, result);
-      toast.error(t("signIn.failure"));
+      toast.error(
+        result.fieldErrors ? t("signIn.failure") : resolveError(result.code),
+      );
       return;
     }
 
@@ -53,40 +60,44 @@ export default function SignInForm() {
       <h1 className="mb-6 text-center font-bold text-3xl">
         {t("signIn.title")}
       </h1>
-      <form
-        aria-busy={isPending}
-        className="space-y-4"
-        onSubmit={onSubmit}
-        noValidate
-      >
-        <FormInputField
-          autoComplete="email"
-          control={control}
-          disabled={isPending}
-          label={t("signIn.email")}
-          name="email"
-          resolveError={resolveError}
-          type="email"
-        />
-        <FormInputField
-          autoComplete="current-password"
-          control={control}
-          disabled={isPending}
-          label={t("signIn.password")}
-          name="password"
-          resolveError={resolveError}
-          type="password"
-        />
-
-        {errors.root?.server && (
-          <p className="text-destructive text-sm" role="alert">
-            {resolveError(errors.root.server.message)}
-          </p>
-        )}
-
-        <Button className="w-full" disabled={isPending} type="submit">
-          {isPending ? t("signIn.submitting") : t("signIn.submit")}
-        </Button>
+      <form aria-busy={isPending} onSubmit={onSubmit} noValidate>
+        <FieldGroup>
+          <FormInputField
+            autoComplete="email"
+            control={control}
+            disabled={isPending}
+            label={t("signIn.email")}
+            name="email"
+            resolveError={resolveError}
+            type="email"
+          />
+          <FormInputField
+            autoComplete="current-password"
+            control={control}
+            disabled={isPending}
+            label={t("signIn.password")}
+            name="password"
+            resolveError={resolveError}
+            type="password"
+          />
+          <FormCheckboxField
+            control={control}
+            disabled={isPending}
+            label={t("signIn.rememberMe")}
+            name="rememberMe"
+            resolveError={resolveError}
+          />
+          <FormRootError
+            message={
+              errors.root?.server
+                ? resolveError(errors.root.server.message)
+                : undefined
+            }
+          />
+          <Button className="w-full" disabled={isPending} type="submit">
+            {isPending ? t("signIn.submitting") : t("signIn.submit")}
+          </Button>
+        </FieldGroup>
       </form>
     </div>
   );

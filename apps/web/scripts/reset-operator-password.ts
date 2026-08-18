@@ -1,6 +1,6 @@
 import {
-  createOperatorAccount,
   operatorPasswordPolicy,
+  resetOperatorPassword,
 } from "@rz-chain-reporter/auth/operator-accounts";
 import { z } from "zod";
 
@@ -11,33 +11,30 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-async function createOperator() {
+async function resetPassword() {
   const email = process.argv[2];
-  const name = process.argv[3];
 
   if (!email || !z.email().safeParse(email).success) {
-    fail("Usage: operator:create <email> [name]");
+    fail("Usage: operator:reset-password <email>");
   }
 
   const password = await readNewPassword(await operatorPasswordPolicy());
   if (password === null) process.exit(1);
 
-  const result = await createOperatorAccount({
-    email,
-    name: name ?? email,
-    password,
-  });
+  const result = await resetOperatorPassword({ email, password });
 
   switch (result.status) {
-    case "created":
-      console.log(`Created operator ${result.email} (${result.userId}).`);
+    case "reset":
+      console.log(
+        `Reset the password for ${result.email} (${result.userId}) and signed out its sessions.`,
+      );
       return;
-    case "email-taken":
-      fail(`An operator account already exists for ${email}.`);
+    case "not-found":
+      fail(`No operator account exists for ${email}.`);
       break;
     case "no-credential-account":
       fail(
-        `A user row exists for ${email} with no credential account, so it cannot sign in. Repair it before retrying.`,
+        `A user row exists for ${email} with no credential account, so there is no password to reset. Repair it before retrying.`,
       );
       break;
     case "password-rejected":
@@ -47,8 +44,7 @@ async function createOperator() {
   }
 }
 
-// tsx compiles this to CJS (no top-level await); the auth pool needs an explicit exit.
-createOperator().then(
+resetPassword().then(
   () => process.exit(0),
   (error: unknown) => {
     console.error(error);

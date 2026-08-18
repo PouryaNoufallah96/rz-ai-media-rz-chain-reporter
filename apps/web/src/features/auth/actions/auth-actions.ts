@@ -1,15 +1,11 @@
 "use server";
 
-import { createContext } from "@rz-chain-reporter/api/context";
-import { resolveRequestId } from "@rz-chain-reporter/api/request";
-import { headers } from "next/headers";
-
+import { createRequestContext } from "@/server/rpc/context";
 import { signIn, signOut } from "@/server/rpc/routers/auth";
 
-async function actionContext() {
-  const requestHeaders = await headers();
-  return createContext(requestHeaders, resolveRequestId(requestHeaders));
-}
-
-export const signInAction = signIn.actionable({ context: actionContext });
-export const signOutAction = signOut.actionable({ context: actionContext });
+export const signInAction = signIn.actionable({
+  context: createRequestContext,
+});
+export const signOutAction = signOut.actionable({
+  context: createRequestContext,
+});
