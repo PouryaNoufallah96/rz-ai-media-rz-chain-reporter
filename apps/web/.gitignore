@@ -12,6 +12,7 @@
 /coverage
 
 # Build outputs
+/build-metadata.json
 /.next/
 /out/
 /build/

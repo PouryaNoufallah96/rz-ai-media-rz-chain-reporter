@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./build": "./src/build.ts",
+    "./destination-bindings": "./src/destination-bindings.ts",
     "./migration": "./src/migration.ts",
     "./server": "./src/server.ts",
     "./worker": "./src/worker.ts",
@@ -12,6 +13,7 @@
   },
   "browser": {
     "./src/build.ts": "./src/browser.ts",
+    "./src/destination-bindings.ts": "./src/browser.ts",
     "./src/migration.ts": "./src/browser.ts",
     "./src/server.ts": "./src/browser.ts",
     "./src/worker.ts": "./src/browser.ts"
@@ -22,6 +24,7 @@
     "fix": "biome check --write ."
   },
   "dependencies": {
+    "@rz-chain-reporter/customer-template": "workspace:*",
     "@t3-oss/env-core": "0.13.11",
     "@t3-oss/env-nextjs": "0.13.11",
     "dotenv": "catalog:",
