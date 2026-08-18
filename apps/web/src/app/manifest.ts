@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
-import { PRODUCT_NAME } from "@/lib/branding";
+import { customerProductName } from "@/lib/customer-template.server";
 
 // Outside [locale]; `next/root-params` would throw.
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
@@ -13,7 +13,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   });
 
   return {
-    name: PRODUCT_NAME,
+    name: customerProductName,
     description: t("metadata.description"),
     dir: DIRECTION[DEFAULT_LOCALE],
     lang: DEFAULT_LOCALE,

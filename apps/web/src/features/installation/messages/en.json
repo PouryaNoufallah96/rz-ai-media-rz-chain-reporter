@@ -1,0 +1,48 @@
+{
+  "installation": {
+    "title": "Installation",
+    "intro": "What this deployment is configured to be. Every value below comes from the customer template and is applied when the installation is deployed.",
+    "loading": "Loading the installation configuration",
+    "labels": {
+      "workspace": "Workspace",
+      "template": "Customer template",
+      "schemaVersion": "Template schema version",
+      "fingerprint": "Template fingerprint",
+      "appliedAt": "Last applied",
+      "key": "Key",
+      "origin": "Origin",
+      "endpoint": "Endpoint",
+      "platform": "Platform",
+      "professionalAccountId": "Professional account ID",
+      "username": "Username"
+    },
+    "identity": {
+      "title": "Identity",
+      "notRecorded": "Not recorded"
+    },
+    "mediaBrands": {
+      "title": "Media brands"
+    },
+    "sources": {
+      "title": "Sources",
+      "empty": "No sources configured."
+    },
+    "destinations": {
+      "title": "Destination accounts",
+      "empty": "No destination accounts configured.",
+      "checkedAt": "Checked {date}",
+      "neverChecked": "No check recorded yet"
+    },
+    "mapping": {
+      "title": "Brand and destination mapping",
+      "none": "No destination accounts"
+    },
+    "state": {
+      "enabled": "Enabled",
+      "disabledByTemplate": "Disabled by template",
+      "bound": "Bound",
+      "unbound": "Unbound",
+      "unchecked": "Not checked"
+    }
+  }
+}

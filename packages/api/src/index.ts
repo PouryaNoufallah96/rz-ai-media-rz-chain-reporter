@@ -2,7 +2,7 @@ import "server-only";
 
 import { ORPCError, os } from "@orpc/server";
 
-import type { Context } from "./context";
+import { type Context, NotProvisionedError } from "./context";
 
 export const o = os.$context<Context>();
 
@@ -16,8 +16,7 @@ function mergeableData(data: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
-// Correlation only: code, status, message, and `defined` stay verbatim so the
-// contract's error map still validates the error as declared.
+// Keep code, status, message, and `defined` verbatim so the declared error map still matches.
 const attachRequestId = o.middleware(async ({ context, next }) => {
   try {
     return await next();
@@ -48,3 +47,21 @@ const requireAuth = o.middleware(async ({ context, next }) => {
 });
 
 export const protectedProcedure = publicProcedure.use(requireAuth);
+
+// Zero or several workspace rows is a provisioning fault, not an unreachable database.
+export const installationProcedure = protectedProcedure
+  .errors({ NOT_PROVISIONED: { status: 503 } })
+  .use(async ({ context, errors, next }) => {
+    let workspaceId: string;
+
+    try {
+      workspaceId = await context.getWorkspaceId();
+    } catch (error) {
+      if (error instanceof NotProvisionedError) {
+        throw errors.NOT_PROVISIONED();
+      }
+      throw error;
+    }
+
+    return next({ context: { workspaceId } });
+  });
