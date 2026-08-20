@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { EdgeTone, PanelState } from "./panel-state";
+import type { EdgeTone, PanelState } from "../lib/panel-state";
 
 const MARK_TONE: Record<PanelState, string> = {
   queued: "text-muted-foreground",

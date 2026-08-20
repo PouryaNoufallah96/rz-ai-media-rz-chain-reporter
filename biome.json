@@ -109,6 +109,26 @@
       }
     },
     {
+      "includes": ["apps/web/src/features/**/lib/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["next", "next/**"],
+                    "message": "A slice lib/ must not import next/. Put next/cache helpers such as withMutationRefresh at the features/shared hub root. See chainreporter-feature-slice."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["apps/web/src/features/shared/**"],
       "linter": {
         "rules": {

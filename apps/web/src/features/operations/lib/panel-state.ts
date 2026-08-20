@@ -12,7 +12,6 @@ const PANEL_STATES = [
 
 export type PanelState = (typeof PANEL_STATES)[number];
 
-// Retrying shares the running chip; ChipState omits it.
 export type ChipState = Exclude<PanelState, "retrying">;
 
 export type Chip = { count: number; state: ChipState };
