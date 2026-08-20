@@ -1,8 +1,7 @@
 {
   "auth": {
     "session": {
-      "signedInAs": "واردشده با <isolate>{email}</isolate>",
-      "loading": "در حال بارگذاری حساب"
+      "signedInAs": "واردشده با <isolate>{email}</isolate>"
     },
     "signIn": {
       "title": "خوش آمدید",

@@ -9,8 +9,8 @@ import { useFormatter, useTranslations } from "next-intl";
 
 import { useFallbackErrorMessage } from "@/components/form/use-error-message";
 import { OPERATIONS_NAMESPACE } from "../constants";
+import { panelStateOf } from "../lib/panel-state";
 import type { OperationSummary } from "../schemas/operation-summary";
-import { panelStateOf } from "./panel-state";
 import { StateMark } from "./state-mark";
 
 const MESSAGE_KEYS = {

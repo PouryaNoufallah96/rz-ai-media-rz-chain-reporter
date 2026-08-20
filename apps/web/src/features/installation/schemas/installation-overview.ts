@@ -1,8 +1,9 @@
+import {
+  platformSchema,
+  sourceOriginSchema,
+} from "@rz-chain-reporter/contracts";
 import { z } from "zod";
 
-// `origin` and `platform` stay plain strings here: their value sets are owned by
-// the packages/db pgEnums, and packages/db must not be reachable from a schema
-// the browser can import.
 const installationIdentitySchema = z.object({
   workspaceName: z.string(),
   templateKey: z.string().nullable(),
@@ -35,7 +36,7 @@ export const installationOverviewSchema = z.object({
     z.object({
       key: z.string(),
       name: z.string(),
-      origin: z.string(),
+      origin: sourceOriginSchema,
       endpoint: z.string(),
       enabled: z.boolean(),
     }),
@@ -44,7 +45,7 @@ export const installationOverviewSchema = z.object({
     z.object({
       key: z.string(),
       label: z.string(),
-      platform: z.string(),
+      platform: platformSchema,
       binding: destinationBindingStateSchema,
       bindingCheckedAt: z.date().nullable(),
       instagram: z

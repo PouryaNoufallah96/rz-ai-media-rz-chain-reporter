@@ -1,12 +1,24 @@
 import "server-only";
 
-import { requireSession } from "@/features/auth/api/server/session";
-import { createRequestClient } from "@/lib/orpc.server";
+import { cacheLife, cacheTag } from "next/cache";
 
-// requireSession turns an anonymous read into the login redirect, not a rendered error.
+import { requireSession } from "@/features/auth/api/server/session";
+import { rpcDb } from "@/server/rpc/db";
+import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
+
+import { installationTags } from "../../db/cache/tags";
+import { readInstallationOverview } from "../../db/queries";
+
 export async function getInstallationOverview() {
   await requireSession();
 
-  const client = await createRequestClient();
-  return client.installation.overview();
+  const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
+  return readCachedOverview(workspaceId);
+}
+
+async function readCachedOverview(workspaceId: string) {
+  "use cache";
+  cacheTag(installationTags.overview(workspaceId));
+  cacheLife("hours");
+  return readInstallationOverview(rpcDb(), workspaceId);
 }

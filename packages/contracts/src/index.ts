@@ -48,6 +48,18 @@ export type ScheduleStatus = (typeof SCHEDULE_STATUSES)[number];
 
 export const scheduleStatusSchema = z.enum(SCHEDULE_STATUSES);
 
+export const PLATFORMS = ["x", "telegram", "instagram"] as const;
+
+export type Platform = (typeof PLATFORMS)[number];
+
+export const platformSchema = z.enum(PLATFORMS);
+
+export const SOURCE_ORIGINS = ["rss", "telegram_public"] as const;
+
+export type SourceOrigin = (typeof SOURCE_ORIGINS)[number];
+
+export const sourceOriginSchema = z.enum(SOURCE_ORIGINS);
+
 export const ERROR_CODES = [
   "OPERATION_REPLAYED",
   "IDEMPOTENCY_KEY_REUSED",

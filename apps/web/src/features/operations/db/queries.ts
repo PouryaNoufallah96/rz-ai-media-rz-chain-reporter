@@ -5,6 +5,7 @@ import type { Executor } from "@rz-chain-reporter/db/executor";
 import { inWorkspace } from "@rz-chain-reporter/db/filters";
 
 import { RECENT_TERMINAL_WINDOW_MS } from "../constants";
+import type { OperationSummary } from "../schemas/operation-summary";
 
 const TERMINAL_LIFECYCLES: OperationLifecycle[] = [
   "succeeded",
@@ -15,7 +16,7 @@ const TERMINAL_LIFECYCLES: OperationLifecycle[] = [
 export async function listRecentOperations(
   executor: Executor,
   workspaceId: string,
-) {
+): Promise<OperationSummary[]> {
   const settledSince = new Date(Date.now() - RECENT_TERMINAL_WINDOW_MS);
 
   const rows = await executor.query.operation.findMany({

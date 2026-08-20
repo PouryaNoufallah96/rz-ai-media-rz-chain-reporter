@@ -1,11 +1,13 @@
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
+  BUILD_METADATA_FILE,
+  writeBuildMetadata,
+} from "@rz-chain-reporter/customer-template/build-metadata";
+import {
   CustomerTemplateError,
   loadCustomerTemplate,
 } from "@rz-chain-reporter/customer-template/load";
-
-import { BUILD_METADATA_FILE, writeBuildMetadata } from "./build-metadata";
 
 const EXIT_FAILURE = 1;
 

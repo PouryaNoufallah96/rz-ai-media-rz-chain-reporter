@@ -1,8 +1,7 @@
 {
   "auth": {
     "session": {
-      "signedInAs": "Signed in as <isolate>{email}</isolate>",
-      "loading": "Loading account"
+      "signedInAs": "Signed in as <isolate>{email}</isolate>"
     },
     "signIn": {
       "title": "Welcome back",

@@ -1,6 +1,7 @@
 import type {
   ErrorCode,
   OperationLifecycle,
+  Platform,
 } from "@rz-chain-reporter/contracts";
 import { and, eq } from "drizzle-orm";
 
@@ -11,13 +12,11 @@ import {
   withWorkspaceContext,
 } from "../executor";
 import { inWorkspace } from "../filters";
-import type { platform } from "../schema/enums";
 import { operation } from "../schema/operation";
 import { outboxEvent } from "../schema/outbox-event";
 import { publishOperation } from "../schema/publish-operation";
 
 type OperationRow = typeof operation.$inferSelect;
-type Platform = (typeof platform.enumValues)[number];
 
 export type CreateOperationInput = {
   actor: string;

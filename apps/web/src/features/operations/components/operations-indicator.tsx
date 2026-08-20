@@ -8,21 +8,21 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@rz-chain-reporter/ui/components/sheet";
-import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { authClient } from "@/features/auth/lib/auth-client";
-import { orpc } from "@/lib/orpc";
 
 import { OPERATIONS_NAMESPACE } from "../constants";
+import { useOperationsList } from "../hooks/use-operations-list";
 import {
-  CHIP_COUNT_CAP,
-  POLL_INTERVAL_MS,
-  RECONNECT_BANNER_MS,
-} from "./constants";
+  type Chip,
+  chipsOf,
+  edgeToneOf,
+  panelStateOf,
+} from "../lib/panel-state";
+import { CHIP_COUNT_CAP, RECONNECT_BANNER_MS } from "./constants";
 import { OperationsPanel, OperationsPanelSkeleton } from "./operations-panel";
-import { type Chip, chipsOf, edgeToneOf, panelStateOf } from "./panel-state";
 import { ColorBar, StateMark } from "./state-mark";
 
 type Transport = "online" | "offline" | "restored";
@@ -31,13 +31,7 @@ export function OperationsIndicator() {
   const t = useTranslations(OPERATIONS_NAMESPACE);
   const { data: session } = authClient.useSession();
 
-  const operations = useQuery(
-    orpc.operations.list.queryOptions({
-      enabled: Boolean(session),
-      refetchInterval: POLL_INTERVAL_MS,
-      staleTime: 0,
-    }),
-  );
+  const operations = useOperationsList(Boolean(session));
 
   const transport = useTransport(
     operations.fetchStatus === "paused" || operations.isError,
