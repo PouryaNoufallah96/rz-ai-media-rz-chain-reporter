@@ -70,7 +70,7 @@ floating `npx`, `pnpm dlx`, or `@latest` command in project instructions.
 ## Delivery boundary
 
 Web and worker build and deploy independently. PostgreSQL owns business state,
-R2 owns binary objects, and the workflow engine coordinates execution. See the
+MinIO owns binary objects, and the workflow engine coordinates execution. See the
 approved infrastructure plan before provisioning any service. No repository
 commit, push, Linear or GitLab object, provider account, migration, or deployment
 is implied by this scaffold.
