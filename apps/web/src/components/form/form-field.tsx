@@ -3,6 +3,7 @@
 import { Checkbox } from "@rz-chain-reporter/ui/components/checkbox";
 import {
   Field,
+  FieldContent,
   FieldDescription,
   FieldError,
   FieldLabel,
@@ -116,6 +117,7 @@ export function FormField<
       className={className}
       data-disabled={isDisabled || undefined}
       data-invalid={fieldState.invalid || undefined}
+      disabled={isDisabled}
       orientation={orientation}
     >
       {children({
@@ -181,14 +183,8 @@ export function FormInputField<
       rules={rules}
       shouldUnregister={shouldUnregister}
     >
-      {({ controlId, controlProps, descriptionId, field }) => (
-        <>
-          <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
-          {description ? (
-            <FieldDescription id={descriptionId}>
-              {description}
-            </FieldDescription>
-          ) : null}
+      {({ controlId, controlProps, descriptionId, field }) => {
+        const input = (
           <Input
             {...inputProps}
             {...controlProps}
@@ -198,8 +194,33 @@ export function FormInputField<
             ref={field.ref}
             value={field.value ?? ""}
           />
-        </>
-      )}
+        );
+        const descriptionNode = description ? (
+          <FieldDescription id={descriptionId}>{description}</FieldDescription>
+        ) : null;
+        const beside =
+          orientation === "horizontal" || orientation === "responsive";
+
+        if (beside) {
+          return (
+            <>
+              <FieldContent>
+                <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+                {descriptionNode}
+              </FieldContent>
+              {input}
+            </>
+          );
+        }
+
+        return (
+          <>
+            <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+            {input}
+            {descriptionNode}
+          </>
+        );
+      }}
     </FormField>
   );
 }
@@ -255,25 +276,33 @@ export function FormCheckboxField<
       rules={rules}
       shouldUnregister={shouldUnregister}
     >
-      {({ controlId, controlProps, descriptionId, field }) => (
-        <>
-          <Checkbox
-            {...checkboxProps}
-            {...controlProps}
-            checked={field.value === true}
-            name={field.name}
-            onBlur={field.onBlur}
-            onCheckedChange={(checked) => field.onChange(checked === true)}
-            ref={field.ref}
-          />
-          <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
-          {description ? (
+      {({ controlId, controlProps, descriptionId, field }) => {
+        const labelNode = description ? (
+          <FieldContent>
+            <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
             <FieldDescription id={descriptionId}>
               {description}
             </FieldDescription>
-          ) : null}
-        </>
-      )}
+          </FieldContent>
+        ) : (
+          <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+        );
+
+        return (
+          <>
+            <Checkbox
+              {...checkboxProps}
+              {...controlProps}
+              checked={field.value === true}
+              name={field.name}
+              onBlur={field.onBlur}
+              onCheckedChange={(checked) => field.onChange(checked === true)}
+              ref={field.ref}
+            />
+            {labelNode}
+          </>
+        );
+      }}
     </FormField>
   );
 }

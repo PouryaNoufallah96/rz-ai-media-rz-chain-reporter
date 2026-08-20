@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { FieldGroup } from "@rz-chain-reporter/ui/components/field";
+import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -30,6 +31,7 @@ export default function SignInForm() {
     formState: { errors, isSubmitting },
     handleSubmit,
     setError,
+    setFocus,
   } = useForm<SignInInput>({
     defaultValues: { email: "", password: "", rememberMe: false },
     mode: "onSubmit",
@@ -44,7 +46,7 @@ export default function SignInForm() {
     const result = await action.execute(values);
 
     if (result.status === "error") {
-      applyActionErrorToForm(setError, result);
+      applyActionErrorToForm(setError, result, setFocus);
       toast.error(
         result.fieldErrors ? t("signIn.failure") : resolveError(result.code),
       );
@@ -95,6 +97,9 @@ export default function SignInForm() {
             }
           />
           <Button className="w-full" disabled={isPending} type="submit">
+            {isPending ? (
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+            ) : null}
             {isPending ? t("signIn.submitting") : t("signIn.submit")}
           </Button>
         </FieldGroup>

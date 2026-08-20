@@ -3,7 +3,12 @@
 import type { CommonORPCErrorCode, ORPCErrorJSON } from "@orpc/client";
 import type { ActionableClient, ActionableClientRest } from "@orpc/server";
 import { useState, useTransition } from "react";
-import type { FieldPath, FieldValues, UseFormSetError } from "react-hook-form";
+import type {
+  FieldPath,
+  FieldValues,
+  UseFormSetError,
+  UseFormSetFocus,
+} from "react-hook-form";
 
 export const UNKNOWN_ACTION_ERROR = "unknownError";
 
@@ -81,13 +86,20 @@ function extractCode<TCode extends string>(
 export function applyActionErrorToForm<TFieldValues extends FieldValues>(
   setError: UseFormSetError<TFieldValues>,
   state: ActionState<unknown>,
+  setFocus: UseFormSetFocus<TFieldValues>,
 ) {
   if (state.fieldErrors) {
+    let first: FieldPath<TFieldValues> | undefined;
     for (const [name, code] of Object.entries(state.fieldErrors)) {
-      setError(name as FieldPath<TFieldValues>, {
+      const path = name as FieldPath<TFieldValues>;
+      setError(path, {
         message: code,
         type: "server",
       });
+      first ??= path;
+    }
+    if (first) {
+      setFocus(first);
     }
     return;
   }

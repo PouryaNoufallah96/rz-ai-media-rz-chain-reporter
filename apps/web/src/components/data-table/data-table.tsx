@@ -37,7 +37,11 @@ export function DataTable<TData extends RowData>({
   const { rows } = table.getRowModel();
 
   return (
-    <div aria-busy={isPending} data-pending={isPending || undefined}>
+    <div
+      aria-busy={isPending}
+      className="transition-opacity data-pending:pointer-events-none data-pending:animate-pulse data-pending:opacity-60 motion-reduce:transition-none data-pending:motion-reduce:animate-none"
+      data-pending={isPending || undefined}
+    >
       <Table>
         <TableCaption className="sr-only">{labels.caption}</TableCaption>
         <TableHeader>
@@ -78,10 +82,7 @@ export function DataTable<TData extends RowData>({
             </TableRow>
           ))}
         </TableHeader>
-        <TableBody
-          className="transition-opacity duration-200 data-pending:opacity-45 motion-reduce:transition-none"
-          data-pending={isPending || undefined}
-        >
+        <TableBody>
           {rows.length === 0 ? (
             <TableRow>
               <TableCell

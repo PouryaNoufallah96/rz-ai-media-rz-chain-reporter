@@ -3,6 +3,7 @@ import "server-only";
 import { publicProcedure } from "@rz-chain-reporter/api";
 import { auth } from "@rz-chain-reporter/auth";
 import { signInThrottleRetryAfter } from "@rz-chain-reporter/auth/sign-in-throttle";
+import { okSchema } from "@rz-chain-reporter/contracts";
 import { APIError } from "better-auth/api";
 import { z } from "zod";
 
@@ -11,7 +12,7 @@ import { signInSchema } from "@/features/auth/schemas/sign-in";
 const signedIn = z.object({ userId: z.string() });
 
 export const signOut = publicProcedure
-  .output(z.object({ ok: z.literal(true) }))
+  .output(okSchema)
   .handler(async ({ context }) => {
     await auth.api.signOut({ headers: context.headers });
     return { ok: true as const };
