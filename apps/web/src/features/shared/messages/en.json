@@ -29,14 +29,6 @@
       "retry": "Try again",
       "invalid": "Invalid value"
     },
-    "landing": {
-      "eyebrow": "Editorial operations",
-      "body": "The target workspace is ready for the phased migration of discovery, editorial, media, scheduling, publishing, and account workflows."
-    },
-    "dashboard": {
-      "title": "Editorial workspace",
-      "body": "Product modules will be introduced through the approved migration phases."
-    },
     "notFound": {
       "title": "Page not found",
       "body": "The page you requested does not exist in this workspace.",
