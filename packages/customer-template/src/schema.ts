@@ -1,3 +1,7 @@
+import {
+  type Platform,
+  sourceOriginSchema,
+} from "@rz-chain-reporter/contracts";
 import { z } from "zod";
 
 import { stableKeySchema } from "./stable-key";
@@ -21,7 +25,7 @@ const mediaBrandSchema = z.strictObject({
 
 const sourceSchema = z.strictObject({
   key: stableKeySchema,
-  origin: z.enum(["rss", "telegram_public"]),
+  origin: sourceOriginSchema,
   endpoint: trimmedText,
   name: trimmedText,
   enabled: z.boolean(),
@@ -32,7 +36,7 @@ const sourceSchema = z.strictObject({
 const destinationAccountSchema = z.discriminatedUnion("platform", [
   z.strictObject({
     key: stableKeySchema,
-    platform: z.literal("telegram"),
+    platform: z.literal("telegram" satisfies Platform),
     enabled: z.boolean(),
     metadata: z.strictObject({
       label: trimmedText,
@@ -41,13 +45,13 @@ const destinationAccountSchema = z.discriminatedUnion("platform", [
   }),
   z.strictObject({
     key: stableKeySchema,
-    platform: z.literal("x"),
+    platform: z.literal("x" satisfies Platform),
     enabled: z.boolean(),
     metadata: z.strictObject({ label: trimmedText }),
   }),
   z.strictObject({
     key: stableKeySchema,
-    platform: z.literal("instagram"),
+    platform: z.literal("instagram" satisfies Platform),
     enabled: z.boolean(),
     // Account path segment for the publishing container flow, not a credential.
     metadata: z.strictObject({
@@ -57,6 +61,19 @@ const destinationAccountSchema = z.discriminatedUnion("platform", [
     }),
   }),
 ]);
+
+type DestinationAccountPlatform = z.infer<
+  typeof destinationAccountSchema
+>["platform"];
+
+type AssertPlatformCoverage = [DestinationAccountPlatform] extends [Platform]
+  ? [Platform] extends [DestinationAccountPlatform]
+    ? true
+    : never
+  : never;
+
+const assertPlatformCoverage: AssertPlatformCoverage = true;
+void assertPlatformCoverage;
 
 const brandDestinationSchema = z.strictObject({
   brandKey: stableKeySchema,

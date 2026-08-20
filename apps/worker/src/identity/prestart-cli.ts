@@ -1,4 +1,8 @@
 import { fileURLToPath } from "node:url";
+import {
+  BUILD_METADATA_FILE,
+  BuildMetadataError,
+} from "@rz-chain-reporter/customer-template/build-metadata";
 import { CustomerTemplateError } from "@rz-chain-reporter/customer-template/load";
 import { createDb, DB_PROBE_TIMEOUT_MS } from "@rz-chain-reporter/db";
 import {
@@ -13,7 +17,6 @@ import {
   InstallationIdentityError,
   shortFingerprint,
 } from "./assert";
-import { BUILD_METADATA_FILE, BuildMetadataError } from "./build-metadata";
 
 const EXIT_FAILURE = 1;
 const EXIT_UNBOUND = 2;

@@ -1,7 +1,6 @@
+import { readBuildMetadata } from "@rz-chain-reporter/customer-template/build-metadata";
 import { loadCustomerTemplate } from "@rz-chain-reporter/customer-template/load";
 import type { Executor } from "@rz-chain-reporter/db/executor";
-
-import { readBuildMetadata } from "./build-metadata";
 
 const INSTALLATION_IDENTITY_ERROR_CODES = [
   "MISSING_TEMPLATE_KEY",

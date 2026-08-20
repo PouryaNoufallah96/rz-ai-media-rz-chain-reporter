@@ -1,5 +1,8 @@
-import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import {
+  BUILD_METADATA_FILE,
+  writeBuildMetadata,
+} from "@rz-chain-reporter/customer-template/build-metadata";
 import {
   CustomerTemplateError,
   loadCustomerTemplate,
@@ -9,10 +12,8 @@ const EXIT_FAILURE = 1;
 
 const command = "build:template";
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
-// The prestart bundle reads this shape back; both writers keep the same key
-// order so two builds of one template produce byte-identical metadata.
 const metadataPath = fileURLToPath(
-  new URL("../build-metadata.json", import.meta.url),
+  new URL(`../${BUILD_METADATA_FILE}`, import.meta.url),
 );
 const customerTemplateKey = process.env.CUSTOMER_TEMPLATE_KEY;
 
@@ -29,19 +30,11 @@ try {
     customerTemplateKey,
   );
 
-  writeFileSync(
-    metadataPath,
-    `${JSON.stringify(
-      {
-        customerTemplateKey,
-        schemaVersion: template.schemaVersion,
-        fingerprint,
-      },
-      null,
-      2,
-    )}\n`,
-    "utf8",
-  );
+  writeBuildMetadata(metadataPath, {
+    customerTemplateKey,
+    schemaVersion: template.schemaVersion,
+    fingerprint,
+  });
 
   console.log(
     `${command} ${customerTemplateKey} schemaVersion ${template.schemaVersion} fingerprint ${fingerprint}`,
