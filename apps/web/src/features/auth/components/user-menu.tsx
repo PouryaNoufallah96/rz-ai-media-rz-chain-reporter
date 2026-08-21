@@ -11,7 +11,6 @@ import {
   DropdownMenuTrigger,
 } from "@rz-chain-reporter/ui/components/dropdown-menu";
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
-import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -20,12 +19,11 @@ import { authClient } from "../lib/auth-client";
 
 export default function UserMenu() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const t = useTranslations(SHARED_NAMESPACE);
   const { data: session, isPending } = authClient.useSession();
 
   if (isPending) {
-    return <Skeleton className="h-9 w-24" />;
+    return <Skeleton className="h-8 w-20 sm:w-32" />;
   }
 
   if (!session) {
@@ -42,14 +40,25 @@ export default function UserMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" />}>
-        {session.user.name}
+      <DropdownMenuTrigger
+        render={<Button className="min-w-0 max-w-48" variant="outline" />}
+      >
+        <span className="sm:hidden">{t("userMenu.account")}</span>
+        <span className="hidden min-w-0 truncate sm:inline">
+          {session.user.name}
+        </span>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="bg-card">
+      <DropdownMenuContent
+        align="end"
+        className="max-w-[calc(100vw-1rem)] bg-card"
+      >
         <DropdownMenuGroup>
           <DropdownMenuLabel>{t("userMenu.account")}</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel className="font-normal">
+          <DropdownMenuLabel className="whitespace-normal break-words text-foreground">
+            {session.user.name}
+          </DropdownMenuLabel>
+          <DropdownMenuLabel className="whitespace-normal break-all font-normal">
             {session.user.email}
           </DropdownMenuLabel>
           <DropdownMenuItem
@@ -57,11 +66,6 @@ export default function UserMenu() {
             onClick={async () => {
               const [error] = await signOutAction();
               if (error) return;
-              // A request still in flight would resolve into the cache after the
-              // clear and hand the next session the previous user's rows.
-              await queryClient.cancelQueries();
-              queryClient.clear();
-              // Cookie is cleared server-side; the client atom only refetches on this signal.
               authClient.$store.notify("$sessionSignal");
               router.push("/");
             }}

@@ -1,28 +1,35 @@
+import { operationCommandKind } from "@rz-chain-reporter/contracts";
+
+import {
+  STATE_MARKS,
+  type StateMarkState,
+} from "@/components/common/state-mark";
+
 import type { OperationSummary } from "../schemas/operation-summary";
 
-const PANEL_STATES = [
-  "queued",
-  "running",
-  "retrying",
-  "succeeded",
-  "failed",
-  "cancelled",
-  "unknown",
-] as const;
+const PANEL_STATES = STATE_MARKS;
 
-export type PanelState = (typeof PANEL_STATES)[number];
+export type PanelState = StateMarkState;
 
 export type ChipState = Exclude<PanelState, "retrying">;
 
 export type Chip = { count: number; state: ChipState };
 
-export type EdgeTone = "failed" | "running" | "queued";
+export type EdgeTone = "failed" | "partial" | "queued" | "running";
 
 const CHIP_STATES = PANEL_STATES.filter(
   (state): state is ChipState => state !== "retrying",
 );
 
 export function panelStateOf(operation: OperationSummary): PanelState {
+  if (
+    operation.lifecycle === "running" &&
+    operationCommandKind(operation.commandType) === "scheduled-effect-probe" &&
+    operation.effectiveAt > operation.updatedAt
+  ) {
+    return "waiting";
+  }
+
   if (operation.lifecycle === "settling") {
     return "running";
   }
@@ -40,6 +47,14 @@ export function panelStateOf(operation: OperationSummary): PanelState {
 export function edgeToneOf(
   states: readonly PanelState[],
 ): EdgeTone | undefined {
+  const hasWorking = states.some((state) =>
+    ["running", "retrying", "unknown"].includes(state),
+  );
+
+  if (states.includes("failed") && hasWorking) {
+    return "partial";
+  }
+
   if (states.includes("failed")) {
     return "failed";
   }

@@ -17,6 +17,7 @@ import { useRouter } from "@/i18n/navigation";
 import { signInAction } from "../actions/auth-actions";
 import { AUTH_NAMESPACE } from "../constants";
 import { useFieldErrorMessage } from "../hooks/use-field-error-message";
+import { authClient } from "../lib/auth-client";
 import { type SignInInput, signInSchema } from "../schemas/sign-in";
 
 export default function SignInForm() {
@@ -54,6 +55,7 @@ export default function SignInForm() {
     }
 
     toast.success(t("signIn.success"));
+    authClient.$store.notify("$sessionSignal");
     router.push("/dashboard");
   });
 

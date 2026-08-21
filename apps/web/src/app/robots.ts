@@ -1,7 +1,10 @@
 import { env } from "@rz-chain-reporter/env/server";
 import type { MetadataRoute } from "next";
+import { connection } from "next/server";
 
-export default function robots(): MetadataRoute.Robots {
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  await connection();
+
   return {
     rules: {
       userAgent: "*",

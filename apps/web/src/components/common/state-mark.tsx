@@ -1,18 +1,30 @@
 import type { ReactNode } from "react";
 
-import type { EdgeTone, PanelState } from "../lib/panel-state";
+export const STATE_MARKS = [
+  "queued",
+  "running",
+  "retrying",
+  "waiting",
+  "succeeded",
+  "failed",
+  "cancelled",
+  "unknown",
+] as const;
 
-const MARK_TONE: Record<PanelState, string> = {
+export type StateMarkState = (typeof STATE_MARKS)[number];
+
+const MARK_TONE: Record<StateMarkState, string> = {
   queued: "text-muted-foreground",
   running: "text-working",
   retrying: "text-working",
+  waiting: "text-muted-foreground",
   succeeded: "text-proof",
   failed: "text-destructive",
   cancelled: "text-muted-foreground",
   unknown: "text-working",
 };
 
-const MARK_GEOMETRY: Record<PanelState, ReactNode> = {
+const MARK_GEOMETRY: Record<StateMarkState, ReactNode> = {
   queued: <rect height="10" width="10" x="3" y="3" />,
   running: (
     <>
@@ -27,13 +39,25 @@ const MARK_GEOMETRY: Record<PanelState, ReactNode> = {
       <path d="m5.75 6.25 2.25-2.25 2.25 2.25" />
     </>
   ),
+  waiting: (
+    <>
+      <circle cx="8" cy="8" r="5" />
+      <path d="M8 5v3l2 1" />
+    </>
+  ),
   succeeded: <path d="m4.5 8.25 2.25 2.25 4.75-5" />,
   failed: <path d="m4.5 4.5 7 7m0-7-7 7" />,
   cancelled: <path d="M6 3h7v10H3V6z" />,
   unknown: <path d="M3 3h10v7l-2.5-2-2.5 2-2.5-2L3 10z" />,
 };
 
-export function StateMark({ state }: { state: PanelState }) {
+export function StateMark({
+  dispatchExhausted = false,
+  state,
+}: {
+  dispatchExhausted?: boolean;
+  state: StateMarkState;
+}) {
   return (
     <svg
       aria-hidden="true"
@@ -46,23 +70,9 @@ export function StateMark({ state }: { state: PanelState }) {
       viewBox="0 0 16 16"
     >
       {MARK_GEOMETRY[state]}
+      {dispatchExhausted ? (
+        <path className="text-destructive" d="m10.5 2.5 3 3m0-3-3 3" />
+      ) : null}
     </svg>
-  );
-}
-
-const BAR_TONE = {
-  failed: "bg-destructive",
-  running: "bg-working",
-  queued: "bg-muted-foreground",
-  idle: "border border-border border-dashed",
-  offline: "border border-border",
-} satisfies Record<EdgeTone | "idle" | "offline", string>;
-
-export function ColorBar({ tone }: { tone: keyof typeof BAR_TONE }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`h-4 w-1.5 shrink-0 ${BAR_TONE[tone]}`}
-    />
   );
 }

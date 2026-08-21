@@ -2,8 +2,10 @@
   "operations": {
     "panel": {
       "title": "Operations",
-      "empty": "Nothing is running. Runs, publishes, and syncs appear here.",
-      "close": "Close"
+      "empty": "Nothing is running. Operations appear here as work begins.",
+      "close": "Close",
+      "toggleTimeline": "Toggle the travel record for {kind} {id}",
+      "timelineLabel": "Travel record for {kind} {id}"
     },
     "indicator": {
       "label": "Operations status",
@@ -14,26 +16,73 @@
       "queued": "Queued",
       "running": "Running",
       "retrying": "Retrying (attempt {n, number})",
+      "waiting": "Waiting until {time}",
       "succeeded": "Done",
       "failed": "Failed",
       "cancelled": "Cancelled",
-      "unknown": "Delivery unknown — check the destination before retrying"
+      "unknown": "Outcome unknown",
+      "unknownExplanation": "The effect may or may not have happened; reconciliation resolves it before any retry."
     },
     "transport": {
-      "offline": "Connection lost. Reconnecting…",
-      "restored": "Connection restored",
-      "updating": "Updating results…"
+      "live": "live",
+      "reconnecting": "reconnecting…",
+      "asOf": "as of {time}",
+      "stale": "saved state",
+      "unavailable": "live updates off",
+      "refresh": "Refresh",
+      "reconnectingBand": "Connection lost. Reconnecting…",
+      "staleBand": "Showing last saved state — will refresh when the connection returns."
+    },
+    "kind": {
+      "operation": "Operation",
+      "generationProbe": "Generation probe",
+      "scheduledEffect": "Scheduled effect",
+      "mediaVerification": "Media verification"
+    },
+    "dispatch": {
+      "awaiting": "awaiting dispatch",
+      "delayed": "dispatch delayed — next attempt {time}",
+      "exhausted": "dispatch exhausted — manual recovery required",
+      "copyId": "Copy operation ID",
+      "copied": "Operation ID copied"
+    },
+    "timeline": {
+      "received": "received",
+      "dispatched": "dispatched",
+      "started": "started",
+      "modelCall": "model call — {slot}",
+      "waiting": "waiting until",
+      "effectRecorded": "effect recorded",
+      "settled": "settled",
+      "slot": {
+        "primary": "primary",
+        "retry-1": "retry 1",
+        "fallback": "fallback"
+      }
+    },
+    "announcements": {
+      "operation": "Operation <id>{operationId}</id> is now {state}.",
+      "live": "Live updates connected.",
+      "reconnecting": "Live updates paused. Reconnecting.",
+      "stale": "Live updates paused. Showing the last saved state.",
+      "unavailable": "Live updates are off. Use Refresh for the latest saved state."
     },
     "errors": {
-      "idempotencyKeyReused": "This request key was already used with different details. Send the original request or start a new one.",
-      "validationFailed": "Some details were rejected. Correct them and send the request again.",
-      "unauthorized": "The session ended. Sign in and send the request again.",
       "forbidden": "This account cannot perform that action.",
+      "idempotencyKeyReused": "This request key was already used with different details. Send the original request or start a new one.",
+      "internalServerError": "The operation could not be completed.",
+      "mediaRejected": "The uploaded file failed verification and was removed.",
+      "modelInvocationFailed": "The model call did not complete. Its tokens and cost are recorded on the usage screen.",
       "notFound": "The target of this operation is no longer available.",
-      "versionConflict": "This operation changed while it was open. Reload to see its current state.",
+      "objectStoreUnbound": "Object storage is not configured for this deployment.",
+      "operationReplayed": "This request was already processed. The original operation is the one that ran.",
       "savedCardAlreadyActive": "This draft is already saved. Open the existing saved card.",
+      "structuredOutputInvalid": "The model returned a result that did not match the expected shape. Nothing was saved.",
+      "templateDrift": "The installation configuration changed while this operation was running. Reconcile the template, then send it again.",
       "transientConflict": "The workspace was busy. Send the identical request again.",
-      "internalServerError": "The operation could not be completed."
+      "unauthorized": "The session ended. Sign in and send the request again.",
+      "validationFailed": "Some details were rejected. Correct them and send the request again.",
+      "versionConflict": "This operation changed while it was open. Reload to see its current state."
     }
   }
 }
