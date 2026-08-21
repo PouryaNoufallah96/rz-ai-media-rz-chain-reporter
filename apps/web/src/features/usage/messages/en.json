@@ -1,0 +1,94 @@
+{
+  "usage": {
+    "title": "Usage",
+    "subtitle": "Recorded model consumption for this installation. Reporting only — nothing here limits or blocks work.",
+    "filters": {
+      "label": "Usage filters",
+      "period": "Period",
+      "model": "Model",
+      "modelPlaceholder": "Exact model",
+      "backend": "Backend",
+      "provider": "Provider",
+      "task": "Task",
+      "taskPlaceholder": "Exact task",
+      "status": "Status",
+      "all": "All",
+      "apply": "Apply"
+    },
+    "period": {
+      "24h": "24 hours",
+      "7d": "7 days",
+      "30d": "30 days",
+      "all": "All time"
+    },
+    "summary": {
+      "title": "Period summary",
+      "invocations": "Invocations",
+      "tokens": "Tokens",
+      "recordedCost": "Recorded cost",
+      "pending": "Pending",
+      "unknown": "Unknown"
+    },
+    "ledger": {
+      "title": "Usage ledger",
+      "caption": "Usage ledger: every model invocation with time, task, model, backend, provider, tokens, cost, and status"
+    },
+    "columns": {
+      "time": "Time",
+      "task": "Task",
+      "model": "Model",
+      "backend": "Backend",
+      "provider": "Provider",
+      "tokens": "Tokens",
+      "cost": "Cost",
+      "status": "Status"
+    },
+    "backend": {
+      "remote": "Remote",
+      "local": "Local"
+    },
+    "provider": {
+      "openrouter": "OpenRouter",
+      "ollama": "Ollama",
+      "unknown": "Unknown"
+    },
+    "status": {
+      "pending": "In flight",
+      "succeeded": "Done",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "unknown": "Unknown"
+    },
+    "tokens": {
+      "input": "input",
+      "output": "output"
+    },
+    "cost": {
+      "local": "Local — no provider charge",
+      "pending": "Pending",
+      "unknown": "Unknown"
+    },
+    "slot": {
+      "fallback": "Fallback"
+    },
+    "details": {
+      "title": "Row details",
+      "open": "Details"
+    },
+    "pager": {
+      "older": "Older",
+      "newer": "Newer",
+      "backToLatest": "Back to latest"
+    },
+    "empty": {
+      "title": "No usage rows",
+      "installation": "No model usage recorded yet. Every model call this installation makes will be listed here.",
+      "filtered": "No usage matches these filters",
+      "clearFilters": "Clear filters"
+    },
+    "table": {
+      "loading": "Loading usage",
+      "updating": "Updating usage"
+    }
+  }
+}
