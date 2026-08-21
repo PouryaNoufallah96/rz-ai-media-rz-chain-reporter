@@ -19,16 +19,17 @@ import { publishOperation } from "../schema/publish-operation";
 type OperationRow = typeof operation.$inferSelect;
 
 export type CreateOperationInput = {
+  operationId?: string;
   actor: string;
   commandType: string;
   idempotencyKey: string;
   requestHash: string;
   requestId: string | null;
-  publish: { platform: Platform; draftRevisionId: string };
+  publish?: { platform: Platform; draftRevisionId: string };
   event: {
     type: string;
     schemaVersion: number;
-    payload: Record<string, string>;
+    payload: Record<string, string | number>;
   };
 };
 
@@ -55,12 +56,14 @@ export async function createOperation(
       return resolveIdentityConflict(tx, workspaceId, input, error);
     }
 
-    await tx.insert(publishOperation).values({
-      operationId: created.id,
-      workspaceId,
-      platform: input.publish.platform,
-      draftRevisionId: input.publish.draftRevisionId,
-    });
+    if (input.publish) {
+      await tx.insert(publishOperation).values({
+        operationId: created.id,
+        workspaceId,
+        platform: input.publish.platform,
+        draftRevisionId: input.publish.draftRevisionId,
+      });
+    }
 
     await tx.insert(outboxEvent).values({
       workspaceId,
@@ -86,6 +89,7 @@ async function insertOperation(
     savepoint
       .insert(operation)
       .values({
+        id: input.operationId,
         workspaceId,
         actor: input.actor,
         commandType: input.commandType,

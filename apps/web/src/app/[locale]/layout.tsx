@@ -72,9 +72,9 @@ export default async function RootLayout({
       }
       suppressHydrationWarning
     >
-      <body className="antialiased">
+      <body className="min-w-0 antialiased">
         <Providers locale={locale}>
-          <div className="grid h-svh grid-rows-[auto_1fr]">
+          <div className="grid min-h-svh min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)]">
             <Header />
             <Localized namespaces={[SHARED_NAMESPACE]}>{children}</Localized>
           </div>

@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   foreignKey,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -23,7 +25,20 @@ export const outboxEvent = pgTable(
     schemaVersion: integer("schema_version").notNull(),
     payload: jsonb("payload").notNull(),
     dispatchedAt: timestamp("dispatched_at", { withTimezone: true }),
-    attemptCount: integer("attempt_count").default(0).notNull(),
+    dispatchClaimedBy: text("dispatch_claimed_by"),
+    dispatchClaimedAt: timestamp("dispatch_claimed_at", { withTimezone: true }),
+    dispatchLeaseExpiresAt: timestamp("dispatch_lease_expires_at", {
+      withTimezone: true,
+    }),
+    dispatchAttemptCount: integer("dispatch_attempt_count")
+      .default(0)
+      .notNull(),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastErrorCode: text("last_error_code"),
+    lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
+    exhaustedAt: timestamp("exhausted_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
@@ -37,5 +52,8 @@ export const outboxEvent = pgTable(
       columns: [t.operationId],
       foreignColumns: [operation.id],
     }).onDelete("restrict"),
+    index("ix_outbox_event_next_attempt_at_undispatched")
+      .on(t.nextAttemptAt)
+      .where(sql`${t.dispatchedAt} is null and ${t.exhaustedAt} is null`),
   ],
 );

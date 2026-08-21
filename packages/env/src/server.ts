@@ -7,7 +7,9 @@ import {
   customerTemplateKey,
   httpOrigin,
   httpUrl,
+  inngestDev,
   postgresUrl,
+  storageEnv,
 } from "./schema";
 
 export const env = createEnv({
@@ -19,9 +21,13 @@ export const env = createEnv({
     CORS_ORIGIN: httpOrigin,
     // Public origin for sitemap/robots. Not CORS_ORIGIN or BETTER_AUTH_URL.
     APP_URL: httpOrigin,
+    INNGEST_DEV: inngestDev,
+    INNGEST_SIGNING_KEY: z.string().min(1).optional(),
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
+    ...storageEnv,
+    SENTRY_DSN: z.url().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

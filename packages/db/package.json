@@ -32,7 +32,7 @@
     "@rz-chain-reporter/contracts": "workspace:*",
     "@rz-chain-reporter/customer-template": "workspace:*",
     "@rz-chain-reporter/env": "workspace:*",
-    "drizzle-orm": "0.45.2",
+    "drizzle-orm": "catalog:",
     "pg": "8.23.0"
   },
   "devDependencies": {

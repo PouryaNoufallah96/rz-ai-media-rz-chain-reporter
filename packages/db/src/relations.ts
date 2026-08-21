@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 
 import { activityEvent } from "./schema/activity-event";
+import { aiUsageEvent } from "./schema/ai-usage-event";
 import { analysisRun } from "./schema/analysis-run";
 import { approval } from "./schema/approval";
 import { assistantConversation } from "./schema/assistant-conversation";
@@ -170,19 +171,32 @@ export const operationRelations = relations(operation, ({ one, many }) => ({
     references: [user.id],
   }),
   attempts: many(operationAttempt),
+  usageEvents: many(aiUsageEvent),
   publish: one(publishOperation),
   outboxEvents: many(outboxEvent),
 }));
 
 export const operationAttemptRelations = relations(
   operationAttempt,
-  ({ one }) => ({
+  ({ one, many }) => ({
     operation: one(operation, {
       fields: [operationAttempt.operationId],
       references: [operation.id],
     }),
+    usageEvents: many(aiUsageEvent),
   }),
 );
+
+export const aiUsageEventRelations = relations(aiUsageEvent, ({ one }) => ({
+  operation: one(operation, {
+    fields: [aiUsageEvent.operationId],
+    references: [operation.id],
+  }),
+  operationAttempt: one(operationAttempt, {
+    fields: [aiUsageEvent.operationAttemptId],
+    references: [operationAttempt.id],
+  }),
+}));
 
 export const publishOperationRelations = relations(
   publishOperation,

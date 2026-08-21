@@ -12,6 +12,8 @@ import operationsEn from "@/features/operations/messages/en.json";
 import operationsFa from "@/features/operations/messages/fa.json";
 import sharedEn from "@/features/shared/messages/en.json";
 import sharedFa from "@/features/shared/messages/fa.json";
+import usageEn from "@/features/usage/messages/en.json";
+import usageFa from "@/features/usage/messages/fa.json";
 
 const CATALOGS = {
   en: {
@@ -21,6 +23,7 @@ const CATALOGS = {
     ...installationEn,
     ...landingEn,
     ...operationsEn,
+    ...usageEn,
   },
   fa: {
     ...sharedFa,
@@ -29,6 +32,7 @@ const CATALOGS = {
     ...installationFa,
     ...landingFa,
     ...operationsFa,
+    ...usageFa,
   },
 } satisfies Record<Locale, unknown>;
 
@@ -39,5 +43,5 @@ export type CatalogNamespace = keyof Catalog;
 // `locale` must stay an argument; it is what keys the cache entry.
 export async function loadCatalog(locale: Locale): Promise<Catalog> {
   "use cache";
-  return CATALOGS[locale] as Catalog;
+  return CATALOGS[locale];
 }

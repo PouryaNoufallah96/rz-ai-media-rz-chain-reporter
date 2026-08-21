@@ -2,8 +2,15 @@ import { cn } from "@rz-chain-reporter/ui/lib/utils";
 import type * as React from "react";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const isAriaHidden =
+    props["aria-hidden"] === true || props["aria-hidden"] === "true";
+
   return (
-    <div data-slot="table-container" className="w-full overflow-x-auto">
+    <div
+      data-slot="table-container"
+      className="relative w-full overflow-x-auto outline-none focus-visible:ring-1 focus-visible:ring-ring/50"
+      tabIndex={isAriaHidden ? undefined : 0}
+    >
       <table
         data-slot="table"
         className={cn(

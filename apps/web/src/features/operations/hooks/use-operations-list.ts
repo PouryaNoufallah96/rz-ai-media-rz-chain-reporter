@@ -1,18 +1,28 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 import { orpc } from "@/lib/orpc";
 
-import { POLL_INTERVAL_MS } from "../constants";
-
-export function operationsListQueryOptions(enabled: boolean) {
+function operationsListQueryOptions(enabled: boolean) {
   return orpc.operations.list.queryOptions({
     enabled,
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
     retry: false,
-    staleTime: 0,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 }
 
+export const operationsListQueryKey = orpc.operations.list.queryKey();
+
 export function useOperationsList(enabled: boolean) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!enabled) {
+      queryClient.removeQueries({ queryKey: operationsListQueryKey });
+    }
+  }, [enabled, queryClient]);
+
   return useQuery(operationsListQueryOptions(enabled));
 }

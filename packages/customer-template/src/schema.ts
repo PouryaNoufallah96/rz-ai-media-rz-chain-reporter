@@ -1,4 +1,5 @@
 import {
+  modelBackendSchema,
   type Platform,
   sourceOriginSchema,
 } from "@rz-chain-reporter/contracts";
@@ -21,6 +22,25 @@ const trimmedText = z
 const mediaBrandSchema = z.strictObject({
   key: stableKeySchema,
   name: trimmedText,
+});
+
+export const MODEL_TASK_KEYS = ["generation-probe"] as const;
+
+export type ModelTaskKey = (typeof MODEL_TASK_KEYS)[number];
+
+export const modelTaskKeySchema = z.enum(MODEL_TASK_KEYS);
+
+const modelRouteSchema = z.strictObject({
+  backend: modelBackendSchema,
+  model: trimmedText,
+});
+
+const modelTaskSchema = modelRouteSchema.extend({
+  fallback: modelRouteSchema.optional(),
+});
+
+const modelsSchema = z.strictObject({
+  tasks: z.partialRecord(modelTaskKeySchema, modelTaskSchema),
 });
 
 const sourceSchema = z.strictObject({
@@ -112,6 +132,7 @@ export const customerTemplateSchema = z
     sources: z.array(sourceSchema),
     destinationAccounts: z.array(destinationAccountSchema),
     brandDestinations: z.array(brandDestinationSchema),
+    models: modelsSchema.optional(),
   })
   .superRefine((template, ctx) => {
     reportDuplicateKeys(ctx, "mediaBrands", template.mediaBrands);

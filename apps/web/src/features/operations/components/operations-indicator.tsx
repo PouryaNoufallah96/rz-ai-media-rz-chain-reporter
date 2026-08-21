@@ -1,5 +1,7 @@
 "use client";
 
+import type { OperationStatusRealtimeMessage } from "@rz-chain-reporter/contracts";
+import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import {
   Sheet,
@@ -8,39 +10,36 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@rz-chain-reporter/ui/components/sheet";
-import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
-
+import { useFormatter, useTranslations } from "next-intl";
+import { StateMark } from "@/components/common/state-mark";
 import { authClient } from "@/features/auth/lib/auth-client";
-
-import { OPERATIONS_NAMESPACE } from "../constants";
+import { CHIP_COUNT_CAP, OPERATIONS_NAMESPACE } from "../constants";
 import { useOperationsList } from "../hooks/use-operations-list";
 import {
-  type Chip,
+  type RealtimeTransport,
+  useOperationsRealtime,
+} from "../hooks/use-operations-realtime";
+import {
   chipsOf,
   edgeToneOf,
+  type PanelState,
   panelStateOf,
 } from "../lib/panel-state";
-import { CHIP_COUNT_CAP, RECONNECT_BANNER_MS } from "./constants";
+import { ColorBar } from "./color-bar";
 import { OperationsPanel, OperationsPanelSkeleton } from "./operations-panel";
-import { ColorBar, StateMark } from "./state-mark";
-
-type Transport = "online" | "offline" | "restored";
 
 export function OperationsIndicator() {
   const t = useTranslations(OPERATIONS_NAMESPACE);
   const { data: session } = authClient.useSession();
-
   const operations = useOperationsList(Boolean(session));
-
-  const transport = useTransport(
-    operations.fetchStatus === "paused" || operations.isError,
-  );
+  const realtime = useOperationsRealtime({
+    enabled: Boolean(session),
+    refetch: operations.refetch,
+  });
   const states = (operations.data ?? []).map(panelStateOf);
   const chips = chipsOf(states);
-
   const barTone =
-    transport === "offline" ? "offline" : (edgeToneOf(states) ?? "idle");
+    realtime.transport === "live" ? (edgeToneOf(states) ?? "idle") : "offline";
 
   if (!session) {
     return null;
@@ -49,9 +48,25 @@ export function OperationsIndicator() {
   return (
     <>
       <Sheet>
-        <SheetTrigger render={<Button size="sm" variant="ghost" />}>
+        <SheetTrigger
+          render={<Button className="max-w-full" size="sm" variant="ghost" />}
+        >
           <span className="sr-only">{t("indicator.label")}</span>
-          <span aria-hidden="true" className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="flex items-center gap-1 xl:hidden"
+          >
+            <ColorBar tone={barTone} />
+            <span className="font-mono text-xs tabular-nums">
+              {states.length > CHIP_COUNT_CAP
+                ? t("indicator.countCapped")
+                : t("indicator.count", { count: states.length })}
+            </span>
+          </span>
+          <span
+            aria-hidden="true"
+            className="hidden items-center gap-2 xl:flex"
+          >
             <ColorBar tone={barTone} />
             {chips.map((chip) => (
               <span className="flex items-center gap-1" key={chip.state}>
@@ -65,9 +80,24 @@ export function OperationsIndicator() {
             ))}
           </span>
         </SheetTrigger>
-        <SheetContent closeLabel={t("panel.close")}>
-          <SheetHeader>
-            <SheetTitle>{t("panel.title")}</SheetTitle>
+        <SheetContent className="min-w-0" closeLabel={t("panel.close")}>
+          <SheetHeader className="pe-8">
+            <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              <SheetTitle>{t("panel.title")}</SheetTitle>
+              <TransportReadout
+                isFetching={operations.isFetching}
+                onRefresh={() => {
+                  void operations.refetch();
+                  realtime.retry();
+                }}
+                snapshotAt={
+                  operations.dataUpdatedAt
+                    ? new Date(operations.dataUpdatedAt)
+                    : null
+                }
+                transport={realtime.transport}
+              />
+            </div>
           </SheetHeader>
           {operations.isPending ? (
             <OperationsPanelSkeleton />
@@ -81,70 +111,114 @@ export function OperationsIndicator() {
         </SheetContent>
       </Sheet>
       <LiveRegion
-        chips={chips}
-        isError={operations.isError}
-        isFetching={operations.isFetching}
+        announcement={realtime.announcement}
+        transport={realtime.transport}
       />
-      {transport === "online" ? null : (
-        <p
-          className="absolute inset-e-0 inset-s-0 top-full z-40 bg-muted px-3 py-1 text-center text-muted-foreground text-xs"
-          role="status"
-        >
-          {transport === "offline"
-            ? t("transport.offline")
-            : t("transport.restored")}
-        </p>
-      )}
+      <TransportBand transport={realtime.transport} />
     </>
   );
 }
 
-function LiveRegion({
-  chips,
-  isError,
+function TransportReadout({
   isFetching,
+  onRefresh,
+  snapshotAt,
+  transport,
 }: {
-  chips: Chip[];
-  isError: boolean;
   isFetching: boolean;
+  onRefresh: () => void;
+  snapshotAt: Date | null;
+  transport: RealtimeTransport;
 }) {
+  const format = useFormatter();
   const t = useTranslations(OPERATIONS_NAMESPACE);
+  const readout =
+    transport === "stale" && snapshotAt
+      ? t("transport.asOf", {
+          time: format.dateTime(snapshotAt, { timeStyle: "short" }),
+        })
+      : t(`transport.${transport}`);
 
   return (
-    <p aria-live="polite" className="sr-only">
-      {isFetching
-        ? t("transport.updating")
-        : isError
-          ? t("errors.internalServerError")
-          : chips.map((chip) => (
-              <span key={chip.state}>
-                {t(`state.${chip.state}`)}{" "}
-                {t("indicator.count", { count: chip.count })}
-              </span>
-            ))}
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <span className="wrap-break-word min-w-0 font-mono text-muted-foreground text-xs tabular-nums">
+        {readout}
+      </span>
+      {transport === "live" ? null : (
+        <Button
+          disabled={isFetching}
+          onClick={onRefresh}
+          size="xs"
+          type="button"
+          variant="outline"
+        >
+          {t("transport.refresh")}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function TransportBand({ transport }: { transport: RealtimeTransport }) {
+  const t = useTranslations(OPERATIONS_NAMESPACE);
+
+  if (transport === "live" || transport === "unavailable") {
+    return null;
+  }
+
+  return (
+    <p
+      className="absolute inset-e-0 inset-s-0 top-full z-40 bg-working/10 px-3 py-1 text-center text-working text-xs"
+      role="status"
+    >
+      {transport === "reconnecting"
+        ? t("transport.reconnectingBand")
+        : t("transport.staleBand")}
     </p>
   );
 }
 
-function useTransport(isOffline: boolean): Transport {
-  const [wasOffline, setWasOffline] = useState(false);
-
-  if (isOffline && !wasOffline) {
-    setWasOffline(true);
+function LiveRegion({
+  announcement,
+  transport,
+}: {
+  announcement: OperationStatusRealtimeMessage | undefined;
+  transport: RealtimeTransport;
+}) {
+  const t = useTranslations(OPERATIONS_NAMESPACE);
+  let stateLabel = "";
+  if (announcement) {
+    const state = announcementStateOf(announcement);
+    stateLabel =
+      state === "retrying"
+        ? t("state.retrying", { n: announcement.attemptCount ?? 1 })
+        : t(`state.${state}`);
   }
 
-  useEffect(() => {
-    if (isOffline || !wasOffline) {
-      return;
-    }
+  return (
+    <p aria-live="polite" className="sr-only">
+      {announcement
+        ? t.rich("announcements.operation", {
+            id: (value) => <Bdi>{value}</Bdi>,
+            operationId: announcement.operationId,
+            state: stateLabel,
+          })
+        : t(`announcements.${transport}`)}
+    </p>
+  );
+}
 
-    const timer = setTimeout(() => setWasOffline(false), RECONNECT_BANNER_MS);
-    return () => clearTimeout(timer);
-  }, [isOffline, wasOffline]);
-
-  if (isOffline) {
-    return "offline";
+function announcementStateOf(
+  message: OperationStatusRealtimeMessage,
+): PanelState {
+  if (message.lifecycle === "settling") {
+    return "running";
   }
-
-  return wasOffline ? "restored" : "online";
+  if (
+    message.latestAttemptOutcome === "failed_retryable" &&
+    (message.lifecycle === "queued" || message.lifecycle === "running")
+  ) {
+    return "retrying";
+  }
+  return message.lifecycle;
 }

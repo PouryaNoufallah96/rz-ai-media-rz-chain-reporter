@@ -7,6 +7,18 @@
   "workspace": {
     "name": "Demo Sports Desk"
   },
+  "models": {
+    "tasks": {
+      "generation-probe": {
+        "backend": "remote",
+        "model": "mistralai/mistral-nemo",
+        "fallback": {
+          "backend": "remote",
+          "model": "mistralai/ministral-3b-2512"
+        }
+      }
+    }
+  },
   "mediaBrands": [
     { "key": "match-day", "name": "Match Day" },
     { "key": "transfer-desk", "name": "Transfer Desk" },

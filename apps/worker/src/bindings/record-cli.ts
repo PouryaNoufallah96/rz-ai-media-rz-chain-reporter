@@ -7,7 +7,8 @@ import {
   DestinationBindingError,
   formatDestinationBindingReport,
 } from "@rz-chain-reporter/env/destination-bindings";
-import { workerEnv } from "@rz-chain-reporter/env/worker";
+
+import { workerEnv } from "../runtime/env";
 
 const EXIT_FAILURE = 1;
 const EXIT_UNBOUND = 2;

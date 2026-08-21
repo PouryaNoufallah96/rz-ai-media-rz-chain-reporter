@@ -16,6 +16,7 @@ import { FORMATS, NOW, TIME_ZONE } from "@/i18n/config";
 import { getQueryClient } from "@/lib/query-client";
 
 import { ThemeProvider } from "./theme-provider";
+import { WebVitals } from "./web-vitals";
 
 function onIntlError(error: IntlError) {
   if (
@@ -63,6 +64,7 @@ export default function Providers({
               ) : null}
             </QueryClientProvider>
             <Toaster dir={direction} richColors />
+            <WebVitals />
           </ThemeProvider>
         </DirectionProvider>
       </NextIntlClientProvider>

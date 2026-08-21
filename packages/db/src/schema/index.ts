@@ -1,5 +1,6 @@
 export * from "../relations";
 export * from "./activity-event";
+export * from "./ai-usage-event";
 export * from "./analysis-run";
 export * from "./approval";
 export * from "./assistant-conversation";

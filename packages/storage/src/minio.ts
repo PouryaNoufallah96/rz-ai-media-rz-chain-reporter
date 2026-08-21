@@ -2,6 +2,7 @@ import {
   DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -60,16 +61,52 @@ export function createMinioStorage(config: MinioStorageConfig): Storage {
       }
       return { size: result.ContentLength, contentType: result.ContentType };
     },
+    async list(input) {
+      if (
+        !Number.isInteger(input.limit) ||
+        input.limit < 1 ||
+        input.limit > 100
+      ) {
+        throw new Error("Storage list limit must be between 1 and 100");
+      }
+      const result = await client.send(
+        new ListObjectsV2Command({
+          Bucket: bucket,
+          ContinuationToken: input.cursor,
+          MaxKeys: input.limit,
+          Prefix: input.prefix,
+        }),
+      );
+      return {
+        items: (result.Contents ?? []).flatMap((item) =>
+          item.Key !== undefined &&
+          item.LastModified !== undefined &&
+          item.Size !== undefined
+            ? [
+                {
+                  key: item.Key,
+                  lastModified: item.LastModified,
+                  size: item.Size,
+                },
+              ]
+            : [],
+        ),
+        nextCursor: result.NextContinuationToken,
+      };
+    },
     async delete(keys) {
       if (keys.length === 0) {
         return;
       }
-      await client.send(
+      const result = await client.send(
         new DeleteObjectsCommand({
           Bucket: bucket,
           Delete: { Objects: keys.map((key) => ({ Key: key })) },
         }),
       );
+      if (result.Errors && result.Errors.length > 0) {
+        throw new Error("Storage failed to delete one or more objects");
+      }
     },
   };
 }

@@ -6,9 +6,19 @@ import {
   SCRIPT,
   UI_FONT,
 } from "@rz-chain-reporter/i18n";
+import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react";
 
 // Replaces the root layout — no locale or catalog. English-only (ADR 0002).
-export default function GlobalError() {
+export default function GlobalError({
+  error,
+}: {
+  error: Error & { digest?: string };
+}) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   return (
     <html
       data-script={SCRIPT[DEFAULT_LOCALE]}
