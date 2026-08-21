@@ -1,5 +1,6 @@
 {
   "name": "@rz-chain-reporter/auth",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@rz-chain-reporter/config": "workspace:*",
+    "@types/node": "catalog:",
     "typescript": "catalog:"
   }
 }

@@ -4,19 +4,27 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./build": "./src/build.ts",
-    "./destination-bindings": "./src/destination-bindings.ts",
-    "./migration": "./src/migration.ts",
-    "./server": "./src/server.ts",
-    "./worker": "./src/worker.ts",
+    "./build": {
+      "browser": "./src/browser.ts",
+      "default": "./src/build.ts"
+    },
+    "./destination-bindings": {
+      "browser": "./src/browser.ts",
+      "default": "./src/destination-bindings.ts"
+    },
+    "./migration": {
+      "browser": "./src/browser.ts",
+      "default": "./src/migration.ts"
+    },
+    "./server": {
+      "browser": "./src/browser.ts",
+      "default": "./src/server.ts"
+    },
+    "./worker": {
+      "browser": "./src/browser.ts",
+      "default": "./src/worker.ts"
+    },
     "./web": "./src/web.ts"
-  },
-  "browser": {
-    "./src/build.ts": "./src/browser.ts",
-    "./src/destination-bindings.ts": "./src/browser.ts",
-    "./src/migration.ts": "./src/browser.ts",
-    "./src/server.ts": "./src/browser.ts",
-    "./src/worker.ts": "./src/browser.ts"
   },
   "scripts": {
     "check": "biome check .",
@@ -33,7 +41,7 @@
   },
   "devDependencies": {
     "@rz-chain-reporter/config": "workspace:*",
-    "@types/node": "26.2.0",
+    "@types/node": "catalog:",
     "typescript": "catalog:"
   }
 }

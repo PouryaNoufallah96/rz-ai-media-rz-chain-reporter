@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "@rz-chain-reporter/config": "workspace:*",
-    "@types/node": "26.2.0",
+    "@types/node": "catalog:",
     "typescript": "catalog:"
   }
 }
