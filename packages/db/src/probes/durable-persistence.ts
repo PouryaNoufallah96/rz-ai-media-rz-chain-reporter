@@ -213,7 +213,7 @@ async function proveUsageLedger() {
     apiKind: "chat" as const,
     backend: "remote" as const,
     providerGateway: "openrouter" as const,
-    requestedModel: "mistralai/mistral-nemo",
+    requestedModel: "openai/gpt-4o-mini",
   };
   const first = await insertPendingUsage(
     database.db,
@@ -232,7 +232,7 @@ async function proveUsageLedger() {
   const finalized = await finalizeUsage(database.db, workspaceId, {
     id: first.event.id,
     status: "succeeded",
-    resolvedModel: "mistralai/mistral-nemo",
+    resolvedModel: "openai/gpt-4o-mini",
     generationId: "generation-proof",
     promptTokens: 11,
     totalTokens: 11,
