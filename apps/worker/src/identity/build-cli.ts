@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {

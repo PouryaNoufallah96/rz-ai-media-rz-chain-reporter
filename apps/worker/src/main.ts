@@ -1,49 +1,25 @@
-import { createServer } from "node:http";
-import { createDb, DB_PROBE_TIMEOUT_MS } from "@rz-chain-reporter/db";
-import { workerEnv } from "@rz-chain-reporter/env/worker";
+import { workerLogger } from "./logging/logger";
+import {
+  captureWorkerFailure,
+  initializeWorkerObservability,
+  shutdownWorkerObservability,
+} from "./observability/bootstrap";
+import { workerEnv } from "./runtime/env";
 
-const database = createDb(workerEnv.DATABASE_URL, {
-  connectionTimeoutMillis: DB_PROBE_TIMEOUT_MS,
-});
-let acceptingWork = true;
-
-const healthServer = createServer((request, response) => {
-  if (request.url !== "/health/ready") {
-    response.writeHead(404).end();
-    return;
-  }
-  if (!acceptingWork) {
-    response.writeHead(503, { "content-type": "application/json" });
-    response.end(JSON.stringify({ status: "draining" }));
-    return;
-  }
-  void database
-    .check()
-    .then(() => {
-      response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify({ status: "ready" }));
-    })
-    .catch(() => {
-      response.writeHead(503, { "content-type": "application/json" });
-      response.end(JSON.stringify({ status: "unavailable" }));
-    });
-});
-
-healthServer.listen(workerEnv.WORKER_HEALTH_PORT, "0.0.0.0");
-
-const shutdown = (signal: NodeJS.Signals) => {
-  acceptingWork = false;
-  process.stdout.write(
-    `${JSON.stringify({ event: "worker.shutdown", signal })}\n`,
-  );
-  healthServer.close(() => {
-    void database.close().finally(() => {
-      process.exitCode = 0;
-    });
+async function run() {
+  const client = initializeWorkerObservability({
+    appVersion: workerEnv.APP_VERSION ?? "",
+    sentryDsn: workerEnv.SENTRY_DSN,
   });
-};
+  const { runWorkerApplication } = await import("./observability/application");
+  await runWorkerApplication(client);
+}
 
-process.once("SIGINT", shutdown);
-process.once("SIGTERM", shutdown);
-
-process.stdout.write(`${JSON.stringify({ event: "worker.ready" })}\n`);
+void run().catch(async () => {
+  workerLogger.error("worker.startup.failed", {
+    errorCode: "WORKER_STARTUP_FAILED",
+  });
+  captureWorkerFailure("WORKER_STARTUP_FAILED");
+  await shutdownWorkerObservability();
+  process.exitCode = 1;
+});

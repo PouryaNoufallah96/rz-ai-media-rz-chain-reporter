@@ -15,6 +15,7 @@ COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/customer-template/package.json packages/customer-template/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/env/package.json packages/env/package.json
+COPY packages/storage/package.json packages/storage/package.json
 RUN --mount=type=cache,target=/pnpm/store pnpm install --frozen-lockfile
 
 COPY apps/worker apps/worker
@@ -23,6 +24,7 @@ COPY packages/contracts packages/contracts
 COPY packages/customer-template packages/customer-template
 COPY packages/db packages/db
 COPY packages/env packages/env
+COPY packages/storage packages/storage
 
 ARG CUSTOMER_TEMPLATE_KEY
 # Without the guard an empty argument would turn the COPY below into "every
@@ -41,6 +43,8 @@ RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nod
 
 ARG CUSTOMER_TEMPLATE_KEY
 COPY --from=builder --chown=worker:nodejs /app/apps/worker/dist ./dist
+COPY --from=builder --chown=worker:nodejs /app/node_modules/.pnpm ./node_modules/.pnpm
+RUN ln -s "$(find node_modules/.pnpm -path '*/node_modules/sharp' -type d -print -quit | sed 's#^node_modules/##')" node_modules/sharp
 COPY --from=builder --chown=worker:nodejs /app/customer-templates/${CUSTOMER_TEMPLATE_KEY}/ ./customer-templates/${CUSTOMER_TEMPLATE_KEY}/
 COPY --chmod=0755 apps/worker/docker-entrypoint.sh ./docker-entrypoint.sh
 

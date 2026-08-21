@@ -3,14 +3,29 @@ import {
   BUILD_METADATA_FILE,
   BuildMetadataError,
 } from "@rz-chain-reporter/customer-template/build-metadata";
-import { CustomerTemplateError } from "@rz-chain-reporter/customer-template/load";
+import {
+  CustomerTemplateError,
+  loadCustomerTemplate,
+} from "@rz-chain-reporter/customer-template/load";
 import { createDb, DB_PROBE_TIMEOUT_MS } from "@rz-chain-reporter/db";
 import {
   DestinationBindingError,
   formatDestinationBindingReport,
 } from "@rz-chain-reporter/env/destination-bindings";
+import { validateWorkerEnv } from "@rz-chain-reporter/env/worker";
 
 import { checkDestinationBindings } from "../bindings/check";
+import {
+  ModelBindingError,
+  ModelTaskConfigurationError,
+} from "../model-gateway/errors";
+import { assertModelCapabilities } from "../model-gateway/prestart";
+import {
+  assertObjectStoreBound,
+  deriveWorkerRuntimeConfig,
+  WorkerRuntimeBindingError,
+  WorkerRuntimeConfigurationError,
+} from "../runtime/config";
 import {
   assertAppliedIdentity,
   assertBuildIdentity,
@@ -72,6 +87,23 @@ try {
   console.log("build, runtime, loaded and applied template identity match");
 
   if (stage === "worker") {
+    const workerEnvironment = validateWorkerEnv(process.env);
+    const runtime = deriveWorkerRuntimeConfig(workerEnvironment);
+    console.log(`worker mode: ${runtime.mode}`);
+
+    if (runtime.mode === "health-only") {
+      console.log("worker capability bindings: disabled");
+      process.exit(0);
+    }
+
+    assertObjectStoreBound(runtime);
+
+    const loaded = loadCustomerTemplate(
+      artifactRoot,
+      identity.customerTemplateKey,
+    );
+    assertModelCapabilities(loaded.template, workerEnvironment);
+
     const report = checkDestinationBindings(
       artifactRoot,
       identity.customerTemplateKey,
@@ -93,6 +125,16 @@ try {
     error instanceof DestinationBindingError ||
     error instanceof InstallationIdentityError
   ) {
+    console.error(`${command} failed [${error.code}]: ${error.message}`);
+  } else if (error instanceof WorkerRuntimeBindingError) {
+    process.exitCode = EXIT_UNBOUND;
+    console.error(`${command} failed [${error.code}]: ${error.message}`);
+  } else if (error instanceof WorkerRuntimeConfigurationError) {
+    console.error(`${command} failed [${error.code}]: ${error.message}`);
+  } else if (error instanceof ModelBindingError) {
+    process.exitCode = EXIT_UNBOUND;
+    console.error(`${command} failed [${error.code}]: ${error.message}`);
+  } else if (error instanceof ModelTaskConfigurationError) {
     console.error(`${command} failed [${error.code}]: ${error.message}`);
   } else {
     console.error(`${command} failed:`, error);

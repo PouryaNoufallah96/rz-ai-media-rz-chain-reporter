@@ -77,7 +77,11 @@ export async function assertAppliedIdentity(
   identity: InstallationIdentity,
 ) {
   const [installation, extra] = await executor.query.workspace.findMany({
-    columns: { customerTemplateFingerprint: true, customerTemplateKey: true },
+    columns: {
+      customerTemplateFingerprint: true,
+      customerTemplateKey: true,
+      id: true,
+    },
     limit: 2,
   });
 
@@ -108,4 +112,6 @@ export async function assertAppliedIdentity(
       `template "${identity.customerTemplateKey}" is not the applied revision (loaded ${shortFingerprint(identity.fingerprint)}, applied ${shortFingerprint(installation.customerTemplateFingerprint ?? "none")}): run template:reconcile`,
     );
   }
+
+  return { ...identity, workspaceId: installation.id };
 }
