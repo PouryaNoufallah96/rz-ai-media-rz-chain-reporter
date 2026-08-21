@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import {
   customerTemplateKey,
+  httpOrigin,
   httpUrl,
   inngestDev,
   postgresUrl,
@@ -16,6 +17,7 @@ export function validateWorkerEnv(
   return createEnv({
     server: {
       APP_VERSION: z.string().trim().min(1).optional(),
+      CACHE_INVALIDATION_WEBHOOK_SECRET: z.string().min(32).optional(),
       CUSTOMER_TEMPLATE_KEY: customerTemplateKey,
       DATABASE_URL: postgresUrl,
       INNGEST_CONNECT_MAX_WORKER_CONCURRENCY: z.coerce
@@ -30,6 +32,7 @@ export function validateWorkerEnv(
       OPENROUTER_API_KEY: z.string().min(1).optional(),
       ...storageEnv,
       SENTRY_DSN: z.url().optional(),
+      WEB_INTERNAL_BASE_URL: httpOrigin.optional(),
       WORKER_HEALTH_PORT: z.coerce
         .number()
         .int()

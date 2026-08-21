@@ -9,6 +9,7 @@ import { deriveWorkerRuntimeConfig } from "../runtime/config";
 import { abortableDelay } from "../runtime/delay";
 import { workerEnv } from "../runtime/env";
 import { WorkerRuntimeState } from "../runtime/state";
+import { reportCacheInvalidationConfiguration } from "../web-cache/notify";
 import { captureWorkerFailure, shutdownWorkerObservability } from "./bootstrap";
 
 const IDENTITY_RETRY_MS = 1_000;
@@ -100,6 +101,8 @@ export async function runWorkerApplication(client: WorkerInngestClient) {
     workerLogger.info("worker.ready", { mode: config.mode });
     return;
   }
+
+  reportCacheInvalidationConfiguration();
 
   initialization = (async () => {
     let installation:

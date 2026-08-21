@@ -18,6 +18,7 @@ export const env = createEnv({
     DATABASE_URL: postgresUrl,
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: httpUrl,
+    CACHE_INVALIDATION_WEBHOOK_SECRET: z.string().min(32).optional(),
     CORS_ORIGIN: httpOrigin,
     // Public origin for sitemap/robots. Not CORS_ORIGIN or BETTER_AUTH_URL.
     APP_URL: httpOrigin,

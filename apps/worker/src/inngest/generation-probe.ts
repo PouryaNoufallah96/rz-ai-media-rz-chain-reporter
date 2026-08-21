@@ -15,6 +15,7 @@ import { workerLogger } from "../logging/logger";
 import { ModelGatewayInvocationError } from "../model-gateway/errors";
 import { createModelGateway } from "../model-gateway/gateway";
 import { workerEnv } from "../runtime/env";
+import { notifyUsageLedgerChanged } from "../web-cache/usage-ledger";
 import { publishOperationStatus } from "./channels";
 import type { WorkerInngestClient } from "./client";
 import { durableEvents } from "./events";
@@ -173,12 +174,17 @@ export function createGenerationProbeFunction(
         "worker.generation-probe.realtime-unavailable",
       );
 
+      const { cacheInvalidation, usageRealtimePublished } =
+        await notifyUsageLedgerChanged(step, event.data.workspaceId);
+
       return {
+        cacheInvalidation,
         lifecycle: terminal.lifecycle,
         operationId: event.data.operationId,
         realtimePublished:
           runningRealtimePublished && terminalRealtimePublished,
         usageEventId: invocation.usageEventId,
+        usageRealtimePublished,
       };
     },
   );

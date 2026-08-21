@@ -1,21 +1,21 @@
 "use server";
 
-import { OPERATIONS_REALTIME_STATUS_TOPIC } from "@rz-chain-reporter/contracts";
-import { operationsRealtimeChannel } from "@rz-chain-reporter/contracts/realtime-channels";
+import { USAGE_REALTIME_LEDGER_TOPIC } from "@rz-chain-reporter/contracts";
+import { usageRealtimeChannel } from "@rz-chain-reporter/contracts/realtime-channels";
 
 import { getSession } from "@/features/auth/api/server/session";
 import { mintSubscriptionToken } from "@/features/shared/realtime/subscription-token";
 import { rpcDb } from "@/server/rpc/db";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 
-export async function getOperationsRealtimeToken() {
+export async function getUsageRealtimeToken() {
   const session = await getSession();
   if (!session?.user) {
     throw new Error("unauthorized");
   }
 
   const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
-  return mintSubscriptionToken(operationsRealtimeChannel(workspaceId), [
-    OPERATIONS_REALTIME_STATUS_TOPIC,
+  return mintSubscriptionToken(usageRealtimeChannel(workspaceId), [
+    USAGE_REALTIME_LEDGER_TOPIC,
   ]);
 }

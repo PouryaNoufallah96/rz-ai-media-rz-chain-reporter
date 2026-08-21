@@ -2,6 +2,14 @@
   "usage": {
     "title": "Usage",
     "subtitle": "Recorded model consumption for this installation. Reporting only — nothing here limits or blocks work.",
+    "transport": {
+      "live": "live",
+      "reconnecting": "reconnecting…",
+      "stale": "updates paused",
+      "unavailable": "live updates off",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…"
+    },
     "filters": {
       "label": "Usage filters",
       "period": "Period",

@@ -25,6 +25,7 @@
     "@openrouter/ai-sdk-provider": "catalog:",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/sdk-trace-node": "catalog:",
+    "@rz-chain-reporter/cache-invalidation": "workspace:*",
     "@rz-chain-reporter/contracts": "workspace:*",
     "@rz-chain-reporter/customer-template": "workspace:*",
     "@rz-chain-reporter/db": "workspace:*",
@@ -40,7 +41,7 @@
   },
   "devDependencies": {
     "@rz-chain-reporter/config": "workspace:*",
-    "@types/node": "26.2.0",
+    "@types/node": "catalog:",
     "esbuild": "0.28.2",
     "inngest-cli": "1.41.1",
     "tsx": "4.23.12",

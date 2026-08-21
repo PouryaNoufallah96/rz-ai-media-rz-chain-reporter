@@ -1,21 +1,17 @@
 {
   "name": "@rz-chain-reporter/db",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": {
+      "browser": "./src/browser.ts",
       "default": "./src/index.ts"
     },
-    "./browser": {
-      "default": "./src/browser.ts"
-    },
     "./*": {
+      "browser": "./src/browser.ts",
       "default": "./src/*.ts"
     }
-  },
-  "browser": {
-    ".": "./src/browser.ts",
-    "./src/index.ts": "./src/browser.ts"
   },
   "scripts": {
     "check": "biome check .",
@@ -29,6 +25,7 @@
     "fix": "biome check --write ."
   },
   "dependencies": {
+    "@rz-chain-reporter/cache-invalidation": "workspace:*",
     "@rz-chain-reporter/contracts": "workspace:*",
     "@rz-chain-reporter/customer-template": "workspace:*",
     "@rz-chain-reporter/env": "workspace:*",
@@ -37,6 +34,7 @@
   },
   "devDependencies": {
     "@rz-chain-reporter/config": "workspace:*",
+    "@types/node": "catalog:",
     "@types/pg": "8.21.0",
     "dotenv": "catalog:",
     "drizzle-kit": "0.31.10",

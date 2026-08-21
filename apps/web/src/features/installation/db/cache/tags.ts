@@ -1,11 +1,11 @@
 import "server-only";
 
+import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
 import { revalidateTag, updateTag } from "next/cache";
 
-import { workspaceTag } from "@/lib/cache-tags";
-
 export const installationTags = {
-  overview: (workspaceId: string) => workspaceTag(workspaceId, "installation"),
+  overview: (workspaceId: string) =>
+    workspaceCacheTag(workspaceId, "installation"),
 };
 
 export function updateInstallationTags(workspaceId: string) {

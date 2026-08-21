@@ -24,6 +24,7 @@ const WORKER_LOG_NUMBER_FIELDS = [
   "delayMs",
   "durationMs",
   "port",
+  "tagCount",
 ] as const;
 
 export const WORKER_LOG_FIELDS: readonly string[] = [
