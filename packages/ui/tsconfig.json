@@ -6,8 +6,7 @@
     "types": [],
     "paths": {
       "@rz-chain-reporter/ui/*": ["./src/*"]
-    },
-    "strictNullChecks": true
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules"]

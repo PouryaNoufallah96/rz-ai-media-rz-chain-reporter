@@ -124,6 +124,7 @@ export async function reconcileCustomerTemplate(
       return {
         mode,
         customerTemplateKey,
+        workspaceId,
         fingerprint,
         entries,
         divergent,
@@ -238,6 +239,7 @@ function unprovisionedReport(
   return {
     mode: "check",
     customerTemplateKey: template.customer.key,
+    workspaceId: null,
     fingerprint,
     entries: [
       entry("workspace", template.customer.key, "added"),

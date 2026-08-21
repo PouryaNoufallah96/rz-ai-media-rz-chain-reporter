@@ -43,6 +43,7 @@ import {
   type UsageSummary,
   usageSearchParsers,
 } from "../schemas/usage";
+import { UsageFreshness } from "./usage-freshness";
 
 const COLUMN_CLASS_NAMES = {
   task: "hidden md:table-cell",
@@ -186,11 +187,14 @@ export function UsageReport({ page, query, summary }: UsageReportProps) {
 
   return (
     <>
-      <UsageFilters
-        onSubmit={handleTextFilters}
-        onValueChange={setFilters}
-        query={query}
-      />
+      <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+        <UsageFilters
+          onSubmit={handleTextFilters}
+          onValueChange={setFilters}
+          query={query}
+        />
+        <UsageFreshness />
+      </div>
       <UsageSummaryBlock summary={summary} />
       <section className="mt-6" aria-labelledby="usage-ledger-title">
         <h2
@@ -256,7 +260,7 @@ function UsageFilters({
   return (
     <form
       aria-label={t("filters.label")}
-      className="mt-6 flex flex-wrap items-end gap-2"
+      className="flex flex-wrap items-end gap-2"
       onSubmit={onSubmit}
     >
       <FilterSelect

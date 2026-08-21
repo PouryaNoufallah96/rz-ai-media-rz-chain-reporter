@@ -1,4 +1,5 @@
 import type { Locale } from "@rz-chain-reporter/i18n";
+import { cacheLife } from "next/cache";
 
 import authEn from "@/features/auth/messages/en.json";
 import authFa from "@/features/auth/messages/fa.json";
@@ -43,5 +44,6 @@ export type CatalogNamespace = keyof Catalog;
 // `locale` must stay an argument; it is what keys the cache entry.
 export async function loadCatalog(locale: Locale): Promise<Catalog> {
   "use cache";
+  cacheLife("max");
   return CATALOGS[locale];
 }

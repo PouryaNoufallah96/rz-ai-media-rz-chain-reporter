@@ -1,10 +1,6 @@
 {
   "name": "rz-chain-reporter",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "type": "module",
   "engines": {
     "node": "24.19.0",
@@ -43,7 +39,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.8",
     "@rz-chain-reporter/config": "workspace:*",
-    "@types/node": "26.2.0",
+    "@types/node": "catalog:",
     "turbo": "2.10.10",
     "typescript": "catalog:"
   },

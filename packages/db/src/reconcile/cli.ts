@@ -1,4 +1,6 @@
 import { fileURLToPath } from "node:url";
+import { notifyCacheInvalidation } from "@rz-chain-reporter/cache-invalidation";
+import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
 import {
   CustomerTemplateError,
   loadCustomerTemplate,
@@ -48,6 +50,16 @@ try {
   const report = await reconcileCustomerTemplate(database.db, loaded, mode);
 
   console.log(formatReconcileReport(report));
+
+  if (report.workspaceId && report.appliedAt) {
+    console.log(
+      `cache invalidation ${await notifyCacheInvalidation({
+        baseUrl: migrationEnv.WEB_INTERNAL_BASE_URL,
+        secret: migrationEnv.CACHE_INVALIDATION_WEBHOOK_SECRET,
+        tags: [workspaceCacheTag(report.workspaceId, "installation")],
+      })}`,
+    );
+  }
 
   if (mode === "check" && report.divergent) {
     exitCode = EXIT_DIVERGENT;

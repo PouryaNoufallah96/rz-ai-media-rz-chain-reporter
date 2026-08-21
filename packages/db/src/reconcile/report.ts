@@ -29,6 +29,8 @@ export type ReconcileEntry = {
 export type ReconcileReport = {
   mode: ReconcileMode;
   customerTemplateKey: string;
+  // Null only for the check report of a database with no workspace row yet.
+  workspaceId: string | null;
   fingerprint: string;
   entries: readonly ReconcileEntry[];
   divergent: boolean;

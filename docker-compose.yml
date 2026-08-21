@@ -69,6 +69,7 @@ services:
     environment:
       CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY}
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/rz-chain-reporter
+      WEB_INTERNAL_BASE_URL: http://web:3001
       WORKER_HEALTH_PORT: 3002
     depends_on:
       migrate:

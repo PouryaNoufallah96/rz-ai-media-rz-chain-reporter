@@ -8,6 +8,7 @@
     "dev": {
       "with": ["worker#dev:inngest"],
       "env": [
+        "CACHE_INVALIDATION_WEBHOOK_SECRET",
         "DATABASE_URL",
         "INNGEST_EVENT_KEY",
         "INNGEST_SIGNING_KEY",
@@ -22,6 +23,7 @@
         "S3_ENDPOINT",
         "S3_REGION",
         "S3_SECRET_ACCESS_KEY",
+        "WEB_INTERNAL_BASE_URL",
         "WORKER_HEALTH_PORT",
         "WORKER_MODE",
         "APP_VERSION"

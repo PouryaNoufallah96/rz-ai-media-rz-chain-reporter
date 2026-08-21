@@ -16,6 +16,7 @@
       "outputs": []
     },
     "check": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/biome.json"],
       "outputs": []
     },
     "openapi:check": {

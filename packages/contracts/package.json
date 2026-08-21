@@ -4,12 +4,18 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": {
-      "default": "./src/index.ts"
-    },
-    "./*": {
-      "default": "./src/*.ts"
-    }
+    ".": "./src/index.ts",
+    "./operation": "./src/operation.ts",
+    "./usage": "./src/usage.ts",
+    "./media": "./src/media.ts",
+    "./schedule": "./src/schedule.ts",
+    "./platform": "./src/platform.ts",
+    "./error": "./src/error.ts",
+    "./events": "./src/events.ts",
+    "./cache": "./src/cache.ts",
+    "./realtime": "./src/realtime.ts",
+    "./realtime-channels": "./src/realtime-channels.ts",
+    "./list": "./src/list.ts"
   },
   "scripts": {
     "check": "biome check .",
@@ -17,6 +23,7 @@
     "fix": "biome check --write ."
   },
   "dependencies": {
+    "inngest": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

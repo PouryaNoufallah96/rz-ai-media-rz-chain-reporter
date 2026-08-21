@@ -30,6 +30,7 @@ export class BindingProjectionError extends Error {
 
 export type BindingProjection = {
   report: DestinationBindingReport;
+  workspaceId: string;
   written: number;
 };
 
@@ -95,7 +96,7 @@ export async function recordDestinationBindingProjection(
       written += 1;
     }
 
-    return { report, written };
+    return { report, workspaceId, written };
   });
 }
 

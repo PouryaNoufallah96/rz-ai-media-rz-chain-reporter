@@ -1,3 +1,5 @@
+import { notifyCacheInvalidation } from "@rz-chain-reporter/cache-invalidation";
+import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
 import { createDb, DB_PROBE_TIMEOUT_MS } from "@rz-chain-reporter/db";
 import {
   BindingProjectionError,
@@ -20,14 +22,19 @@ const database = createDb(workerEnv.DATABASE_URL, {
 let exitCode = 0;
 
 try {
-  const { report, written } = await recordDestinationBindingProjection(
-    database.db,
-    process.env,
-  );
+  const { report, workspaceId, written } =
+    await recordDestinationBindingProjection(database.db, process.env);
 
   console.log(command);
   console.log(formatDestinationBindingReport(report));
   console.log(`projection rows written ${written}`);
+  console.log(
+    `cache invalidation ${await notifyCacheInvalidation({
+      baseUrl: workerEnv.WEB_INTERNAL_BASE_URL,
+      secret: workerEnv.CACHE_INVALIDATION_WEBHOOK_SECRET,
+      tags: [workspaceCacheTag(workspaceId, "installation")],
+    })}`,
+  );
 
   // Record the projection before choosing the exit code so unbound destinations still show.
   if (!report.satisfied) {

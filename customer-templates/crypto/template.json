@@ -11,10 +11,10 @@
     "tasks": {
       "generation-probe": {
         "backend": "remote",
-        "model": "mistralai/mistral-nemo",
+        "model": "openai/gpt-4o-mini",
         "fallback": {
           "backend": "remote",
-          "model": "mistralai/ministral-3b-2512"
+          "model": "openai/gpt-4.1-nano"
         }
       }
     }
