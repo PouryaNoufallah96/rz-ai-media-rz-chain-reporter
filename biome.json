@@ -149,6 +149,29 @@
       }
     },
     {
+      "includes": [
+        "apps/web/src/features/**/*.ts",
+        "apps/web/src/features/**/*.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/features/*/components/**"],
+                    "message": "A slice's components/ are private to that slice and its routes. Across slices go through api/server/, schemas/, or lib/; shared UI belongs in apps/web/src/components. See chainreporter-feature-slice."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["apps/web/src/server/**"],
       "linter": {
         "rules": {
