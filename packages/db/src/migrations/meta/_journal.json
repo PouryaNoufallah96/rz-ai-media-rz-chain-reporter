@@ -71,6 +71,27 @@
       "when": 1787023477015,
       "tag": "0009_auth_abuse_protection",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787217856827,
+      "tag": "0010_smart_hemingway",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1787217882695,
+      "tag": "0011_cultured_domino",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1787218382388,
+      "tag": "0012_sharp_george_stacy",
+      "breakpoints": true
     }
   ]
 }

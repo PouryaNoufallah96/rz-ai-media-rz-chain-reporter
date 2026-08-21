@@ -20,7 +20,7 @@ export const operationAttempt = pgTable(
     ...workspaceScope,
     operationId: uuid("operation_id").notNull(),
     attemptNumber: integer("attempt_number").notNull(),
-    outcome: attemptOutcome("outcome").notNull(),
+    outcome: attemptOutcome("outcome"),
     failureCode: text("failure_code").$type<ErrorCode>(),
     providerResultId: text("provider_result_id"),
     latencyMs: integer("latency_ms"),

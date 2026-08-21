@@ -29,6 +29,7 @@ export const operation = pgTable(
     claimedBy: text("claimed_by"),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    attemptSeq: integer("attempt_seq").default(0).notNull(),
     version: integer("version").default(1).notNull(),
     ...timestamps,
   },
