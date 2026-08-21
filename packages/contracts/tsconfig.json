@@ -1,8 +1,7 @@
 {
   "extends": "@rz-chain-reporter/config/tsconfig.base.json",
   "compilerOptions": {
-    "types": [],
-    "strictNullChecks": true
+    "types": []
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]

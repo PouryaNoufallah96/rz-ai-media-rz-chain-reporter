@@ -1,0 +1,23 @@
+import { z } from "zod";
+
+export const ERROR_CODES = [
+  "OPERATION_REPLAYED",
+  "IDEMPOTENCY_KEY_REUSED",
+  "VALIDATION_FAILED",
+  "UNAUTHORIZED",
+  "FORBIDDEN",
+  "NOT_FOUND",
+  "VERSION_CONFLICT",
+  "SAVED_CARD_ALREADY_ACTIVE",
+  "TRANSIENT_CONFLICT",
+  "TEMPLATE_DRIFT",
+  "MODEL_INVOCATION_FAILED",
+  "STRUCTURED_OUTPUT_INVALID",
+  "OBJECT_STORE_UNBOUND",
+  "MEDIA_REJECTED",
+  "INTERNAL_SERVER_ERROR",
+] as const;
+
+export type ErrorCode = (typeof ERROR_CODES)[number];
+
+export const errorCodeSchema = z.enum(ERROR_CODES);
