@@ -22,9 +22,11 @@ instance: operator accounts are provisioned when a deployment is set up.
 - `packages/auth`: Better Auth server configuration.
 - `packages/config`: shared TypeScript compiler base for every app and package.
 - `packages/contracts`: framework-free Zod factories shared by `apps/web` and `packages/db`.
+- `packages/customer-template`: customer-template schema, loader, and canonical fingerprint.
 - `packages/db`: PostgreSQL/Drizzle schema and migrations.
-- `packages/env`: client, web-server, and worker environment validation.
+- `packages/env`: client, web-server, worker, build, and migration environment validation.
 - `packages/i18n`: framework-free locale, direction, script, and font facts.
+- `packages/storage`: framework-free MinIO/`Storage` seam (ADR 0009).
 - `packages/ui`: owned shadcn/Base UI source and Tailwind 4 tokens.
 
 The scaffold is not the product implementation. Feature work proceeds through
@@ -34,7 +36,7 @@ reviewed migration phases and explicit product decisions.
 
 The dependency graph and lockfile are installed with the pinned Node, pnpm,
 Turbo, Next, React, and diagnostic versions. `packages/db/src/migrations` holds
-eight reviewed migrations, `0000_initial_auth` through `0007_configured_source`,
+thirteen reviewed migrations, `0000_initial_auth` through `0012_sharp_george_stacy`,
 applied to the local development database with `pnpm db:migrate`. Compose keeps
 web and worker startup gated on successful migration completion.
 
@@ -50,7 +52,7 @@ pnpm run build
 Copy root `.env.example` to a local ignored `.env` and set `POSTGRES_PASSWORD`
 before using Compose. Copy `apps/web/.env.example` and `apps/worker/.env.example`
 the same way. Live secrets never belong in tracked files. Local stack
-(Postgres, Next, worker, Inngest):
+(Postgres, MinIO, Next, worker, Inngest):
 
 ```bash
 pnpm dev:stack
