@@ -1,0 +1,222 @@
+{
+  "families": {
+    "duotone": {
+      "name": "DUOTONE EDITORIAL",
+      "skeleton": "A black-and-white photographic or photo-real subject -- an object, building, or scene, never a generated face -- fills the frame, with ONE accent-color geometric treatment overlaid as a color-split background, duotone wash, or large sweeping rings or diagonal panels that interact with the subject.",
+      "textPolicy": "Headline only, art_only layout.",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "full_bleed_photo",
+        "energy": "newsroom_neutral",
+        "accent": "cr_signal"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "set in a clean overlay bar across the lower third, or a left-aligned editorial block"
+    },
+    "big_number": {
+      "name": "BIG NUMBER POSTER",
+      "skeleton": "A dark or single-color field holds ONE giant figure rendered in the accent color, dominating at least 30% of the frame height, with a short supporting line beneath it; abstract geometric or logo-derived shapes decorate the corners, and optionally one floating 3D token or object anchors a corner.",
+      "textPolicy": "One giant value (1-7 characters) plus one short supporting line (<=6 words). The value dominates the frame.",
+      "defaultAxes": {
+        "stage": "studio_dark",
+        "composition": "centered_hero",
+        "energy": "celebratory",
+        "accent": "cr_signal"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "the giant numeral dominates the frame; the headline is set small above or below it"
+    },
+    "hero_object": {
+      "name": "HERO OBJECT 3D",
+      "skeleton": "One premium 3D object -- a coin medallion, glass device, vault, rocket, or sculptural logo -- sits on a clean stage, rendered in glossy glass or metal materials with controlled studio reflections.",
+      "textPolicy": "Headline plus at most one short label or value near the object.",
+      "defaultAxes": {
+        "stage": "gradient_sweep",
+        "composition": "centered_hero",
+        "energy": "celebratory",
+        "accent": "cr_signal"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "set in a clean zone above or beside the object, modest scale"
+    },
+    "concept_photo": {
+      "name": "CONCEPT PHOTO / CAMPAIGN",
+      "skeleton": "A single striking photo-real scene -- a landmark, sky, or symbolic object in the world, never an identifiable generated face -- fills the frame with generous negative space, evoking political-ad or brand-campaign energy.",
+      "textPolicy": "Headline only, short and declarative (5 words or fewer ideal).",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "full_bleed_photo",
+        "energy": "newsroom_neutral",
+        "accent": "cr_signal"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "set small in the negative space as a minimal declarative tagline",
+      "headlineUppercase": false
+    },
+    "flat_explainer": {
+      "name": "FLAT EXPLAINER",
+      "skeleton": "A flat-vector or isometric illustration in a limited 2-3 color palette renders one diagrammatic concept -- stacked layers, connected nodes, or a simple machine -- with clean shapes and a friendly but precise tone.",
+      "textPolicy": "Headline plus at most 2 short labels (1-3 words each) inside the illustration; diagram content is otherwise abstract.",
+      "defaultAxes": {
+        "stage": "flat_field",
+        "composition": "isometric",
+        "energy": "newsroom_neutral",
+        "accent": "story_color"
+      },
+      "dataBudget": 2,
+      "headlineTreatment": "set in a clean horizontal band above the illustration"
+    },
+    "type_led": {
+      "name": "TYPE-LED MINIMAL",
+      "skeleton": "Typography is the design. Pick one sub-variant and describe it explicitly in the subject: brutalist dark (huge white sans on black plus one 3D chrome detail), gallery-light (a chrome or silver object on off-white with small type), editorial serif (elegant serif over a single macro-photo texture), or retro-mono (line art with spaced capitals).",
+      "textPolicy": "Headline (may render very large) plus at most one sub-element (a kicker word or small badge).",
+      "defaultAxes": {
+        "stage": "studio_dark",
+        "composition": "left_type_block",
+        "energy": "newsroom_neutral",
+        "accent": "free"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "may render very large, filling much of the frame"
+    },
+    "art_drop": {
+      "name": "ART DROP",
+      "skeleton": "Standalone artwork in a deliberately rotating style -- painterly illustration, dramatic black-and-white portrait-of-an-object, chalk or craft texture, cosmic gradient, woodcut, or similar -- with one crypto motif (a coin, chain link, or Bitcoin glyph) embedded naturally in the art.",
+      "textPolicy": "Zero in-image text. The headline and price live in the social copy, not the image.",
+      "defaultAxes": {
+        "stage": "texture_macro",
+        "composition": "full_bleed_photo",
+        "energy": "playful",
+        "accent": "free"
+      },
+      "dataBudget": 0
+    },
+    "meme": {
+      "name": "MEME / PLAYFUL",
+      "skeleton": "Whatever the joke needs -- a photoreal parody product shot, an absurdist photo composite, or candy-colored cartoon imagery -- staying at a premium craft bar while landing the visual joke in a single beat. Never use real brand marks or logos.",
+      "textPolicy": "At most one short text element if the joke requires it.",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "centered_hero",
+        "energy": "playful",
+        "accent": "free"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "a single short caption-style element, if used at all"
+    },
+    "stat_card": {
+      "name": "STAT CARD",
+      "skeleton": "A clean card-grid layout holds a title block plus 2-4 rounded stat tiles, each carrying one icon, one value and one micro-label, anchored by one hero visual element (a 3D object or illustration) in a corner.",
+      "textPolicy": "Headline plus at most 4 tiles, each a value plus a 1-2 word label. This is the text-heaviest mode -- a hard ceiling.",
+      "defaultAxes": {
+        "stage": "studio_light",
+        "composition": "card_grid",
+        "energy": "newsroom_neutral",
+        "accent": "cr_signal"
+      },
+      "dataBudget": 4,
+      "headlineTreatment": "a bold title block spans the top of the grid"
+    },
+    "lockup": {
+      "name": "PARTNERSHIP LOCKUP",
+      "skeleton": "Two emblem medallions or badges, each carrying an abstract glyph standing in for a real logo, are joined by a connector device -- a bridge, an X-shaped crossing, or a light spark -- on a clean stage; alternatively, one cinematic backdrop carries both entity names typeset in an acquisition-style layout.",
+      "textPolicy": "Headline plus the two entity names as short labels (<=8 characters each) -- the one place proper nouns appear in-image.",
+      "defaultAxes": {
+        "stage": "gradient_sweep",
+        "composition": "centered_hero",
+        "energy": "celebratory",
+        "accent": "cr_signal"
+      },
+      "dataBudget": 2,
+      "headlineTreatment": "set above the medallions, with the entity names as two short labels beneath or beside them",
+      "dataValueMaxLength": 8
+    }
+  },
+  "axes": {
+    "stage": {
+      "studio_dark": "The setting is a dark or single-color studio field, evenly lit and uncluttered.",
+      "studio_light": "The setting is a bright, clean studio field in soft off-white or pale neutral tones.",
+      "gradient_sweep": "The setting is a smooth soft-gradient sweep, like a seamless studio backdrop curving from floor to wall.",
+      "photo_real": "The setting is a photo-real environment -- a real-world object, building, or scene rendered with documentary realism.",
+      "flat_field": "The setting is a flat, evenly-lit field of color suited to vector or isometric illustration.",
+      "texture_macro": "The setting is an extreme close-up texture world -- paper, paint, woodgrain, or other tactile material filling the frame."
+    },
+    "composition": {
+      "centered_hero": "The composition centers a single hero subject in the frame, symmetrical and commanding.",
+      "left_type_block": "The composition reserves the left portion of the frame for a stacked block of typography, with supporting imagery on the right.",
+      "full_bleed_photo": "The composition is a full-bleed photographic frame, the subject filling the entire image with no visible borders.",
+      "split_panel": "The composition divides the frame into two panels -- left/right or top/bottom -- contrasting two halves of the story.",
+      "isometric": "The composition is a three-quarter isometric view, giving an ordered, diagrammatic perspective.",
+      "card_grid": "The composition arranges the frame as a grid of cards or tiles around a title block."
+    },
+    "energy": {
+      "newsroom_neutral": "The lighting and mood are calm, controlled and editorial -- a neutral newsroom register.",
+      "celebratory": "The lighting is bright and triumphant, with a sense of milestone and momentum.",
+      "tension": "The lighting is high-contrast and charged, with fractured or unstable elements conveying tension.",
+      "playful": "The lighting and mood are light, warm and playful."
+    },
+    "accent": {
+      "cr_signal": "The dominant accent color throughout the scene is ChainReporter's signal red-orange.",
+      "story_color": "The dominant accent color is justified by the story itself -- green for a green protocol's hack, gold for a gold-backed token, blue for an ocean-themed chain -- and the reason is named in the brief.",
+      "free": "The dominant accent color is chosen freely to suit this mode's rotating style, not tied to the brand accent."
+    }
+  },
+  "frozenStyle": {
+    "format": "vertical 4:5 editorial poster for a crypto news media outlet",
+    "palette": "one dominant accent color per post plus neutrals -- the accent can be any color, but the image never uses many colors at once",
+    "materials": "premium, mode-appropriate materials and surfaces -- glass, metal, paper, paint or photographic textures -- never generic stock-photo or default-AI-render textures",
+    "rendering": "exchange-marketing-grade craft: controlled lighting, intentional composition, one focal idea per image (a single hero object, a single number, a single concept, or a single joke)",
+    "backgroundVocab": "clean modern sans-serif typography by default, with deliberate serif or mono type only where the mode calls for it; numbers always render biggest",
+    "headlineZone": "the headline sits in a clean, uncluttered zone with no competing detail behind it",
+    "never": "generic AI-slop aesthetics (glowing humanoid robots, busy neon collages), dense disclaimers or microtext, more than 3 text elements, watermarks, or recognizable real people generated by AI"
+  },
+  "restrictions": {
+    "antiRepetition": "Hard rules: do not repeat the same family more than 2 times in a row; 'duotone' may not exceed 3 of any 5 consecutive posts; 'art_drop' art_style must not repeat within 5 posts; 'meme' at most 1 in 6 posts even when enabled; 'stat_card' at most 1 in 5 posts; the 'cr_signal' accent must appear in at least 1 of every 3 posts.",
+    "moodAccentDefault": "cr_signal",
+    "moodAccentRestricted": {
+      "free": {
+        "families": [
+          "type_led",
+          "art_drop",
+          "meme"
+        ]
+      }
+    },
+    "bannedSubjectTerms": [
+      "frosted glass",
+      "glassmorphism",
+      "wireframe cube",
+      "art deco",
+      "gold veining",
+      "chandelier",
+      "gatsby",
+      "gunmetal",
+      "real logo",
+      "real person",
+      "looks like"
+    ]
+  },
+  "textPolicy": {
+    "rules": "1. Headline: 7 words or fewer. Treatment depends on the family (overlay bar in duotone, giant in\n   big_number/type_led, minimal in concept_photo, absent in art_drop). Numbers and tickers are preferred\n   over proper nouns; short famous names (BITCOIN, SEC) are fine in headlines, otherwise concept-phrase the\n   story instead of naming a protocol.\n2. In-image text budget by family: duotone headline only; big_number one giant value plus one short line;\n   hero_object at most 1 label; concept_photo headline only; flat_explainer at most 2 labels; type_led\n   headline plus 1 sub-element; art_drop ZERO; meme at most 1; stat_card at most 4 tiles; lockup 2 entity names.\n3. Every text element sits in its own clean zone; values render large.\n4. No real logos or trademarks in-image -- use abstract glyph stand-ins. Never generate the face of a real\n   person -- route person-centric stories to duotone with an object/scene metaphor (the gavel, the building,\n   the seal) instead of the person.",
+    "headlineMaxWords": 7,
+    "legibilityLine": "All text is large, crisp and clearly legible.",
+    "dataElementTemplate": "a clean tile or label displaying \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " with the micro-label \"{label}\"",
+    "noTextMode": "art_drop",
+    "noTextLine": "No text, no letters, no numbers anywhere in the image."
+  },
+  "fallbackBrief": {
+    "family": "duotone",
+    "headline": "CRYPTO MARKETS MOVE",
+    "layout": "art_only",
+    "data_elements": [],
+    "stage": "photo_real",
+    "composition": "full_bleed_photo",
+    "energy": "newsroom_neutral",
+    "accent": "cr_signal",
+    "accent_justification": "",
+    "art_style": "",
+    "subject_scene": "A black-and-white macro photograph of a chrome coin fills the frame, its surface catching cold studio light, while two giant signal-orange ring shapes sweep across the composition from opposite corners."
+  },
+  "briefExamples": "Worked examples (for guidance only -- do not copy headlines or scenes verbatim):\n\nA. Article: \"SEC approves first crypto perps framework\"\n{\"family\": \"duotone\", \"headline\": \"THE DOOR OPENS FOR CRYPTO PERPS\", \"layout\": \"art_only\", \"data_elements\": [], \"stage\": \"photo_real\", \"composition\": \"full_bleed_photo\", \"energy\": \"newsroom_neutral\", \"accent\": \"cr_signal\", \"accent_justification\": \"\", \"art_style\": \"\", \"subject_scene\": \"A monochrome photographic close-up of a classical federal building facade fills the frame, its columns rendered in cold black-and-white; two giant signal-orange rings sweep across the composition from opposite corners, one passing behind the columns and one in front.\"}\n\nB. Article: \"Uniswap does $100M volume on Polygon in 24h\"\n{\"family\": \"big_number\", \"headline\": \"$100M IN A SINGLE DAY\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"$100M+\", \"label\": \"24H VOLUME\"}], \"stage\": \"studio_dark\", \"composition\": \"centered_hero\", \"energy\": \"celebratory\", \"accent\": \"story_color\", \"accent_justification\": \"Polygon violet, since the volume happened on the Polygon network\", \"art_style\": \"\", \"subject_scene\": \"A near-black studio field holds one giant violet figure reading $100M+ dominating the upper half of the frame, with a cluster of small violet dots scattered along the bottom edge.\"}\n\nC. Article: \"Daily Bitcoin price post -- $76,940\"\n{\"family\": \"art_drop\", \"headline\": \"BITCOIN AT $76,940\", \"layout\": \"art_only\", \"data_elements\": [], \"stage\": \"texture_macro\", \"composition\": \"full_bleed_photo\", \"energy\": \"playful\", \"accent\": \"free\", \"accent_justification\": \"\", \"art_style\": \"vintage botanical engraving\", \"subject_scene\": \"A Bitcoin coin is rendered as the head of a sunflower, its petals radiating outward in fine engraved linework, surrounded by detailed botanical leaves and stems in the style of a 19th-century natural history print.\"}\n\nD. Article: \"Chainlink integrates with major L2\"\n{\"family\": \"lockup\", \"headline\": \"A NEW DATA BRIDGE GOES LIVE\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"LINK\", \"label\": \"\"}, {\"value\": \"L2NAME\", \"label\": \"\"}], \"stage\": \"gradient_sweep\", \"composition\": \"centered_hero\", \"energy\": \"celebratory\", \"accent\": \"cr_signal\", \"accent_justification\": \"\", \"art_style\": \"\", \"subject_scene\": \"Two chrome medallions, each engraved with an abstract geometric glyph, sit side by side on a soft gradient stage, joined by a glowing signal-orange light-bridge arcing between them.\"}\n\nE. Article: \"How restaking actually works\"\n{\"family\": \"flat_explainer\", \"headline\": \"RESTAKING, EXPLAINED\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"STAKE\", \"label\": \"\"}, {\"value\": \"EARN\", \"label\": \"\"}], \"stage\": \"flat_field\", \"composition\": \"isometric\", \"energy\": \"newsroom_neutral\", \"accent\": \"story_color\", \"accent_justification\": \"teal and white, a calm two-color palette suited to a clean technical explainer\", \"art_style\": \"\", \"subject_scene\": \"Three flat translucent slabs are stacked in isometric perspective, with small coin shapes flowing in a cycle between them via simple arrows, rendered in a clean two-color illustration style.\"}\n\nF. Article: \"Weekly market recap: 4 key numbers\"\n{\"family\": \"stat_card\", \"headline\": \"THE WEEK IN NUMBERS\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"+4.2%\", \"label\": \"BTC\"}, {\"value\": \"+6.8%\", \"label\": \"ETH\"}, {\"value\": \"$182B\", \"label\": \"TVL\"}, {\"value\": \"+38%\", \"label\": \"TOP GAINER\"}], \"stage\": \"studio_light\", \"composition\": \"card_grid\", \"energy\": \"newsroom_neutral\", \"accent\": \"cr_signal\", \"accent_justification\": \"\", \"art_style\": \"\", \"subject_scene\": \"A bright off-white studio field holds a grid of four rounded stat tiles beneath a bold title block, each tile carrying one icon and one large value, with a small 3D chart-arrow object anchoring the bottom-right corner.\"}\n\nG. Article: \"DOGE pumps 40% on viral moment\" (only reachable if meme_enabled is turned on)\n{\"family\": \"meme\", \"headline\": \"DOGE GOES TO THE MOON, LITERALLY\", \"layout\": \"art_only\", \"data_elements\": [], \"stage\": \"photo_real\", \"composition\": \"centered_hero\", \"energy\": \"playful\", \"accent\": \"story_color\", \"accent_justification\": \"earthlight green, matching the rising chart in the joke\", \"art_style\": \"\", \"subject_scene\": \"A photoreal shiba inu in a tiny astronaut suit sits calmly on the lunar surface sipping from a coffee cup, while a glowing green candlestick chart rises across the dark sky behind it, lit by soft earthlight.\"}"
+}

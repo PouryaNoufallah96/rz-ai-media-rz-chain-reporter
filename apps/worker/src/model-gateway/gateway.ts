@@ -25,19 +25,25 @@ import { createOllamaAdapter } from "./ollama";
 import { createOpenRouterAdapter } from "./openrouter";
 import { resolveModelTask } from "./task";
 import type {
+  EmbeddingModelInvocation,
+  EmbeddingModelResult,
   ModelAdapter,
   ModelBindings,
   ModelCallObservation,
+  RemoteModelAdapter,
   StructuredModelInvocation,
   StructuredModelResult,
 } from "./types";
 
 const MAX_DEADLINE_MS = 120_000;
+const MAX_EMBEDDING_VALUES = 400;
+const MAX_EMBEDDING_VALUE_LENGTH = 500;
 const MAX_INSTRUCTIONS_LENGTH = 24_000;
 const MAX_OUTPUT_TOKENS = 4_096;
 const MAX_PROMPT_LENGTH = 24_000;
 
 export type ModelGateway = {
+  embedMany(input: EmbeddingModelInvocation): Promise<EmbeddingModelResult>;
   invokeStructured<TOutput>(
     input: StructuredModelInvocation<TOutput>,
   ): Promise<StructuredModelResult<TOutput>>;
@@ -50,9 +56,99 @@ export function createModelGateway(options: {
   template: CustomerTemplate;
 }): ModelGateway {
   let localAdapter: ModelAdapter | undefined;
-  let remoteAdapter: ModelAdapter | undefined;
+  let remoteAdapter: RemoteModelAdapter | undefined;
 
   return {
+    async embedMany(input) {
+      assertEmbeddingBounds(input);
+      const { route, taskKey } = resolveModelTask(
+        options.template,
+        input.taskKey,
+        input.invocationKey,
+      );
+
+      await assertTemplateCurrent(
+        options.executor,
+        options.identity,
+        input.workspaceId,
+      );
+
+      if (route.backend !== "remote") {
+        throw new ModelBindingError(
+          `model task "${taskKey}" selects a local backend, which has no embedding adapter`,
+        );
+      }
+
+      remoteAdapter ??= createBoundRemoteAdapter(options.bindings);
+      const pending = await insertPendingUsage(
+        options.executor,
+        input.workspaceId,
+        {
+          operationId: input.operationId,
+          operationAttemptId: input.operationAttemptId,
+          invocationKey: input.invocationKey,
+          taskKey,
+          apiKind: "embedding",
+          backend: route.backend,
+          providerGateway: "openrouter",
+          requestedModel: route.model,
+        },
+      );
+
+      if (!pending.inserted) {
+        const replayStatus = await resolveReplayStatus(
+          options.executor,
+          input.workspaceId,
+          pending.event,
+          input.deadlineMs,
+        );
+        throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+          ambiguous: replayStatus === "pending" || replayStatus === "unknown",
+          usageEventId: pending.event.id,
+        });
+      }
+
+      const embedded = await remoteAdapter
+        .embedMany({
+          abortSignal: input.abortSignal,
+          deadlineMs: input.deadlineMs,
+          model: route.model,
+          values: input.values,
+        })
+        .catch((error: unknown) =>
+          failInvocation(
+            options.executor,
+            input.workspaceId,
+            pending.event.id,
+            route.model,
+            error,
+          ),
+        );
+
+      const finalized = await finalizeUsage(
+        options.executor,
+        input.workspaceId,
+        {
+          id: pending.event.id,
+          status: "succeeded",
+          ...embedded.observation,
+        },
+      );
+
+      if (finalized.status !== "updated") {
+        throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+          ambiguous: true,
+          usageEventId: pending.event.id,
+        });
+      }
+
+      return {
+        embeddings: embedded.embeddings,
+        responseBody: embedded.responseBody,
+        usageEventId: pending.event.id,
+      };
+    },
+
     async invokeStructured(input) {
       assertInvocationBounds(input);
       const { route, taskKey } = resolveModelTask(
@@ -122,37 +218,15 @@ export function createModelGateway(options: {
             usageEventId: pending.event.id,
           },
         })
-        .catch(async (error: unknown) => {
-          if (!(error instanceof AdapterInvocationError)) {
-            await finalizeUnknown(
-              options.executor,
-              input.workspaceId,
-              pending.event.id,
-              route.model,
-            );
-            throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
-              ambiguous: true,
-              usageEventId: pending.event.id,
-            });
-          }
-
-          await finalizeAdapterFailure(
+        .catch((error: unknown) =>
+          failInvocation(
             options.executor,
             input.workspaceId,
             pending.event.id,
+            route.model,
             error,
-          );
-          throw new ModelGatewayInvocationError(
-            error.kind === "structured-output-invalid"
-              ? "STRUCTURED_OUTPUT_INVALID"
-              : "MODEL_INVOCATION_FAILED",
-            {
-              ambiguous: error.kind === "unknown",
-              retryable: error.retryable && error.kind !== "unknown",
-              usageEventId: pending.event.id,
-            },
-          );
-        });
+          ),
+        );
 
       try {
         const finalized = await finalizeUsageWithResult(
@@ -270,6 +344,50 @@ function assertInvocationBounds<TOutput>(
   ) {
     throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED");
   }
+}
+
+function assertEmbeddingBounds(input: EmbeddingModelInvocation) {
+  if (
+    input.values.length === 0 ||
+    input.values.length > MAX_EMBEDDING_VALUES ||
+    input.values.some(
+      (value) =>
+        value.length === 0 || value.length > MAX_EMBEDDING_VALUE_LENGTH,
+    ) ||
+    !Number.isInteger(input.deadlineMs) ||
+    input.deadlineMs < 1 ||
+    input.deadlineMs > MAX_DEADLINE_MS
+  ) {
+    throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED");
+  }
+}
+
+async function failInvocation(
+  executor: Executor,
+  workspaceId: string,
+  usageEventId: string,
+  model: string,
+  error: unknown,
+): Promise<never> {
+  if (!(error instanceof AdapterInvocationError)) {
+    await finalizeUnknown(executor, workspaceId, usageEventId, model);
+    throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+      ambiguous: true,
+      usageEventId,
+    });
+  }
+
+  await finalizeAdapterFailure(executor, workspaceId, usageEventId, error);
+  throw new ModelGatewayInvocationError(
+    error.kind === "structured-output-invalid"
+      ? "STRUCTURED_OUTPUT_INVALID"
+      : "MODEL_INVOCATION_FAILED",
+    {
+      ambiguous: error.kind === "unknown",
+      retryable: error.retryable && error.kind !== "unknown",
+      usageEventId,
+    },
+  );
 }
 
 async function finalizeAdapterFailure(

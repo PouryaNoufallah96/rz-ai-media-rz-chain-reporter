@@ -10,6 +10,7 @@
       "env": [
         "CACHE_INVALIDATION_WEBHOOK_SECRET",
         "DATABASE_URL",
+        "FIRECRAWL_API_KEY",
         "INNGEST_EVENT_KEY",
         "INNGEST_SIGNING_KEY",
         "INNGEST_DEV",

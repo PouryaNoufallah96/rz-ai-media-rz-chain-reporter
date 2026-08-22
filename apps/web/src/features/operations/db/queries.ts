@@ -8,6 +8,7 @@ import {
 } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import { inWorkspace } from "@rz-chain-reporter/db/filters";
+import { sourceImportProgress } from "@rz-chain-reporter/db/repositories/source-import";
 
 import { RECENT_TERMINAL_WINDOW_MS } from "../constants";
 import type { OperationSummary } from "../schemas/operation-summary";
@@ -41,6 +42,7 @@ export async function listRecentOperations(
 
   const rows = await executor.query.operation.findMany({
     columns: {
+      claimedAt: true,
       commandType: true,
       createdAt: true,
       effectiveAt: true,
@@ -50,29 +52,6 @@ export async function listRecentOperations(
       version: true,
     },
     with: {
-      attempts: {
-        columns: {
-          createdAt: true,
-          failureCode: true,
-          id: true,
-          outcome: true,
-          updatedAt: true,
-        },
-        with: {
-          usageEvents: {
-            columns: {
-              id: true,
-              invocationKey: true,
-              occurredAt: true,
-              status: true,
-            },
-            orderBy: (usage, { asc }) => asc(usage.occurredAt),
-            where: (usage) => inWorkspace(usage, workspaceId),
-          },
-        },
-        orderBy: (attempt, { desc }) => desc(attempt.attemptNumber),
-        where: (attempt) => inWorkspace(attempt, workspaceId),
-      },
       outboxEvents: {
         columns: {
           dispatchAttemptCount: true,
@@ -86,6 +65,9 @@ export async function listRecentOperations(
         where: (event) => inWorkspace(event, workspaceId),
       },
       publish: { columns: { platform: true } },
+      sourceImport: {
+        columns: { failureCode: true, id: true },
+      },
     },
     where: (operation, { and, gte, notInArray, or }) =>
       and(
@@ -101,19 +83,79 @@ export async function listRecentOperations(
     ],
   });
 
+  // Source import outcomes live on child rows; skip attempts and usage for that kind.
+  const modelledIds = rows.flatMap((row) =>
+    operationCommandKind(row.commandType) === "source-import" ? [] : [row.id],
+  );
+
+  const [attemptRows, progress] = await Promise.all([
+    executor.query.operationAttempt.findMany({
+      columns: {
+        createdAt: true,
+        failureCode: true,
+        id: true,
+        operationId: true,
+        outcome: true,
+        updatedAt: true,
+      },
+      with: {
+        usageEvents: {
+          columns: {
+            id: true,
+            invocationKey: true,
+            occurredAt: true,
+            status: true,
+          },
+          orderBy: (usage, { asc }) => asc(usage.occurredAt),
+          where: (usage) => inWorkspace(usage, workspaceId),
+        },
+      },
+      orderBy: (attempt, { desc }) => desc(attempt.attemptNumber),
+      where: (attempt, { and, inArray }) =>
+        and(
+          inWorkspace(attempt, workspaceId),
+          inArray(attempt.operationId, modelledIds),
+        ),
+    }),
+    sourceImportProgress(
+      executor,
+      workspaceId,
+      rows.flatMap((row) => (row.sourceImport ? [row.sourceImport.id] : [])),
+    ),
+  ]);
+
   const summaries = rows.map(
-    ({ attempts, outboxEvents, publish, ...operation }) => {
+    ({ claimedAt, outboxEvents, publish, sourceImport, ...operation }) => {
       const outbox = outboxEvents[0];
-      const chronologicalAttempts = attempts.toReversed();
+      const attempts = attemptRows.filter(
+        (attempt) => attempt.operationId === operation.id,
+      );
+      const measured = sourceImport ? progress[sourceImport.id] : undefined;
 
       return {
         ...operation,
         attemptCount: attempts.length,
         dispatch: outbox ? dispatchOf(outbox) : null,
-        failureCode: attempts[0]?.failureCode ?? null,
+        failureCode: sourceImport
+          ? sourceImport.failureCode
+          : (attempts[0]?.failureCode ?? null),
         latestAttemptOutcome: attempts[0]?.outcome ?? null,
         platform: publish?.platform ?? null,
-        timeline: timelineOf(operation, outbox, chronologicalAttempts),
+        ...(measured
+          ? {
+              sourceImport: {
+                counts: measured.counts,
+                partial: measured.partial,
+                stage: measured.stage,
+                unitsPlanned: measured.unitsPlanned,
+              },
+            }
+          : {}),
+        timeline: timelineOf(
+          { ...operation, claimedAt },
+          outbox,
+          attempts.toReversed(),
+        ),
       };
     },
   );
@@ -172,7 +214,7 @@ function timelineOf(
     | "id"
     | "lifecycle"
     | "updatedAt"
-  >,
+  > & { claimedAt: Date | null },
   outbox: OutboxSnapshot | undefined,
   attempts: AttemptSnapshot[],
 ): OperationSummary["timeline"] {
@@ -196,43 +238,56 @@ function timelineOf(
     });
   }
 
-  for (const attempt of attempts) {
-    timeline.push({
-      at: attempt.createdAt,
-      kind: "started",
-      outcome: null,
-      slot: null,
-      sourceId: attempt.id,
-    });
-
-    for (const usage of attempt.usageEvents) {
+  // The import's own run is the travel record; its children are read on /sources.
+  if (operationCommandKind(operation.commandType) === "source-import") {
+    if (operation.claimedAt) {
       timeline.push({
-        at: usage.occurredAt,
-        kind: "modelCall",
-        outcome: USAGE_OUTCOME[usage.status],
-        slot: usage.invocationKey,
-        sourceId: usage.id,
+        at: operation.claimedAt,
+        kind: "started",
+        outcome: null,
+        slot: null,
+        sourceId: operation.id,
       });
     }
-
-    if (
-      operationCommandKind(operation.commandType) === "scheduled-effect-probe"
-    ) {
+  } else {
+    for (const attempt of attempts) {
       timeline.push({
-        at: operation.effectiveAt,
-        kind: "waiting",
+        at: attempt.createdAt,
+        kind: "started",
         outcome: null,
         slot: null,
         sourceId: attempt.id,
       });
-      if (attempt.outcome) {
+
+      for (const usage of attempt.usageEvents) {
         timeline.push({
-          at: attempt.updatedAt,
-          kind: "effectRecorded",
-          outcome: attempt.outcome,
+          at: usage.occurredAt,
+          kind: "modelCall",
+          outcome: USAGE_OUTCOME[usage.status],
+          slot: usage.invocationKey,
+          sourceId: usage.id,
+        });
+      }
+
+      if (
+        operationCommandKind(operation.commandType) === "scheduled-effect-probe"
+      ) {
+        timeline.push({
+          at: operation.effectiveAt,
+          kind: "waiting",
+          outcome: null,
           slot: null,
           sourceId: attempt.id,
         });
+        if (attempt.outcome) {
+          timeline.push({
+            at: attempt.updatedAt,
+            kind: "effectRecorded",
+            outcome: attempt.outcome,
+            slot: null,
+            sourceId: attempt.id,
+          });
+        }
       }
     }
   }

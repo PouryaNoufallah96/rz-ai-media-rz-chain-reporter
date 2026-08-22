@@ -20,7 +20,12 @@ export class WorkerRuntimeConfigurationError extends Error {
 
 export class WorkerRuntimeBindingError extends Error {
   readonly code = "UNBOUND_SERVICE";
-  readonly missing: readonly ("event_key" | "object_store" | "signing_key")[];
+  readonly missing: readonly (
+    | "event_key"
+    | "firecrawl"
+    | "object_store"
+    | "signing_key"
+  )[];
 
   constructor(missing: WorkerRuntimeBindingError["missing"]) {
     super(`durable event transport missing ${missing.join(", ")}`);

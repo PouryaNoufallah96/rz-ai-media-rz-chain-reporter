@@ -20,8 +20,13 @@
       "succeeded": "انجام شد",
       "failed": "ناموفق",
       "cancelled": "لغو شد",
+      "partial": "ناقص",
       "unknown": "نتیجه نامشخص است",
       "unknownExplanation": "ممکن است اثر انجام شده باشد یا نشده باشد؛ تطبیق پیش از هر تلاش دوباره آن را مشخص می‌کند."
+    },
+    "stage": {
+      "acquiring": "در حال گردآوری",
+      "enriching": "در حال غنی‌سازی · {n} از {m}"
     },
     "transport": {
       "live": "زنده",
@@ -37,7 +42,8 @@
       "operation": "عملیات",
       "generationProbe": "آزمون تولید",
       "scheduledEffect": "اثر زمان‌بندی‌شده",
-      "mediaVerification": "بررسی رسانه"
+      "mediaVerification": "بررسی رسانه",
+      "sourceImport": "دریافت منابع"
     },
     "dispatch": {
       "awaiting": "در انتظار ارسال",
@@ -58,7 +64,8 @@
         "primary": "اصلی",
         "retry-1": "تلاش دوباره ۱",
         "fallback": "جایگزین"
-      }
+      },
+      "settledCounts": "نهایی شد · گردآوری‌شده {acquired} · مرتب‌شده {ordered} · غنی‌شده {enriched} · نادیده {skipped} · ناموفق {failed}"
     },
     "announcements": {
       "operation": "عملیات <id>{operationId}</id> اکنون {state} است.",
@@ -77,6 +84,7 @@
       "objectStoreUnbound": "فضای ذخیره‌سازی اشیا برای این استقرار پیکربندی نشده است.",
       "operationReplayed": "این درخواست پیش‌تر پردازش شده است. عملیات اصلی همان است که اجرا شد.",
       "savedCardAlreadyActive": "این پیش‌نویس پیش‌تر ذخیره شده است. کارت ذخیره‌شده را باز کنید.",
+      "sourceImportInProgress": "یک دریافت منابع هم‌اکنون برای این نصب در حال اجراست. تا پایان آن صبر کنید و سپس دریافت بعدی را آغاز کنید.",
       "structuredOutputInvalid": "مدل نتیجه‌ای برگرداند که با ساختار مورد انتظار همخوان نبود. چیزی ذخیره نشد.",
       "templateDrift": "پیکربندی نصب هنگام اجرای این عملیات تغییر کرد. ابتدا قالب را هماهنگ کنید و دوباره بفرستید.",
       "transientConflict": "فضای کاری مشغول بود. همان درخواست را دوباره بفرستید.",

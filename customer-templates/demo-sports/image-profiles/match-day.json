@@ -1,0 +1,101 @@
+{
+  "families": {
+    "scoreboard": {
+      "name": "Scoreboard",
+      "skeleton": "A stadium scoreboard fills the frame, two team crests flanking the score, floodlight haze behind it.",
+      "textPolicy": "The score renders on the board itself; the headline sits in the band above it.",
+      "defaultAxes": {
+        "venue": "night_stadium",
+        "camera": "low_angle_hero",
+        "energy": "final_whistle"
+      },
+      "dataBudget": 3
+    },
+    "player_hero": {
+      "name": "Player hero",
+      "skeleton": "One anonymous player silhouette occupies the centre, kit colours reading as pure shape, turf and floodlights behind.",
+      "textPolicy": "The headline sits in the negative space beside the figure; no name lettering on the kit.",
+      "defaultAxes": {
+        "venue": "training_pitch",
+        "camera": "eye_level_wide",
+        "energy": "build_up"
+      },
+      "dataBudget": 1
+    },
+    "table_row": {
+      "name": "League table",
+      "skeleton": "A clean league-table panel floats over a darkened pitch, one row lifted and highlighted.",
+      "textPolicy": "Row labels are short; the highlighted row carries the only accent colour.",
+      "defaultAxes": {
+        "venue": "night_stadium",
+        "camera": "isometric_high",
+        "energy": "analysis_calm"
+      },
+      "dataBudget": 5
+    }
+  },
+  "axes": {
+    "venue": {
+      "night_stadium": "a full stadium under floodlights at night, crowd reading as texture rather than faces",
+      "training_pitch": "an empty training pitch at dusk, cones and goal frames catching low light",
+      "studio_desk": "a dark broadcast studio with a lit desk surface and deep background falloff"
+    },
+    "camera": {
+      "low_angle_hero": "low camera looking up, subject dominant against the sky",
+      "eye_level_wide": "eye-level wide shot with generous negative space",
+      "isometric_high": "high three-quarter view looking down on the panel"
+    },
+    "energy": {
+      "build_up": "quiet anticipation, steady light, no motion blur",
+      "final_whistle": "peak celebration, confetti particles, strong rim light",
+      "analysis_calm": "measured and editorial, even light, minimal atmosphere"
+    },
+    "accent": {
+      "pitch_green": "saturated pitch green leads every accent surface",
+      "away_amber": "warm amber leads, reserved for away-side and upset stories"
+    }
+  },
+  "frozenStyle": {
+    "format": "vertical 4:5 editorial poster, 1080x1350",
+    "palette": "deep charcoal base (#0B0E12-#141A21) in every frame. Pitch green (#2FBF6B) is the primary accent. Amber (#FFA23A) is the secondary accent and marks away sides and upsets. Typography is white and bold.",
+    "materials": "brushed metal scoreboard housings, matte turf, clean glass broadcast panels, floodlight bloom",
+    "rendering": "clean broadcast-graphics 3D with soft volumetric floodlight, closer to a title sequence than a photoreal match still",
+    "backgroundVocab": "floodlit stadium bowl is the dominant backdrop; training pitch at dusk is the secondary; dark studio for analysis scenes",
+    "headlineZone": "the upper third stays clear of subject detail so the headline always lands on flat tone",
+    "never": "never a real club crest, a real player likeness, a sponsor logo, a readable shirt name, or a betting reference"
+  },
+  "restrictions": {
+    "antiRepetition": "Hard rules: do not pick the same family twice in a row; do not use the night_stadium venue more than three times in a row; rotate camera and energy so consecutive posts do not feel identical.",
+    "moodAccentDefault": "pitch_green",
+    "moodAccentRestricted": {
+      "away_amber": {
+        "families": ["scoreboard", "table_row"]
+      }
+    },
+    "bannedSubjectTerms": [
+      "real club crest",
+      "real player likeness",
+      "sponsor logo",
+      "betting odds"
+    ]
+  },
+  "textPolicy": {
+    "rules": "Headlines are declarative and never a question. Numbers render as digits, never words. No club or player names appear as rendered lettering; they belong to the copy, not the image. At most one data element carries a label.",
+    "headlineMaxWords": 8,
+    "headlineUppercase": true,
+    "legibilityLine": "All in-scene text is large, bold, crisp and clearly legible on its own flat panel.",
+    "dataElementTemplate": "a broadcast panel displaying \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " under the label \"{label}\""
+  },
+  "fallbackBrief": {
+    "family": "player_hero",
+    "headline": "MATCH DAY IS HERE",
+    "layout": "art_only",
+    "data_elements": [],
+    "venue": "night_stadium",
+    "camera": "low_angle_hero",
+    "energy": "build_up",
+    "accent": "pitch_green",
+    "subject_scene": "A single anonymous player silhouette stands at the centre circle under floodlights, breath visible in the cold air, the stadium bowl fading into darkness behind."
+  }
+}

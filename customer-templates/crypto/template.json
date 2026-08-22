@@ -1,8 +1,9 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "customer": {
     "key": "crypto",
-    "productName": "RZ ChainReporter"
+    "productName": "RZ ChainReporter",
+    "timeZone": "Asia/Tehran"
   },
   "workspace": {
     "name": "RZ ChainReporter"
@@ -16,74 +17,479 @@
           "backend": "remote",
           "model": "openai/gpt-4.1-nano"
         }
+      },
+      "keyword-embedding": {
+        "backend": "remote",
+        "model": "openai/text-embedding-3-small"
+      },
+      "enrichment-brief": {
+        "backend": "local",
+        "model": "qwen3:30b",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4.1-nano"
+        }
       }
     }
   },
   "mediaBrands": [
-    { "key": "rz-prime", "name": "RZ Prime" },
-    { "key": "coin-hall", "name": "Coin Hall" },
-    { "key": "chain-reporter", "name": "ChainReporter" },
-    { "key": "meta-coin-guard", "name": "Meta Coin Guard" }
+    {
+      "key": "rz-prime",
+      "name": "RZ Prime",
+      "brandBible": "brand-bibles/rz-prime.md",
+      "imageProfile": "image-profiles/rz-prime.json"
+    },
+    {
+      "key": "coin-hall",
+      "name": "Coin Hall",
+      "brandBible": "brand-bibles/coin-hall.md",
+      "imageProfile": "image-profiles/coin-hall.json"
+    },
+    {
+      "key": "chain-reporter",
+      "name": "ChainReporter",
+      "imageProfile": "image-profiles/chain-reporter.json"
+    },
+    {
+      "key": "meta-coin-guard",
+      "name": "Meta Coin Guard",
+      "brandBible": "brand-bibles/meta-coin-guard.md",
+      "imageProfile": "image-profiles/meta-coin-guard.json"
+    }
   ],
   "sources": [
     {
       "key": "coindesk-rss",
       "origin": "rss",
-      "endpoint": "https://www.coindesk.com/arc/outboundfeeds/rss/",
+      "endpoint": "https://www.coindesk.com/arc/outboundfeeds/rss",
       "name": "CoinDesk",
-      "enabled": true
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
     },
     {
       "key": "cointelegraph-rss",
       "origin": "rss",
       "endpoint": "https://cointelegraph.com/rss",
       "name": "Cointelegraph",
-      "enabled": true
-    },
-    {
-      "key": "the-block-rss",
-      "origin": "rss",
-      "endpoint": "https://www.theblock.co/rss.xml",
-      "name": "The Block",
-      "enabled": true
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
     },
     {
       "key": "decrypt-rss",
       "origin": "rss",
       "endpoint": "https://decrypt.co/feed",
       "name": "Decrypt",
-      "enabled": false
+      "enabled": false,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "cryptoslate-rss",
+      "origin": "rss",
+      "endpoint": "https://cryptoslate.com/feed/",
+      "name": "CryptoSlate",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "the-block-rss",
+      "origin": "rss",
+      "endpoint": "https://www.theblock.co/rss.xml",
+      "name": "The Block",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "blockworks-rss",
+      "origin": "rss",
+      "endpoint": "https://blockworks.com/feed/",
+      "name": "Blockworks",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "bitcoin-magazine-rss",
+      "origin": "rss",
+      "endpoint": "https://bitcoinmagazine.com/feed",
+      "name": "Bitcoin Magazine",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "beincrypto-rss",
+      "origin": "rss",
+      "endpoint": "https://beincrypto.com/feed/",
+      "name": "BeInCrypto",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "crypto-news-rss",
+      "origin": "rss",
+      "endpoint": "https://crypto.news/feed/",
+      "name": "Crypto.News",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "u-today-rss",
+      "origin": "rss",
+      "endpoint": "https://u.today/rss.php",
+      "name": "U.Today",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "newsbtc-rss",
+      "origin": "rss",
+      "endpoint": "https://www.newsbtc.com/feed/",
+      "name": "NewsBTC",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "cryptopotato-rss",
+      "origin": "rss",
+      "endpoint": "https://cryptopotato.com/feed/",
+      "name": "CryptoPotato",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "the-defiant-rss",
+      "origin": "rss",
+      "endpoint": "https://thedefiant.io/api/feed",
+      "name": "The Defiant",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "ambcrypto-rss",
+      "origin": "rss",
+      "endpoint": "https://ambcrypto.com/feed/",
+      "name": "AMBCrypto",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "dl-news-rss",
+      "origin": "rss",
+      "endpoint": "https://dlnews.com/arc/outboundfeeds/rss/",
+      "name": "DL News",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "chainalysis-blog-rss",
+      "origin": "rss",
+      "endpoint": "https://www.chainalysis.com/feed/",
+      "name": "Chainalysis Blog",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
     },
     {
       "key": "cointelegraph-telegram",
       "origin": "telegram_public",
       "endpoint": "cointelegraph",
       "name": "Cointelegraph Channel",
-      "enabled": true
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "coingraph-news-telegram",
+      "origin": "telegram_public",
+      "endpoint": "CoingraphNews",
+      "name": "Coingraph News",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "coindesk-global-telegram",
+      "origin": "telegram_public",
+      "endpoint": "CoinDeskGlobal",
+      "name": "CoinDesk Global",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "the-block-crypto-telegram",
+      "origin": "telegram_public",
+      "endpoint": "the_block_crypto",
+      "name": "The Block Crypto",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "decrypt-news-telegram",
+      "origin": "telegram_public",
+      "endpoint": "DecryptNews",
+      "name": "Decrypt News",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "lookonchain-telegram",
+      "origin": "telegram_public",
+      "endpoint": "lookonchainchannel",
+      "name": "Lookonchain",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "whale-alert-telegram",
+      "origin": "telegram_public",
+      "endpoint": "whale_alert_io",
+      "name": "Whale Alert",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "coinmarketcap-announcements-telegram",
+      "origin": "telegram_public",
+      "endpoint": "CoinMarketCapAnnouncements",
+      "name": "CoinMarketCap Announcements",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "watcher-guru-telegram",
+      "origin": "telegram_public",
+      "endpoint": "WatcherGuru",
+      "name": "Watcher Guru",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "wu-blockchain-telegram",
+      "origin": "telegram_public",
+      "endpoint": "wublockchainenglish",
+      "name": "Wu Blockchain",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "binance-announcements-telegram",
+      "origin": "telegram_public",
+      "endpoint": "binance_announcements",
+      "name": "Binance Announcements",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "okx-announcements-telegram",
+      "origin": "telegram_public",
+      "endpoint": "OKXAnnouncements",
+      "name": "OKX Announcements",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "cryptoquant-telegram",
+      "origin": "telegram_public",
+      "endpoint": "cryptoquant_official",
+      "name": "CryptoQuant",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "glassnode-telegram",
+      "origin": "telegram_public",
+      "endpoint": "glassnode",
+      "name": "Glassnode",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "crypto-news-telegram",
+      "origin": "telegram_public",
+      "endpoint": "crypto_news",
+      "name": "Crypto News",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "cryptodiffer-telegram",
+      "origin": "telegram_public",
+      "endpoint": "cryptodiffer",
+      "name": "CryptoDiffer",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "cryptorank-news-telegram",
+      "origin": "telegram_public",
+      "endpoint": "CryptoRankNews",
+      "name": "CryptoRank News",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "dwf-labs-telegram",
+      "origin": "telegram_public",
+      "endpoint": "dwflabs",
+      "name": "DWF Labs",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "gamee-telegram",
+      "origin": "telegram_public",
+      "endpoint": "gameechannel",
+      "name": "Gamee",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "polymarket-now-telegram",
+      "origin": "telegram_public",
+      "endpoint": "polymarketnow",
+      "name": "Polymarket Now",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "innmind-telegram",
+      "origin": "telegram_public",
+      "endpoint": "innmind",
+      "name": "InnMind",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "chainalysis-telegram",
+      "origin": "telegram_public",
+      "endpoint": "chainalysisinc",
+      "name": "Chainalysis",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "hacken-telegram",
+      "origin": "telegram_public",
+      "endpoint": "hackenai",
+      "name": "Hacken",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "dhl-logistics-telegram",
+      "origin": "telegram_public",
+      "endpoint": "lotdhl",
+      "name": "DHL Logistics",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "multibank-group-telegram",
+      "origin": "telegram_public",
+      "endpoint": "MultiBankio_Announcements",
+      "name": "MultiBank Group",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "coins-ph-announcements-telegram",
+      "origin": "telegram_public",
+      "endpoint": "coinsph_announcements",
+      "name": "Coins.ph Announcements",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "gram-telegram",
+      "origin": "telegram_public",
+      "endpoint": "gram",
+      "name": "Gram",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "unfolded-telegram",
+      "origin": "telegram_public",
+      "endpoint": "unfolded",
+      "name": "Unfolded",
+      "enabled": true,
+      "contentLocale": "en"
     }
   ],
+  "acquisition": {
+    "defaultWindowHours": 24,
+    "maxItemsPerSource": 15,
+    "telegram": {
+      "orderingMode": "views",
+      "topN": 10
+    }
+  },
+  "enrichment": {
+    "enabled": true,
+    "maxItemsPerImport": 50,
+    "freshnessHours": 24
+  },
   "destinationAccounts": [
     {
       "key": "chainreporter-telegram",
       "platform": "telegram",
       "enabled": true,
-      "metadata": { "label": "ChainReporter Telegram" }
+      "metadata": {
+        "label": "ChainReporter Telegram"
+      }
     },
     {
       "key": "chainreporter-x",
       "platform": "x",
       "enabled": true,
-      "metadata": { "label": "ChainReporter X" }
+      "metadata": {
+        "label": "ChainReporter X"
+      }
     }
   ],
   "brandDestinations": [
-    { "brandKey": "rz-prime", "destinationKey": "chainreporter-telegram" },
-    { "brandKey": "rz-prime", "destinationKey": "chainreporter-x" },
-    { "brandKey": "coin-hall", "destinationKey": "chainreporter-telegram" },
-    { "brandKey": "coin-hall", "destinationKey": "chainreporter-x" },
-    { "brandKey": "chain-reporter", "destinationKey": "chainreporter-telegram" },
-    { "brandKey": "chain-reporter", "destinationKey": "chainreporter-x" },
-    { "brandKey": "meta-coin-guard", "destinationKey": "chainreporter-telegram" },
-    { "brandKey": "meta-coin-guard", "destinationKey": "chainreporter-x" }
+    {
+      "brandKey": "rz-prime",
+      "destinationKey": "chainreporter-telegram"
+    },
+    {
+      "brandKey": "rz-prime",
+      "destinationKey": "chainreporter-x"
+    },
+    {
+      "brandKey": "coin-hall",
+      "destinationKey": "chainreporter-telegram"
+    },
+    {
+      "brandKey": "coin-hall",
+      "destinationKey": "chainreporter-x"
+    },
+    {
+      "brandKey": "chain-reporter",
+      "destinationKey": "chainreporter-telegram"
+    },
+    {
+      "brandKey": "chain-reporter",
+      "destinationKey": "chainreporter-x"
+    },
+    {
+      "brandKey": "meta-coin-guard",
+      "destinationKey": "chainreporter-telegram"
+    },
+    {
+      "brandKey": "meta-coin-guard",
+      "destinationKey": "chainreporter-x"
+    }
   ]
 }

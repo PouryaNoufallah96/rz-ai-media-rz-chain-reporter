@@ -16,7 +16,10 @@ import Providers from "@/components/providers";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
 import { Localized } from "@/i18n/client";
 import { getT } from "@/i18n/server";
-import { customerProductName } from "@/lib/customer-template.server";
+import {
+  customerProductName,
+  customerTimeZone,
+} from "@/lib/customer-template.server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -73,7 +76,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-w-0 antialiased">
-        <Providers locale={locale}>
+        <Providers locale={locale} timeZone={customerTimeZone}>
           <div className="grid min-h-svh min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)]">
             <Header />
             <Localized namespaces={[SHARED_NAMESPACE]}>{children}</Localized>

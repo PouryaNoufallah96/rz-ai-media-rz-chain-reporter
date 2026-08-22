@@ -389,6 +389,8 @@ async function reconcileSources(
       name: source.name,
       enabled: source.enabled,
       metadata: source.metadata,
+      contentLocale: source.contentLocale,
+      articleFetchMode: source.articleFetchMode,
       deletedAt: source.deletedAt,
     })
     .from(source)
@@ -405,6 +407,9 @@ async function reconcileSources(
       name: configured.name,
       enabled: configured.enabled,
       metadata: configured.metadata ?? null,
+      contentLocale: configured.contentLocale,
+      articleFetchMode:
+        configured.origin === "rss" ? configured.articleFetchMode : null,
     };
     const current = byKey.get(configured.key);
 
@@ -450,6 +455,14 @@ async function reconcileSources(
       canonicalMetadata(current.metadata) !== canonicalMetadata(values.metadata)
     ) {
       fields.push("metadata");
+    }
+
+    if (current.contentLocale !== values.contentLocale) {
+      fields.push("content_locale");
+    }
+
+    if (current.articleFetchMode !== values.articleFetchMode) {
+      fields.push("article_fetch_mode");
     }
 
     if (current.deletedAt !== null) {

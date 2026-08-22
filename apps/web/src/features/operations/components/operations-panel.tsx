@@ -21,32 +21,19 @@ import { useId, useState } from "react";
 import { StateMark } from "@/components/common/state-mark";
 
 import { OPERATIONS_NAMESPACE } from "../constants";
-import { type PanelState, panelStateOf } from "../lib/panel-state";
+import {
+  OPERATION_ERROR_KEYS,
+  type PanelState,
+  panelStateOf,
+} from "../lib/panel-state";
 import type { OperationSummary } from "../schemas/operation-summary";
-
-const MESSAGE_KEYS = {
-  FORBIDDEN: "errors.forbidden",
-  IDEMPOTENCY_KEY_REUSED: "errors.idempotencyKeyReused",
-  INTERNAL_SERVER_ERROR: "errors.internalServerError",
-  MEDIA_REJECTED: "errors.mediaRejected",
-  MODEL_INVOCATION_FAILED: "errors.modelInvocationFailed",
-  NOT_FOUND: "errors.notFound",
-  OBJECT_STORE_UNBOUND: "errors.objectStoreUnbound",
-  OPERATION_REPLAYED: "errors.operationReplayed",
-  SAVED_CARD_ALREADY_ACTIVE: "errors.savedCardAlreadyActive",
-  STRUCTURED_OUTPUT_INVALID: "errors.structuredOutputInvalid",
-  TEMPLATE_DRIFT: "errors.templateDrift",
-  TRANSIENT_CONFLICT: "errors.transientConflict",
-  UNAUTHORIZED: "errors.unauthorized",
-  VALIDATION_FAILED: "errors.validationFailed",
-  VERSION_CONFLICT: "errors.versionConflict",
-} as const satisfies Record<ErrorCode, string>;
 
 const KIND_KEYS = {
   "generation-probe": "kind.generationProbe",
   "media-verification": "kind.mediaVerification",
   other: "kind.operation",
   "scheduled-effect-probe": "kind.scheduledEffect",
+  "source-import": "kind.sourceImport",
 } as const satisfies Record<OperationCommandKind, string>;
 
 type TimelineEntry = OperationSummary["timeline"][number];
@@ -211,7 +198,7 @@ function TravelRecord({
           >
             <StateMark state={timelineStateOf(entry, state)} />
             <span className="min-w-0 flex-1 text-xs">
-              <TimelineLabel entry={entry} />
+              <TimelineLabel entry={entry} operation={operation} />
             </span>
             <time
               className="font-mono text-muted-foreground text-xs tabular-nums"
@@ -280,7 +267,9 @@ function FailureMessage({ code }: { code: ErrorCode | null }) {
   if (!code) return null;
 
   return (
-    <span className="text-destructive text-xs">{t(MESSAGE_KEYS[code])}</span>
+    <span className="text-destructive text-xs">
+      {t(OPERATION_ERROR_KEYS[code])}
+    </span>
   );
 }
 
@@ -302,15 +291,43 @@ function OperationStateLabel({
       time: format.dateTime(operation.effectiveAt, { timeStyle: "short" }),
     });
   }
+  if (operation.sourceImport && operation.lifecycle === "running") {
+    return operation.sourceImport.stage === "enriching"
+      ? t("stage.enriching", {
+          m: format.number(operation.sourceImport.unitsPlanned),
+          n: format.number(operation.sourceImport.counts.enriched),
+        })
+      : t("stage.acquiring");
+  }
+  if (operation.sourceImport?.partial && operation.lifecycle === "succeeded") {
+    return t("state.partial");
+  }
   return t(`state.${state}`);
 }
 
-function TimelineLabel({ entry }: { entry: TimelineEntry }) {
+function TimelineLabel({
+  entry,
+  operation,
+}: {
+  entry: TimelineEntry;
+  operation: OperationSummary;
+}) {
+  const format = useFormatter();
   const t = useTranslations(OPERATIONS_NAMESPACE);
 
   if (entry.kind === "modelCall") {
     return t("timeline.modelCall", {
       slot: t(`timeline.slot.${entry.slot ?? "primary"}`),
+    });
+  }
+  if (entry.kind === "settled" && operation.sourceImport) {
+    const { counts } = operation.sourceImport;
+    return t("timeline.settledCounts", {
+      acquired: format.number(counts.acquired),
+      enriched: format.number(counts.enriched),
+      failed: format.number(counts.failed),
+      ordered: format.number(counts.ordered),
+      skipped: format.number(counts.skipped),
     });
   }
   return t(`timeline.${entry.kind}`);

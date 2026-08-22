@@ -5,6 +5,7 @@ import {
   invocationKeySchema,
   operationLifecycleSchema,
   platformSchema,
+  sourceImportStageSchema,
 } from "@rz-chain-reporter/contracts";
 import { z } from "zod";
 
@@ -24,6 +25,20 @@ export const operationSummarySchema = z.object({
   latestAttemptOutcome: attemptOutcomeSchema.nullable(),
   lifecycle: operationLifecycleSchema,
   platform: platformSchema.nullable(),
+  sourceImport: z
+    .object({
+      stage: sourceImportStageSchema,
+      partial: z.boolean(),
+      counts: z.object({
+        acquired: z.int().nonnegative(),
+        ordered: z.int().nonnegative(),
+        enriched: z.int().nonnegative(),
+        skipped: z.int().nonnegative(),
+        failed: z.int().nonnegative(),
+      }),
+      unitsPlanned: z.int().nonnegative(),
+    })
+    .optional(),
   timeline: z.array(
     z.object({
       at: z.date(),

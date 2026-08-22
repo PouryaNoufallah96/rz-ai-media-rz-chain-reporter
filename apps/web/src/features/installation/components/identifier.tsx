@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 // identifiers; without isolation they reshuffle inside Persian copy.
 export function Identifier({ children }: { children: ReactNode }) {
   return (
-    <Bdi className="font-mono text-xs" dir="ltr">
+    <Bdi className="wrap-anywhere font-mono text-xs" dir="ltr">
       {children}
     </Bdi>
   );

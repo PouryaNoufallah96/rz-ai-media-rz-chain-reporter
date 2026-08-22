@@ -20,8 +20,13 @@
       "succeeded": "Done",
       "failed": "Failed",
       "cancelled": "Cancelled",
+      "partial": "Partial",
       "unknown": "Outcome unknown",
       "unknownExplanation": "The effect may or may not have happened; reconciliation resolves it before any retry."
+    },
+    "stage": {
+      "acquiring": "acquiring",
+      "enriching": "enriching · {n} / {m}"
     },
     "transport": {
       "live": "live",
@@ -37,7 +42,8 @@
       "operation": "Operation",
       "generationProbe": "Generation probe",
       "scheduledEffect": "Scheduled effect",
-      "mediaVerification": "Media verification"
+      "mediaVerification": "Media verification",
+      "sourceImport": "Source import"
     },
     "dispatch": {
       "awaiting": "awaiting dispatch",
@@ -58,7 +64,8 @@
         "primary": "primary",
         "retry-1": "retry 1",
         "fallback": "fallback"
-      }
+      },
+      "settledCounts": "settled · acquired {acquired} · ordered {ordered} · enriched {enriched} · skipped {skipped} · failed {failed}"
     },
     "announcements": {
       "operation": "Operation <id>{operationId}</id> is now {state}.",
@@ -77,6 +84,7 @@
       "objectStoreUnbound": "Object storage is not configured for this deployment.",
       "operationReplayed": "This request was already processed. The original operation is the one that ran.",
       "savedCardAlreadyActive": "This draft is already saved. Open the existing saved card.",
+      "sourceImportInProgress": "An import is already running for this installation. Wait for it to settle, then start the next one.",
       "structuredOutputInvalid": "The model returned a result that did not match the expected shape. Nothing was saved.",
       "templateDrift": "The installation configuration changed while this operation was running. Reconcile the template, then send it again.",
       "transientConflict": "The workspace was busy. Send the identical request again.",

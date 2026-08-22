@@ -1,0 +1,176 @@
+{
+  "families": {
+    "versus": {
+      "name": "VERSUS / SPLIT",
+      "skeleton": "The frame is divided left/right. The negative side glows dim alarm red with X marks, down-arrows, broken or crumbling elements representing legacy finance, middlemen, or a flawed system -- optionally shown as a failing UI screen. The positive side is ordered, pristine, glowing cyan-green glass with checkmarks, up-arrows, and the RZ Prime answer. Glass UI panels on each side may carry comparison labels. The Blue Kid and/or Wolf mascots may stand on the positive side, presenting or gesturing toward the RZ panels.",
+      "textPolicy": "Headline plus up to 6 short labels or phrases across both sides (large, on glass surfaces). Each side may carry 2-3 labels identifying what it represents. Labels on the negative side may be struck-through or dimmed. Full short sentences on panels are permitted.",
+      "defaultAxes": {
+        "environment": "circuit_floor",
+        "camera": "eye_level_symmetric",
+        "energy": "dramatic_tension"
+      },
+      "dataBudget": 6
+    },
+    "product": {
+      "name": "PRODUCT SHOWCASE",
+      "skeleton": "A central glass UI panel or app-mockup screen sits on a circuit-board platform, showcasing the RZ Prime interface, a reserve mechanism, or a protocol concept. The panel looks like an actual app screen with fields, buttons, and status indicators rendered in glass. Supporting elements (smaller panels, glass cubes, coin icons) may orbit at the edges. The Blue Kid and/or Wolf may stand beside the central panel, presenting it.",
+      "textPolicy": "Headline plus up to 4 UI labels or values on the central panel (e.g. 'RESERVE $500', 'RZUSD', 'AVAILABLE', status fields). These are part of the UI mockup, not floating labels. Keep each label to 1-4 words.",
+      "defaultAxes": {
+        "environment": "circuit_floor",
+        "camera": "low_angle_hero",
+        "energy": "calm_premium"
+      },
+      "dataBudget": 4
+    },
+    "flow": {
+      "name": "FLOW / DECISION TREE",
+      "skeleton": "A sequence of 3-5 connected glass panels or steps showing a process, decision tree, or user journey. Glowing arrows or light paths connect the stages. The flow may branch into two outcome panels at the bottom (e.g. 'Pay' vs 'Walk Away'). Panels sit on a circuit-board platform or float in a structured arrangement. The Blue Kid and/or Wolf may stand at the start or end of the flow, or beside a key decision point.",
+      "textPolicy": "Headline plus up to 5 short phrases (1-5 words each) written large on the connected panels. Each panel carries one step or outcome label. Weave the phrases directly into the scene description. Full short sentences are permitted on panels.",
+      "defaultAxes": {
+        "environment": "circuit_floor",
+        "camera": "eye_level_symmetric",
+        "energy": "calm_premium"
+      },
+      "dataBudget": 5
+    },
+    "table": {
+      "name": "COMPARISON TABLE",
+      "skeleton": "A glass comparison panel fills the center of the frame on a circuit-board platform: a feature column on the left, one or two comparison columns (e.g. 'OLD MODEL' dim/red, 'RZ PRIME' glowing cyan-green). Each row is a clear glass shelf with crisp large text. Alternatively, a 'Myth vs Reality' format with two columns. The Blue Kid and/or Wolf may flank the table, gesturing toward key rows.",
+      "textPolicy": "Headline plus up to 8 row labels (1-4 words each) inside the table, plus column headers. Tables can be text-heavy -- this is intentional. Column headers and row labels count toward the budget. Each cell is large and legible on its own glass surface.",
+      "defaultAxes": {
+        "environment": "circuit_floor",
+        "camera": "eye_level_symmetric",
+        "energy": "calm_premium"
+      },
+      "dataBudget": 8
+    },
+    "character": {
+      "name": "CHARACTER SCENE",
+      "skeleton": "The Blue Kid and/or Wolf mascots are the heroes of the scene, prominently placed and interacting with glass UI panels, countdown timers, verification badges, or data displays. The characters may be pointing at panels, touching interfaces, looking at verification results, or standing together flanking a central display. Glass speech-bubble panels may float near them. The setting is a circuit-board platform with the characters at roughly center-frame.",
+      "textPolicy": "Headline plus up to 4 in-scene text elements: speech bubbles (5 words or fewer each), UI panel labels (1-4 words), or badge text (VERIFIED, ON-CHAIN, etc.). The characters and their interaction with the panels tell the story.",
+      "defaultAxes": {
+        "environment": "circuit_floor",
+        "camera": "eye_level_symmetric",
+        "energy": "calm_premium"
+      },
+      "dataBudget": 4
+    },
+    "shatter": {
+      "name": "SHATTER / DISRUPT",
+      "skeleton": "A pristine central RZ glass object (cube, shield, or smart-contract panel) stands intact and luminous, bearing VERIFIED / AUDITED / ON-CHAIN badges in green. At the edges of the frame, legacy elements labeled CUSTODY, MIDDLEMAN, BUREAUCRACY shatter outward in slow-motion fragments with red X marks, alarm-red cracks radiating from impact points. The circuit-board floor anchors the central object.",
+      "textPolicy": "Headline plus up to 5 labels: 2-3 on the central intact object (VERIFIED, AUDITED, ON-CHAIN, 1-2 words each, green-tinted) and 2-3 shattering labels at the edges (CUSTODY, MIDDLEMAN, etc., 1-2 words each, red-tinted with X marks).",
+      "defaultAxes": {
+        "environment": "circuit_floor",
+        "camera": "low_angle_hero",
+        "energy": "explosive_dynamic"
+      },
+      "dataBudget": 5
+    },
+    "data_tiles": {
+      "name": "DATA TILES / CARDS",
+      "skeleton": "2-3 ascending glass tiles, cards, or phone-screen mockups sit on a circuit-board platform, each carrying ONE large value and ONE short label. They may be arranged as ascending stairs to convey growth, or as side-by-side comparison cards (e.g. 'Traditional Market' red vs 'RZ Prime' cyan). A relevant hero element (coin icon, chart silhouette) may float above.",
+      "textPolicy": "Headline plus a maximum of 3 data elements. Each value is 1-5 characters (e.g. 3%, 6%, 9%), each label is 1-3 words. Values are rendered larger than labels. Cards may have a colored accent edge (red for negative comparison, cyan/green for RZ).",
+      "defaultAxes": {
+        "environment": "circuit_floor",
+        "camera": "low_angle_hero",
+        "energy": "calm_premium"
+      },
+      "dataBudget": 3
+    },
+    "blueprint": {
+      "name": "BLUEPRINT / ARCHITECTURE",
+      "skeleton": "A technical architecture view: a glass desk or platform with floating holographic panels showing a system diagram, smart contract structure, or protocol architecture. Elements may include a Smart Contract file panel, a magnifying glass over code, an on-chain explorer window, blockchain cubes, or a schematic wall with connecting lines. The Wolf may stand inside a glass cube or beside the architecture. Legacy elements (dim, warm) may contrast with on-chain elements (bright, cyan) to show transformation.",
+      "textPolicy": "Headline plus up to 4 short labels on panels or elements (e.g. 'Smart Contract', 'On-Chain Explorer', 'VERIFIED', 'Legacy Rails'). The architecture diagram itself may contain abstract connecting lines and icons.",
+      "defaultAxes": {
+        "environment": "circuit_floor",
+        "camera": "eye_level_symmetric",
+        "energy": "calm_premium"
+      },
+      "dataBudget": 4
+    }
+  },
+  "axes": {
+    "environment": {
+      "circuit_floor": "The setting is a dark reflective circuit-board floor with glowing cyan trace lines radiating outward beneath the main subject, the brand's signature platform.",
+      "server_corridor": "The setting is a neon-lit futuristic corridor with strong perspective lines converging toward a glowing vanishing point.",
+      "deep_network": "The setting is a deep dark void filled with faint network nodes and constellation-like connections, a vast digital space.",
+      "glass_chamber": "The setting is an enclosed glass chamber with translucent walls showing circuit patterns, a controlled tech environment."
+    },
+    "camera": {
+      "eye_level_symmetric": "The camera is at eye level, centered symmetrically, giving a balanced architectural view of the scene.",
+      "low_angle_hero": "The camera looks up at the scene from a low angle, making the central subject feel monumental.",
+      "one_point_corridor": "The camera is positioned frontally with one-point perspective, pulling the eye straight down the depth of the scene.",
+      "slight_overhead": "The camera looks down at a slight overhead angle, giving a clear view of panels and platform layout."
+    },
+    "energy": {
+      "calm_premium": "The lighting is still and confident, with a soft, even glow throughout the scene.",
+      "dramatic_tension": "The lighting is high-contrast with deep shadows and drifting fog, creating dramatic tension.",
+      "explosive_dynamic": "The scene is full of motion, with fragments hanging mid-air and bursts of light radiating outward, conveying explosive energy."
+    },
+    "mood_accent": {
+      "cyan": "The dominant accent color throughout the scene is electric cyan/teal.",
+      "cyan_vs_red": "The scene contrasts electric cyan/green on the positive side against dim alarm red on the negative side.",
+      "cyan_vs_green": "The scene features both electric cyan/teal for analytical elements and bright emerald green for active/positive/RZ elements."
+    },
+    "wolf": {
+      "none": "",
+      "kid": "The Blue Kid mascot stands in the scene -- a round-faced 3D character with electric-blue hair, an orange-brown fuzzy beanie hat, an oversized fuzzy blue sweater, dark shorts, and bright green sneakers -- pointing at or interacting with a glass UI panel.",
+      "wolfman": "The Wolf mascot stands in the scene -- a low-poly faceted blue wolf at human height, wearing a tailored dark business suit with white shirt and tie -- gesturing toward or presenting information on a glass panel.",
+      "both": "Both mascot characters appear together: the Blue Kid (round-faced, blue hair, orange beanie, fuzzy blue sweater, dark shorts, green sneakers) and the Wolf (low-poly faceted blue wolf in a dark suit with white shirt and tie) -- flanking or interacting with glass UI panels, pointing and presenting."
+    }
+  },
+  "frozenStyle": {
+    "format": "vertical 4:5 editorial poster, 1080x1350",
+    "palette": "near-black deep-navy base (#05080F-#0A1422) -- the background is genuinely dark in EVERY frame. Electric cyan/teal is the primary neon accent (#1FE0C2-#2FF0E0). Bright emerald green (#2BE38A) marks the positive/RZ Prime side (checkmarks, up-arrows, the Reserve action, the 'RZ Prime' label). Alarm red (#FF3B3B) marks the negative/legacy side (X marks, down-arrows, broken systems). Amber-orange (#FF8A3C) is reserved for caution cards and the Blue Kid's beanie hat. Soft violet-purple (#7A5BFF) is a SECONDARY glow only (rim light, atmosphere) and never leads. Typography is white, bold, UPPERCASE.",
+    "materials": "clear glass UI panels and app-mockup screens (NOT frosted glassmorphism) with glowing cyan edges; circuit-board floor platform with illuminated trace lines; dark reflective surfaces; semi-transparent glass cubes and structures with visible internals; holographic accents.",
+    "rendering": "clean product-visualization 3D, closer to a polished app-mockup render than a heavy octane-render scene. Still cinematic with volumetric light rays, soft fog, and floating particles, but more accessible and readable than hyper-detailed CG. Glow is the primary light source. No daylight. Two recurring mascot characters may appear across any family: (1) 'Blue Kid' -- a 3D character with a round face, simple features, electric-blue hair, an orange-brown fuzzy beanie hat, an oversized fuzzy blue sweater, dark shorts, and bright green sneakers; rendered with soft materials, NOT low-poly. (2) 'Wolf' -- a low-poly faceted blue wolf at human height, wearing a tailored dark business suit with a white shirt and tie; rendered in ice-blue and navy triangular planes. They interact with UI panels -- pointing, presenting, standing beside displays.",
+    "backgroundVocab": "circuit-board floor with glowing cyan trace lines is THE dominant backdrop, appearing in the majority of images. Server corridor with perspective lines is the secondary environment. Network nodes and constellation-like connections fill deep backgrounds. Dark void with subtle tech elements for minimal scenes.",
+    "headlineZone": "the top 25-35% of the frame is reserved for the headline; the headline is large, bold, UPPERCASE, white sans-serif. One key word MAY be solid cyan or green. Headlines are often conversational questions or provocative statements, 8-10 words.",
+    "never": "no photorealistic humans (only the Blue Kid and Wolf mascot characters described above); no frosted or blurred glassmorphism (glass is always CLEAR); no daylight or outdoor photography; no white, pastel, or light-blue backgrounds; no stock-photo look; no flat 2D illustration; no real third-party logos or branded coins (competitors appear only as abstract glass tokens); no wallet addresses (0x...); no tiny labels or micro-text."
+  },
+  "restrictions": {
+    "antiRepetition": "Hard rules: do not pick the same family 3 times in a row; do not use the 'circuit_floor' environment more than 4 times in a row (it is the dominant default but still needs occasional variation); vary the wolf/character value -- do not use the same value twice in a row; use 'both' at most once every 4 posts; rotate camera and energy so consecutive posts don't feel identical.",
+    "moodAccentDefault": "cyan",
+    "moodAccentRestricted": {
+      "cyan_vs_red": {
+        "families": [
+          "versus",
+          "shatter",
+          "table"
+        ]
+      },
+      "cyan_vs_green": {
+        "families": [
+          "versus",
+          "product",
+          "table",
+          "data_tiles"
+        ]
+      }
+    },
+    "optionalAxes": [
+      "wolf"
+    ]
+  },
+  "textPolicy": {
+    "rules": "1. Headline: 10 words or fewer, UPPERCASE, punchy and often a conversational question or provocative\n   statement. Big numbers and tickers are encouraged. One key word MAY be solid cyan or green.\n   Never use hard-to-spell proper nouns -- tickers (BTC, ETH, RZUSD) are fine.\n2. In-scene text budget per family: versus up to 6 labels across both sides, product up to 4 UI labels,\n   flow up to 5 step/outcome phrases, table up to 8 row labels plus headers, character up to 4\n   (speech bubbles + panel labels), shatter up to 5 (center badges + edge labels), data_tiles up to 3\n   value+label pairs, blueprint up to 4 panel labels.\n3. Every in-scene text string must sit on its own clear glass panel or surface.\n4. Values are 1-5 characters; labels and phrases are 1-5 words; render them large and crisp.\n5. UI labels like RESERVED, AVAILABLE, VERIFIED, AUDITED, ON-CHAIN are encouraged where relevant.\n6. Full short sentences on glass panels are permitted (up to 8 words) -- this brand is text-heavy\n   by design. Speech bubbles may carry conversational phrases.\n7. No real company/exchange names anywhere in the image. No wallet addresses (0x...).",
+    "headlineMaxWords": 10,
+    "legibilityLine": "All in-scene text is large, bold, crisp and clearly legible, each rendered on its own clear glass panel or surface.",
+    "dataElementTemplate": "a clear glass UI panel displaying the value \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " with the label \"{label}\"",
+    "headlineUppercase": true
+  },
+  "fallbackBrief": {
+    "read": "LAUNCH",
+    "family": "product",
+    "headline": "CRYPTO MARKETS MOVE",
+    "data_elements": [],
+    "environment": "circuit_floor",
+    "camera": "eye_level_symmetric",
+    "energy": "calm_premium",
+    "mood_accent": "cyan",
+    "wolf": "none",
+    "subject_scene": "A single clear glass UI panel sits on a dark circuit-board platform with glowing cyan trace lines, displaying a clean app-mockup interface with a status indicator and the green RZ coin icon, radiating soft cyan light."
+  },
+  "briefExamples": "Worked examples (for guidance only -- do not copy headlines or scenes verbatim):\n\nA. Article: \"Why custodial exchanges still hold your crypto hostage\"\n{\"read\": \"CONTRAST\", \"family\": \"versus\", \"headline\": \"NOT YOUR KEYS, NOT YOUR CRYPTO\", \"data_elements\": [{\"value\": \"CUSTODY\", \"label\": \"\"}, {\"value\": \"ON-CHAIN\", \"label\": \"\"}, {\"value\": \"MIDDLEMAN\", \"label\": \"\"}, {\"value\": \"DIRECT\", \"label\": \"\"}], \"environment\": \"circuit_floor\", \"camera\": \"eye_level_symmetric\", \"energy\": \"dramatic_tension\", \"mood_accent\": \"cyan_vs_red\", \"wolf\": \"both\", \"subject_scene\": \"On the left, a dim red-tinted panel shows CUSTODY and MIDDLEMAN with red X marks, broken glass fragments drifting from it. On the right, a pristine cyan-green panel shows ON-CHAIN and DIRECT with green checkmarks. The Blue Kid and Wolf stand on the right side, the Kid pointing at the positive panel while the Wolf gestures dismissively at the broken left side. Circuit-board floor with glowing traces beneath.\"}\n\nB. Article: \"RZ Prime launches structured early access for token reservations\"\n{\"read\": \"LAUNCH\", \"family\": \"product\", \"headline\": \"EARLY ACCESS SHOULD BE STRUCTURED\", \"data_elements\": [{\"value\": \"RESERVE\", \"label\": \"\"}, {\"value\": \"RZUSD\", \"label\": \"\"}, {\"value\": \"AVAILABLE\", \"label\": \"\"}], \"environment\": \"circuit_floor\", \"camera\": \"low_angle_hero\", \"energy\": \"calm_premium\", \"mood_accent\": \"cyan_vs_green\", \"wolf\": \"none\", \"subject_scene\": \"A large clear glass UI panel sits on a circuit-board platform, displaying an app-mockup reserve interface with RESERVE, RZUSD, and AVAILABLE fields glowing in cyan and green, the green RZ coin icon hovering beside it.\"}\n\nC. Article: \"What actually happens when your reservation window expires\"\n{\"read\": \"PROCESS\", \"family\": \"flow\", \"headline\": \"WHAT ACTUALLY HAPPENS IF I DO NOTHING\", \"data_elements\": [{\"value\": \"EXPIRES\", \"label\": \"WINDOW\"}, {\"value\": \"RELEASED\", \"label\": \"TOKENS\"}, {\"value\": \"$0\", \"label\": \"COST\"}], \"environment\": \"circuit_floor\", \"camera\": \"eye_level_symmetric\", \"energy\": \"calm_premium\", \"mood_accent\": \"cyan\", \"wolf\": \"both\", \"subject_scene\": \"Three connected clear glass panels descend diagonally on a circuit-board platform, arrows linking them: WINDOW EXPIRES at top, TOKENS RELEASED in middle, YOU PAY ZERO at bottom with a green checkmark. The Blue Kid touches the top panel while the Wolf stands at the bottom, gesturing calmly toward the zero-cost outcome.\"}\n\nD. Article: \"The old model vs RZ Prime: a feature comparison\"\n{\"read\": \"CONTRAST\", \"family\": \"table\", \"headline\": \"WHY ARE PEOPLE STILL USING THE OLD MODEL\", \"data_elements\": [{\"value\": \"CeFi\", \"label\": \"\"}, {\"value\": \"RZ\", \"label\": \"\"}, {\"value\": \"FEES\", \"label\": \"\"}, {\"value\": \"KYC\", \"label\": \"\"}, {\"value\": \"CUSTODY\", \"label\": \"\"}], \"environment\": \"circuit_floor\", \"camera\": \"slight_overhead\", \"energy\": \"calm_premium\", \"mood_accent\": \"cyan_vs_red\", \"wolf\": \"kid\", \"subject_scene\": \"A glass comparison table fills the center on a circuit-board platform: CeFi column dim and red-tinted on the left, RZ PRIME column glowing cyan-green on the right, with rows for FEES, KYC, and CUSTODY. The Blue Kid stands beside the table, pointing at the RZ PRIME column. Green checkmarks on the RZ side, red X marks on the CeFi side.\"}\n\nE. Article: \"RZ Prime fees are transparent: 3%, 6%, or 9%\"\n{\"read\": \"NUMBER\", \"family\": \"data_tiles\", \"headline\": \"CLEAR FEE, CLEAR TIMING, CLEAR OUTCOME\", \"data_elements\": [{\"value\": \"3%\", \"label\": \"TIER 1\"}, {\"value\": \"6%\", \"label\": \"TIER 2\"}, {\"value\": \"9%\", \"label\": \"TIER 3\"}], \"environment\": \"circuit_floor\", \"camera\": \"low_angle_hero\", \"energy\": \"calm_premium\", \"mood_accent\": \"cyan_vs_green\", \"wolf\": \"none\", \"subject_scene\": \"Three ascending clear glass tiles rise from a circuit-board platform like stairs, each displaying a fee percentage in large cyan text with a tier label below, the tiles growing taller left to right, soft green glow on the highest tier.\"}\n\nF. Article: \"In a space where humans make mistakes, code doesn't\"\n{\"read\": \"THREAT\", \"family\": \"shatter\", \"headline\": \"IN A SPACE WHERE HUMANS MAKE MISTAKES CODE DOESN'T\", \"data_elements\": [{\"value\": \"VERIFIED\", \"label\": \"\"}, {\"value\": \"AUDITED\", \"label\": \"\"}, {\"value\": \"ON-CHAIN\", \"label\": \"\"}, {\"value\": \"CUSTODY\", \"label\": \"\"}, {\"value\": \"MIDDLEMAN\", \"label\": \"\"}], \"environment\": \"circuit_floor\", \"camera\": \"low_angle_hero\", \"energy\": \"explosive_dynamic\", \"mood_accent\": \"cyan_vs_red\", \"wolf\": \"none\", \"subject_scene\": \"A pristine glass cube at center glows cyan with VERIFIED, AUDITED, and ON-CHAIN badges in green on its faces. At the edges, crumbling legacy elements labeled CUSTODY and MIDDLEMAN shatter outward with red X marks and alarm-red cracks, fragments suspended mid-air. Circuit-board floor with glowing traces radiates beneath the intact cube.\"}"
+}

@@ -1,8 +1,9 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "customer": {
     "key": "demo-sports",
-    "productName": "Demo Sports Desk"
+    "productName": "Demo Sports Desk",
+    "timeZone": "UTC"
   },
   "workspace": {
     "name": "Demo Sports Desk"
@@ -16,13 +17,35 @@
           "backend": "remote",
           "model": "openai/gpt-4.1-nano"
         }
+      },
+      "keyword-embedding": {
+        "backend": "remote",
+        "model": "openai/text-embedding-3-small"
+      },
+      "enrichment-brief": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4.1-nano"
+        }
       }
     }
   },
   "mediaBrands": [
-    { "key": "match-day", "name": "Match Day" },
-    { "key": "transfer-desk", "name": "Transfer Desk" },
-    { "key": "training-ground", "name": "Training Ground" }
+    {
+      "key": "match-day",
+      "name": "Match Day",
+      "imageProfile": "image-profiles/match-day.json"
+    },
+    {
+      "key": "transfer-desk",
+      "name": "Transfer Desk"
+    },
+    {
+      "key": "training-ground",
+      "name": "Training Ground"
+    }
   ],
   "sources": [
     {
@@ -30,42 +53,67 @@
       "origin": "rss",
       "endpoint": "https://feeds.example.com/demo-league.xml",
       "name": "Demo League Wire",
-      "enabled": true
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
     },
     {
       "key": "demo-transfers-rss",
       "origin": "rss",
       "endpoint": "https://feeds.example.com/demo-transfers.xml",
       "name": "Demo Transfer Wire",
-      "enabled": true
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
     },
     {
       "key": "demo-scores-telegram",
       "origin": "telegram_public",
       "endpoint": "demo_scores",
       "name": "Demo Scores Channel",
-      "enabled": true
+      "enabled": true,
+      "contentLocale": "en"
     },
     {
       "key": "demo-archive-rss",
       "origin": "rss",
       "endpoint": "https://feeds.example.com/demo-archive.xml",
       "name": "Demo Archive",
-      "enabled": false
+      "enabled": false,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
     }
   ],
+  "acquisition": {
+    "defaultWindowHours": 24,
+    "maxItemsPerSource": 15,
+    "telegram": {
+      "orderingMode": "views",
+      "topN": 10
+    }
+  },
+  "enrichment": {
+    "enabled": true,
+    "maxItemsPerImport": 50,
+    "freshnessHours": 24
+  },
   "destinationAccounts": [
     {
       "key": "match-day-telegram",
       "platform": "telegram",
       "enabled": true,
-      "metadata": { "label": "Match Day Telegram", "channel": "demo_match_day" }
+      "metadata": {
+        "label": "Match Day Telegram",
+        "channel": "demo_match_day"
+      }
     },
     {
       "key": "transfer-desk-x",
       "platform": "x",
       "enabled": true,
-      "metadata": { "label": "Transfer Desk X" }
+      "metadata": {
+        "label": "Transfer Desk X"
+      }
     },
     {
       "key": "match-day-instagram",
@@ -79,9 +127,21 @@
     }
   ],
   "brandDestinations": [
-    { "brandKey": "match-day", "destinationKey": "match-day-telegram" },
-    { "brandKey": "match-day", "destinationKey": "match-day-instagram" },
-    { "brandKey": "transfer-desk", "destinationKey": "transfer-desk-x" },
-    { "brandKey": "training-ground", "destinationKey": "match-day-telegram" }
+    {
+      "brandKey": "match-day",
+      "destinationKey": "match-day-telegram"
+    },
+    {
+      "brandKey": "match-day",
+      "destinationKey": "match-day-instagram"
+    },
+    {
+      "brandKey": "transfer-desk",
+      "destinationKey": "transfer-desk-x"
+    },
+    {
+      "brandKey": "training-ground",
+      "destinationKey": "match-day-telegram"
+    }
   ]
 }

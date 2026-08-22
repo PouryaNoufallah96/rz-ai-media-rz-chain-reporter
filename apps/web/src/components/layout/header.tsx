@@ -33,6 +33,9 @@ export default async function Header() {
           <Link className={NAV_LINK_CLASS} href="/dashboard">
             {t("header.dashboard")}
           </Link>
+          <Link className={NAV_LINK_CLASS} href="/sources">
+            {t("header.sources")}
+          </Link>
           <Link className={NAV_LINK_CLASS} href="/usage">
             {t("header.usage")}
           </Link>

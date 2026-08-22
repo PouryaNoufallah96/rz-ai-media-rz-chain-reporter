@@ -2,27 +2,35 @@ import * as Sentry from "@sentry/node";
 import type { Logger as InngestLogger } from "inngest";
 
 const WORKER_LOG_TEXT_FIELDS = [
+  "adapter",
   "appVersion",
   "attemptId",
   "capability",
   "connectionState",
   "errorCode",
   "eventType",
+  "host",
   "mediaAssetId",
   "mode",
   "operationId",
   "outboxId",
+  "outcome",
   "reason",
   "signal",
+  "sourceId",
+  "sourceImportId",
   "status",
   "usageEventId",
   "workspaceId",
 ] as const;
 
 const WORKER_LOG_NUMBER_FIELDS = [
+  "admittedCount",
   "attempt",
+  "decodedBytes",
   "delayMs",
   "durationMs",
+  "fetchedCount",
   "port",
   "tagCount",
 ] as const;

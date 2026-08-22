@@ -20,6 +20,7 @@ export function validateWorkerEnv(
       CACHE_INVALIDATION_WEBHOOK_SECRET: z.string().min(32).optional(),
       CUSTOMER_TEMPLATE_KEY: customerTemplateKey,
       DATABASE_URL: postgresUrl,
+      FIRECRAWL_API_KEY: z.string().min(1).optional(),
       INNGEST_CONNECT_MAX_WORKER_CONCURRENCY: z.coerce
         .number()
         .int()

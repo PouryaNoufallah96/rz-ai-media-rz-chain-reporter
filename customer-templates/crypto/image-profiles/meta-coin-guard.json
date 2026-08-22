@@ -1,0 +1,210 @@
+{
+  "families": {
+    "shield_hero": {
+      "name": "SHIELD HERO",
+      "skeleton": "ONE large shield dominates the frame as the central hero object -- it can be a 3D metallic shield, a glowing teal shield outline, or a translucent glass shield with visible circuitry inside -- sitting on a dark steel pedestal or platform, with teal conduit traces converging toward it and a circuit-board floor beneath.",
+      "textPolicy": "Headline plus at most 1 short label or value displayed on the shield face (e.g. 'YOUR GUARD', a percentage, or 1-4 words). Prefer art_only.",
+      "defaultAxes": {
+        "environment": "steel_platform",
+        "camera": "low_angle_hero",
+        "energy": "calm_structure",
+        "finish": "glass_dark"
+      },
+      "dataBudget": 1
+    },
+    "threat_vs_guard": {
+      "name": "THREAT vs GUARD",
+      "skeleton": "A two-zone confrontation in flexible geometry (left/right, top/bottom, or background/foreground): one zone is the THREAT -- shattering glass objects, crashing red candlestick charts, crumbling structures with red embers or smoke, collapsing dominoes, or a breached vault; the other zone is the GUARD -- an intact shield, a transparent glass structure, or a calm wallet on a platform, rendered in teal and purple, always visually heavier and more stable than the chaos beside it.",
+      "textPolicy": "Headline plus at most 2 short zone labels (1-3 words each, e.g. 'MARKET PRICE' / 'DECLARED VALUE'). Labels on the threat side may name the threat.",
+      "defaultAxes": {
+        "environment": "void_storm",
+        "camera": "dutch_or_split",
+        "energy": "storm_tension",
+        "finish": "glass_dark"
+      },
+      "dataBudget": 2
+    },
+    "glass_fortress": {
+      "name": "GLASS FORTRESS",
+      "skeleton": "A large translucent glass-and-steel architectural structure -- a glass cube building, a transparent server tower, or a crystal citadel -- with visible circuit-board internals and teal energy flowing through its transparent walls. The structure may have the MCG shield emblem embedded in or floating above it. Often shown at monumental scale from a low angle.",
+      "textPolicy": "Headline plus at most 2 short labels on glass panels (e.g. 'Transparent', 'Autonomous'). Labels appear as floating holographic tags.",
+      "defaultAxes": {
+        "environment": "server_corridor",
+        "camera": "low_angle_hero",
+        "energy": "calm_structure",
+        "finish": "glass_bright"
+      },
+      "dataBudget": 2
+    },
+    "plan_blocks": {
+      "name": "PLAN BLOCKS",
+      "skeleton": "2-3 engineered glass-and-steel blocks stand on circuit-board terrain, arranged in a row or as ascending steps; each block is a translucent glass platform with teal or purple internal glow, carrying one large value and one short label; a coin badge or shield may hover above the key block.",
+      "textPolicy": "Headline plus at most 3 value+label pairs. Values are 1-6 characters; labels are 1-2 words. Each pair isolated on its own block face, rendered large.",
+      "defaultAxes": {
+        "environment": "circuit_terrain",
+        "camera": "isometric_high",
+        "energy": "calm_structure",
+        "finish": "glass_dark"
+      },
+      "dataBudget": 3
+    },
+    "protocol_flow": {
+      "name": "PROTOCOL FLOW",
+      "skeleton": "A horizontal three-node sequence connected by glowing teal arrows or conduit lines -- three translucent glass cards, three icons on pedestals, or three holographic stages -- each step represented by an icon or UI element (wallet, token, smart contract, shield) showing a process left to right.",
+      "textPolicy": "Headline plus at most 3 step labels of 1-3 words (e.g. 'GUARD ACTIVATED', 'MARKET MOVES', 'PROTOCOL EXECUTES').",
+      "defaultAxes": {
+        "environment": "steel_platform",
+        "camera": "frontal_wide",
+        "energy": "calm_structure",
+        "finish": "glass_dark"
+      },
+      "dataBudget": 3
+    },
+    "code_terminal": {
+      "name": "CODE TERMINAL",
+      "skeleton": "A terminal window or stack of rule-notification panels floats as the hero element, framed by the MCG shield outline or embedded in a glass structure; the panels have purple neon borders and show short rule text or pseudo-code lines; thin data threads connect the terminal to the environment.",
+      "textPolicy": "Headline plus at most 3 lines of short rule text or pseudo-code (each <=6 words). Each rule panel is its own visual element with an icon.",
+      "defaultAxes": {
+        "environment": "server_corridor",
+        "camera": "frontal_terminal",
+        "energy": "calm_structure",
+        "finish": "glass_dark"
+      },
+      "dataBudget": 3
+    },
+    "dashboard": {
+      "name": "DASHBOARD",
+      "skeleton": "A dark UI card or app mockup sits centrally, showing a wallet balance or Guard status with a green checkmark; the card is framed by a translucent glass shield structure; floating badges around it display key parameters (token, duration, plan); teal energy waves or conduit lines flow in the background.",
+      "textPolicy": "Headline plus at most 3 floating badge labels (1-3 words each, e.g. 'Token: INS', 'Guard Plan: X', 'Duration: 4 months').",
+      "defaultAxes": {
+        "environment": "steel_platform",
+        "camera": "frontal_wide",
+        "energy": "calm_structure",
+        "finish": "glass_bright"
+      },
+      "dataBudget": 3
+    },
+    "guardian": {
+      "name": "THE GUARDIAN",
+      "skeleton": "The anonymous armored sentinel -- sleek dark armor with teal accent lines and a reflective visor, no visible face -- stands calm on a raised platform or pedestal; an optional three-node timeline or shield projection appears beside or behind the figure; circuit-board floor and dark environment.",
+      "textPolicy": "Headline plus at most 2 short labels (timeline nodes or one tag).",
+      "defaultAxes": {
+        "environment": "steel_platform",
+        "camera": "low_angle_hero",
+        "energy": "calm_structure",
+        "finish": "glass_dark"
+      },
+      "dataBudget": 2
+    }
+  },
+  "axes": {
+    "environment": {
+      "steel_platform": "The setting is a dark polished steel platform or pedestal, with circuit-board traces in the floor and teal conduit lines at the edges.",
+      "server_corridor": "The setting is a corridor of glowing server racks receding into the distance, with teal and purple rim-lighting on the rack surfaces.",
+      "circuit_terrain": "The setting is a vast landscape of circuit-board terrain stretching to the horizon, with teal trace lines glowing like city grids.",
+      "console_deck": "The setting is a dark operations room centered on a holographic command table or glass platform.",
+      "void_storm": "The setting is dark space with fragments of shattering glass and falling red chart candles, smoke and crimson embers.",
+      "ruin_contrast": "The setting splits: one side shows crumbling institutional buildings or rusted structures with red glow; the other side shows clean glass and teal-lit infrastructure."
+    },
+    "camera": {
+      "low_angle_hero": "The camera looks up at the central object or figure from a low angle, making it feel monumental.",
+      "isometric_high": "The camera is a high analytical three-quarter isometric view.",
+      "frontal_wide": "The camera is a flat-on cinematic wide shot, symmetrical.",
+      "frontal_terminal": "The camera faces the terminal or panel stack directly, centered.",
+      "dutch_or_split": "The camera uses a tilted angle or a two-zone split framing for confrontation.",
+      "close_up_detail": "The camera is in close-up on the glass surface detail, showing circuit internals and light refractions."
+    },
+    "energy": {
+      "calm_structure": "The lighting is still, ordered and confident -- clean teal and purple rim-lights on glass and metal.",
+      "storm_tension": "The threat is active -- red light, volumetric haze, shattering glass and falling chart candles charge the scene.",
+      "ascendant": "The light is rising upward, with a sense of scale reveal and growth, teal energy flowing upward through glass structures."
+    },
+    "mood_accent": {
+      "teal": "The dominant accent color throughout the scene is teal/cyan.",
+      "teal_purple": "The dominant accent blends teal/cyan with purple/violet, for brand-core or shield-led scenes.",
+      "teal_vs_red": "The scene contrasts teal and purple on the Guard's side against red/crimson on the threat side."
+    },
+    "finish": {
+      "glass_dark": "The dominant finish is dark gunmetal with translucent glass elements glowing from within, deep shadows and neon accents.",
+      "glass_bright": "The dominant finish emphasizes the glass transparency -- brighter, more luminous, with teal and purple light filling the glass structures."
+    },
+    "headline_layout": {
+      "centered_top": "the headline is centered in a clean top zone of the frame.",
+      "left_block": "the headline is stacked in a left-aligned editorial block."
+    }
+  },
+  "frozenStyle": {
+    "format": "vertical 4:5 editorial poster set in a security-infrastructure world of translucent engineered glass, dark steel platforms, and glowing circuit networks -- clean 3D product visualization aesthetic, NOT photorealistic and NOT cartoon",
+    "palette": "near-black charcoal base, with teal/cyan glow as the primary accent (shield outlines, conduit traces, protected states) and purple/violet as the secondary accent (brand shield icon, energy cores, headline gradients); headline type fades from white to purple or from white to sage-green. Red/crimson is permitted only as the threat color -- crashes, shattering, ruins -- and never represents the brand itself. Gold/bronze appears only on coins, premium badges, or ranking numbers",
+    "materials": "translucent engineered glass with visible circuit-board internals (the signature material), dark gunmetal steel platforms and pedestals, circuit-board floor surfaces with teal trace lines, teal neon conduit tubes, server rack corridors, polished dark composite surfaces",
+    "rendering": "clean high-contrast stylized 3D product-visualization with cinematic rim-lighting in teal and purple; dark dramatic shadows; glass objects are transparent and luminous, not frosted or blurry; no humans except the faceless armored Guardian figure or anonymous silhouettes in conceptual scenes",
+    "backgroundVocab": "the shield motif is the brand's universal anchor -- a 3D metallic shield, a glowing teal outline, a glass shield frame, or an embossed badge -- alongside circuit-board terrain, teal conduit lines connecting structures, and server-rack corridor environments",
+    "headlineZone": "the headline is set in bold geometric sans-serif UPPERCASE type, white or fading from white to purple, positioned centered in a top zone or stacked in a left-aligned editorial block",
+    "never": "no frosted/blurry glassmorphism (glass must be CLEAR and transparent), no gold Art Deco or classical luxury, no wireframe-only voids, no daylight or white backgrounds, no casual or cartoon style, no recognizable real people, no real logos, no paragraphs of text, no micro-labels"
+  },
+  "restrictions": {
+    "antiRepetition": "Hard rules: do not repeat the same family more than 2 times in a row; do not use 'threat_vs_guard' more than 2 times in any 4 consecutive posts; do not use the 'glass_dark' finish more than 4 times in a row; use the 'guardian' family at most once every 8 posts; use the 'left_block' headline_layout roughly 1 in 3 posts; the shield motif should appear in some form in every post; include a glass/transparent structure in at least 3 of every 4 posts.",
+    "moodAccentDefault": "teal",
+    "moodAccentRestricted": {
+      "teal_vs_red": {
+        "families": [
+          "threat_vs_guard"
+        ],
+        "environments": [
+          "void_storm",
+          "ruin_contrast"
+        ]
+      }
+    },
+    "environmentRestricted": {
+      "void_storm": {
+        "energies": [
+          "storm_tension"
+        ],
+        "families": [
+          "threat_vs_guard"
+        ]
+      },
+      "ruin_contrast": {
+        "energies": [
+          "storm_tension"
+        ],
+        "families": [
+          "threat_vs_guard"
+        ]
+      }
+    },
+    "bannedSubjectTerms": [
+      "frosted glass",
+      "blurry glass",
+      "art deco",
+      "chandelier",
+      "marble",
+      "gatsby",
+      "wallet address",
+      "gold luxury"
+    ]
+  },
+  "textPolicy": {
+    "rules": "1. Headline: 7 words or fewer, bold UPPERCASE sans, white or fading to purple or sage-green.\n   Avoid hard-to-spell proper nouns; refer to protocols and companies by concept (e.g. THE BRIDGE EXPLOIT,\n   not the protocol's name) -- this also avoids implying accusations on developing incident news. Tickers\n   (BTC, ETH, SOL) are safe to use.\n2. In-scene text budget per family: shield_hero <=1 label, threat_vs_guard <=2 zone labels, plan_blocks <=3\n   value+label pairs, code_terminal <=3 rule lines (<=6 words each), protocol_flow <=3 step labels,\n   glass_fortress <=2 holo labels, dashboard <=3 badge labels, guardian <=2 labels.\n3. Values are 1-6 characters; labels are 1-3 words; render every string large on its own clean glass or\n   steel surface.\n4. Sub-headlines are not generated in-image; they belong to the overlay layer, not the prompt.\n5. Never render wallet addresses, dense dashboards, readable candlestick charts, or paragraphs of text.",
+    "headlineMaxWords": 7,
+    "legibilityLine": "All text is large, bold, crisp and clearly legible.",
+    "dataElementTemplate": "a glowing panel or glass surface displaying \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " labeled \"{label}\"",
+    "headlineUppercase": true
+  },
+  "fallbackBrief": {
+    "family": "shield_hero",
+    "headline": "THE GUARD HOLDS",
+    "layout": "art_only",
+    "data_elements": [],
+    "environment": "steel_platform",
+    "camera": "low_angle_hero",
+    "energy": "calm_structure",
+    "mood_accent": "teal",
+    "finish": "glass_dark",
+    "headline_layout": "centered_top",
+    "subject_scene": "A translucent glass shield with visible circuit-board internals stands on a dark polished steel pedestal, glowing with teal light from within, teal conduit traces converging toward it across the circuit-board floor, server rack silhouettes fading into shadow behind it."
+  },
+  "briefExamples": "Worked examples (for guidance only -- do not copy headlines or scenes verbatim):\n\nA. Article: \"Bridge protocol exploited for $120M\"\n{\"family\": \"threat_vs_guard\", \"headline\": \"PROTOCOLS FALL, RULES DON'T\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"$120M\", \"label\": \"DRAINED\"}], \"environment\": \"ruin_contrast\", \"camera\": \"dutch_or_split\", \"energy\": \"storm_tension\", \"mood_accent\": \"teal_vs_red\", \"finish\": \"glass_dark\", \"headline_layout\": \"centered_top\", \"subject_scene\": \"The left side shows crumbling server structures with red ember glow and smoke, labeled panels falling from rusted walls; the right side shows the MCG shield standing intact on a clean glass platform connected by teal conduit lines, transparent glass panels with visible circuitry glowing steadily behind it.\"}\n\nB. Article: \"Major audit firm publishes smart-contract security report\"\n{\"family\": \"code_terminal\", \"headline\": \"CLEAR RULES FAVOR CLEAR CODE\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"verify\", \"label\": \"\"}, {\"value\": \"execute\", \"label\": \"\"}, {\"value\": \"settle\", \"label\": \"\"}], \"environment\": \"server_corridor\", \"camera\": \"frontal_terminal\", \"energy\": \"calm_structure\", \"mood_accent\": \"teal_purple\", \"finish\": \"glass_dark\", \"headline_layout\": \"left_block\", \"subject_scene\": \"A stack of three glass-and-steel rule panels with purple neon borders floats within the outline of the MCG shield, each panel showing a short glowing line of text with a small icon, thin teal data threads anchoring the panels to the server racks behind them.\"}\n\nC. Article: \"DeFi TVL hits $200B milestone\"\n{\"family\": \"plan_blocks\", \"headline\": \"THE FLOOR JUST GOT HIGHER\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"$200B\", \"label\": \"TVL\"}, {\"value\": \"+40%\", \"label\": \"YOY\"}], \"environment\": \"circuit_terrain\", \"camera\": \"isometric_high\", \"energy\": \"ascendant\", \"mood_accent\": \"teal_purple\", \"finish\": \"glass_dark\", \"headline_layout\": \"centered_top\", \"subject_scene\": \"Two translucent glass-and-steel blocks stand on circuit-board terrain in ascending steps, each block glowing with teal internal light and carrying a large value on its face, a purple shield badge hovering above the taller block, teal conduit traces connecting the blocks along the ground.\"}\n\nD. Article: \"How the parametric cover protocol works\"\n{\"family\": \"protocol_flow\", \"headline\": \"STRUCTURE BEFORE VOLATILITY\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"ACTIVATE\", \"label\": \"\"}, {\"value\": \"MONITOR\", \"label\": \"\"}, {\"value\": \"EXECUTE\", \"label\": \"\"}], \"environment\": \"steel_platform\", \"camera\": \"frontal_wide\", \"energy\": \"calm_structure\", \"mood_accent\": \"teal\", \"finish\": \"glass_dark\", \"headline_layout\": \"centered_top\", \"subject_scene\": \"Three translucent glass cards sit in a horizontal row on a dark steel platform, connected by glowing teal arrows, the first card showing a wallet icon, the second a pulse monitor, the third a shield with checkmark, each card glowing faintly from within with circuit-board patterns visible through the glass.\"}\n\nE. Article: \"Why panic selling costs more than the drop\"\n{\"family\": \"guardian\", \"headline\": \"PANIC IS THE EXPENSIVE PART\", \"layout\": \"art_only\", \"data_elements\": [], \"environment\": \"steel_platform\", \"camera\": \"low_angle_hero\", \"energy\": \"calm_structure\", \"mood_accent\": \"teal_purple\", \"finish\": \"glass_dark\", \"headline_layout\": \"centered_top\", \"subject_scene\": \"The anonymous armored sentinel stands motionless on a raised dark platform, sleek dark armor with teal accent lines and a reflective visor, a faint three-node timeline glowing behind it with teal dots connected by a horizontal line, circuit-board floor beneath and server rack silhouettes in the background.\"}\n\nF. Article: \"New wallet-monitoring dashboard launches\"\n{\"family\": \"dashboard\", \"headline\": \"WHEN MARKETS MOVE FAST, RULES MATTER\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"INS\", \"label\": \"Token\"}, {\"value\": \"4 mo\", \"label\": \"Duration\"}], \"environment\": \"steel_platform\", \"camera\": \"frontal_wide\", \"energy\": \"calm_structure\", \"mood_accent\": \"teal_purple\", \"finish\": \"glass_bright\", \"headline_layout\": \"centered_top\", \"subject_scene\": \"A dark UI card showing a wallet balance with a glowing green checkmark sits centrally, framed by a translucent glass shield structure with visible circuitry, floating glass badges around it display parameters, teal energy waves flowing through the background.\"}"
+}

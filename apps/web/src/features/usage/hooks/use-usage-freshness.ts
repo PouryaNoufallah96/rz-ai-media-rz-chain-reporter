@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { getUsageRealtimeToken } from "../actions/get-realtime-token";
+import { refreshUsageReadsAction } from "../actions/refresh-usage-reads";
 
 export type UsageTransport = "live" | "reconnecting" | "stale" | "unavailable";
 
@@ -21,7 +22,7 @@ export function useUsageFreshness() {
   const [subscriptionUnavailable, setSubscriptionUnavailable] = useState(false);
   const hasConnected = useRef(false);
 
-  const refreshNow = () => {
+  const rerenderNow = () => {
     startRefresh(() => {
       router.refresh();
     });
@@ -51,8 +52,8 @@ export function useUsageFreshness() {
     ...(realtimeEnabled ? { token: requestToken } : {}),
   });
 
-  const refreshLatest = useEffectEvent(() => {
-    refreshNow();
+  const rerenderLatest = useEffectEvent(() => {
+    rerenderNow();
   });
 
   useEffect(() => {
@@ -61,7 +62,7 @@ export function useUsageFreshness() {
         usageLedgerRealtimeMessageSchema.safeParse(message.data).success,
     );
     if (hasLedgerMessage) {
-      refreshLatest();
+      rerenderLatest();
     }
   }, [realtime.messages.delta]);
 
@@ -70,29 +71,29 @@ export function useUsageFreshness() {
       return;
     }
     if (hasConnected.current) {
-      refreshLatest();
+      rerenderLatest();
       return;
     }
     hasConnected.current = true;
   }, [realtime.connectionStatus]);
 
-  const refreshWhenVisible = useEffectEvent(() => {
+  const rerenderWhenVisible = useEffectEvent(() => {
     if (document.visibilityState === "visible") {
-      refreshNow();
+      rerenderNow();
     }
   });
 
   useEffect(() => {
-    document.addEventListener("visibilitychange", refreshWhenVisible);
+    document.addEventListener("visibilitychange", rerenderWhenVisible);
     return () =>
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", rerenderWhenVisible);
   }, []);
 
   return {
     isRefreshing,
     refresh: () => {
       setSubscriptionUnavailable(false);
-      refreshNow();
+      startRefresh(refreshUsageReadsAction);
     },
     transport: transportOf(realtimeEnabled, realtime.connectionStatus),
   };

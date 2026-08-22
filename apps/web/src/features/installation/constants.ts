@@ -3,6 +3,7 @@ export const INSTALLATION_NAMESPACE = "installation";
 export const INSTALLATION_SECTIONS = [
   "identity",
   "mediaBrands",
+  "brandPolicy",
   "sources",
   "destinations",
   "mapping",

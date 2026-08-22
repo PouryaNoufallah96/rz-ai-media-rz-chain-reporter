@@ -1,6 +1,7 @@
 import type { OperationStatusRealtimeMessage } from "@rz-chain-reporter/contracts";
 import {
   operationsRealtimeChannel,
+  sourcesRealtimeChannel,
   usageRealtimeChannel,
 } from "@rz-chain-reporter/contracts/realtime-channels";
 
@@ -28,6 +29,29 @@ export function publishOperationStatus(
       workerLogger.warn(logEvent, {
         operationId: message.operationId,
         status: message.lifecycle,
+        workspaceId,
+      });
+      return false;
+    });
+}
+
+export function publishSourcesChanged(
+  step: WorkerStep,
+  workspaceId: string,
+  callSite: string,
+) {
+  return step.realtime
+    .publish(
+      `publish-sources-changed-${callSite}`,
+      sourcesRealtimeChannel(workspaceId).changed,
+      {
+        occurredAt: new Date().toISOString(),
+        schemaVersion: 1,
+      },
+    )
+    .then(() => true)
+    .catch(() => {
+      workerLogger.warn("worker.sources.realtime-unavailable", {
         workspaceId,
       });
       return false;

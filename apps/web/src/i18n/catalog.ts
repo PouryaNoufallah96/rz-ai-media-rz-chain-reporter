@@ -13,6 +13,8 @@ import operationsEn from "@/features/operations/messages/en.json";
 import operationsFa from "@/features/operations/messages/fa.json";
 import sharedEn from "@/features/shared/messages/en.json";
 import sharedFa from "@/features/shared/messages/fa.json";
+import sourcesEn from "@/features/sources/messages/en.json";
+import sourcesFa from "@/features/sources/messages/fa.json";
 import usageEn from "@/features/usage/messages/en.json";
 import usageFa from "@/features/usage/messages/fa.json";
 
@@ -24,6 +26,7 @@ const CATALOGS = {
     ...installationEn,
     ...landingEn,
     ...operationsEn,
+    ...sourcesEn,
     ...usageEn,
   },
   fa: {
@@ -33,6 +36,7 @@ const CATALOGS = {
     ...installationFa,
     ...landingFa,
     ...operationsFa,
+    ...sourcesFa,
     ...usageFa,
   },
 } satisfies Record<Locale, unknown>;

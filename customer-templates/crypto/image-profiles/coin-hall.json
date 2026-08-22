@@ -1,0 +1,183 @@
+{
+  "families": {
+    "artifact": {
+      "name": "ARTIFACT",
+      "skeleton": "ONE exquisite object sits in macro/close-up on black marble -- a pocket watch, brass scales, trophy, ledger, diamond, or key -- candlelit with shallow depth of field, a dim mansion room blurred behind. The object may carry one short engraved or displayed value.",
+      "textPolicy": "Headline plus at most ONE in-scene value displayed on the object itself (a number, a date, or 1-4 words). Prefer art_only or a single data element.",
+      "defaultAxes": {
+        "environment": "marble_table",
+        "camera": "close_up_macro",
+        "energy": "quiet_prestige"
+      },
+      "dataBudget": 1
+    },
+    "contrast": {
+      "name": "CONTRAST",
+      "skeleton": "The frame is split left/right. The negative side is desaturated, monochrome and motion-blurred -- casino noise, roulette wheels, frantic crowds, scattered chips. The positive side is still, warm and golden -- composed figures in an Art Deco hall under chandelier light, ordered and calm. A clean vertical seam or architectural divide separates the two sides.",
+      "textPolicy": "Headline only, ideally spanning the seam. At most one short label per side if essential.",
+      "defaultAxes": {
+        "environment": "grand_hall",
+        "camera": "eye_level_wide",
+        "energy": "dramatic_tension"
+      },
+      "dataBudget": 2
+    },
+    "registry": {
+      "name": "REGISTRY",
+      "skeleton": "Either (a) a teal holographic board floats above a marble pedestal in a candlelit hall, listing 2-4 large values with one row highlighted gold as the winner or record; or (b) an open aged ledger lies on marble with 2-3 large handwritten entries, a fountain pen, and a wax seal.",
+      "textPolicy": "Headline plus at most 3 value+label pairs. Values are 1-6 characters (e.g. $85.34, $12.4M); labels are 1-2 words. Each value rendered large on its own row or line. No timestamps as microtext.",
+      "defaultAxes": {
+        "environment": "grand_hall",
+        "camera": "low_angle_pedestal",
+        "energy": "quiet_prestige"
+      },
+      "dataBudget": 3
+    },
+    "doors": {
+      "name": "DOORS OF OUTCOME",
+      "skeleton": "2-3 grand doors or archways stand in a marble corridor, each with a short engraved sign above. A golden light-path on the floor splits and flows toward them; doors may glow differently -- warm and open vs dim and closed -- to show outcomes.",
+      "textPolicy": "Headline plus at most 3 engraved door signs of 1-3 words each, large.",
+      "defaultAxes": {
+        "environment": "door_corridor",
+        "camera": "one_point_symmetry",
+        "energy": "quiet_prestige"
+      },
+      "dataBudget": 3
+    },
+    "procession": {
+      "name": "HALL PROCESSION",
+      "skeleton": "A symmetrical row of 3-5 ornate doors or archways under a chandelier (the five-halls shot), or three objects on marble pedestals along a corridor, each step represented by an icon-object (door, ledger, trophy) connected by a golden floor inlay.",
+      "textPolicy": "Headline plus at most 3 short labels (1-2 words) on signs above doors or pedestals. For the five-hall establishing shot, use hall names (CAR, JEWELRY, TRIP, INDUSTRIAL, REAL ESTATE) but show only 3 visible signs, with the rest implied.",
+      "defaultAxes": {
+        "environment": "grand_hall",
+        "camera": "one_point_symmetry",
+        "energy": "quiet_prestige"
+      },
+      "dataBudget": 3
+    },
+    "reveal": {
+      "name": "REVEAL",
+      "skeleton": "Scale and unveiling: the chateau at night with glowing windows beneath a constellation-lined sky, or a trophy cup swelling with golden light at the end of a long hall, or curtains drawing back from a prize. A small dim foreground gives way to a grand, glowing subject.",
+      "textPolicy": "Headline plus optionally one value (the prize or pot figure) on a plaque or holo tag.",
+      "defaultAxes": {
+        "environment": "estate_exterior",
+        "camera": "eye_level_wide",
+        "energy": "ceremonial_awe"
+      },
+      "dataBudget": 1
+    },
+    "hologram": {
+      "name": "HOLOGRAM IN THE HALL",
+      "skeleton": "Teal holographic elements materialize inside the classical space -- a holo panel hovering above a marble table showing a glowing checkmark or seal, a stream of luminous data flowing through a window into a ledger, or ghostly constellation lines connecting a chandelier to a verified-price tag. The classical room dominates; the hologram accent fills roughly 20% of the frame.",
+      "textPolicy": "Headline plus at most 2 short holo labels (e.g. 'VERIFIED', one value). Any diagrammatic content is abstract and wordless.",
+      "defaultAxes": {
+        "environment": "study_library",
+        "camera": "eye_level_wide",
+        "energy": "quiet_prestige"
+      },
+      "dataBudget": 2
+    },
+    "society": {
+      "name": "SOCIETY SCENE",
+      "skeleton": "Elegant evening-dress figures populate the hall -- a celebrated winner under a spotlight, an applauding crowd around a prize, or guests with faint holo prediction-tags floating beside them. Cinematic group staging, golden light, marble reflections.",
+      "textPolicy": "Headline plus at most 2 short holo-tag values, or one plaque line (e.g. 'CAR HALL'). Never wallet addresses or long strings.",
+      "defaultAxes": {
+        "environment": "grand_hall",
+        "camera": "eye_level_wide",
+        "energy": "ceremonial_awe"
+      },
+      "dataBudget": 2
+    }
+  },
+  "axes": {
+    "environment": {
+      "grand_hall": "The setting is a grand Art Deco hall, with crystal chandeliers, columns, and a black marble floor inlaid with gold.",
+      "study_library": "The setting is an intimate wood-paneled study or library, with a desk lamp, a leather-bound ledger, and a glass of whisky.",
+      "door_corridor": "The setting is a marble corridor lined with ornate doors and archways, receding into the depth of the frame.",
+      "marble_table": "The setting is an extreme close-up world: a single object resting on a black marble surface, candlelight reflecting off the stone.",
+      "estate_exterior": "The setting is the grand chateau at night, its windows glowing warmly beneath a starlit, constellation-lined sky.",
+      "gallery_balcony": "The setting is a mezzanine gallery overlooking the grand hall below, with ornate railings and deep architectural shadow."
+    },
+    "camera": {
+      "close_up_macro": "The camera is in extreme close-up, macro focus on the texture and surface detail of the central object.",
+      "eye_level_wide": "The camera is a cinematic eye-level wide establishing shot.",
+      "one_point_symmetry": "The camera is positioned frontally with one-point symmetry, looking straight down a corridor or row of doors.",
+      "low_angle_pedestal": "The camera looks up at a pedestal or holographic board from a low angle.",
+      "over_shoulder": "The camera looks past a silhouetted guest toward the subject."
+    },
+    "energy": {
+      "quiet_prestige": "The lighting is still and confident, candlelit and golden, conveying quiet prestige.",
+      "dramatic_tension": "The lighting is high-contrast with deep shadows and a single hard light source, creating dramatic tension.",
+      "ceremonial_awe": "The scene is lit like a ceremonial spotlight moment, with swirling light and a sense of celebration."
+    },
+    "hall_theme": {
+      "car": "A sculptural luxury automobile silhouette with brass engine details is woven into the scene, evoking the Car Hall.",
+      "jewelry": "A diamond or necklace resting on dark velvet, catching candle glints, is woven into the scene, evoking the Jewelry Hall.",
+      "trip": "Vintage travel luggage and a glass horizon traced with golden map lines are woven into the scene, evoking the Trip Hall.",
+      "industrial": "Polished brass machinery and gears with a forge-like glow are woven into the scene, evoking the Industrial Hall.",
+      "real_estate": "A skyline glimpsed beyond arched windows, alongside an architectural model on marble, is woven into the scene, evoking the Real Estate Hall."
+    },
+    "mood_accent": {
+      "gold": "The dominant accent color throughout the scene is champagne gold and brass.",
+      "gold_teal": "The dominant accent blends champagne gold with the brand's teal-emerald holographic glow, for scenes carrying on-chain elements.",
+      "gold_vs_mono": "The scene contrasts champagne gold and warm light on the positive side against desaturated monochrome on the negative side."
+    }
+  },
+  "frozenStyle": {
+    "format": "vertical 4:5 editorial poster set in a 1920s Art Deco / Gatsby-era luxury world -- grand mansion interiors and estates, rendered as cinematic photographic realism, NOT glossy 3D-render and NOT neon sci-fi",
+    "palette": "near-black and deep warm brown base, with champagne gold, brass and amber as the dominant accent, and warm candlelight / chandelier glow throughout. The one permitted tech color is a faint teal-emerald holographic glow, used sparingly",
+    "materials": "black marble with gold veining, polished brass, crystal chandeliers, aged paper, leather-bound ledgers, velvet, gold engraving, candle flame",
+    "rendering": "warm, low-key, candlelit / chandelier-lit cinematic photography with dramatic shadows and golden reflections on polished marble floors; elegant figures in evening wear, silhouettes and candlelit crowds are allowed and encouraged, with faces stylized-cinematic and never recognizable real people",
+    "backgroundVocab": "the brand's signature fusion -- holographic on-chain data living inside the classical world: teal glass panels with predictions or timestamps floating over marble, data light-streams entering windows, glowing verified-price tags. Most images contain at least one subtle on-chain element; the technology is a guest in the mansion, never the architecture",
+    "headlineZone": "the top zone carries the headline in elegant letter-spaced SERIF type in gold or champagne, often framed by Art Deco ornamental borders with corner flourishes; mixed case or small-caps is allowed",
+    "never": "no neon cyberpunk, no sci-fi corridors, no frosted-glass cube aesthetics, no daylight or office settings, no casual or cartoon style, no white backgrounds, no recognizable real people, no real luxury-brand logos or names, no paragraphs of text, no small dense labels"
+  },
+  "restrictions": {
+    "antiRepetition": "Hard rules: do not repeat the same family more than 2 times in a row; do not use the 'grand_hall' environment more than 3 times in a row; use the 'society' family at most once every 4 posts; include a hall_theme other than 'none' at least once every 5 posts; include a holographic/on-chain element in at least 2 of every 3 posts.",
+    "moodAccentDefault": "gold",
+    "moodAccentRestricted": {
+      "gold_vs_mono": {
+        "families": [
+          "contrast"
+        ]
+      }
+    },
+    "optionalAxes": [
+      "hall_theme"
+    ],
+    "bannedSubjectTerms": [
+      "rolex",
+      "patek philippe",
+      "sotheby's",
+      "sothebys",
+      "christie's",
+      "christies",
+      "rolls-royce",
+      "rolls royce",
+      "ferrari",
+      "lamborghini",
+      "wallet address"
+    ]
+  },
+  "textPolicy": {
+    "rules": "1. Headline: 7 words or fewer, elegant, mixed case or small-caps allowed. Big values are encouraged. Avoid\n   hard-to-spell proper nouns; never use real auction-house or luxury-brand names (say THE RECORD SALE, not\n   Sotheby's), and never depict real luxury-brand logos or names in the image.\n2. In-scene text budget per family: artifact <=1, contrast <=2, registry <=3 value+label pairs, doors <=3\n   door signs, procession <=3 labels, reveal <=1 value, hologram <=2 holo labels, society <=2 short tags.\n3. Values are 1-6 characters; labels and signs are 1-3 words; render every string large on its own clean\n   surface (a plaque, sign, holo panel, or ledger line).\n4. Sub-headlines are not generated in-image; thin taglines belong to the overlay layer, not the prompt.\n5. Never render wallet addresses, timestamps as microtext, dense lists, or paragraphs.",
+    "headlineMaxWords": 7,
+    "legibilityLine": "All lettering is large, elegant, crisp and clearly legible, engraved gold serif style.",
+    "dataElementTemplate": "an engraved gold plaque or glowing holographic panel displaying \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " next to the label \"{label}\"",
+    "headlineUppercase": false
+  },
+  "fallbackBrief": {
+    "family": "artifact",
+    "headline": "A Quiet Moment, Recorded",
+    "layout": "art_only",
+    "data_elements": [],
+    "environment": "marble_table",
+    "camera": "close_up_macro",
+    "energy": "quiet_prestige",
+    "mood_accent": "gold",
+    "hall_theme": "none",
+    "subject_scene": "An antique gold pocket watch lies open on black marble veined with gold, its face catching warm candlelight, with the dim glow of a grand hall blurred softly behind it."
+  },
+  "briefExamples": "Worked examples (for guidance only -- do not copy headlines or scenes verbatim):\n\nA. Article: \"Patek Philippe watch sells for record $12.4M at auction\"\n{\"family\": \"registry\", \"headline\": \"A Record Falls Under the Hammer\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"$12.4M\", \"label\": \"HAMMER\"}, {\"value\": \"x3\", \"label\": \"ESTIMATE\"}], \"environment\": \"grand_hall\", \"camera\": \"low_angle_pedestal\", \"energy\": \"quiet_prestige\", \"mood_accent\": \"gold_teal\", \"hall_theme\": \"jewelry\", \"subject_scene\": \"A teal holographic registry board hovers above a black marble pedestal in a candlelit Art Deco hall, two glowing ledger rows displaying the record figures with the top row haloed in gold; below, a diamond necklace rests on dark velvet catching candlelight, while blurred evening-dress silhouettes watch from the shadows.\"}\n\nB. Article: \"Chainlink launches new low-latency price feeds\"\n{\"family\": \"hologram\", \"headline\": \"The Oracle Just Got Faster\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"VERIFIED\", \"label\": \"\"}], \"environment\": \"study_library\", \"camera\": \"eye_level_wide\", \"energy\": \"quiet_prestige\", \"mood_accent\": \"gold_teal\", \"hall_theme\": \"none\", \"subject_scene\": \"A teal stream of luminous data pours through a tall window onto an open ledger on a wood-paneled desk, while a brass scale beside it tips gently into balance, one holographic tag glowing above the ledger.\"}\n\nC. Article: \"Global luxury car market hits new high\"\n{\"family\": \"artifact\", \"headline\": \"Motion Has Never Been Worth More\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"CAR HALL\", \"label\": \"\"}], \"environment\": \"marble_table\", \"camera\": \"close_up_macro\", \"energy\": \"quiet_prestige\", \"mood_accent\": \"gold_teal\", \"hall_theme\": \"car\", \"subject_scene\": \"A sculptural brass automobile model rests on black marble, candlelight catching its curves, with faint teal constellation lines tracing its silhouette and a small engraved plaque beside it.\"}\n\nD. Article: \"Survey: users abandoning casino dApps for skill-based games\"\n{\"family\": \"contrast\", \"headline\": \"Luck Fades. Skill Compounds.\", \"layout\": \"art_only\", \"data_elements\": [], \"environment\": \"grand_hall\", \"camera\": \"eye_level_wide\", \"energy\": \"dramatic_tension\", \"mood_accent\": \"gold_vs_mono\", \"hall_theme\": \"none\", \"subject_scene\": \"On the left, monochrome motion-blurred slot machines and frantic figures dissolve into noise; on the right, a still golden Art Deco hall where composed guests in evening wear study a glowing registry board, a clean marble seam dividing the two worlds.\"}\n\nE. Article: \"Car Hall winner announced\"\n{\"family\": \"society\", \"headline\": \"The Pot Found Its Owner\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"CAR HALL\", \"label\": \"\"}], \"environment\": \"grand_hall\", \"camera\": \"eye_level_wide\", \"energy\": \"ceremonial_awe\", \"mood_accent\": \"gold_teal\", \"hall_theme\": \"car\", \"subject_scene\": \"A spotlight falls on an applauded winner in evening dress beside a veiled sculptural automobile in a grand Art Deco hall, golden confetti light drifting down, with one holographic plaque glowing softly nearby.\"}\n\nF. Article: \"What happens at the final reveal?\"\n{\"family\": \"doors\", \"headline\": \"Every Pot Finds Its Owner\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"EXACT\", \"label\": \"\"}, {\"value\": \"FIRST\", \"label\": \"\"}, {\"value\": \"CLOSEST\", \"label\": \"\"}], \"environment\": \"door_corridor\", \"camera\": \"one_point_symmetry\", \"energy\": \"quiet_prestige\", \"mood_accent\": \"gold\", \"hall_theme\": \"none\", \"subject_scene\": \"Three arched marble doors recede down a candlelit corridor, each engraved with a single word above its frame, a golden light-path splitting across the floor toward them with the leftmost door glowing warmly open.\"}"
+}

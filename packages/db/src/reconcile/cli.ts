@@ -56,7 +56,10 @@ try {
       `cache invalidation ${await notifyCacheInvalidation({
         baseUrl: migrationEnv.WEB_INTERNAL_BASE_URL,
         secret: migrationEnv.CACHE_INVALIDATION_WEBHOOK_SECRET,
-        tags: [workspaceCacheTag(report.workspaceId, "installation")],
+        tags: [
+          workspaceCacheTag(report.workspaceId, "installation"),
+          workspaceCacheTag(report.workspaceId, "sources"),
+        ],
       })}`,
     );
   }

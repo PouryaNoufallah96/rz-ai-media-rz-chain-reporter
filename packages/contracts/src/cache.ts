@@ -5,7 +5,11 @@ export const CACHE_INVALIDATION_SIGNATURE_HEADER = "x-chainreporter-signature";
 export const CACHE_INVALIDATION_TIMESTAMP_HEADER = "x-chainreporter-timestamp";
 export const CACHE_INVALIDATION_MAX_SKEW_MS = 5 * 60_000;
 
-export const WORKSPACE_CACHE_ENTITIES = ["installation", "usage"] as const;
+export const WORKSPACE_CACHE_ENTITIES = [
+  "installation",
+  "sources",
+  "usage",
+] as const;
 
 export type WorkspaceCacheEntity = (typeof WORKSPACE_CACHE_ENTITIES)[number];
 

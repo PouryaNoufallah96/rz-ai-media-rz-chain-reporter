@@ -2,9 +2,12 @@ import { realtime } from "inngest";
 
 import {
   getOperationsRealtimeChannelName,
+  getSourcesRealtimeChannelName,
   getUsageRealtimeChannelName,
   OPERATIONS_REALTIME_STATUS_TOPIC,
   operationStatusRealtimeMessageSchema,
+  SOURCES_REALTIME_CHANGED_TOPIC,
+  sourcesChangedRealtimeMessageSchema,
   USAGE_REALTIME_LEDGER_TOPIC,
   usageLedgerRealtimeMessageSchema,
 } from "./realtime";
@@ -25,6 +28,15 @@ export const usageRealtimeChannel = realtime.channel({
   topics: {
     [USAGE_REALTIME_LEDGER_TOPIC]: {
       schema: usageLedgerRealtimeMessageSchema,
+    },
+  },
+});
+
+export const sourcesRealtimeChannel = realtime.channel({
+  name: getSourcesRealtimeChannelName,
+  topics: {
+    [SOURCES_REALTIME_CHANGED_TOPIC]: {
+      schema: sourcesChangedRealtimeMessageSchema,
     },
   },
 });

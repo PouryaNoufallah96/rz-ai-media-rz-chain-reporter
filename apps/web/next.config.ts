@@ -37,7 +37,10 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     globalNotFound: true,
-    serverActions: { bodySizeLimit: MAX_CONTROL_PAYLOAD_BYTES },
+    serverActions: {
+      bodySizeLimit: MAX_CONTROL_PAYLOAD_BYTES,
+      allowedOrigins: [new URL(buildEnv.APP_URL).host],
+    },
   },
 };
 

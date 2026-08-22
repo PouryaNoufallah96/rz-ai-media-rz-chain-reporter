@@ -18,7 +18,7 @@ export function createGenerationProbeFixture(options: {
   executor: Executor;
   mode: Exclude<GenerationProbeMode, "real">;
   template: CustomerTemplate;
-}): ModelGateway {
+}): Pick<ModelGateway, "invokeStructured"> {
   return {
     async invokeStructured(input) {
       if (options.mode === "invalid-output") {
