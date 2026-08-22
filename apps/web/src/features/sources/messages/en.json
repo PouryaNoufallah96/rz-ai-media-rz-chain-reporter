@@ -1,0 +1,229 @@
+{
+  "sources": {
+    "title": "Sources",
+    "transport": {
+      "live": "live",
+      "reconnecting": "reconnecting…",
+      "stale": "updates paused",
+      "unavailable": "live updates off",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…"
+    },
+    "caption": {
+      "sourceCount": "{rss, number} feeds · {telegram, number} channels · last import {time}",
+      "noImport": "{rss, number} feeds · {telegram, number} channels · no imports yet"
+    },
+    "import": {
+      "title": "Source import",
+      "start": "Start import",
+      "pending": "Starting…",
+      "startHint": "Opens one ticket in the operations panel.",
+      "startDisabled": "Select at least one source.",
+      "started": "Import started",
+      "kinds": "Source kinds",
+      "sources": "Sources",
+      "sourcesHint": "{n, number} of {m, number} selected",
+      "recency": {
+        "label": "Recency",
+        "6": "6 h",
+        "12": "12 h",
+        "24": "24 h",
+        "48": "48 h"
+      },
+      "ordering": {
+        "label": "Telegram ordering",
+        "views": "Most viewed",
+        "latest": "Newest first",
+        "views_per_source": "Most viewed per channel",
+        "latest_per_source": "Newest per channel",
+        "keywords": "Keyword match"
+      },
+      "topN": "Items per run",
+      "topNHint": "1 to 20 items per run.",
+      "topics": "Topics",
+      "topicsHint": "Comma separated. Used only by keyword ordering.",
+      "recentTopics": "Recent topics",
+      "recentTopicsHint": "Press a topic to add it to the field.",
+      "enrichment": "Fetch full article text",
+      "enrichmentHint": "Template default for this installation: {state}.",
+      "enrichmentOn": "on",
+      "enrichmentOff": "off",
+      "current": "Current run",
+      "asOf": "as of {time}",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "stage": {
+        "acquiring": "acquiring",
+        "enriching": "enriching · {n, number} / {m, number}"
+      },
+      "counts": {
+        "acquired": "acquired {n, number}",
+        "ordered": "ordered {n, number}",
+        "enriched": "enriched {n, number}",
+        "skipped": "skipped {n, number}",
+        "failed": "failed {n, number}"
+      },
+      "empty": {
+        "title": "No imports yet",
+        "hint": "Set the bounds above, then press Start import."
+      },
+      "provenance": "embedding · {model} · {dimension, number}-d · cosine v1 · template {fingerprint}",
+      "bounds": "{hours, number} h window · top {topN, number} · {ordering}",
+      "toggle": "Toggle the per-source ledger for import {id}",
+      "ledger": "Per-source outcomes for import {id}",
+      "recent": {
+        "title": "Recent imports",
+        "hint": "Older imports stay in the operations panel history window."
+      }
+    },
+    "state": {
+      "queued": "Queued",
+      "running": "Running",
+      "settling": "Settling",
+      "succeeded": "Succeeded",
+      "partial": "Partial",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "unknown": "Outcome unknown"
+    },
+    "outcome": {
+      "pending": "pending",
+      "succeeded": "succeeded",
+      "not_modified": "not modified",
+      "partial": "partial",
+      "skipped": "skipped",
+      "rejected": "rejected",
+      "blocked": "blocked",
+      "timed_out": "timed out",
+      "failed_retryable": "failed — retryable",
+      "failed_terminal": "failed — terminal"
+    },
+    "reason": {
+      "empty_feed": "empty feed",
+      "disabled_at_run_time": "disabled at run time",
+      "parse_failure": "parse failure",
+      "markup_drift": "markup drift",
+      "missing_external_identity": "missing external identity",
+      "no_web_preview": "no web preview",
+      "off_origin": "off-origin",
+      "ssrf_blocked": "blocked address",
+      "unsupported_mime": "unsupported media type",
+      "too_large": "response too large",
+      "redirect_blocked": "redirect blocked",
+      "deadline": "deadline reached",
+      "retry_after": "upstream asked to retry later",
+      "js_required": "JavaScript required",
+      "anti_bot_challenge": "anti-bot challenge",
+      "extraction_insufficient": "extraction insufficient",
+      "fetch_failed": "fetch failed",
+      "brief_invalid": "brief rejected"
+    },
+    "lifecycle": {
+      "enabled": "enabled",
+      "disabled": "disabled",
+      "retired": "retired"
+    },
+    "observation": {
+      "neverFetched": "never fetched",
+      "items": "{n, number} items · {time}",
+      "plain": "{outcome} · {time}",
+      "withReason": "{outcome} — {reason} · {time}",
+      "retrying": "retrying"
+    },
+    "catalog": {
+      "title": "Source catalog",
+      "hint": "Two independent facts per source: what the template configured, and what the last fetch observed.",
+      "kind": {
+        "rss": "RSS / ATOM",
+        "telegram_public": "Telegram"
+      },
+      "groupCount": "{n, number} sources",
+      "endpoint": "Endpoint",
+      "contentLocale": "Content locale",
+      "itemCap": "Item cap",
+      "lastObservation": "Last observation",
+      "fetchedCount": "Fetched",
+      "validators": "Validators",
+      "validatorsPresent": "stored",
+      "validatorsAbsent": "none",
+      "reasonCode": "Reason code",
+      "expand": "Show details for {name}",
+      "retiredNote": "Retired — not selectable for import.",
+      "empty": "No sources configured."
+    },
+    "counts": {
+      "pair": "{fetched, number} / {admitted, number}",
+      "legend": "fetched / admitted",
+      "enrichment": "enriched {enriched, number} · skipped {skipped, number} · failed {failed, number} · unknown {unknown, number}"
+    },
+    "stream": {
+      "title": "Source items",
+      "caption": "Source items: time, source, title, content revisions, and enrichment state",
+      "columns": {
+        "time": "Time",
+        "source": "Source",
+        "title": "Title",
+        "revisions": "Revisions",
+        "enrichment": "Enrichment",
+        "rank": "Rank",
+        "score": "Score"
+      },
+      "filters": {
+        "label": "Source item filters",
+        "source": "Source",
+        "admission": "Admission",
+        "import": "Import",
+        "all": "all"
+      },
+      "importGroup": "import {id}",
+      "empty": {
+        "title": "No source items yet.",
+        "hint": "Start an import"
+      },
+      "filtered": {
+        "title": "No items match these filters.",
+        "hint": "Try a different source, admission, or import.",
+        "clear": "Clear filters"
+      },
+      "updating": "Updating results…",
+      "loading": "Loading source items",
+      "pager": {
+        "older": "Older",
+        "newer": "Newer",
+        "backToLatest": "Back to latest"
+      }
+    },
+    "admission": {
+      "admitted": "admitted",
+      "skipped_language": "skipped — language",
+      "skipped_undated": "skipped — undated",
+      "out_of_window": "out of window",
+      "over_cap": "over cap"
+    },
+    "enrichment": {
+      "none": "none",
+      "pending": "pending",
+      "succeeded": "succeeded",
+      "skipped": "skipped",
+      "failed": "failed",
+      "unknown": "unknown",
+      "unknownNote": "Outcome unknown — the enrichment response was lost. Reconciliation resolves it before any retry."
+    },
+    "adapter": {
+      "feed": "feed",
+      "direct": "direct",
+      "firecrawl": "firecrawl",
+      "directThenFirecrawl": "direct → firecrawl",
+      "fallbackReason": "fallback: {reason}"
+    },
+    "detail": {
+      "open": "Show provenance for {name}",
+      "revisions": "Revisions",
+      "hash": "Content hash",
+      "enrichment": "Enrichment",
+      "adapter": "Article adapter",
+      "contentLocale": "Content locale",
+      "brief": "Brief"
+    }
+  }
+}

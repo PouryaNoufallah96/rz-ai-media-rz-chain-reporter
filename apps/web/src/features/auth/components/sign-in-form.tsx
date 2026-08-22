@@ -48,9 +48,6 @@ export default function SignInForm() {
 
     if (result.status === "error") {
       applyActionErrorToForm(setError, result, setFocus);
-      toast.error(
-        result.fieldErrors ? t("signIn.failure") : resolveError(result.code),
-      );
       return;
     }
 

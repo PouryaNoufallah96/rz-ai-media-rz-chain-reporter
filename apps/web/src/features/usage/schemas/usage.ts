@@ -19,7 +19,7 @@ import { z } from "zod";
 import { USAGE_PERIODS, USAGE_PROVIDERS } from "../constants";
 
 const optionalFilterSchema = z.string().trim().min(1).max(200).nullable();
-const cursorSchema = z.string().min(1).max(512).nullable();
+const cursorSchema = z.string().min(1).max(512).nullable().catch(null);
 
 export const usageSearchParsers = {
   period: parseAsStringLiteral(USAGE_PERIODS).withDefault("7d"),
@@ -65,6 +65,14 @@ function normalizeTextFilter(value: string | null) {
   const normalized = value.trim().replace(/\s+/gu, " ").slice(0, 200);
   return normalized === "" ? null : normalized;
 }
+
+export const usageCursorSchema = z.object({
+  direction: z.enum(["older", "newer"]),
+  occurredAt: z.iso.datetime(),
+  id: z.uuid(),
+});
+
+export type UsageCursor = z.infer<typeof usageCursorSchema>;
 
 export const usageRowSchema = z.object({
   id: z.uuid(),

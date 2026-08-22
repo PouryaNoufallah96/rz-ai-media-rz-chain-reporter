@@ -17,13 +17,19 @@ import {
   sql,
 } from "drizzle-orm";
 
+import {
+  decodeKeysetCursor,
+  encodeKeysetCursor,
+} from "@/features/shared/lib/keyset-cursor";
+
 import { USAGE_PAGE_SIZE, type USAGE_PROVIDERS } from "../constants";
-import { decodeUsageCursor, encodeUsageCursor } from "../lib/cursor";
-import type {
-  UsagePage,
-  UsageQuery,
-  UsageRow,
-  UsageSummary,
+import {
+  type UsageCursor,
+  type UsagePage,
+  type UsageQuery,
+  type UsageRow,
+  type UsageSummary,
+  usageCursorSchema,
 } from "../schemas/usage";
 
 type UsageProvider = (typeof USAGE_PROVIDERS)[number];
@@ -94,7 +100,7 @@ export async function readUsagePage(
   workspaceId: string,
   query: UsageQuery,
 ): Promise<UsagePage> {
-  const cursor = decodeUsageCursor(query.cursor);
+  const cursor = decodeKeysetCursor(usageCursorSchema, query.cursor);
   const direction = cursor?.direction ?? "older";
   const cursorCondition = cursor
     ? direction === "older"
@@ -156,19 +162,19 @@ export async function readUsagePage(
     rows,
     olderCursor:
       last && (direction === "newer" || hasExtra)
-        ? encodeUsageCursor({
+        ? encodeKeysetCursor({
             direction: "older",
             occurredAt: last.cursorOccurredAt,
             id: last.id,
-          })
+          } satisfies UsageCursor)
         : null,
     newerCursor:
       first && offLatest && (direction === "older" || hasExtra)
-        ? encodeUsageCursor({
+        ? encodeKeysetCursor({
             direction: "newer",
             occurredAt: first.cursorOccurredAt,
             id: first.id,
-          })
+          } satisfies UsageCursor)
         : null,
     offLatest,
   };

@@ -10,8 +10,7 @@
       "rememberMe": "Keep me signed in",
       "submit": "Sign in",
       "submitting": "Signing in…",
-      "success": "Signed in",
-      "failure": "Unable to sign in with those credentials"
+      "success": "Signed in"
     },
     "errors": {
       "emailInvalid": "Enter a valid email address",

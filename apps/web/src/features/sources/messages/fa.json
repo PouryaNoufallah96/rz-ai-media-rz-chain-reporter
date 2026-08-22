@@ -1,0 +1,229 @@
+{
+  "sources": {
+    "title": "منابع",
+    "transport": {
+      "live": "زنده",
+      "reconnecting": "در حال اتصال دوباره…",
+      "stale": "به‌روزرسانی متوقف شده",
+      "unavailable": "به‌روزرسانی زنده خاموش است",
+      "refresh": "تازه‌سازی",
+      "refreshing": "در حال تازه‌سازی…"
+    },
+    "caption": {
+      "sourceCount": "{rss, number} خوراک · {telegram, number} کانال · آخرین دریافت {time}",
+      "noImport": "{rss, number} خوراک · {telegram, number} کانال · هنوز دریافتی انجام نشده"
+    },
+    "import": {
+      "title": "دریافت از منابع",
+      "start": "شروع دریافت",
+      "pending": "در حال شروع…",
+      "startHint": "یک برگه در پنل عملیات باز می‌کند.",
+      "startDisabled": "حداقل یک منبع را انتخاب کنید.",
+      "started": "دریافت آغاز شد",
+      "kinds": "نوع منبع",
+      "sources": "منابع",
+      "sourcesHint": "{n, number} از {m, number} انتخاب شده",
+      "recency": {
+        "label": "بازهٔ زمانی",
+        "6": "۶ ساعت",
+        "12": "۱۲ ساعت",
+        "24": "۲۴ ساعت",
+        "48": "۴۸ ساعت"
+      },
+      "ordering": {
+        "label": "ترتیب تلگرام",
+        "views": "پربازدیدترین",
+        "latest": "تازه‌ترین",
+        "views_per_source": "پربازدیدترین در هر کانال",
+        "latest_per_source": "تازه‌ترین در هر کانال",
+        "keywords": "تطبیق کلیدواژه"
+      },
+      "topN": "تعداد در هر اجرا",
+      "topNHint": "از ۱ تا ۲۰ قلم در هر اجرا.",
+      "topics": "موضوع‌ها",
+      "topicsHint": "با ویرگول جدا کنید. فقط در ترتیب کلیدواژه‌ای به کار می‌رود.",
+      "recentTopics": "موضوع‌های اخیر",
+      "recentTopicsHint": "برای افزودن به کادر، روی یک موضوع بزنید.",
+      "enrichment": "دریافت متن کامل مقاله",
+      "enrichmentHint": "پیش‌فرض قالب این نصب: {state}.",
+      "enrichmentOn": "روشن",
+      "enrichmentOff": "خاموش",
+      "current": "اجرای جاری",
+      "asOf": "تا {time}",
+      "refresh": "تازه‌سازی",
+      "refreshing": "در حال تازه‌سازی…",
+      "stage": {
+        "acquiring": "در حال گردآوری",
+        "enriching": "در حال غنی‌سازی · {n, number} از {m, number}"
+      },
+      "counts": {
+        "acquired": "گردآوری‌شده {n, number}",
+        "ordered": "مرتب‌شده {n, number}",
+        "enriched": "غنی‌شده {n, number}",
+        "skipped": "نادیده {n, number}",
+        "failed": "ناموفق {n, number}"
+      },
+      "empty": {
+        "title": "هنوز دریافتی انجام نشده",
+        "hint": "بازه‌ها را در بالا تنظیم کنید و «شروع دریافت» را بزنید."
+      },
+      "provenance": "بردارسازی · {model} · {dimension, number} بعدی · کسینوسی نسخهٔ ۱ · قالب {fingerprint}",
+      "bounds": "بازهٔ {hours, number} ساعت · {topN, number} برتر · {ordering}",
+      "toggle": "باز و بسته کردن دفتر هر منبع برای دریافت {id}",
+      "ledger": "نتیجهٔ هر منبع برای دریافت {id}",
+      "recent": {
+        "title": "دریافت‌های اخیر",
+        "hint": "دریافت‌های قدیمی‌تر در بازهٔ تاریخچهٔ پنل عملیات می‌مانند."
+      }
+    },
+    "state": {
+      "queued": "در صف",
+      "running": "در حال اجرا",
+      "settling": "در حال نهایی شدن",
+      "succeeded": "موفق",
+      "partial": "ناقص",
+      "failed": "ناموفق",
+      "cancelled": "لغو شد",
+      "unknown": "نتیجه نامشخص"
+    },
+    "outcome": {
+      "pending": "در انتظار",
+      "succeeded": "موفق",
+      "not_modified": "بدون تغییر",
+      "partial": "ناقص",
+      "skipped": "نادیده گرفته شد",
+      "rejected": "ناپذیرفته",
+      "blocked": "مسدود",
+      "timed_out": "مهلت تمام شد",
+      "failed_retryable": "ناموفق — قابل تکرار",
+      "failed_terminal": "ناموفق — پایانی"
+    },
+    "reason": {
+      "empty_feed": "خوراک خالی",
+      "disabled_at_run_time": "در زمان اجرا غیرفعال بود",
+      "parse_failure": "خطای تجزیه",
+      "markup_drift": "تغییر ساختار نشانه‌گذاری",
+      "missing_external_identity": "نبود شناسهٔ بیرونی",
+      "no_web_preview": "بدون پیش‌نمایش وب",
+      "off_origin": "خارج از مبدأ",
+      "ssrf_blocked": "نشانی مسدود",
+      "unsupported_mime": "نوع رسانهٔ پشتیبانی‌نشده",
+      "too_large": "پاسخ بیش از حد بزرگ",
+      "redirect_blocked": "هدایت مسدود",
+      "deadline": "پایان مهلت",
+      "retry_after": "مبدأ خواست بعداً تلاش شود",
+      "js_required": "نیازمند جاوااسکریپت",
+      "anti_bot_challenge": "چالش ضدربات",
+      "extraction_insufficient": "استخراج ناکافی",
+      "fetch_failed": "دریافت ناموفق",
+      "brief_invalid": "چکیدهٔ نامعتبر"
+    },
+    "lifecycle": {
+      "enabled": "فعال",
+      "disabled": "غیرفعال",
+      "retired": "بازنشسته"
+    },
+    "observation": {
+      "neverFetched": "هرگز دریافت نشده",
+      "items": "{n, number} قلم · {time}",
+      "plain": "{outcome} · {time}",
+      "withReason": "{outcome} — {reason} · {time}",
+      "retrying": "تلاش دوباره"
+    },
+    "catalog": {
+      "title": "فهرست منابع",
+      "hint": "هر منبع دو واقعیت مستقل دارد: آنچه قالب تنظیم کرده، و آنچه آخرین دریافت مشاهده کرده است.",
+      "kind": {
+        "rss": "آر‌اس‌اس / اتم",
+        "telegram_public": "تلگرام"
+      },
+      "groupCount": "{n, number} منبع",
+      "endpoint": "نشانی",
+      "contentLocale": "زبان محتوا",
+      "itemCap": "سقف اقلام",
+      "lastObservation": "آخرین مشاهده",
+      "fetchedCount": "دریافت‌شده",
+      "validators": "اعتبارسنج‌ها",
+      "validatorsPresent": "ذخیره‌شده",
+      "validatorsAbsent": "ندارد",
+      "reasonCode": "کد دلیل",
+      "expand": "نمایش جزئیات {name}",
+      "retiredNote": "بازنشسته — برای دریافت قابل انتخاب نیست.",
+      "empty": "هیچ منبعی پیکربندی نشده است."
+    },
+    "counts": {
+      "pair": "{fetched, number} / {admitted, number}",
+      "legend": "دریافت‌شده / پذیرفته",
+      "enrichment": "غنی‌شده {enriched, number} · نادیده {skipped, number} · ناموفق {failed, number} · نامشخص {unknown, number}"
+    },
+    "stream": {
+      "title": "اقلام منابع",
+      "caption": "اقلام منابع: زمان، منبع، عنوان، شمار بازنگری و وضعیت غنی‌سازی",
+      "columns": {
+        "time": "زمان",
+        "source": "منبع",
+        "title": "عنوان",
+        "revisions": "بازنگری",
+        "enrichment": "غنی‌سازی",
+        "rank": "رتبه",
+        "score": "امتیاز"
+      },
+      "filters": {
+        "label": "فیلترهای اقلام منابع",
+        "source": "منبع",
+        "admission": "پذیرش",
+        "import": "دریافت",
+        "all": "همه"
+      },
+      "importGroup": "دریافت {id}",
+      "empty": {
+        "title": "هنوز قلمی از منابع ثبت نشده است.",
+        "hint": "یک دریافت را شروع کنید"
+      },
+      "filtered": {
+        "title": "هیچ قلمی با این فیلترها مطابقت ندارد.",
+        "hint": "منبع، پذیرش یا دریافت دیگری را امتحان کنید.",
+        "clear": "پاک کردن فیلترها"
+      },
+      "updating": "در حال به‌روزرسانی نتایج…",
+      "loading": "در حال بارگذاری اقلام منابع",
+      "pager": {
+        "older": "قدیمی‌تر",
+        "newer": "جدیدتر",
+        "backToLatest": "بازگشت به تازه‌ترین"
+      }
+    },
+    "admission": {
+      "admitted": "پذیرفته‌شده",
+      "skipped_language": "ردشده — زبان",
+      "skipped_undated": "ردشده — بدون تاریخ",
+      "out_of_window": "خارج از بازه",
+      "over_cap": "بیش از سقف"
+    },
+    "enrichment": {
+      "none": "بدون",
+      "pending": "در انتظار",
+      "succeeded": "انجام شد",
+      "skipped": "ردشده",
+      "failed": "ناموفق",
+      "unknown": "نامشخص",
+      "unknownNote": "نتیجه نامشخص — پاسخ غنی‌سازی از دست رفت. تطبیق پیش از هر تلاش دوباره آن را روشن می‌کند."
+    },
+    "adapter": {
+      "feed": "خوراک",
+      "direct": "مستقیم",
+      "firecrawl": "فایرکراول",
+      "directThenFirecrawl": "مستقیم ← فایرکراول",
+      "fallbackReason": "دلیل جایگزینی: {reason}"
+    },
+    "detail": {
+      "open": "نمایش شناسنامهٔ {name}",
+      "revisions": "بازنگری‌ها",
+      "hash": "درهم‌سازی محتوا",
+      "enrichment": "غنی‌سازی",
+      "adapter": "مبدل مقاله",
+      "contentLocale": "زبان محتوا",
+      "brief": "چکیده"
+    }
+  }
+}

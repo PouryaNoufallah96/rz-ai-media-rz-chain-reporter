@@ -21,6 +21,16 @@ export async function requireSession() {
   return redirect({ href: "/login", locale: await currentLocale() });
 }
 
+export async function requireActionSession() {
+  const session = await getSession();
+
+  if (session?.user) {
+    return session;
+  }
+
+  throw new Error("unauthorized");
+}
+
 export async function requireGuest() {
   const session = await getSession();
 

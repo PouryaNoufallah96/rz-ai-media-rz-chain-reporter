@@ -1,6 +1,6 @@
 "use client";
 
-import { usageLedgerRealtimeMessageSchema } from "@rz-chain-reporter/contracts";
+import { sourcesChangedRealtimeMessageSchema } from "@rz-chain-reporter/contracts";
 import { useRealtime } from "inngest/react";
 import { useRouter } from "next/navigation";
 import {
@@ -11,12 +11,12 @@ import {
   useTransition,
 } from "react";
 
-import { getUsageRealtimeToken } from "../actions/get-realtime-token";
-import { refreshUsageReadsAction } from "../actions/refresh-usage-reads";
+import { getSourcesRealtimeToken } from "../actions/get-realtime-token";
+import { refreshSourceReadsAction } from "../actions/refresh-source-reads";
 
-export type UsageTransport = "live" | "reconnecting" | "stale" | "unavailable";
+type SourcesTransport = "live" | "reconnecting" | "stale" | "unavailable";
 
-export function useUsageFreshness() {
+export function useSourcesFreshness() {
   const router = useRouter();
   const [isRefreshing, startRefresh] = useTransition();
   const [subscriptionUnavailable, setSubscriptionUnavailable] = useState(false);
@@ -29,10 +29,10 @@ export function useUsageFreshness() {
   };
 
   const requestToken = () =>
-    getUsageRealtimeToken()
+    getSourcesRealtimeToken()
       .then((result) => {
         if (result.status === "unavailable") {
-          throw new Error("Usage realtime subscription is unavailable");
+          throw new Error("Sources realtime subscription is unavailable");
         }
         return result.token;
       })
@@ -57,11 +57,11 @@ export function useUsageFreshness() {
   });
 
   useEffect(() => {
-    const hasLedgerMessage = realtime.messages.delta.some(
+    const hasChangedMessage = realtime.messages.delta.some(
       (message) =>
-        usageLedgerRealtimeMessageSchema.safeParse(message.data).success,
+        sourcesChangedRealtimeMessageSchema.safeParse(message.data).success,
     );
-    if (hasLedgerMessage) {
+    if (hasChangedMessage) {
       rerenderLatest();
     }
   }, [realtime.messages.delta]);
@@ -93,7 +93,7 @@ export function useUsageFreshness() {
     isRefreshing,
     refresh: () => {
       setSubscriptionUnavailable(false);
-      startRefresh(refreshUsageReadsAction);
+      startRefresh(refreshSourceReadsAction);
     },
     transport: transportOf(realtimeEnabled, realtime.connectionStatus),
   };
@@ -108,7 +108,7 @@ function transportOf(
     | "paused"
     | "closed"
     | "error",
-): UsageTransport {
+): SourcesTransport {
   if (!available) {
     return "unavailable";
   }

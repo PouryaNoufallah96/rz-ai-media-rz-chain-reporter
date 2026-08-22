@@ -1,4 +1,7 @@
-import { operationCommandKind } from "@rz-chain-reporter/contracts";
+import {
+  type ErrorCode,
+  operationCommandKind,
+} from "@rz-chain-reporter/contracts";
 
 import {
   STATE_MARKS,
@@ -6,6 +9,25 @@ import {
 } from "@/components/common/state-mark";
 
 import type { OperationSummary } from "../schemas/operation-summary";
+
+export const OPERATION_ERROR_KEYS = {
+  FORBIDDEN: "errors.forbidden",
+  IDEMPOTENCY_KEY_REUSED: "errors.idempotencyKeyReused",
+  INTERNAL_SERVER_ERROR: "errors.internalServerError",
+  MEDIA_REJECTED: "errors.mediaRejected",
+  MODEL_INVOCATION_FAILED: "errors.modelInvocationFailed",
+  NOT_FOUND: "errors.notFound",
+  OBJECT_STORE_UNBOUND: "errors.objectStoreUnbound",
+  OPERATION_REPLAYED: "errors.operationReplayed",
+  SAVED_CARD_ALREADY_ACTIVE: "errors.savedCardAlreadyActive",
+  SOURCE_IMPORT_IN_PROGRESS: "errors.sourceImportInProgress",
+  STRUCTURED_OUTPUT_INVALID: "errors.structuredOutputInvalid",
+  TEMPLATE_DRIFT: "errors.templateDrift",
+  TRANSIENT_CONFLICT: "errors.transientConflict",
+  UNAUTHORIZED: "errors.unauthorized",
+  VALIDATION_FAILED: "errors.validationFailed",
+  VERSION_CONFLICT: "errors.versionConflict",
+} as const satisfies Record<ErrorCode, string>;
 
 const PANEL_STATES = STATE_MARKS;
 
@@ -32,6 +54,11 @@ export function panelStateOf(operation: OperationSummary): PanelState {
 
   if (operation.lifecycle === "settling") {
     return "running";
+  }
+
+  // A partial import settles succeeded; stamp failed so the color bar still reads partial.
+  if (operation.sourceImport?.partial && operation.lifecycle === "succeeded") {
+    return "failed";
   }
 
   if (
