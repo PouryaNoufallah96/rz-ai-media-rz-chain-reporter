@@ -5,6 +5,7 @@ import { getFormatter, getT } from "@/i18n/server";
 
 import { INSTALLATION_NAMESPACE } from "../constants";
 import type { InstallationOverview } from "../schemas/installation-overview";
+import { BrandPolicyBlock } from "./brand-policy-block";
 import { Identifier } from "./identifier";
 import { StateBadge } from "./state-badge";
 
@@ -69,6 +70,10 @@ export async function InstallationSections({
             </li>
           ))}
         </List>
+      </Section>
+
+      <Section title={t("brandPolicy.title")}>
+        <BrandPolicyBlock appliedAt={identity.templateAppliedAt} />
       </Section>
 
       <Section title={t("sources.title")}>

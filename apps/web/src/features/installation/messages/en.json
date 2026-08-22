@@ -23,6 +23,17 @@
     "mediaBrands": {
       "title": "Media brands"
     },
+    "brandPolicy": {
+      "title": "Brand policy",
+      "hint": "Read-only. Brand Bible text and image profiles arrive with the customer template.",
+      "brand": "Brand",
+      "bible": "Brand Bible",
+      "profile": "Image Profile",
+      "present": "present",
+      "none": "none — documented",
+      "fingerprint": "template {id}",
+      "appliedAt": "applied {date}"
+    },
     "sources": {
       "title": "Sources",
       "empty": "No sources configured."
