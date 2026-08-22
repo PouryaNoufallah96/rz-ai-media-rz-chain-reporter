@@ -58,6 +58,24 @@ export function publishSourcesChanged(
     });
 }
 
+export function publishSourcesChangedNow(
+  client: WorkerInngestClient,
+  workspaceId: string,
+) {
+  return client.realtime
+    .publish(sourcesRealtimeChannel(workspaceId).changed, {
+      occurredAt: new Date().toISOString(),
+      schemaVersion: 1,
+    })
+    .then(() => true)
+    .catch(() => {
+      workerLogger.warn("worker.sources.realtime-unavailable", {
+        workspaceId,
+      });
+      return false;
+    });
+}
+
 export function publishUsageLedgerChanged(
   step: WorkerStep,
   workspaceId: string,

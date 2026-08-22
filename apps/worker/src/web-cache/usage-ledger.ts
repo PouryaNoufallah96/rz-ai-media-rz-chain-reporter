@@ -24,6 +24,9 @@ export async function notifyUsageLedgerChanged(
 
   return {
     cacheInvalidation,
-    usageRealtimePublished: await publishUsageLedgerChanged(step, workspaceId),
+    usageRealtimePublished:
+      cacheInvalidation === "accepted"
+        ? await publishUsageLedgerChanged(step, workspaceId)
+        : false,
   };
 }

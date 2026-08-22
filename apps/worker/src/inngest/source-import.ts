@@ -969,24 +969,31 @@ export function createSourceImportFunctions(
       onFailure: async ({ event, step }) => {
         const { operationId, workspaceId } = event.data.event.data;
         const failureCode = failureCodeOf(event.data.error.message);
-        await step.run("settle-failed-import", () =>
-          coded(async () => {
-            await assertWorkspace(runtime, workspaceId);
-            const settled = await settleSourceImportOperation(
-              runtime.db,
-              workspaceId,
-              operationId,
-              failureCode,
-            );
-            workerLogger.warn("worker.source-import.settled", {
-              errorCode: failureCode,
-              operationId,
-              outcome: settled?.lifecycle ?? "unchanged",
-            });
-            return { lifecycle: settled?.lifecycle ?? null };
-          }),
-        );
-        await notifySourcesChanged(step, workspaceId, "failed");
+        try {
+          await step.run("settle-failed-import", () =>
+            coded(async () => {
+              await assertWorkspace(runtime, workspaceId);
+              const settled = await settleSourceImportOperation(
+                runtime.db,
+                workspaceId,
+                operationId,
+                failureCode,
+              );
+              workerLogger.warn("worker.source-import.settled", {
+                errorCode: failureCode,
+                operationId,
+                outcome: settled?.lifecycle ?? "unchanged",
+              });
+              return { lifecycle: settled?.lifecycle ?? null };
+            }),
+          );
+        } finally {
+          try {
+            await notifySourcesChanged(step, workspaceId, "failed");
+          } finally {
+            await notifyUsageLedgerChanged(step, workspaceId);
+          }
+        }
       },
     },
     async ({ event, step }) =>
@@ -999,6 +1006,8 @@ export function createSourceImportFunctions(
           }),
         );
         if (claim.status === "settled") {
+          await notifySourcesChanged(step, workspaceId, "replayed");
+          await notifyUsageLedgerChanged(step, workspaceId);
           return { operationId, replayed: true };
         }
 

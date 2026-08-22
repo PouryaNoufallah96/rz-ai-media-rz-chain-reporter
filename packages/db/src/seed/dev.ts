@@ -1,4 +1,6 @@
 import { fileURLToPath } from "node:url";
+import { notifyCacheInvalidation } from "@rz-chain-reporter/cache-invalidation";
+import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
 import { loadCustomerTemplate } from "@rz-chain-reporter/customer-template/load";
 import { validateMigrationEnv } from "@rz-chain-reporter/env/migration";
 import dotenv from "dotenv";
@@ -119,6 +121,19 @@ try {
       copy: "Synthetic dev copy for the publish command.",
     })
     .onConflictDoNothing({ target: draftRevision.id });
+
+  if (report.workspaceId && report.appliedAt) {
+    console.log(
+      `cache invalidation ${await notifyCacheInvalidation({
+        baseUrl: migrationEnv.WEB_INTERNAL_BASE_URL,
+        secret: migrationEnv.CACHE_INVALIDATION_WEBHOOK_SECRET,
+        tags: [
+          workspaceCacheTag(report.workspaceId, "installation"),
+          workspaceCacheTag(report.workspaceId, "sources"),
+        ],
+      })}`,
+    );
+  }
 } finally {
   await database.close();
 }

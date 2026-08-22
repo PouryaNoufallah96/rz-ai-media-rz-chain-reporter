@@ -1,3 +1,4 @@
+import { OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import {
   claimOutboxEvents,
@@ -12,6 +13,10 @@ import {
 } from "../inngest/events";
 import { workerLogger } from "../logging/logger";
 import { abortableDelay } from "../runtime/delay";
+import {
+  notifySourcesCacheChanged,
+  notifySourcesChangedNow,
+} from "../web-cache/sources";
 
 type ClaimedOutboxEvent = Awaited<ReturnType<typeof claimOutboxEvents>>[number];
 
@@ -78,6 +83,21 @@ export class OutboxRelay {
           },
         );
 
+        if (
+          events.some(
+            (event) =>
+              event.eventType === OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
+          )
+        ) {
+          try {
+            await notifySourcesCacheChanged(this.workspaceId);
+          } catch {
+            workerLogger.warn("worker.sources.cache-notification-unavailable", {
+              workspaceId: this.workspaceId,
+            });
+          }
+        }
+
         for (const event of events) {
           await this.dispatch(event);
         }
@@ -121,6 +141,7 @@ export class OutboxRelay {
         outboxId: event.id,
         workspaceId: event.workspaceId,
       });
+      await this.notifySourceImportDispatchChanged(event);
     } catch (error) {
       const failure = failureCode(error);
       const exhausted =
@@ -157,6 +178,21 @@ export class OutboxRelay {
           workspaceId: event.workspaceId,
         },
       );
+      await this.notifySourceImportDispatchChanged(event);
+    }
+  }
+
+  private async notifySourceImportDispatchChanged(event: ClaimedOutboxEvent) {
+    if (event.eventType !== OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME) {
+      return;
+    }
+
+    try {
+      await notifySourcesChangedNow(this.client, event.workspaceId);
+    } catch {
+      workerLogger.warn("worker.sources.cache-notification-unavailable", {
+        workspaceId: event.workspaceId,
+      });
     }
   }
 }

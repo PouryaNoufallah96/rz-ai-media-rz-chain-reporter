@@ -23,11 +23,11 @@
         "model": "openai/text-embedding-3-small"
       },
       "enrichment-brief": {
-        "backend": "local",
-        "model": "qwen3:30b",
+        "backend": "remote",
+        "model": "openai/gpt-4.1-nano",
         "fallback": {
           "backend": "remote",
-          "model": "openai/gpt-4.1-nano"
+          "model": "openai/gpt-4.1-mini"
         }
       }
     }
@@ -65,7 +65,7 @@
       "name": "CoinDesk",
       "enabled": true,
       "contentLocale": "en",
-      "articleFetchMode": "direct"
+      "articleFetchMode": "direct_then_firecrawl"
     },
     {
       "key": "cointelegraph-rss",
@@ -101,7 +101,7 @@
       "name": "The Block",
       "enabled": true,
       "contentLocale": "en",
-      "articleFetchMode": "direct"
+      "articleFetchMode": "direct_then_firecrawl"
     },
     {
       "key": "blockworks-rss",
@@ -173,7 +173,7 @@
       "name": "The Defiant",
       "enabled": true,
       "contentLocale": "en",
-      "articleFetchMode": "direct"
+      "articleFetchMode": "direct_then_firecrawl"
     },
     {
       "key": "ambcrypto-rss",
