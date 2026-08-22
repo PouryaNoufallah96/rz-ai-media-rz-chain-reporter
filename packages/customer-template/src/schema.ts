@@ -1,15 +1,21 @@
 import {
+  articleFetchModeSchema,
+  contentLocaleSchema,
   modelBackendSchema,
   type Platform,
-  sourceOriginSchema,
+  type SourceOrigin,
+  telegramOrderingModeSchema,
 } from "@rz-chain-reporter/contracts";
 import { z } from "zod";
 
 import { stableKeySchema } from "./stable-key";
 
+export type { ImageProfile } from "./image-profile";
+export { imageProfileSchema } from "./image-profile";
+
 // Loader compatibility only. Git owns content versioning, so this bumps solely
 // when a template that loaded before would no longer load.
-export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 1;
+export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 2;
 
 const trimmedText = z
   .string()
@@ -19,12 +25,33 @@ const trimmedText = z
     "Expected no surrounding whitespace",
   );
 
+const ianaTimeZoneSchema = trimmedText.refine(
+  (value) => Intl.supportedValuesOf("timeZone").includes(value),
+  "Expected an IANA time zone",
+);
+
+// Relative path only; the loader realpath-guards the rest.
+const referencePathSchema = z
+  .string()
+  .min(1)
+  .max(200)
+  .regex(
+    /^[A-Za-z0-9_-]+(\/[A-Za-z0-9_-]+)*\.[A-Za-z0-9]+$/,
+    "Expected a relative path inside the customer directory",
+  );
+
 const mediaBrandSchema = z.strictObject({
   key: stableKeySchema,
   name: trimmedText,
+  brandBible: referencePathSchema.optional(),
+  imageProfile: referencePathSchema.optional(),
 });
 
-export const MODEL_TASK_KEYS = ["generation-probe"] as const;
+export const MODEL_TASK_KEYS = [
+  "generation-probe",
+  "keyword-embedding",
+  "enrichment-brief",
+] as const;
 
 export type ModelTaskKey = (typeof MODEL_TASK_KEYS)[number];
 
@@ -43,13 +70,64 @@ const modelsSchema = z.strictObject({
   tasks: z.partialRecord(modelTaskKeySchema, modelTaskSchema),
 });
 
-const sourceSchema = z.strictObject({
+// Enabled sources must be English; a Persian source is a schema error, not a silent skip.
+const ACQUISITION_CONTENT_LOCALES = ["en"] as const;
+
+const sourceBase = {
   key: stableKeySchema,
-  origin: sourceOriginSchema,
-  endpoint: trimmedText,
   name: trimmedText,
   enabled: z.boolean(),
   metadata: z.record(z.string(), trimmedText).optional(),
+  contentLocale: contentLocaleSchema,
+};
+
+const telegramHandleSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_]{4,32}$/, "Expected a public Telegram channel handle");
+
+const sourceSchema = z.discriminatedUnion("origin", [
+  z.strictObject({
+    ...sourceBase,
+    origin: z.literal("rss" satisfies SourceOrigin),
+    endpoint: z.httpUrl(),
+    articleFetchMode: articleFetchModeSchema,
+  }),
+  z.strictObject({
+    ...sourceBase,
+    origin: z.literal("telegram_public" satisfies SourceOrigin),
+    endpoint: telegramHandleSchema,
+  }),
+]);
+
+type ConfiguredSourceOrigin = z.infer<typeof sourceSchema>["origin"];
+
+type AssertSourceOriginCoverage = [ConfiguredSourceOrigin] extends [
+  SourceOrigin,
+]
+  ? [SourceOrigin] extends [ConfiguredSourceOrigin]
+    ? true
+    : never
+  : never;
+
+const assertSourceOriginCoverage: AssertSourceOriginCoverage = true;
+void assertSourceOriginCoverage;
+
+const MAX_TELEGRAM_TOP_N = 20;
+const MAX_ENRICHMENT_ITEMS_PER_IMPORT = 200;
+
+const acquisitionSchema = z.strictObject({
+  defaultWindowHours: z.int().positive(),
+  maxItemsPerSource: z.int().positive(),
+  telegram: z.strictObject({
+    orderingMode: telegramOrderingModeSchema,
+    topN: z.int().min(1).max(MAX_TELEGRAM_TOP_N),
+  }),
+});
+
+const enrichmentSchema = z.strictObject({
+  enabled: z.boolean(),
+  maxItemsPerImport: z.int().min(1).max(MAX_ENRICHMENT_ITEMS_PER_IMPORT),
+  freshnessHours: z.int().positive(),
 });
 
 // Closed set: a platform exists only once its adapter ships.
@@ -126,10 +204,13 @@ export const customerTemplateSchema = z
     customer: z.strictObject({
       key: stableKeySchema,
       productName: trimmedText,
+      timeZone: ianaTimeZoneSchema,
     }),
     workspace: z.strictObject({ name: trimmedText }),
     mediaBrands: z.array(mediaBrandSchema).min(1),
     sources: z.array(sourceSchema),
+    acquisition: acquisitionSchema,
+    enrichment: enrichmentSchema,
     destinationAccounts: z.array(destinationAccountSchema),
     brandDestinations: z.array(brandDestinationSchema),
     models: modelsSchema.optional(),
@@ -142,6 +223,35 @@ export const customerTemplateSchema = z
       "destinationAccounts",
       template.destinationAccounts,
     );
+
+    const endpoints = new Set<string>();
+
+    for (const [index, configured] of template.sources.entries()) {
+      const endpoint = `${configured.origin}\u0000${configured.endpoint}`;
+
+      if (endpoints.has(endpoint)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["sources", index, "endpoint"],
+          message: "Duplicate source endpoint",
+        });
+      }
+
+      endpoints.add(endpoint);
+
+      if (
+        configured.enabled &&
+        !ACQUISITION_CONTENT_LOCALES.some(
+          (locale) => locale === configured.contentLocale,
+        )
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["sources", index, "contentLocale"],
+          message: `Acquisition does not support content locale "${configured.contentLocale}"`,
+        });
+      }
+    }
 
     const brandKeys = new Set(template.mediaBrands.map((brand) => brand.key));
     const destinationKeys = new Set(

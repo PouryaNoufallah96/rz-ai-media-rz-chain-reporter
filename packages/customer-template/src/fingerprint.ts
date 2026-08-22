@@ -2,6 +2,13 @@ import { createHash } from "node:crypto";
 
 import type { CustomerTemplate } from "./schema";
 
+export type CustomerTemplateReference = { path: string; sha256: string };
+
+export type CustomerTemplateFingerprintInput = {
+  template: CustomerTemplate;
+  references: readonly CustomerTemplateReference[];
+};
+
 // Object keys sorted, authored array order preserved; reformatting the JSON does not move the hash.
 function canonicalize(value: unknown): string {
   if (Array.isArray(value)) {
@@ -25,9 +32,7 @@ function canonicalize(value: unknown): string {
 }
 
 export function computeCustomerTemplateFingerprint(
-  template: CustomerTemplate,
+  input: CustomerTemplateFingerprintInput,
 ): string {
-  return createHash("sha256")
-    .update(canonicalize(template), "utf8")
-    .digest("hex");
+  return createHash("sha256").update(canonicalize(input), "utf8").digest("hex");
 }

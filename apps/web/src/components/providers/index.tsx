@@ -12,7 +12,7 @@ import {
 } from "next-intl";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
-import { FORMATS, NOW, TIME_ZONE } from "@/i18n/config";
+import { FORMATS, NOW } from "@/i18n/config";
 import { getQueryClient } from "@/lib/query-client";
 
 import { ThemeProvider } from "./theme-provider";
@@ -31,9 +31,11 @@ function onIntlError(error: IntlError) {
 export default function Providers({
   children,
   locale,
+  timeZone,
 }: {
   children: React.ReactNode;
   locale: Locale;
+  timeZone: string;
 }) {
   const queryClient = getQueryClient();
   const direction = DIRECTION[locale];
@@ -48,7 +50,7 @@ export default function Providers({
         locale={locale}
         now={NOW}
         onError={onIntlError}
-        timeZone={TIME_ZONE}
+        timeZone={timeZone}
       >
         <DirectionProvider direction={direction}>
           <ThemeProvider

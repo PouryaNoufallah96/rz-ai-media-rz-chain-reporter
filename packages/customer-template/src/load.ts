@@ -1,8 +1,13 @@
-import { readFileSync, realpathSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { readdirSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import { z } from "zod";
 
-import { computeCustomerTemplateFingerprint } from "./fingerprint";
+import {
+  type CustomerTemplateReference,
+  computeCustomerTemplateFingerprint,
+} from "./fingerprint";
+import { imageProfileSchema } from "./image-profile";
 import {
   CUSTOMER_TEMPLATE_SCHEMA_VERSION,
   type CustomerTemplate,
@@ -18,6 +23,10 @@ const CUSTOMER_TEMPLATE_ERROR_CODES = [
   "UNSUPPORTED_SCHEMA_VERSION",
   "INVALID_TEMPLATE",
   "KEY_MISMATCH",
+  "REFERENCE_NOT_FOUND",
+  "REFERENCE_ESCAPES_ROOT",
+  "IMAGE_PROFILE_INVALID",
+  "UNDECLARED_FILE",
 ] as const;
 
 export type CustomerTemplateErrorCode =
@@ -35,6 +44,7 @@ export class CustomerTemplateError extends Error {
 
 export type LoadedCustomerTemplate = {
   template: CustomerTemplate;
+  references: readonly CustomerTemplateReference[];
   fingerprint: string;
 };
 
@@ -81,7 +91,8 @@ export function loadCustomerTemplate(
   }
 
   const templatesDir = resolve(rootDir, TEMPLATES_DIRECTORY);
-  const templatePath = resolve(templatesDir, key, TEMPLATE_FILE);
+  const customerDir = resolve(templatesDir, key);
+  const templatePath = resolve(customerDir, TEMPLATE_FILE);
   const realTemplatePath = realPathOrNull(templatePath);
 
   if (realTemplatePath === null) {
@@ -104,7 +115,10 @@ export function loadCustomerTemplate(
     );
   }
 
-  const contents = readFileSync(realTemplatePath, "utf8");
+  const contents = readFileSync(
+    /* turbopackIgnore: true */ realTemplatePath,
+    "utf8",
+  );
   let parsed: unknown;
 
   try {
@@ -142,8 +156,124 @@ export function loadCustomerTemplate(
     );
   }
 
+  const references = resolveReferences(customerDir, validated.data);
+
+  assertNoUndeclaredFiles(customerDir, references);
+
   return {
     template: validated.data,
-    fingerprint: computeCustomerTemplateFingerprint(validated.data),
+    references,
+    fingerprint: computeCustomerTemplateFingerprint({
+      template: validated.data,
+      references,
+    }),
   };
+}
+
+function resolveReferences(
+  customerDir: string,
+  template: CustomerTemplate,
+): CustomerTemplateReference[] {
+  const declared = template.mediaBrands.flatMap((brand) => [
+    ...(brand.brandBible ? [{ path: brand.brandBible, profile: false }] : []),
+    ...(brand.imageProfile
+      ? [{ path: brand.imageProfile, profile: true }]
+      : []),
+  ]);
+
+  return declared
+    .sort((left, right) => (left.path < right.path ? -1 : 1))
+    .map(({ path, profile }) => {
+      const bytes = readReference(customerDir, path);
+
+      if (profile) {
+        assertImageProfile(path, bytes);
+      }
+
+      return {
+        path,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      };
+    });
+}
+
+function readReference(customerDir: string, path: string) {
+  const referencePath = resolve(customerDir, path);
+  const realReferencePath = realPathOrNull(referencePath);
+
+  if (realReferencePath === null) {
+    throw new CustomerTemplateError(
+      "REFERENCE_NOT_FOUND",
+      `Customer template reference "${path}" is missing from ${customerDir}`,
+    );
+  }
+
+  const realCustomerDir = realPathOrNull(customerDir);
+
+  if (
+    realCustomerDir === null ||
+    !isInside(realCustomerDir, realReferencePath)
+  ) {
+    throw new CustomerTemplateError(
+      "REFERENCE_ESCAPES_ROOT",
+      `Customer template reference "${path}" resolves to ${realReferencePath}, outside ${customerDir}`,
+    );
+  }
+
+  return readFileSync(/* turbopackIgnore: true */ realReferencePath);
+}
+
+function assertImageProfile(path: string, bytes: Buffer) {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(bytes.toString("utf8"));
+  } catch (error) {
+    throw new CustomerTemplateError(
+      "IMAGE_PROFILE_INVALID",
+      `Image profile "${path}" is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  const validated = imageProfileSchema.safeParse(parsed);
+
+  if (!validated.success) {
+    throw new CustomerTemplateError(
+      "IMAGE_PROFILE_INVALID",
+      `Image profile "${path}" is not a valid image profile:\n${z.prettifyError(validated.error)}`,
+    );
+  }
+}
+
+// Packaging globs cannot compute the declared set; the loader refuses undeclared files.
+function assertNoUndeclaredFiles(
+  customerDir: string,
+  references: readonly CustomerTemplateReference[],
+) {
+  const declared = new Set([TEMPLATE_FILE, ...references.map((r) => r.path)]);
+
+  for (const found of listFiles(customerDir, "")) {
+    if (!declared.has(found)) {
+      throw new CustomerTemplateError(
+        "UNDECLARED_FILE",
+        `${customerDir} holds "${found}", which no template field declares`,
+      );
+    }
+  }
+}
+
+function listFiles(customerDir: string, prefix: string): string[] {
+  const entries = readdirSync(resolve(customerDir, prefix), {
+    withFileTypes: true,
+  });
+
+  return entries.flatMap((entry) => {
+    if (entry.name.startsWith(".")) {
+      return [];
+    }
+
+    const path = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+
+    return entry.isDirectory() ? listFiles(customerDir, path) : [path];
+  });
 }
