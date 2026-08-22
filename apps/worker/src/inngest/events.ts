@@ -4,8 +4,10 @@ import {
   mediaUploadConfirmedPayloadSchema,
   OPERATION_GENERATION_REQUESTED_EVENT_NAME,
   OPERATION_SCHEDULED_EFFECT_REQUESTED_EVENT_NAME,
+  OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
   operationGenerationRequestedPayloadSchema,
   operationScheduledEffectRequestedPayloadSchema,
+  operationSourceImportRequestedPayloadSchema,
   STORAGE_RECONCILIATION_REQUESTED_EVENT_NAME,
   storageReconciliationRequestedPayloadSchema,
 } from "@rz-chain-reporter/contracts";
@@ -29,6 +31,13 @@ export const durableEvents = {
     OPERATION_SCHEDULED_EFFECT_REQUESTED_EVENT_NAME,
     {
       schema: operationScheduledEffectRequestedPayloadSchema,
+      version: eventVersion,
+    },
+  ),
+  operationSourceImportRequested: eventType(
+    OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
+    {
+      schema: operationSourceImportRequestedPayloadSchema,
       version: eventVersion,
     },
   ),
@@ -116,6 +125,17 @@ export function createInngestEvent(outbox: OutboxEvent) {
         throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
       }
       return durableEvents.storageReconciliationRequested.create(payload.data, {
+        id: eventId,
+      });
+    }
+    case OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME: {
+      const payload = operationSourceImportRequestedPayloadSchema.safeParse(
+        outbox.payload,
+      );
+      if (!payload.success) {
+        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+      }
+      return durableEvents.operationSourceImportRequested.create(payload.data, {
         id: eventId,
       });
     }

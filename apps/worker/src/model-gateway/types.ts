@@ -45,10 +45,27 @@ export type StructuredAdapterResult<TOutput> = {
   output: TOutput;
 };
 
+export type EmbeddingAdapterInput = {
+  abortSignal?: AbortSignal;
+  deadlineMs: number;
+  model: string;
+  values: string[];
+};
+
+export type EmbeddingAdapterResult = {
+  embeddings: number[][];
+  observation: ModelCallObservation;
+  responseBody: unknown;
+};
+
 export interface ModelAdapter {
   generateStructured<TOutput>(
     input: StructuredAdapterInput<TOutput>,
   ): Promise<StructuredAdapterResult<TOutput>>;
+}
+
+export interface RemoteModelAdapter extends ModelAdapter {
+  embedMany(input: EmbeddingAdapterInput): Promise<EmbeddingAdapterResult>;
 }
 
 export type StructuredModelInvocation<TOutput> = {
@@ -69,5 +86,22 @@ export type StructuredModelInvocation<TOutput> = {
 
 export type StructuredModelResult<TOutput> = {
   output: TOutput;
+  usageEventId: string;
+};
+
+export type EmbeddingModelInvocation = {
+  abortSignal?: AbortSignal;
+  deadlineMs: number;
+  invocationKey: InvocationKey;
+  operationAttemptId: string;
+  operationId: string;
+  taskKey: ModelTaskKey;
+  values: string[];
+  workspaceId: string;
+};
+
+export type EmbeddingModelResult = {
+  embeddings: number[][];
+  responseBody: unknown;
   usageEventId: string;
 };

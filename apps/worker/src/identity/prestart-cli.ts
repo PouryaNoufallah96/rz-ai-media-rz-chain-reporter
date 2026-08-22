@@ -14,6 +14,7 @@ import {
 } from "@rz-chain-reporter/env/destination-bindings";
 import { validateWorkerEnv } from "@rz-chain-reporter/env/worker";
 
+import { assertFirecrawlBinding } from "../articles/firecrawl";
 import { checkDestinationBindings } from "../bindings/check";
 import {
   ModelBindingError,
@@ -103,6 +104,7 @@ try {
       identity.customerTemplateKey,
     );
     assertModelCapabilities(loaded.template, workerEnvironment);
+    assertFirecrawlBinding(loaded.template, workerEnvironment);
 
     const report = checkDestinationBindings(
       artifactRoot,

@@ -49,6 +49,10 @@ catalog:
   sharp: 0.35.3
   "@aws-sdk/client-s3": 3.1068.0
   "@aws-sdk/s3-request-presigner": 3.1068.0
+  undici: 8.10.0
+  fast-xml-parser: 5.11.0
+  htmlparser2: 12.0.0
+  firecrawl: 4.34.1
 minimumReleaseAgeExclude:
   - '@ai-sdk/gateway@4.0.52'
   - ai@7.0.65

@@ -10,6 +10,8 @@ import type { ModelBindings } from "./types";
 
 const WORKER_MODEL_TASKS = [
   "generation-probe",
+  "keyword-embedding",
+  "enrichment-brief",
 ] as const satisfies readonly ModelTaskKey[];
 
 export function assertModelCapabilities(
@@ -19,11 +21,21 @@ export function assertModelCapabilities(
   for (const taskKey of WORKER_MODEL_TASKS) {
     const primary = resolveModelTask(template, taskKey, "primary").route;
     assertRouteBinding(taskKey, primary.backend, bindings);
+    assertEmbeddingRoute(taskKey, primary.backend);
 
     const fallback = template.models?.tasks[taskKey]?.fallback;
     if (fallback) {
       assertRouteBinding(taskKey, fallback.backend, bindings);
+      assertEmbeddingRoute(taskKey, fallback.backend);
     }
+  }
+}
+
+function assertEmbeddingRoute(taskKey: ModelTaskKey, backend: ModelBackend) {
+  if (taskKey === "keyword-embedding" && backend === "local") {
+    throw new ModelBindingError(
+      `model task "${taskKey}" selects a local backend, which has no embedding adapter`,
+    );
   }
 }
 
