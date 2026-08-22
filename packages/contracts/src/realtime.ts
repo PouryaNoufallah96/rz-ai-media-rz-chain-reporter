@@ -32,3 +32,15 @@ export const usageLedgerRealtimeMessageSchema = z.strictObject({
   schemaVersion: z.literal(1),
   occurredAt: z.iso.datetime(),
 });
+
+export const SOURCES_REALTIME_TOPICS = ["changed"] as const;
+export const SOURCES_REALTIME_CHANGED_TOPIC = SOURCES_REALTIME_TOPICS[0];
+
+export function getSourcesRealtimeChannelName(workspaceId: string) {
+  return `sources:${workspaceId}` as const;
+}
+
+export const sourcesChangedRealtimeMessageSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  occurredAt: z.iso.datetime(),
+});

@@ -11,6 +11,7 @@ import { formatReconcileReport } from "../reconcile/report";
 import { draftRevision } from "../schema/draft-revision";
 import { mediaBrand } from "../schema/media-brand";
 import { platformDraft } from "../schema/platform-draft";
+import { source } from "../schema/source";
 import { sourceItem } from "../schema/source-item";
 import { workspace } from "../schema/workspace";
 import {
@@ -23,6 +24,7 @@ import {
 // template; only the synthetic draft below is dev-only material.
 const DEV_TEMPLATE_KEY = "crypto";
 const DEV_DRAFT_BRAND_KEY = "chain-reporter";
+const DEV_SOURCE_KEY = "coindesk-rss";
 
 dotenv.config({
   path: "../../.env.migration",
@@ -61,11 +63,29 @@ try {
     );
   }
 
+  const [devSource] = await database.db
+    .select({ id: source.id })
+    .from(source)
+    .where(
+      and(
+        eq(source.workspaceId, brand.workspaceId),
+        eq(source.key, DEV_SOURCE_KEY),
+        notDeleted(source),
+      ),
+    );
+
+  if (!devSource) {
+    throw new Error(
+      `dev seed found no live source "${DEV_SOURCE_KEY}" in the ${DEV_TEMPLATE_KEY} installation`,
+    );
+  }
+
   await database.db
     .insert(sourceItem)
     .values({
       id: DEV_SOURCE_ITEM_ID,
       workspaceId: brand.workspaceId,
+      sourceId: devSource.id,
       origin: "rss",
       externalId: "dev-source-item",
       title: "Dev source item",

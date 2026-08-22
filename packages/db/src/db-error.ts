@@ -7,9 +7,12 @@ export const OPERATION_IDENTITY_CONSTRAINT =
 export const SAVED_CARD_ACTIVE_CONSTRAINT =
   "uq_saved_card_workspace_id_saved_by_platform_draft_id_active";
 
+export const SOURCE_IMPORT_UNSETTLED_CONSTRAINT =
+  "uq_source_import_workspace_id_unsettled";
+
 type MappedErrorCode = Extract<
   ErrorCode,
-  "NOT_FOUND" | "SAVED_CARD_ALREADY_ACTIVE"
+  "NOT_FOUND" | "SAVED_CARD_ALREADY_ACTIVE" | "SOURCE_IMPORT_IN_PROGRESS"
 >;
 
 export type DbFailure =
@@ -24,6 +27,10 @@ const UNIQUE_VIOLATIONS = new Map<string, DbFailure>([
   [
     SAVED_CARD_ACTIVE_CONSTRAINT,
     { kind: "code", code: "SAVED_CARD_ALREADY_ACTIVE" },
+  ],
+  [
+    SOURCE_IMPORT_UNSETTLED_CONSTRAINT,
+    { kind: "code", code: "SOURCE_IMPORT_IN_PROGRESS" },
   ],
 ]);
 

@@ -7,4 +7,5 @@ export * from "./operation";
 export * from "./platform";
 export * from "./realtime";
 export * from "./schedule";
+export * from "./source";
 export * from "./usage";

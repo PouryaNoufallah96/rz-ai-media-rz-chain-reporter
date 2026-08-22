@@ -15,7 +15,8 @@
     "./cache": "./src/cache.ts",
     "./realtime": "./src/realtime.ts",
     "./realtime-channels": "./src/realtime-channels.ts",
-    "./list": "./src/list.ts"
+    "./list": "./src/list.ts",
+    "./source": "./src/source.ts"
   },
   "scripts": {
     "check": "biome check .",

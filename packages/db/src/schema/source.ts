@@ -7,7 +7,7 @@ import {
   unique,
 } from "drizzle-orm/pg-core";
 
-import { sourceOrigin } from "./enums";
+import { articleFetchMode, contentLocale, sourceOrigin } from "./enums";
 import {
   softDelete,
   timestamps,
@@ -28,6 +28,9 @@ export const source = pgTable(
     name: text("name").notNull(),
     enabled: boolean("enabled").notNull().default(true),
     metadata: jsonb("metadata"),
+    contentLocale: contentLocale("content_locale").notNull(),
+    // Null for telegram_public: the mode only governs RSS article pages.
+    articleFetchMode: articleFetchMode("article_fetch_mode"),
     ...timestamps,
     ...softDelete,
   },

@@ -22,6 +22,7 @@ import { platformDraft } from "./schema/platform-draft";
 import { publishOperation } from "./schema/publish-operation";
 import { savedCard } from "./schema/saved-card";
 import { schedule } from "./schema/schedule";
+import { sourceImport } from "./schema/source-import";
 import { sourceItem } from "./schema/source-item";
 
 // Relations mirror the foreign keys the tables already declare, minus the
@@ -173,7 +174,15 @@ export const operationRelations = relations(operation, ({ one, many }) => ({
   attempts: many(operationAttempt),
   usageEvents: many(aiUsageEvent),
   publish: one(publishOperation),
+  sourceImport: one(sourceImport),
   outboxEvents: many(outboxEvent),
+}));
+
+export const sourceImportRelations = relations(sourceImport, ({ one }) => ({
+  operation: one(operation, {
+    fields: [sourceImport.operationId],
+    references: [operation.id],
+  }),
 }));
 
 export const operationAttemptRelations = relations(
