@@ -1,4 +1,5 @@
 import {
+  articleFetchModeSchema,
   contentLocaleSchema,
   sourceFetchOutcomeSchema,
   sourceFetchReasonSchema,
@@ -27,6 +28,7 @@ const sourceCatalogEntrySchema = z.object({
   origin: sourceOriginSchema,
   endpoint: z.string(),
   contentLocale: contentLocaleSchema,
+  articleFetchMode: articleFetchModeSchema.nullable(),
   lifecycle: z.enum(SOURCE_LIFECYCLES),
   observation: sourceObservationSchema.nullable(),
 });
@@ -35,7 +37,6 @@ export type SourceCatalogEntry = z.infer<typeof sourceCatalogEntrySchema>;
 
 const sourceCatalogSchema = z.object({
   entries: z.array(sourceCatalogEntrySchema),
-  itemCap: z.int().positive(),
   lastImportAt: z.date().nullable(),
 });
 

@@ -33,6 +33,7 @@ import type { Executor } from "../executor";
 import { withWorkspaceContext } from "../executor";
 import { inWorkspace } from "../filters";
 import { aiUsageEvent } from "../schema/ai-usage-event";
+import { operationAttempt } from "../schema/operation-attempt";
 import { source } from "../schema/source";
 import { sourceImport } from "../schema/source-import";
 import { sourceImportItem } from "../schema/source-import-item";
@@ -892,6 +893,14 @@ export type SourceImportProgress = {
   counts: SourceImportCounts;
   unitsPlanned: number;
   enrichmentBySource: Record<string, SourceImportEnrichmentCounts>;
+  admissionMix: Partial<Record<AdmissionOutcome, number>>;
+  adapterMix: Partial<Record<ArticleAdapter, number>>;
+  adapterMixBySource: Record<string, Partial<Record<ArticleAdapter, number>>>;
+  reusedAdapterMix: Partial<Record<ArticleAdapter, number>>;
+  reusedAdapterMixBySource: Record<
+    string,
+    Partial<Record<ArticleAdapter, number>>
+  >;
   partial: boolean;
 };
 
@@ -925,7 +934,7 @@ export async function sourceImportProgress(
 
   const ids = [...importIds];
 
-  const [imports, sources, admissions, units] = await Promise.all([
+  const [imports, sources, admissions, units, adapters] = await Promise.all([
     executor
       .select({ id: sourceImport.id, stage: sourceImport.stage })
       .from(sourceImport)
@@ -953,17 +962,17 @@ export async function sourceImportProgress(
     executor
       .select({
         sourceImportId: sourceImportItem.sourceImportId,
-        items: count(),
+        admission: sourceImportItem.admission,
+        items: sql<number>`count(*)::int`,
       })
       .from(sourceImportItem)
       .where(
         and(
           inWorkspace(sourceImportItem, workspaceId),
           inArray(sourceImportItem.sourceImportId, ids),
-          eq(sourceImportItem.admission, "admitted"),
         ),
       )
-      .groupBy(sourceImportItem.sourceImportId),
+      .groupBy(sourceImportItem.sourceImportId, sourceImportItem.admission),
     executor
       .select({
         sourceImportId: sourceImportItem.sourceImportId,
@@ -985,6 +994,39 @@ export async function sourceImportProgress(
         sourceItem.sourceId,
         sourceImportItem.enrichmentOutcome,
       ),
+    executor
+      .select({
+        sourceImportId: sourceImportItem.sourceImportId,
+        sourceId: sourceItem.sourceId,
+        adapter: sourceItemEnrichment.adapter,
+        items: sql<number>`count(*)::int`,
+        reused: sql<number>`count(*) filter (where ${operationAttempt.operationId} <> ${sourceImport.operationId})::int`,
+      })
+      .from(sourceImportItem)
+      .innerJoin(sourceItem, eq(sourceItem.id, sourceImportItem.sourceItemId))
+      .innerJoin(
+        sourceItemEnrichment,
+        eq(sourceItemEnrichment.id, sourceImportItem.enrichmentId),
+      )
+      .innerJoin(
+        sourceImport,
+        eq(sourceImport.id, sourceImportItem.sourceImportId),
+      )
+      .innerJoin(
+        operationAttempt,
+        eq(operationAttempt.id, sourceItemEnrichment.operationAttemptId),
+      )
+      .where(
+        and(
+          inWorkspace(sourceImportItem, workspaceId),
+          inArray(sourceImportItem.sourceImportId, ids),
+        ),
+      )
+      .groupBy(
+        sourceImportItem.sourceImportId,
+        sourceItem.sourceId,
+        sourceItemEnrichment.adapter,
+      ),
   ]);
 
   const progress: Record<string, SourceImportProgress> = {};
@@ -995,6 +1037,11 @@ export async function sourceImportProgress(
       counts: { acquired: 0, ordered: 0, enriched: 0, skipped: 0, failed: 0 },
       unitsPlanned: 0,
       enrichmentBySource: {},
+      admissionMix: {},
+      adapterMix: {},
+      adapterMixBySource: {},
+      reusedAdapterMix: {},
+      reusedAdapterMixBySource: {},
       partial: false,
     };
   }
@@ -1022,9 +1069,36 @@ export async function sourceImportProgress(
 
   for (const row of admissions) {
     const entry = progress[row.sourceImportId];
-    if (entry) {
+    if (!entry) {
+      continue;
+    }
+
+    entry.admissionMix[row.admission] = row.items;
+
+    if (row.admission === "admitted") {
       entry.counts.ordered = row.items;
     }
+  }
+
+  for (const row of adapters) {
+    const entry = progress[row.sourceImportId];
+    if (!entry) {
+      continue;
+    }
+
+    entry.adapterMix[row.adapter] =
+      (entry.adapterMix[row.adapter] ?? 0) + row.items;
+    entry.reusedAdapterMix[row.adapter] =
+      (entry.reusedAdapterMix[row.adapter] ?? 0) + Number(row.reused);
+
+    const bySource = entry.adapterMixBySource[row.sourceId] ?? {};
+    bySource[row.adapter] = (bySource[row.adapter] ?? 0) + row.items;
+    entry.adapterMixBySource[row.sourceId] = bySource;
+
+    const reusedBySource = entry.reusedAdapterMixBySource[row.sourceId] ?? {};
+    reusedBySource[row.adapter] =
+      (reusedBySource[row.adapter] ?? 0) + Number(row.reused);
+    entry.reusedAdapterMixBySource[row.sourceId] = reusedBySource;
   }
 
   for (const row of units) {

@@ -20,9 +20,11 @@
       "startHint": "یک برگه در پنل عملیات باز می‌کند.",
       "startDisabled": "حداقل یک منبع را انتخاب کنید.",
       "started": "دریافت آغاز شد",
-      "kinds": "نوع منبع",
       "sources": "منابع",
       "sourcesHint": "{n, number} از {m, number} انتخاب شده",
+      "selectAll": "همه",
+      "selectNone": "هیچ‌کدام",
+      "extract": "استخراج",
       "recency": {
         "label": "بازهٔ زمانی",
         "6": "۶ ساعت",
@@ -38,8 +40,8 @@
         "latest_per_source": "تازه‌ترین در هر کانال",
         "keywords": "تطبیق کلیدواژه"
       },
-      "topN": "تعداد در هر اجرا",
-      "topNHint": "از ۱ تا ۲۰ قلم در هر اجرا.",
+      "topN": "N برتر",
+      "topNHint": "از ۱ تا ۲۰ قلم تلگرام در این اجرا.",
       "topics": "موضوع‌ها",
       "topicsHint": "با ویرگول جدا کنید. فقط در ترتیب کلیدواژه‌ای به کار می‌رود.",
       "recentTopics": "موضوع‌های اخیر",
@@ -58,17 +60,24 @@
       },
       "counts": {
         "acquired": "گردآوری‌شده {n, number}",
-        "ordered": "مرتب‌شده {n, number}",
-        "enriched": "غنی‌شده {n, number}",
         "skipped": "نادیده {n, number}",
         "failed": "ناموفق {n, number}"
+      },
+      "mix": {
+        "bucket": "{n, number} {label} ({percent})",
+        "bucketReused": "{n, number} {label} ({percent}) · بازاستفاده",
+        "bucketReusedPartial": "{n, number} {label} ({percent}) · {reused, number} بازاستفاده",
+        "count": "{n, number} {label}",
+        "countReused": "{n, number} {label} · بازاستفاده",
+        "countReusedPartial": "{n, number} {label} · {reused, number} بازاستفاده"
       },
       "empty": {
         "title": "هنوز دریافتی انجام نشده",
         "hint": "بازه‌ها را در بالا تنظیم کنید و «شروع دریافت» را بزنید."
       },
       "provenance": "بردارسازی · {model} · {dimension, number} بعدی · کسینوسی نسخهٔ ۱ · قالب {fingerprint}",
-      "bounds": "بازهٔ {hours, number} ساعت · {topN, number} برتر · {ordering}",
+      "bounds": "بازهٔ {hours, number} ساعت",
+      "boundsTelegram": "بازهٔ {hours, number} ساعت · {topN, number} برتر · {ordering}",
       "toggle": "باز و بسته کردن دفتر هر منبع برای دریافت {id}",
       "ledger": "نتیجهٔ هر منبع برای دریافت {id}",
       "recent": {
@@ -138,33 +147,35 @@
         "telegram_public": "تلگرام"
       },
       "groupCount": "{n, number} منبع",
+      "fetchMode": {
+        "direct": "مستقیم",
+        "direct_then_firecrawl": "مستقیم سپس فایرکراول",
+        "firecrawl": "فایرکراول",
+        "all": "همه {mode}",
+        "bucket": "{n, number} {mode} ({percent})"
+      },
       "endpoint": "نشانی",
       "contentLocale": "زبان محتوا",
-      "itemCap": "سقف اقلام",
       "lastObservation": "آخرین مشاهده",
-      "fetchedCount": "دریافت‌شده",
       "validators": "اعتبارسنج‌ها",
-      "validatorsPresent": "ذخیره‌شده",
       "validatorsAbsent": "ندارد",
-      "reasonCode": "کد دلیل",
       "expand": "نمایش جزئیات {name}",
       "retiredNote": "بازنشسته — برای دریافت قابل انتخاب نیست.",
       "empty": "هیچ منبعی پیکربندی نشده است."
     },
     "counts": {
       "pair": "{fetched, number} / {admitted, number}",
-      "legend": "دریافت‌شده / پذیرفته",
       "enrichment": "غنی‌شده {enriched, number} · نادیده {skipped, number} · ناموفق {failed, number} · نامشخص {unknown, number}"
     },
     "stream": {
       "title": "اقلام منابع",
-      "caption": "اقلام منابع: زمان، منبع، عنوان، شمار بازنگری و وضعیت غنی‌سازی",
+      "caption": "اقلام منابع: زمان، منبع، عنوان، شمار بازنگری و مسیر پذیرش",
       "columns": {
         "time": "زمان",
         "source": "منبع",
         "title": "عنوان",
         "revisions": "بازنگری",
-        "enrichment": "غنی‌سازی",
+        "path": "مسیر",
         "rank": "رتبه",
         "score": "امتیاز"
       },
@@ -200,6 +211,10 @@
       "out_of_window": "خارج از بازه",
       "over_cap": "بیش از سقف"
     },
+    "path": {
+      "enriching": "در حال غنی‌سازی",
+      "failed": "ناموفق — {reason}"
+    },
     "enrichment": {
       "none": "بدون",
       "pending": "در انتظار",
@@ -218,9 +233,7 @@
     },
     "detail": {
       "open": "نمایش شناسنامهٔ {name}",
-      "revisions": "بازنگری‌ها",
       "hash": "درهم‌سازی محتوا",
-      "enrichment": "غنی‌سازی",
       "adapter": "مبدل مقاله",
       "contentLocale": "زبان محتوا",
       "brief": "چکیده"

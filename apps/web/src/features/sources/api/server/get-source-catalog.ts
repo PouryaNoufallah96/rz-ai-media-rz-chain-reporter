@@ -3,7 +3,6 @@ import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { requireSession } from "@/features/auth/api/server/session";
-import { customerAcquisition } from "@/lib/customer-template.server";
 import { rpcDb } from "@/server/rpc/db";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 
@@ -15,10 +14,7 @@ export async function getSourceCatalog(): Promise<SourceCatalog> {
   await requireSession();
   const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
 
-  return {
-    ...(await readCachedSourceCatalog(workspaceId)),
-    itemCap: customerAcquisition.maxItemsPerSource,
-  };
+  return readCachedSourceCatalog(workspaceId);
 }
 
 async function readCachedSourceCatalog(workspaceId: string) {

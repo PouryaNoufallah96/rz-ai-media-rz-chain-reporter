@@ -1,5 +1,11 @@
 import "server-only";
 
+import {
+  ADMISSION_OUTCOMES,
+  type AdmissionOutcome,
+  ARTICLE_ADAPTERS,
+  type ArticleAdapter,
+} from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import { inWorkspace } from "@rz-chain-reporter/db/filters";
 import { sourceImportProgress } from "@rz-chain-reporter/db/repositories/source-import";
@@ -66,6 +72,7 @@ export async function readSourceCatalog(
         origin: source.origin,
         endpoint: source.endpoint,
         contentLocale: source.contentLocale,
+        articleFetchMode: source.articleFetchMode,
         enabled: source.enabled,
         deletedAt: source.deletedAt,
       })
@@ -186,6 +193,7 @@ export async function readRecentSourceImports(
         sourceImportId: sourceImportSource.sourceImportId,
         sourceId: sourceImportSource.sourceId,
         name: source.name,
+        origin: source.origin,
         outcome: sourceImportSource.outcome,
         reason: sourceImportSource.reason,
         fetchedCount: sourceImportSource.fetchedCount,
@@ -243,6 +251,7 @@ export async function readRecentSourceImports(
       ...line,
       settledAt: line.outcome === "pending" ? null : line.settledAt,
       enrichment: null,
+      adapterMix: [],
     });
     linesByImport.set(sourceImportId, bucket);
   }
@@ -267,6 +276,11 @@ export async function readRecentSourceImports(
           skipped: 0,
           failed: 0,
         },
+        admissionMix: admissionMixOf(measured?.admissionMix),
+        adapterMix: adapterMixOf(
+          measured?.adapterMix,
+          measured?.reusedAdapterMix,
+        ),
         unitsPlanned: measured?.unitsPlanned ?? 0,
         embeddingModel:
           (row.embeddingAttemptId &&
@@ -281,6 +295,10 @@ export async function readRecentSourceImports(
         sources: (linesByImport.get(row.id) ?? []).map((line) => ({
           ...line,
           enrichment: enrichmentBySource[line.sourceId] ?? null,
+          adapterMix: adapterMixOf(
+            measured?.adapterMixBySource[line.sourceId],
+            measured?.reusedAdapterMixBySource[line.sourceId],
+          ),
         })),
       };
     }),
@@ -303,6 +321,27 @@ async function readRecentTopics(executor: Executor, workspaceId: string) {
   `);
 
   return result.rows.map((row) => row.topic);
+}
+
+function admissionMixOf(
+  mix: Partial<Record<AdmissionOutcome, number>> | undefined,
+) {
+  return ADMISSION_OUTCOMES.flatMap((admission) => {
+    const count = Number(mix?.[admission] ?? 0);
+    return count > 0 ? [{ admission, count }] : [];
+  });
+}
+
+function adapterMixOf(
+  mix: Partial<Record<ArticleAdapter, number>> | undefined,
+  reused: Partial<Record<ArticleAdapter, number>> | undefined,
+) {
+  return ARTICLE_ADAPTERS.flatMap((adapter) => {
+    const count = Number(mix?.[adapter] ?? 0);
+    return count > 0
+      ? [{ adapter, count, reused: Number(reused?.[adapter] ?? 0) }]
+      : [];
+  });
 }
 
 function dispatchStateOf(outbox: {
@@ -528,6 +567,9 @@ async function hydrateRows(
           inArray(sourceImportItem.sourceItemId, itemIds),
           query.import
             ? eq(sourceImportItem.sourceImportId, query.import)
+            : undefined,
+          query.admission
+            ? eq(sourceImportItem.admission, query.admission)
             : undefined,
         ),
       )

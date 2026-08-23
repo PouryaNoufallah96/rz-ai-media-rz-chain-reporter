@@ -98,6 +98,9 @@ export function SourceImportForm({
   const sourceIds = useWatch({ control, name: "sourceIds" });
   const hasSelection = sourceIds.length > 0;
   const selectedIds = new Set(sourceIds);
+  const includesRss = selectable.some(
+    (entry) => entry.origin === "rss" && selectedIds.has(entry.id),
+  );
   const includesTelegram = selectable.some(
     (entry) => entry.origin === "telegram_public" && selectedIds.has(entry.id),
   );
@@ -170,20 +173,22 @@ export function SourceImportForm({
               ) : null}
             </>
           ) : null}
-          <FormCheckboxField
-            control={control}
-            description={t("import.enrichmentHint", {
-              state: t(
-                imports.defaults.enrichmentEnabled
-                  ? "import.enrichmentOn"
-                  : "import.enrichmentOff",
-              ),
-            })}
-            disabled={isPending}
-            label={t("import.enrichment")}
-            name="enrichmentEnabled"
-            resolveError={resolveError}
-          />
+          {includesRss ? (
+            <FormCheckboxField
+              control={control}
+              description={t("import.enrichmentHint", {
+                state: t(
+                  imports.defaults.enrichmentEnabled
+                    ? "import.enrichmentOn"
+                    : "import.enrichmentOff",
+                ),
+              })}
+              disabled={isPending}
+              label={t("import.enrichment")}
+              name="enrichmentEnabled"
+              resolveError={resolveError}
+            />
+          ) : null}
           <FormRootError
             message={
               errors.root?.server
@@ -219,13 +224,6 @@ function SourceSelection({
   selectable,
 }: FieldProps & { selectable: SourceCatalogEntry[] }) {
   const t = useTranslations(SOURCES_NAMESPACE);
-  const idsByKind = new Map<SourceOrigin, string[]>();
-
-  for (const entry of selectable) {
-    const bucket = idsByKind.get(entry.origin) ?? [];
-    bucket.push(entry.id);
-    idsByKind.set(entry.origin, bucket);
-  }
 
   return (
     <FormField
@@ -238,75 +236,104 @@ function SourceSelection({
         const selected = new Set(field.value);
 
         return (
-          <>
-            <fieldset className="grid gap-1">
-              <legend className="ticket-label">{t("import.kinds")}</legend>
-              <div className="flex flex-wrap gap-2">
-                {SOURCE_KINDS.map((origin) => {
-                  const kindIds = idsByKind.get(origin) ?? [];
-                  const allSelected =
-                    kindIds.length > 0 &&
-                    kindIds.every((id) => selected.has(id));
-
-                  return (
-                    <Button
-                      aria-pressed={allSelected}
-                      disabled={disabled || kindIds.length === 0}
-                      key={origin}
-                      onClick={() => {
-                        const next = new Set(selected);
-                        for (const id of kindIds) {
-                          if (allSelected) next.delete(id);
-                          else next.add(id);
-                        }
-                        field.onChange([...next]);
-                      }}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      {t(`catalog.kind.${origin}`)}
-                    </Button>
-                  );
-                })}
-              </div>
-            </fieldset>
-            <span className="ticket-label" id={controlId}>
+          <fieldset className="grid gap-3">
+            <legend className="ticket-label" id={controlId}>
               {t("import.sources")}
-            </span>
-            <span className="font-mono text-muted-foreground text-xs tabular-nums">
-              {t("import.sourcesHint", {
-                m: selectable.length,
-                n: selected.size,
-              })}
-            </span>
-            <ul
-              aria-labelledby={controlId}
-              className="max-h-48 overflow-y-auto border border-border border-dashed p-2"
-            >
-              {selectable.map((entry) => (
-                <li className="flex items-center gap-2 py-0.5" key={entry.id}>
-                  <Checkbox
-                    checked={selected.has(entry.id)}
-                    disabled={disabled}
-                    id={`${controlId}-${entry.id}`}
-                    onCheckedChange={(checked) => {
-                      const next = new Set(selected);
-                      if (checked === true) next.add(entry.id);
-                      else next.delete(entry.id);
-                      field.onChange([...next]);
-                    }}
-                  />
-                  <label
-                    className="min-w-0 truncate text-xs"
-                    htmlFor={`${controlId}-${entry.id}`}
+            </legend>
+            {selectable.length === 0 ? (
+              <p className="text-muted-foreground text-xs">
+                {t("catalog.empty")}
+              </p>
+            ) : (
+              SOURCE_KINDS.map((origin) => {
+                const entries = selectable.filter(
+                  (entry) => entry.origin === origin,
+                );
+                if (entries.length === 0) return null;
+
+                const kindIds = entries.map((entry) => entry.id);
+                const selectedCount = kindIds.filter((id) =>
+                  selected.has(id),
+                ).length;
+                const allSelected =
+                  kindIds.length > 0 && selectedCount === kindIds.length;
+                const headingId = `${controlId}-${origin}`;
+
+                return (
+                  <section
+                    aria-labelledby={headingId}
+                    className="grid gap-1"
+                    key={origin}
                   >
-                    <Bdi>{entry.name}</Bdi>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </>
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <h3
+                        className="flex min-w-0 items-baseline gap-2"
+                        id={headingId}
+                      >
+                        <span className="ticket-label">
+                          {t(`catalog.kind.${origin}`)}
+                        </span>
+                        <span className="font-mono text-muted-foreground text-xs tabular-nums">
+                          {t("import.sourcesHint", {
+                            m: kindIds.length,
+                            n: selectedCount,
+                          })}
+                        </span>
+                      </h3>
+                      <Button
+                        aria-pressed={allSelected}
+                        className="shrink-0 aria-pressed:bg-accent aria-pressed:text-accent-foreground"
+                        disabled={disabled}
+                        onClick={() => {
+                          const next = new Set(selected);
+                          for (const id of kindIds) {
+                            if (allSelected) next.delete(id);
+                            else next.add(id);
+                          }
+                          field.onChange([...next]);
+                        }}
+                        size="xs"
+                        type="button"
+                        variant="outline"
+                      >
+                        {t(
+                          allSelected
+                            ? "import.selectNone"
+                            : "import.selectAll",
+                        )}
+                      </Button>
+                    </div>
+                    <ul className="max-h-40 overflow-y-auto border border-border border-dashed px-2 py-1">
+                      {entries.map((entry) => (
+                        <li
+                          className="flex items-center gap-2 py-0.5"
+                          key={entry.id}
+                        >
+                          <Checkbox
+                            checked={selected.has(entry.id)}
+                            disabled={disabled}
+                            id={`${controlId}-${entry.id}`}
+                            onCheckedChange={(checked) => {
+                              const next = new Set(selected);
+                              if (checked === true) next.add(entry.id);
+                              else next.delete(entry.id);
+                              field.onChange([...next]);
+                            }}
+                          />
+                          <label
+                            className="min-w-0 truncate text-xs"
+                            htmlFor={`${controlId}-${entry.id}`}
+                          >
+                            <Bdi>{entry.name}</Bdi>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })
+            )}
+          </fieldset>
         );
       }}
     </FormField>
