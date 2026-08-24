@@ -95,6 +95,7 @@ export type EmbeddingModelInvocation = {
   invocationKey: InvocationKey;
   operationAttemptId: string;
   operationId: string;
+  persistResult?: (tx: Transaction, embeddings: number[][]) => Promise<void>;
   taskKey: ModelTaskKey;
   values: string[];
   workspaceId: string;

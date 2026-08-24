@@ -3,36 +3,52 @@ import type { Logger as InngestLogger } from "inngest";
 
 const WORKER_LOG_TEXT_FIELDS = [
   "adapter",
+  "analysisModelUnitId",
+  "analysisRunId",
   "appVersion",
   "attemptId",
+  "binding",
   "capability",
   "connectionState",
+  "disposition",
   "errorCode",
   "eventType",
+  "functionId",
   "host",
+  "invocationKey",
   "mediaAssetId",
+  "mediaBrandId",
   "mode",
   "operationId",
   "outboxId",
   "outcome",
   "reason",
+  "runId",
+  "semanticStatus",
   "signal",
   "sourceId",
   "sourceImportId",
   "status",
+  "taskKey",
   "usageEventId",
   "workspaceId",
 ] as const;
 
 const WORKER_LOG_NUMBER_FIELDS = [
   "admittedCount",
+  "anchorCount",
   "attempt",
+  "candidateCount",
   "decodedBytes",
   "delayMs",
+  "dimension",
   "durationMs",
   "fetchedCount",
   "port",
+  "selectionCount",
   "tagCount",
+  "topicCount",
+  "unitCount",
 ] as const;
 
 export const WORKER_LOG_FIELDS: readonly string[] = [
@@ -53,6 +69,20 @@ const SECRET_ASSIGNMENT =
   /\b(authorization|cookie|password|secret|token|api[_-]?key)\b\s*[:=]\s*[^\s,;]+/gi;
 const BEARER_VALUE = /\bbearer\s+[^\s,;]+/gi;
 const URL_QUERY = /(https?:\/\/[^\s?]+)\?[^\s]*/gi;
+
+const SAFE_ERROR_CODE = /^[A-Z][A-Z0-9_]{0,63}$/;
+
+// An error may carry operator detail (fingerprints, endpoints, driver text) in
+// its message; only a stable code shape is safe to log or serve.
+export function stableFailureCode(error: unknown, fallback: string): string {
+  if (error instanceof Error && "code" in error) {
+    const { code } = error;
+    if (typeof code === "string" && SAFE_ERROR_CODE.test(code)) {
+      return code;
+    }
+  }
+  return fallback;
+}
 
 function redact(value: string) {
   return value

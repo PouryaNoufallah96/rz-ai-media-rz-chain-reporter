@@ -1,7 +1,9 @@
 import type { ModelBackend } from "@rz-chain-reporter/contracts";
-import type {
-  CustomerTemplate,
-  ModelTaskKey,
+import {
+  type CustomerTemplate,
+  EDITORIAL_SELECTION_TASK_PREFIX,
+  type ModelTaskKey,
+  PROMO_IDEAS_TASK_PREFIX,
 } from "@rz-chain-reporter/customer-template/schema";
 
 import { ModelBindingError } from "./errors";
@@ -14,11 +16,21 @@ const WORKER_MODEL_TASKS = [
   "enrichment-brief",
 ] as const satisfies readonly ModelTaskKey[];
 
+function workerModelTasks(template: CustomerTemplate): ModelTaskKey[] {
+  return [
+    ...WORKER_MODEL_TASKS,
+    ...template.editorial.models.flatMap((option): ModelTaskKey[] => [
+      `${EDITORIAL_SELECTION_TASK_PREFIX}${option.key}`,
+      `${PROMO_IDEAS_TASK_PREFIX}${option.key}`,
+    ]),
+  ];
+}
+
 export function assertModelCapabilities(
   template: CustomerTemplate,
   bindings: ModelBindings,
 ) {
-  for (const taskKey of WORKER_MODEL_TASKS) {
+  for (const taskKey of workerModelTasks(template)) {
     const primary = resolveModelTask(template, taskKey, "primary").route;
     assertRouteBinding(taskKey, primary.backend, bindings);
     assertEmbeddingRoute(taskKey, primary.backend);

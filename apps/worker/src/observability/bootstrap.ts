@@ -16,6 +16,8 @@ import {
   scrubWorkerTransaction,
 } from "./privacy";
 
+const SENTRY_CLOSE_TIMEOUT_MS = 2_000;
+
 let tracerProvider: NodeTracerProvider | undefined;
 
 export function initializeWorkerObservability(options: {
@@ -59,7 +61,9 @@ export function captureWorkerFailure(errorCode: string) {
   });
 }
 
+// Sentry keeps its own handles open; flushing alone leaves the event loop alive.
 export async function shutdownWorkerObservability() {
   await tracerProvider?.shutdown();
   await flushWorkerLogging();
+  await Sentry.close(SENTRY_CLOSE_TIMEOUT_MS);
 }

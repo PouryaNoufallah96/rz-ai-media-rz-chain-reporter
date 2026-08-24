@@ -1,0 +1,771 @@
+{
+  "template": {
+    "schemaVersion": 3,
+    "customer": {
+      "key": "demo-sports",
+      "productName": "Demo Sports Desk",
+      "timeZone": "UTC"
+    },
+    "workspace": {
+      "name": "Demo Sports Desk"
+    },
+    "models": {
+      "tasks": {
+        "generation-probe": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini",
+          "fallback": {
+            "backend": "remote",
+            "model": "openai/gpt-4.1-nano"
+          }
+        },
+        "keyword-embedding": {
+          "backend": "remote",
+          "model": "openai/text-embedding-3-small"
+        },
+        "enrichment-brief": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini",
+          "fallback": {
+            "backend": "remote",
+            "model": "openai/gpt-4.1-nano"
+          }
+        },
+        "editorial-selection:standard": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        },
+        "promo-ideas:standard": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        }
+      }
+    },
+    "editorial": {
+      "models": [
+        {
+          "key": "standard",
+          "name": "Standard"
+        }
+      ],
+      "platforms": ["telegram", "x", "instagram"],
+      "defaults": {
+        "brands": ["match-day", "transfer-desk"],
+        "models": ["standard"],
+        "platforms": ["telegram"],
+        "windowHours": 24,
+        "enrichment": true,
+        "sourceKeys": [
+          "demo-league-rss",
+          "demo-transfers-rss",
+          "demo-scores-telegram"
+        ]
+      },
+      "shortlistCap": 20,
+      "selectionCap": 20,
+      "importReuseMinutes": 30,
+      "fanOut": {
+        "maxUnits": 6,
+        "unitConcurrency": 2
+      },
+      "promo": {
+        "ideaCount": 3,
+        "promptMaxChars": 800
+      },
+      "semantic": {
+        "maxCandidates": 200,
+        "maxTopics": 8,
+        "maxAnchorsPerBrand": 6,
+        "maxChars": 300,
+        "dedupThreshold": 0.92,
+        "brandWeight": 0.2,
+        "topicWeight": 0.1
+      },
+      "policy": {
+        "weights": {
+          "withTopics": {
+            "mediaFit": 0.32,
+            "lexicalTopic": 0.25,
+            "virality": 0.18,
+            "freshness": 0.12,
+            "authority": 0.07,
+            "sourcePreference": 0.03,
+            "diversity": 0.03
+          },
+          "withoutTopics": {
+            "mediaFit": 0.43,
+            "virality": 0.24,
+            "freshness": 0.16,
+            "authority": 0.09,
+            "sourcePreference": 0.04,
+            "diversity": 0.04
+          }
+        },
+        "thresholds": {
+          "policyScore": 18
+        },
+        "freshnessLadder": [
+          {
+            "maxAgeHours": 2,
+            "score": 100
+          },
+          {
+            "maxAgeHours": 6,
+            "score": 85
+          },
+          {
+            "maxAgeHours": 12,
+            "score": 70
+          },
+          {
+            "maxAgeHours": 24,
+            "score": 25
+          },
+          {
+            "maxAgeHours": 36,
+            "score": 10
+          }
+        ],
+        "futureDateNeutralScore": 50,
+        "virality": {
+          "powerTerms": [
+            {
+              "term": "breaking",
+              "weight": 20
+            },
+            {
+              "term": "confirmed",
+              "weight": 14
+            },
+            {
+              "term": "record",
+              "weight": 14
+            },
+            {
+              "term": "stunner",
+              "weight": 16
+            },
+            {
+              "term": "comeback",
+              "weight": 16
+            },
+            {
+              "term": "upset",
+              "weight": 18
+            },
+            {
+              "term": "sacked",
+              "weight": 18
+            },
+            {
+              "term": "injury blow",
+              "weight": 16
+            }
+          ],
+          "entityTerms": [
+            {
+              "term": "world cup",
+              "weight": 16
+            },
+            {
+              "term": "champions league",
+              "weight": 14
+            },
+            {
+              "term": "premier league",
+              "weight": 12
+            },
+            {
+              "term": "olympics",
+              "weight": 14
+            }
+          ],
+          "titleMultiplier": 1.5,
+          "bodyMultiplier": 0.4,
+          "numericSignalWeights": {
+            "number": 6,
+            "percentage": 12,
+            "currencyAmount": 10,
+            "magnitudeAmount": 14
+          }
+        },
+        "unknownSourceAuthority": 50,
+        "sourceAuthority": {
+          "demo-league-rss": 80,
+          "demo-transfers-rss": 70,
+          "demo-scores-telegram": 60,
+          "demo-archive-rss": 40
+        }
+      }
+    },
+    "mediaBrands": [
+      {
+        "key": "match-day",
+        "name": "Match Day",
+        "imageProfile": "image-profiles/match-day.json",
+        "editorial": {
+          "mediaFitThreshold": 22,
+          "strongTerms": [
+            {
+              "term": "match report",
+              "weight": 24
+            },
+            {
+              "term": "final score",
+              "weight": 22
+            },
+            {
+              "term": "kick-off",
+              "weight": 20
+            },
+            {
+              "term": "full time",
+              "weight": 20
+            },
+            {
+              "term": "hat-trick",
+              "weight": 20
+            },
+            {
+              "term": "equaliser",
+              "weight": 18
+            },
+            {
+              "term": "penalty",
+              "weight": 18
+            },
+            {
+              "term": "extra time",
+              "weight": 18
+            },
+            {
+              "term": "clean sheet",
+              "weight": 16
+            },
+            {
+              "term": "league table",
+              "weight": 16
+            },
+            {
+              "term": "fixture",
+              "weight": 14
+            },
+            {
+              "term": "matchday",
+              "weight": 22
+            },
+            {
+              "term": "starting eleven",
+              "weight": 16
+            },
+            {
+              "term": "substitute",
+              "weight": 12
+            },
+            {
+              "term": "derby",
+              "weight": 18
+            }
+          ],
+          "weakTerms": [
+            {
+              "term": "transfer fee",
+              "weight": -8
+            },
+            {
+              "term": "contract talks",
+              "weight": -8
+            },
+            {
+              "term": "pre-season",
+              "weight": -6
+            }
+          ],
+          "aliases": [
+            {
+              "canonical": "Premier League",
+              "surfaces": ["EPL", "the Prem"]
+            },
+            {
+              "canonical": "Champions League",
+              "surfaces": ["UCL"]
+            }
+          ],
+          "phrases": [
+            {
+              "phrase": "stoppage time winner",
+              "weight": 18
+            }
+          ],
+          "preferredSourceKeys": ["demo-league-rss", "demo-scores-telegram"],
+          "semanticAnchors": [
+            "match report",
+            "final score and goalscorers",
+            "league table movement",
+            "cup tie result",
+            "derby day",
+            "stoppage-time winner"
+          ],
+          "promoEnabled": true
+        }
+      },
+      {
+        "key": "transfer-desk",
+        "name": "Transfer Desk",
+        "editorial": {
+          "mediaFitThreshold": 22,
+          "strongTerms": [
+            {
+              "term": "transfer fee",
+              "weight": 24
+            },
+            {
+              "term": "medical",
+              "weight": 20
+            },
+            {
+              "term": "release clause",
+              "weight": 22
+            },
+            {
+              "term": "loan deal",
+              "weight": 20
+            },
+            {
+              "term": "contract talks",
+              "weight": 18
+            },
+            {
+              "term": "free agent",
+              "weight": 18
+            },
+            {
+              "term": "signing",
+              "weight": 20
+            },
+            {
+              "term": "bid rejected",
+              "weight": 18
+            },
+            {
+              "term": "deadline day",
+              "weight": 22
+            },
+            {
+              "term": "buy-back clause",
+              "weight": 16
+            },
+            {
+              "term": "agent",
+              "weight": 12
+            },
+            {
+              "term": "wages",
+              "weight": 12
+            }
+          ],
+          "weakTerms": [
+            {
+              "term": "match report",
+              "weight": -8
+            },
+            {
+              "term": "final score",
+              "weight": -8
+            },
+            {
+              "term": "injury update",
+              "weight": -4
+            }
+          ],
+          "aliases": [
+            {
+              "canonical": "transfer window",
+              "surfaces": ["window"]
+            }
+          ],
+          "phrases": [
+            {
+              "phrase": "here we go",
+              "weight": 14
+            }
+          ],
+          "preferredSourceKeys": ["demo-transfers-rss"],
+          "semanticAnchors": [
+            "transfer fee agreed",
+            "medical scheduled",
+            "release clause triggered",
+            "loan move with option to buy",
+            "deadline day signing",
+            "contract extension"
+          ],
+          "promoEnabled": true
+        }
+      },
+      {
+        "key": "training-ground",
+        "name": "Training Ground",
+        "editorial": {
+          "mediaFitThreshold": 22,
+          "strongTerms": [
+            {
+              "term": "injury update",
+              "weight": 24
+            },
+            {
+              "term": "return to training",
+              "weight": 22
+            },
+            {
+              "term": "fitness test",
+              "weight": 20
+            },
+            {
+              "term": "rehab",
+              "weight": 18
+            },
+            {
+              "term": "hamstring",
+              "weight": 18
+            },
+            {
+              "term": "ligament",
+              "weight": 18
+            },
+            {
+              "term": "conditioning",
+              "weight": 16
+            },
+            {
+              "term": "training camp",
+              "weight": 16
+            },
+            {
+              "term": "sports science",
+              "weight": 16
+            },
+            {
+              "term": "recovery",
+              "weight": 14
+            },
+            {
+              "term": "squad rotation",
+              "weight": 14
+            }
+          ],
+          "weakTerms": [
+            {
+              "term": "transfer fee",
+              "weight": -8
+            },
+            {
+              "term": "final score",
+              "weight": -6
+            }
+          ],
+          "aliases": [
+            {
+              "canonical": "anterior cruciate ligament",
+              "surfaces": ["ACL"]
+            }
+          ],
+          "phrases": [
+            {
+              "phrase": "back in full training",
+              "weight": 18
+            }
+          ],
+          "preferredSourceKeys": ["demo-league-rss"],
+          "semanticAnchors": [
+            "injury update",
+            "return to full training",
+            "fitness test result",
+            "rehabilitation programme",
+            "training camp schedule",
+            "squad rotation plan"
+          ],
+          "promoEnabled": false
+        }
+      }
+    ],
+    "sources": [
+      {
+        "key": "demo-league-rss",
+        "origin": "rss",
+        "endpoint": "https://feeds.example.com/demo-league.xml",
+        "name": "Demo League Wire",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "demo-transfers-rss",
+        "origin": "rss",
+        "endpoint": "https://feeds.example.com/demo-transfers.xml",
+        "name": "Demo Transfer Wire",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "demo-scores-telegram",
+        "origin": "telegram_public",
+        "endpoint": "demo_scores",
+        "name": "Demo Scores Channel",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "demo-archive-rss",
+        "origin": "rss",
+        "endpoint": "https://feeds.example.com/demo-archive.xml",
+        "name": "Demo Archive",
+        "enabled": false,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      }
+    ],
+    "acquisition": {
+      "defaultWindowHours": 24,
+      "maxItemsPerSource": 15,
+      "telegram": {
+        "orderingMode": "views",
+        "topN": 10
+      }
+    },
+    "enrichment": {
+      "enabled": true,
+      "maxItemsPerImport": 50,
+      "freshnessHours": 24
+    },
+    "destinationAccounts": [
+      {
+        "key": "match-day-telegram",
+        "platform": "telegram",
+        "enabled": true,
+        "metadata": {
+          "label": "Match Day Telegram",
+          "channel": "demo_match_day"
+        }
+      },
+      {
+        "key": "transfer-desk-x",
+        "platform": "x",
+        "enabled": true,
+        "metadata": {
+          "label": "Transfer Desk X"
+        }
+      },
+      {
+        "key": "match-day-instagram",
+        "platform": "instagram",
+        "enabled": false,
+        "metadata": {
+          "label": "Match Day Instagram",
+          "professionalAccountId": "17841400000000000",
+          "username": "demo_match_day"
+        }
+      }
+    ],
+    "brandDestinations": [
+      {
+        "brandKey": "match-day",
+        "destinationKey": "match-day-telegram"
+      },
+      {
+        "brandKey": "match-day",
+        "destinationKey": "match-day-instagram"
+      },
+      {
+        "brandKey": "transfer-desk",
+        "destinationKey": "transfer-desk-x"
+      },
+      {
+        "brandKey": "training-ground",
+        "destinationKey": "match-day-telegram"
+      }
+    ]
+  },
+  "runStartedAt": "2026-08-20T12:00:00.000Z",
+  "topics": [],
+  "brands": [
+    {
+      "key": "match-day",
+      "mediaBrandId": "55555555-5555-4555-8555-555555555555"
+    },
+    {
+      "key": "transfer-desk",
+      "mediaBrandId": "66666666-6666-4666-8666-666666666666"
+    },
+    {
+      "key": "training-ground",
+      "mediaBrandId": "77777777-7777-4777-8777-777777777777"
+    }
+  ],
+  "items": [
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000031",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000031",
+      "sourceKey": "demo-league-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T11:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Match report and final score from the derby",
+      "summary": "Both sides finished with ten players after a late red card.",
+      "canonicalUrl": "https://league.example.test/posts/derby-report",
+      "vector": [0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000032",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000032",
+      "sourceKey": "demo-transfers-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-19T16:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Transfer fee agreed with medical scheduled for Thursday",
+      "summary": "The club expects the paperwork to clear before the weekend.",
+      "canonicalUrl": "https://transfers.example.test/posts/fee-agreed",
+      "vector": [0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000033",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000033",
+      "sourceKey": "demo-archive-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-18T20:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Injury update and fitness test outcome from the training ground",
+      "summary": "Staff described a cautious return over the next fortnight.",
+      "canonicalUrl": "https://archive.example.test/posts/injury-update",
+      "vector": [0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000034",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000034",
+      "sourceKey": "demo-league-rss",
+      "origin": "rss",
+      "publishedAt": null,
+      "eligibility": "undated",
+      "title": "Undated squad rotation note",
+      "summary": "The feed supplied no publication timestamp.",
+      "canonicalUrl": "https://league.example.test/posts/rotation-note",
+      "vector": [0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000035",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000035",
+      "sourceKey": "demo-transfers-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T15:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Loan deal with option to buy pencilled in for next window",
+      "summary": "The date on the wire is ahead of the run clock.",
+      "canonicalUrl": "https://transfers.example.test/posts/loan-deal",
+      "vector": [0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0]
+    }
+  ],
+  "topicVectors": [],
+  "anchorVectors": {
+    "match-day": [
+      [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    ],
+    "transfer-desk": [
+      [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    ],
+    "training-ground": [
+      [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    ]
+  },
+  "expected": {
+    "digests": {
+      "succeeded": "cdbf6c01e5e6db5ba9550de4e3e584f07db9a2359a26b981e006badd7a5ea1cf",
+      "degraded": "1664c228b1915de3dc8b8080c4fcbee484752902aae0c43598850de593d8447a"
+    },
+    "items": [
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000031",
+        "eligibility": "candidate",
+        "duplicateMethod": null,
+        "duplicateOfSourceItemId": null,
+        "freshnessScore": 100
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000032",
+        "eligibility": "candidate",
+        "duplicateMethod": null,
+        "duplicateOfSourceItemId": null,
+        "freshnessScore": 25
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000033",
+        "eligibility": "candidate",
+        "duplicateMethod": null,
+        "duplicateOfSourceItemId": null,
+        "freshnessScore": 10
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000034",
+        "eligibility": "undated",
+        "duplicateMethod": null,
+        "duplicateOfSourceItemId": null,
+        "freshnessScore": null
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000035",
+        "eligibility": "candidate",
+        "duplicateMethod": null,
+        "duplicateOfSourceItemId": null,
+        "freshnessScore": 50
+      }
+    ],
+    "routes": [
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000031",
+        "brandKey": "match-day",
+        "disposition": "shortlisted",
+        "reason": null,
+        "valueSignalCount": null,
+        "rankPosition": 1
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000033",
+        "brandKey": "match-day",
+        "disposition": "no_media_fit",
+        "reason": "below_media_fit_threshold",
+        "valueSignalCount": null,
+        "rankPosition": null
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000033",
+        "brandKey": "training-ground",
+        "disposition": "shortlisted",
+        "reason": null,
+        "valueSignalCount": null,
+        "rankPosition": 1
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000035",
+        "brandKey": "training-ground",
+        "disposition": "no_media_fit",
+        "reason": "below_media_fit_threshold",
+        "valueSignalCount": null,
+        "rankPosition": null
+      }
+    ]
+  }
+}

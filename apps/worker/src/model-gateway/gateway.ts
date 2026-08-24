@@ -3,6 +3,7 @@ import type {
   UsageProviderGateway,
   UsageStatus,
 } from "@rz-chain-reporter/contracts";
+import { MAX_EMBEDDING_VALUES } from "@rz-chain-reporter/contracts/editorial";
 import type { CustomerTemplate } from "@rz-chain-reporter/customer-template/schema";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import {
@@ -36,10 +37,9 @@ import type {
 } from "./types";
 
 const MAX_DEADLINE_MS = 120_000;
-const MAX_EMBEDDING_VALUES = 400;
 const MAX_EMBEDDING_VALUE_LENGTH = 500;
 const MAX_INSTRUCTIONS_LENGTH = 24_000;
-const MAX_OUTPUT_TOKENS = 4_096;
+export const MAX_OUTPUT_TOKENS = 8_192;
 const MAX_PROMPT_LENGTH = 24_000;
 
 export type ModelGateway = {
@@ -124,6 +124,46 @@ export function createModelGateway(options: {
             error,
           ),
         );
+
+      const { persistResult } = input;
+      if (persistResult !== undefined) {
+        try {
+          const persisted = await finalizeUsageWithResult(
+            options.executor,
+            input.workspaceId,
+            {
+              id: pending.event.id,
+              status: "succeeded",
+              ...embedded.observation,
+            },
+            (tx) => persistResult(tx, embedded.embeddings),
+          );
+
+          if (persisted.status !== "updated") {
+            throw new Error(
+              "usage row was not pending during result persistence",
+            );
+          }
+        } catch {
+          await finalizeUnknown(
+            options.executor,
+            input.workspaceId,
+            pending.event.id,
+            route.model,
+            embedded.observation,
+          );
+          throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+            ambiguous: true,
+            usageEventId: pending.event.id,
+          });
+        }
+
+        return {
+          embeddings: embedded.embeddings,
+          responseBody: embedded.responseBody,
+          usageEventId: pending.event.id,
+        };
+      }
 
       const finalized = await finalizeUsage(
         options.executor,
