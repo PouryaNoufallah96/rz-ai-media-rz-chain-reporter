@@ -2,7 +2,9 @@ import { relations } from "drizzle-orm";
 
 import { activityEvent } from "./schema/activity-event";
 import { aiUsageEvent } from "./schema/ai-usage-event";
+import { analysisModelUnit } from "./schema/analysis-model-unit";
 import { analysisRun } from "./schema/analysis-run";
+import { analysisRunItem } from "./schema/analysis-run-item";
 import { approval } from "./schema/approval";
 import { assistantConversation } from "./schema/assistant-conversation";
 import { assistantMessage } from "./schema/assistant-message";
@@ -19,11 +21,13 @@ import { operation } from "./schema/operation";
 import { operationAttempt } from "./schema/operation-attempt";
 import { outboxEvent } from "./schema/outbox-event";
 import { platformDraft } from "./schema/platform-draft";
+import { promoIdea } from "./schema/promo-idea";
 import { publishOperation } from "./schema/publish-operation";
 import { savedCard } from "./schema/saved-card";
 import { schedule } from "./schema/schedule";
 import { sourceImport } from "./schema/source-import";
 import { sourceItem } from "./schema/source-item";
+import { sourceItemRevision } from "./schema/source-item-revision";
 
 // Relations mirror the foreign keys the tables already declare, minus the
 // workspace edge: workspace_id is the installation-identity filter every query
@@ -35,8 +39,40 @@ export const analysisRunRelations = relations(analysisRun, ({ one, many }) => ({
     fields: [analysisRun.operationId],
     references: [operation.id],
   }),
+  sourceImport: one(sourceImport, {
+    fields: [analysisRun.sourceImportId],
+    references: [sourceImport.id],
+  }),
+  semanticAttempt: one(operationAttempt, {
+    fields: [analysisRun.semanticAttemptId],
+    references: [operationAttempt.id],
+  }),
+  items: many(analysisRunItem),
   filterResults: many(filterResult),
+  modelUnits: many(analysisModelUnit),
 }));
+
+export const analysisRunItemRelations = relations(
+  analysisRunItem,
+  ({ one }) => ({
+    analysisRun: one(analysisRun, {
+      fields: [analysisRunItem.analysisRunId],
+      references: [analysisRun.id],
+    }),
+    sourceItem: one(sourceItem, {
+      fields: [analysisRunItem.sourceItemId],
+      references: [sourceItem.id],
+    }),
+    sourceItemRevision: one(sourceItemRevision, {
+      fields: [analysisRunItem.sourceItemRevisionId],
+      references: [sourceItemRevision.id],
+    }),
+    duplicateOfSourceItem: one(sourceItem, {
+      fields: [analysisRunItem.duplicateOfSourceItemId],
+      references: [sourceItem.id],
+    }),
+  }),
+);
 
 export const filterResultRelations = relations(filterResult, ({ one }) => ({
   analysisRun: one(analysisRun, {
@@ -47,18 +83,38 @@ export const filterResultRelations = relations(filterResult, ({ one }) => ({
     fields: [filterResult.sourceItemId],
     references: [sourceItem.id],
   }),
+  mediaBrand: one(mediaBrand, {
+    fields: [filterResult.mediaBrandId],
+    references: [mediaBrand.id],
+  }),
 }));
+
+export const analysisModelUnitRelations = relations(
+  analysisModelUnit,
+  ({ one, many }) => ({
+    analysisRun: one(analysisRun, {
+      fields: [analysisModelUnit.analysisRunId],
+      references: [analysisRun.id],
+    }),
+    mediaBrand: one(mediaBrand, {
+      fields: [analysisModelUnit.mediaBrandId],
+      references: [mediaBrand.id],
+    }),
+    operationAttempt: one(operationAttempt, {
+      fields: [analysisModelUnit.operationAttemptId],
+      references: [operationAttempt.id],
+    }),
+    selections: many(editorialSelection),
+    promoIdeas: many(promoIdea),
+  }),
+);
 
 export const editorialSelectionRelations = relations(
   editorialSelection,
   ({ one }) => ({
-    analysisRun: one(analysisRun, {
-      fields: [editorialSelection.analysisRunId],
-      references: [analysisRun.id],
-    }),
-    mediaBrand: one(mediaBrand, {
-      fields: [editorialSelection.mediaBrandId],
-      references: [mediaBrand.id],
+    analysisModelUnit: one(analysisModelUnit, {
+      fields: [editorialSelection.analysisModelUnitId],
+      references: [analysisModelUnit.id],
     }),
     sourceItem: one(sourceItem, {
       fields: [editorialSelection.sourceItemId],
@@ -66,6 +122,13 @@ export const editorialSelectionRelations = relations(
     }),
   }),
 );
+
+export const promoIdeaRelations = relations(promoIdea, ({ one }) => ({
+  analysisModelUnit: one(analysisModelUnit, {
+    fields: [promoIdea.analysisModelUnitId],
+    references: [analysisModelUnit.id],
+  }),
+}));
 
 export const mediaBrandRelations = relations(mediaBrand, ({ many }) => ({
   destinationAccounts: many(mediaBrandDestinationAccount),

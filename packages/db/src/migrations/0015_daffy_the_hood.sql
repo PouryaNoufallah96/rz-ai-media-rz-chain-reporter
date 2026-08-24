@@ -1,0 +1,1 @@
+ALTER TABLE "analysis_run" ADD COLUMN "fan_out_planned_at" timestamp with time zone;

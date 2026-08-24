@@ -1,7 +1,9 @@
 export * from "../relations";
 export * from "./activity-event";
 export * from "./ai-usage-event";
+export * from "./analysis-model-unit";
 export * from "./analysis-run";
+export * from "./analysis-run-item";
 export * from "./approval";
 export * from "./assistant-conversation";
 export * from "./assistant-message";
@@ -20,6 +22,7 @@ export * from "./operation";
 export * from "./operation-attempt";
 export * from "./outbox-event";
 export * from "./platform-draft";
+export * from "./promo-idea";
 export * from "./publish-operation";
 export * from "./saved-card";
 export * from "./schedule";
