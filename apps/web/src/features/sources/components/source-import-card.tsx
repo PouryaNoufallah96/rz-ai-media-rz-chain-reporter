@@ -461,7 +461,7 @@ function cardStateOf(card: ImportCard): StateMarkState {
 
 function stateTone(state: StateMarkState) {
   if (state === "failed") return "text-destructive text-sm";
-  if (state === "succeeded") return "text-proof text-sm";
+  if (state === "succeeded") return "text-proof-text text-sm";
   if (["running", "retrying", "unknown"].includes(state)) {
     return "text-working text-sm";
   }
