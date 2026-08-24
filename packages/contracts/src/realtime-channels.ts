@@ -1,6 +1,9 @@
 import { realtime } from "inngest";
 
 import {
+  EDITORIAL_REALTIME_CHANGED_TOPIC,
+  editorialChangedRealtimeMessageSchema,
+  getEditorialRealtimeChannelName,
   getOperationsRealtimeChannelName,
   getSourcesRealtimeChannelName,
   getUsageRealtimeChannelName,
@@ -37,6 +40,15 @@ export const sourcesRealtimeChannel = realtime.channel({
   topics: {
     [SOURCES_REALTIME_CHANGED_TOPIC]: {
       schema: sourcesChangedRealtimeMessageSchema,
+    },
+  },
+});
+
+export const editorialRealtimeChannel = realtime.channel({
+  name: getEditorialRealtimeChannelName,
+  topics: {
+    [EDITORIAL_REALTIME_CHANGED_TOPIC]: {
+      schema: editorialChangedRealtimeMessageSchema,
     },
   },
 });

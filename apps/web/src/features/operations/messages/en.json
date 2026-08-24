@@ -43,7 +43,8 @@
       "generationProbe": "Generation probe",
       "scheduledEffect": "Scheduled effect",
       "mediaVerification": "Media verification",
-      "sourceImport": "Source import"
+      "sourceImport": "Source import",
+      "analysisRun": "Analysis run"
     },
     "dispatch": {
       "awaiting": "awaiting dispatch",

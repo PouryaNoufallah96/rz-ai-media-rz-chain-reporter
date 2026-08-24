@@ -43,7 +43,8 @@
       "generationProbe": "آزمون تولید",
       "scheduledEffect": "اثر زمان‌بندی‌شده",
       "mediaVerification": "بررسی رسانه",
-      "sourceImport": "دریافت منابع"
+      "sourceImport": "دریافت منابع",
+      "analysisRun": "اجرای تحلیل"
     },
     "dispatch": {
       "awaiting": "در انتظار ارسال",

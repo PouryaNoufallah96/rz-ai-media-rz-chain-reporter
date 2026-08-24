@@ -29,6 +29,7 @@ import {
 import type { OperationSummary } from "../schemas/operation-summary";
 
 const KIND_KEYS = {
+  "analysis-run": "kind.analysisRun",
   "generation-probe": "kind.generationProbe",
   "media-verification": "kind.mediaVerification",
   other: "kind.operation",
@@ -371,7 +372,7 @@ function stateTone(state: PanelState) {
     return "text-destructive text-sm";
   }
   if (state === "succeeded") {
-    return "text-proof text-sm";
+    return "text-proof-text text-sm";
   }
   if (["running", "retrying", "unknown"].includes(state)) {
     return "text-working text-sm";

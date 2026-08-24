@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  ANALYSIS_RUN_COMMAND_PREFIX,
   GENERATION_PROBE_COMMAND_PREFIX,
   MEDIA_UPLOAD_CONFIRMED_EVENT_NAME,
   SCHEDULED_EFFECT_PROBE_COMMAND_PREFIX,
@@ -60,6 +61,7 @@ export const OPERATION_COMMAND_KINDS = [
   "scheduled-effect-probe",
   "media-verification",
   "source-import",
+  "analysis-run",
   "other",
 ] as const;
 
@@ -76,6 +78,9 @@ export function operationCommandKind(
   }
   if (commandType.startsWith(SOURCE_IMPORT_COMMAND_PREFIX)) {
     return "source-import";
+  }
+  if (commandType.startsWith(ANALYSIS_RUN_COMMAND_PREFIX)) {
+    return "analysis-run";
   }
   if (commandType === MEDIA_UPLOAD_CONFIRMED_EVENT_NAME) {
     return "media-verification";

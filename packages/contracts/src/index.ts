@@ -1,4 +1,5 @@
 export * from "./cache";
+export * from "./editorial";
 export * from "./error";
 export * from "./events";
 export * from "./list";
