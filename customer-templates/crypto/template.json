@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "customer": {
     "key": "crypto",
     "productName": "RZ ChainReporter",
@@ -29,6 +29,387 @@
           "backend": "remote",
           "model": "openai/gpt-4.1-mini"
         }
+      },
+      "editorial-selection:gpt": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini"
+      },
+      "promo-ideas:gpt": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini"
+      },
+      "editorial-selection:gemini": {
+        "backend": "remote",
+        "model": "google/gemini-2.5-flash"
+      },
+      "promo-ideas:gemini": {
+        "backend": "remote",
+        "model": "google/gemini-2.5-flash"
+      },
+      "editorial-selection:claude": {
+        "backend": "remote",
+        "model": "anthropic/claude-sonnet-4.5"
+      },
+      "promo-ideas:claude": {
+        "backend": "remote",
+        "model": "anthropic/claude-sonnet-4.5"
+      },
+      "editorial-selection:deepseek": {
+        "backend": "remote",
+        "model": "deepseek/deepseek-chat"
+      },
+      "promo-ideas:deepseek": {
+        "backend": "remote",
+        "model": "deepseek/deepseek-chat"
+      }
+    }
+  },
+  "editorial": {
+    "models": [
+      {
+        "key": "gpt",
+        "name": "GPT"
+      },
+      {
+        "key": "gemini",
+        "name": "Gemini"
+      },
+      {
+        "key": "claude",
+        "name": "Claude"
+      },
+      {
+        "key": "deepseek",
+        "name": "DeepSeek"
+      }
+    ],
+    "platforms": [
+      "telegram",
+      "x"
+    ],
+    "defaults": {
+      "brands": [
+        "rz-prime",
+        "coin-hall",
+        "chain-reporter",
+        "meta-coin-guard"
+      ],
+      "models": [
+        "gpt"
+      ],
+      "platforms": [
+        "telegram",
+        "x"
+      ],
+      "windowHours": 24,
+      "enrichment": true
+    },
+    "shortlistCap": 20,
+    "selectionCap": 20,
+    "importReuseMinutes": 30,
+    "fanOut": {
+      "maxUnits": 16,
+      "unitConcurrency": 4
+    },
+    "promo": {
+      "ideaCount": 4,
+      "promptMaxChars": 1200
+    },
+    "semantic": {
+      "maxCandidates": 350,
+      "maxTopics": 10,
+      "maxAnchorsPerBrand": 8,
+      "maxChars": 500,
+      "dedupThreshold": 0.92,
+      "brandWeight": 0.15,
+      "topicWeight": 0.15
+    },
+    "policy": {
+      "weights": {
+        "withTopics": {
+          "mediaFit": 0.20,
+          "lexicalTopic": 0.50,
+          "virality": 0.10,
+          "freshness": 0.08,
+          "authority": 0.05,
+          "sourcePreference": 0.035,
+          "diversity": 0.035
+        },
+        "withoutTopics": {
+          "mediaFit": 0.43,
+          "virality": 0.24,
+          "freshness": 0.16,
+          "authority": 0.09,
+          "sourcePreference": 0.04,
+          "diversity": 0.04
+        }
+      },
+      "thresholds": {
+        "policyScore": 18
+      },
+      "freshnessLadder": [
+        {
+          "maxAgeHours": 1,
+          "score": 100
+        },
+        {
+          "maxAgeHours": 2,
+          "score": 95
+        },
+        {
+          "maxAgeHours": 4,
+          "score": 88
+        },
+        {
+          "maxAgeHours": 6,
+          "score": 80
+        },
+        {
+          "maxAgeHours": 12,
+          "score": 68
+        },
+        {
+          "maxAgeHours": 24,
+          "score": 50
+        },
+        {
+          "maxAgeHours": 36,
+          "score": 32
+        },
+        {
+          "maxAgeHours": 48,
+          "score": 20
+        },
+        {
+          "maxAgeHours": 8760,
+          "score": 8
+        }
+      ],
+      "futureDateNeutralScore": 50,
+      "virality": {
+        "powerTerms": [
+          {
+            "term": "breaking",
+            "weight": 20
+          },
+          {
+            "term": "urgent",
+            "weight": 18
+          },
+          {
+            "term": "alert",
+            "weight": 16
+          },
+          {
+            "term": "crash",
+            "weight": 22
+          },
+          {
+            "term": "surges",
+            "weight": 18
+          },
+          {
+            "term": "explodes",
+            "weight": 20
+          },
+          {
+            "term": "collapses",
+            "weight": 22
+          },
+          {
+            "term": "massive",
+            "weight": 15
+          },
+          {
+            "term": "historic",
+            "weight": 18
+          },
+          {
+            "term": "record",
+            "weight": 14
+          },
+          {
+            "term": "first ever",
+            "weight": 18
+          },
+          {
+            "term": "all-time high",
+            "weight": 22
+          },
+          {
+            "term": "ath",
+            "weight": 16
+          },
+          {
+            "term": "all-time low",
+            "weight": 22
+          },
+          {
+            "term": "atl",
+            "weight": 16
+          },
+          {
+            "term": "billions",
+            "weight": 14
+          },
+          {
+            "term": "trillion",
+            "weight": 18
+          },
+          {
+            "term": "emergency",
+            "weight": 20
+          },
+          {
+            "term": "warning",
+            "weight": 16
+          },
+          {
+            "term": "critical",
+            "weight": 15
+          },
+          {
+            "term": "catastrophic",
+            "weight": 20
+          },
+          {
+            "term": "shocking",
+            "weight": 16
+          },
+          {
+            "term": "unprecedented",
+            "weight": 18
+          },
+          {
+            "term": "exclusive",
+            "weight": 12
+          },
+          {
+            "term": "leaked",
+            "weight": 18
+          },
+          {
+            "term": "confirmed",
+            "weight": 12
+          },
+          {
+            "term": "just in",
+            "weight": 18
+          },
+          {
+            "term": "developing",
+            "weight": 14
+          },
+          {
+            "term": "soars",
+            "weight": 16
+          },
+          {
+            "term": "plunges",
+            "weight": 16
+          },
+          {
+            "term": "free fall",
+            "weight": 18
+          },
+          {
+            "term": "skyrockets",
+            "weight": 18
+          },
+          {
+            "term": "rallies",
+            "weight": 14
+          },
+          {
+            "term": "dumps",
+            "weight": 16
+          },
+          {
+            "term": "major",
+            "weight": 10
+          }
+        ],
+        "entityTerms": [
+          {
+            "term": "bitcoin",
+            "weight": 15
+          },
+          {
+            "term": "blackrock",
+            "weight": 14
+          },
+          {
+            "term": "sec",
+            "weight": 14
+          },
+          {
+            "term": "trump",
+            "weight": 16
+          },
+          {
+            "term": "binance",
+            "weight": 12
+          },
+          {
+            "term": "coinbase",
+            "weight": 10
+          },
+          {
+            "term": "federal reserve",
+            "weight": 12
+          },
+          {
+            "term": "elon musk",
+            "weight": 16
+          },
+          {
+            "term": "michael saylor",
+            "weight": 12
+          },
+          {
+            "term": "vitalik",
+            "weight": 10
+          },
+          {
+            "term": "satoshi",
+            "weight": 12
+          },
+          {
+            "term": "imf",
+            "weight": 10
+          },
+          {
+            "term": "fed",
+            "weight": 10
+          }
+        ],
+        "titleMultiplier": 1.5,
+        "bodyMultiplier": 0.4,
+        "numericSignalWeights": {
+          "number": 6,
+          "percentage": 12,
+          "currencyAmount": 10,
+          "magnitudeAmount": 14
+        }
+      },
+      "unknownSourceAuthority": 50,
+      "sourceAuthority": {
+        "the-block-rss": 92,
+        "coindesk-rss": 90,
+        "cointelegraph-rss": 88,
+        "blockworks-rss": 86,
+        "decrypt-rss": 84,
+        "bitcoin-magazine-rss": 82,
+        "chainalysis-blog-rss": 82,
+        "the-defiant-rss": 80,
+        "beincrypto-rss": 74,
+        "dl-news-rss": 74,
+        "crypto-news-rss": 70,
+        "cryptoslate-rss": 72,
+        "cryptopotato-rss": 66,
+        "newsbtc-rss": 64,
+        "u-today-rss": 60,
+        "ambcrypto-rss": 52
       }
     }
   },
@@ -37,24 +418,1285 @@
       "key": "rz-prime",
       "name": "RZ Prime",
       "brandBible": "brand-bibles/rz-prime.md",
-      "imageProfile": "image-profiles/rz-prime.json"
+      "imageProfile": "image-profiles/rz-prime.json",
+      "editorial": {
+        "mediaFitThreshold": 10,
+        "strongTerms": [
+          {
+            "term": "bnb chain",
+            "weight": 25
+          },
+          {
+            "term": "binance smart chain",
+            "weight": 20
+          },
+          {
+            "term": "presale",
+            "weight": 22
+          },
+          {
+            "term": "pre-sale",
+            "weight": 22
+          },
+          {
+            "term": "non-custodial",
+            "weight": 22
+          },
+          {
+            "term": "no kyc",
+            "weight": 20
+          },
+          {
+            "term": "token launch",
+            "weight": 20
+          },
+          {
+            "term": "token sale",
+            "weight": 20
+          },
+          {
+            "term": "reservation",
+            "weight": 20
+          },
+          {
+            "term": "token reservation",
+            "weight": 22
+          },
+          {
+            "term": "private sale",
+            "weight": 16
+          },
+          {
+            "term": "public sale",
+            "weight": 16
+          },
+          {
+            "term": "bep20",
+            "weight": 16
+          },
+          {
+            "term": "bep-20",
+            "weight": 16
+          },
+          {
+            "term": "token access",
+            "weight": 18
+          },
+          {
+            "term": "token distribution",
+            "weight": 18
+          },
+          {
+            "term": "launchpad",
+            "weight": 18
+          },
+          {
+            "term": "ido",
+            "weight": 18
+          },
+          {
+            "term": "decentralized access",
+            "weight": 15
+          },
+          {
+            "term": "ico",
+            "weight": 15
+          },
+          {
+            "term": "ieo",
+            "weight": 15
+          },
+          {
+            "term": "allocation",
+            "weight": 15
+          },
+          {
+            "term": "tokenomics",
+            "weight": 14
+          },
+          {
+            "term": "pancakeswap",
+            "weight": 14
+          },
+          {
+            "term": "bnb",
+            "weight": 15
+          },
+          {
+            "term": "bsc",
+            "weight": 15
+          },
+          {
+            "term": "seed round",
+            "weight": 12
+          },
+          {
+            "term": "smart contract",
+            "weight": 12
+          },
+          {
+            "term": "on-chain",
+            "weight": 12
+          },
+          {
+            "term": "onchain",
+            "weight": 12
+          },
+          {
+            "term": "vesting",
+            "weight": 12
+          },
+          {
+            "term": "liquidity pool",
+            "weight": 10
+          },
+          {
+            "term": "kyc",
+            "weight": 10
+          },
+          {
+            "term": "staking",
+            "weight": 8
+          },
+          {
+            "term": "defi",
+            "weight": 8
+          },
+          {
+            "term": "wallet",
+            "weight": 8
+          },
+          {
+            "term": "fair launch",
+            "weight": 20
+          },
+          {
+            "term": "token generation event",
+            "weight": 20
+          },
+          {
+            "term": "tge",
+            "weight": 20
+          },
+          {
+            "term": "whitelist",
+            "weight": 18
+          },
+          {
+            "term": "soft cap",
+            "weight": 14
+          },
+          {
+            "term": "hard cap",
+            "weight": 14
+          },
+          {
+            "term": "raise",
+            "weight": 12
+          },
+          {
+            "term": "fundraise",
+            "weight": 14
+          },
+          {
+            "term": "early access",
+            "weight": 16
+          },
+          {
+            "term": "rz prime",
+            "weight": 25
+          },
+          {
+            "term": "presales",
+            "weight": 20
+          },
+          {
+            "term": "self-custody",
+            "weight": 14
+          },
+          {
+            "term": "wallet-based",
+            "weight": 14
+          },
+          {
+            "term": "custody",
+            "weight": 12
+          },
+          {
+            "term": "stablecoin",
+            "weight": 12
+          },
+          {
+            "term": "tokenization",
+            "weight": 12
+          },
+          {
+            "term": "rwa",
+            "weight": 12
+          },
+          {
+            "term": "rzusd",
+            "weight": 18
+          },
+          {
+            "term": "audit",
+            "weight": 10
+          },
+          {
+            "term": "audited",
+            "weight": 10
+          },
+          {
+            "term": "regulation",
+            "weight": 10
+          },
+          {
+            "term": "dapp",
+            "weight": 10
+          },
+          {
+            "term": "bridge",
+            "weight": 8
+          }
+        ],
+        "weakTerms": [
+          {
+            "term": "luxury",
+            "weight": -10
+          },
+          {
+            "term": "lifestyle",
+            "weight": -10
+          },
+          {
+            "term": "gaming",
+            "weight": -8
+          },
+          {
+            "term": "watch",
+            "weight": -8
+          },
+          {
+            "term": "car",
+            "weight": -8
+          },
+          {
+            "term": "exploit",
+            "weight": -5
+          },
+          {
+            "term": "hack",
+            "weight": -5
+          },
+          {
+            "term": "rug pull",
+            "weight": -5
+          },
+          {
+            "term": "auction",
+            "weight": -8
+          },
+          {
+            "term": "jewelry",
+            "weight": -8
+          },
+          {
+            "term": "real estate",
+            "weight": -6
+          }
+        ],
+        "aliases": [
+          {
+            "canonical": "non-custodial",
+            "surfaces": ["noncustodial", "non custodial"]
+          },
+          {
+            "canonical": "self-custody",
+            "surfaces": ["self custody"]
+          },
+          {
+            "canonical": "wallet-based",
+            "surfaces": ["wallet based"]
+          },
+          {
+            "canonical": "rzusd",
+            "surfaces": ["rz usd", "rz-usd"]
+          },
+          {
+            "canonical": "rwa",
+            "surfaces": [
+              "real world asset",
+              "real-world asset",
+              "real world assets"
+            ]
+          }
+        ],
+        "phrases": [
+          {
+            "phrase": "wallet-based access",
+            "weight": 14
+          },
+          {
+            "phrase": "smart contract audit",
+            "weight": 12
+          }
+        ],
+        "preferredSourceKeys": [
+          "beincrypto-rss",
+          "crypto-news-rss",
+          "cryptopotato-rss",
+          "newsbtc-rss",
+          "u-today-rss"
+        ],
+        "semanticAnchors": [
+          "token reservation and presale",
+          "BNB Chain",
+          "self-custody and non-custodial wallets",
+          "wallet-based access without KYC",
+          "stablecoin and RZUSD",
+          "smart contract audit",
+          "tokenization and RWA",
+          "launchpad and IDO"
+        ],
+        "promoEnabled": true
+      }
     },
     {
       "key": "coin-hall",
       "name": "Coin Hall",
       "brandBible": "brand-bibles/coin-hall.md",
-      "imageProfile": "image-profiles/coin-hall.json"
+      "imageProfile": "image-profiles/coin-hall.json",
+      "editorial": {
+        "mediaFitThreshold": 22,
+        "strongTerms": [
+          {
+            "term": "prediction market",
+            "weight": 25
+          },
+          {
+            "term": "prediction",
+            "weight": 25
+          },
+          {
+            "term": "forecast",
+            "weight": 22
+          },
+          {
+            "term": "price target",
+            "weight": 22
+          },
+          {
+            "term": "oracle",
+            "weight": 20
+          },
+          {
+            "term": "polymarket",
+            "weight": 22
+          },
+          {
+            "term": "predict",
+            "weight": 22
+          },
+          {
+            "term": "price prediction",
+            "weight": 22
+          },
+          {
+            "term": "value prediction",
+            "weight": 22
+          },
+          {
+            "term": "settlement",
+            "weight": 18
+          },
+          {
+            "term": "chainlink",
+            "weight": 18
+          },
+          {
+            "term": "pyth",
+            "weight": 18
+          },
+          {
+            "term": "price feed",
+            "weight": 18
+          },
+          {
+            "term": "analyst",
+            "weight": 15
+          },
+          {
+            "term": "betting odds",
+            "weight": 18
+          },
+          {
+            "term": "probability",
+            "weight": 16
+          },
+          {
+            "term": "token launch",
+            "weight": 22
+          },
+          {
+            "term": "rally",
+            "weight": 18
+          },
+          {
+            "term": "surge",
+            "weight": 18
+          },
+          {
+            "term": "halving",
+            "weight": 20
+          },
+          {
+            "term": "dappradar",
+            "weight": 20
+          },
+          {
+            "term": "unlock",
+            "weight": 18
+          },
+          {
+            "term": "listing",
+            "weight": 18
+          },
+          {
+            "term": "mint",
+            "weight": 18
+          },
+          {
+            "term": "dapp",
+            "weight": 18
+          },
+          {
+            "term": "market cap",
+            "weight": 16
+          },
+          {
+            "term": "all-time high",
+            "weight": 18
+          },
+          {
+            "term": "ath",
+            "weight": 16
+          },
+          {
+            "term": "breakout",
+            "weight": 16
+          },
+          {
+            "term": "tvl",
+            "weight": 16
+          },
+          {
+            "term": "total value locked",
+            "weight": 16
+          },
+          {
+            "term": "auction",
+            "weight": 22
+          },
+          {
+            "term": "record sale",
+            "weight": 22
+          },
+          {
+            "term": "rolex",
+            "weight": 20
+          },
+          {
+            "term": "collectible",
+            "weight": 20
+          },
+          {
+            "term": "nft marketplace",
+            "weight": 18
+          },
+          {
+            "term": "nft",
+            "weight": 18
+          },
+          {
+            "term": "rare",
+            "weight": 18
+          },
+          {
+            "term": "ferrari",
+            "weight": 22
+          },
+          {
+            "term": "tokenized vehicle",
+            "weight": 22
+          },
+          {
+            "term": "porsche",
+            "weight": 20
+          },
+          {
+            "term": "lamborghini",
+            "weight": 20
+          },
+          {
+            "term": "luxury travel",
+            "weight": 22
+          },
+          {
+            "term": "vip",
+            "weight": 20
+          },
+          {
+            "term": "travel",
+            "weight": 18
+          },
+          {
+            "term": "yacht",
+            "weight": 18
+          },
+          {
+            "term": "resort",
+            "weight": 16
+          },
+          {
+            "term": "tokenized property",
+            "weight": 25
+          },
+          {
+            "term": "tokenized real estate",
+            "weight": 25
+          },
+          {
+            "term": "rwa",
+            "weight": 22
+          },
+          {
+            "term": "real-world asset",
+            "weight": 22
+          },
+          {
+            "term": "real estate",
+            "weight": 22
+          },
+          {
+            "term": "fractional ownership",
+            "weight": 20
+          },
+          {
+            "term": "play-to-earn",
+            "weight": 20
+          },
+          {
+            "term": "play to earn",
+            "weight": 20
+          },
+          {
+            "term": "gamefi",
+            "weight": 20
+          },
+          {
+            "term": "gaming",
+            "weight": 18
+          },
+          {
+            "term": "web3 gaming",
+            "weight": 22
+          },
+          {
+            "term": "blockchain game",
+            "weight": 20
+          }
+        ],
+        "weakTerms": [
+          {
+            "term": "sanctions",
+            "weight": -12
+          },
+          {
+            "term": "rug pull",
+            "weight": -12
+          },
+          {
+            "term": "exploit",
+            "weight": -10
+          },
+          {
+            "term": "phishing",
+            "weight": -10
+          },
+          {
+            "term": "malware",
+            "weight": -10
+          },
+          {
+            "term": "compliance",
+            "weight": -8
+          },
+          {
+            "term": "kyc",
+            "weight": -8
+          },
+          {
+            "term": "hack",
+            "weight": -10
+          },
+          {
+            "term": "breach",
+            "weight": -10
+          },
+          {
+            "term": "lawsuit",
+            "weight": -6
+          },
+          {
+            "term": "indicted",
+            "weight": -8
+          },
+          {
+            "term": "ponzi",
+            "weight": -10
+          },
+          {
+            "term": "drainer",
+            "weight": -10
+          }
+        ],
+        "aliases": [],
+        "phrases": [],
+        "preferredSourceKeys": [
+          "decrypt-rss",
+          "cointelegraph-rss",
+          "coindesk-rss",
+          "beincrypto-rss",
+          "the-block-rss"
+        ],
+        "semanticAnchors": [
+          "prediction market",
+          "luxury prize",
+          "oracle-confirmed outcome",
+          "blockchain entertainment",
+          "NFT auction",
+          "Sotheby's",
+          "Rolex",
+          "Ferrari"
+        ],
+        "promoEnabled": true,
+        "valueGate": {
+          "signalKinds": [
+            "number",
+            "percentage",
+            "currency_amount"
+          ],
+          "forecastTerms": [
+            "price",
+            "forecast",
+            "predict",
+            "target",
+            "value",
+            "cost",
+            "worth",
+            "revenue",
+            "volume",
+            "tvl",
+            "market cap"
+          ]
+        }
+      }
     },
     {
       "key": "chain-reporter",
       "name": "ChainReporter",
-      "imageProfile": "image-profiles/chain-reporter.json"
+      "imageProfile": "image-profiles/chain-reporter.json",
+      "editorial": {
+        "mediaFitThreshold": 18,
+        "strongTerms": [
+          {
+            "term": "bitcoin etf",
+            "weight": 32
+          },
+          {
+            "term": "etf approval",
+            "weight": 30
+          },
+          {
+            "term": "bitcoin",
+            "weight": 28
+          },
+          {
+            "term": "spot etf",
+            "weight": 28
+          },
+          {
+            "term": "spot bitcoin",
+            "weight": 25
+          },
+          {
+            "term": "ethereum",
+            "weight": 24
+          },
+          {
+            "term": "sec",
+            "weight": 24
+          },
+          {
+            "term": "trump",
+            "weight": 22
+          },
+          {
+            "term": "blackrock",
+            "weight": 22
+          },
+          {
+            "term": "halving",
+            "weight": 22
+          },
+          {
+            "term": "btc",
+            "weight": 22
+          },
+          {
+            "term": "eth",
+            "weight": 20
+          },
+          {
+            "term": "regulation",
+            "weight": 20
+          },
+          {
+            "term": "institutional",
+            "weight": 20
+          },
+          {
+            "term": "cftc",
+            "weight": 18
+          },
+          {
+            "term": "fidelity",
+            "weight": 18
+          },
+          {
+            "term": "bankruptcy",
+            "weight": 18
+          },
+          {
+            "term": "indicted",
+            "weight": 18
+          },
+          {
+            "term": "grayscale",
+            "weight": 16
+          },
+          {
+            "term": "regulated",
+            "weight": 16
+          },
+          {
+            "term": "liquidation",
+            "weight": 18
+          },
+          {
+            "term": "mica",
+            "weight": 16
+          },
+          {
+            "term": "binance",
+            "weight": 16
+          },
+          {
+            "term": "lawsuit",
+            "weight": 16
+          },
+          {
+            "term": "xrp",
+            "weight": 14
+          },
+          {
+            "term": "ripple",
+            "weight": 14
+          },
+          {
+            "term": "solana",
+            "weight": 14
+          },
+          {
+            "term": "whale",
+            "weight": 14
+          },
+          {
+            "term": "stablecoin",
+            "weight": 15
+          },
+          {
+            "term": "layoff",
+            "weight": 15
+          },
+          {
+            "term": "coinbase",
+            "weight": 15
+          },
+          {
+            "term": "federal reserve",
+            "weight": 15
+          },
+          {
+            "term": "fed",
+            "weight": 15
+          },
+          {
+            "term": "macro",
+            "weight": 14
+          },
+          {
+            "term": "inflation",
+            "weight": 14
+          },
+          {
+            "term": "altseason",
+            "weight": 12
+          },
+          {
+            "term": "altcoin",
+            "weight": 12
+          },
+          {
+            "term": "usdt",
+            "weight": 12
+          },
+          {
+            "term": "usdc",
+            "weight": 12
+          },
+          {
+            "term": "policy",
+            "weight": 12
+          },
+          {
+            "term": "treasury",
+            "weight": 12
+          },
+          {
+            "term": "defi",
+            "weight": 10
+          },
+          {
+            "term": "spot ethereum etf",
+            "weight": 28
+          },
+          {
+            "term": "etf inflows",
+            "weight": 22
+          },
+          {
+            "term": "etf outflows",
+            "weight": 22
+          },
+          {
+            "term": "ibit",
+            "weight": 22
+          },
+          {
+            "term": "institutional adoption",
+            "weight": 20
+          },
+          {
+            "term": "microstrategy",
+            "weight": 18
+          },
+          {
+            "term": "goldman sachs",
+            "weight": 18
+          },
+          {
+            "term": "jpmorgan",
+            "weight": 18
+          },
+          {
+            "term": "sec approval",
+            "weight": 24
+          },
+          {
+            "term": "crypto regulation",
+            "weight": 20
+          },
+          {
+            "term": "stablecoin bill",
+            "weight": 20
+          },
+          {
+            "term": "rate cut",
+            "weight": 16
+          },
+          {
+            "term": "rate hike",
+            "weight": 16
+          },
+          {
+            "term": "fomc",
+            "weight": 16
+          },
+          {
+            "term": "market crash",
+            "weight": 18
+          },
+          {
+            "term": "all-time high",
+            "weight": 18
+          },
+          {
+            "term": "bitcoin reserve",
+            "weight": 20
+          },
+          {
+            "term": "strategic reserve",
+            "weight": 20
+          },
+          {
+            "term": "cbdc",
+            "weight": 16
+          },
+          {
+            "term": "digital dollar",
+            "weight": 16
+          }
+        ],
+        "weakTerms": [
+          {
+            "term": "presale",
+            "weight": -3
+          },
+          {
+            "term": "token reservation",
+            "weight": -5
+          },
+          {
+            "term": "gaming culture",
+            "weight": -5
+          },
+          {
+            "term": "play-to-earn",
+            "weight": -5
+          },
+          {
+            "term": "nft art",
+            "weight": -4
+          },
+          {
+            "term": "metaverse land",
+            "weight": -5
+          },
+          {
+            "term": "watch auction",
+            "weight": -6
+          },
+          {
+            "term": "jewelry",
+            "weight": -6
+          },
+          {
+            "term": "yacht",
+            "weight": -5
+          },
+          {
+            "term": "rug pull",
+            "weight": -3
+          }
+        ],
+        "aliases": [],
+        "phrases": [],
+        "preferredSourceKeys": [
+          "coindesk-rss",
+          "cointelegraph-rss",
+          "the-block-rss",
+          "blockworks-rss",
+          "bitcoin-magazine-rss"
+        ],
+        "semanticAnchors": [
+          "Bitcoin ETF approval",
+          "Ethereum SEC regulation",
+          "institutional crypto investment",
+          "BlackRock Bitcoin fund",
+          "stablecoin",
+          "Federal Reserve rate decision",
+          "crypto regulation policy",
+          "altcoin market"
+        ],
+        "promoEnabled": true
+      }
     },
     {
       "key": "meta-coin-guard",
       "name": "Meta Coin Guard",
       "brandBible": "brand-bibles/meta-coin-guard.md",
-      "imageProfile": "image-profiles/meta-coin-guard.json"
+      "imageProfile": "image-profiles/meta-coin-guard.json",
+      "editorial": {
+        "mediaFitThreshold": 22,
+        "strongTerms": [
+          {
+            "term": "exploit",
+            "weight": 32
+          },
+          {
+            "term": "exploited",
+            "weight": 32
+          },
+          {
+            "term": "hack",
+            "weight": 30
+          },
+          {
+            "term": "hacked",
+            "weight": 30
+          },
+          {
+            "term": "wallet drainer",
+            "weight": 28
+          },
+          {
+            "term": "rug pull",
+            "weight": 28
+          },
+          {
+            "term": "flash loan attack",
+            "weight": 28
+          },
+          {
+            "term": "defi attack",
+            "weight": 28
+          },
+          {
+            "term": "breach",
+            "weight": 25
+          },
+          {
+            "term": "oracle manipulation",
+            "weight": 25
+          },
+          {
+            "term": "exit scam",
+            "weight": 24
+          },
+          {
+            "term": "phishing",
+            "weight": 24
+          },
+          {
+            "term": "vulnerability",
+            "weight": 25
+          },
+          {
+            "term": "scam",
+            "weight": 22
+          },
+          {
+            "term": "stolen",
+            "weight": 22
+          },
+          {
+            "term": "malware",
+            "weight": 22
+          },
+          {
+            "term": "withdrawal halt",
+            "weight": 22
+          },
+          {
+            "term": "funds frozen",
+            "weight": 22
+          },
+          {
+            "term": "insolvency",
+            "weight": 20
+          },
+          {
+            "term": "insolvent",
+            "weight": 20
+          },
+          {
+            "term": "theft",
+            "weight": 20
+          },
+          {
+            "term": "ofac",
+            "weight": 20
+          },
+          {
+            "term": "ponzi",
+            "weight": 20
+          },
+          {
+            "term": "audit",
+            "weight": 22
+          },
+          {
+            "term": "sanctions",
+            "weight": 20
+          },
+          {
+            "term": "aml",
+            "weight": 18
+          },
+          {
+            "term": "seed phrase",
+            "weight": 18
+          },
+          {
+            "term": "non-custodial",
+            "weight": 18
+          },
+          {
+            "term": "frozen",
+            "weight": 18
+          },
+          {
+            "term": "wallet monitoring",
+            "weight": 18
+          },
+          {
+            "term": "flash loan",
+            "weight": 20
+          },
+          {
+            "term": "attack",
+            "weight": 18
+          },
+          {
+            "term": "private key",
+            "weight": 16
+          },
+          {
+            "term": "social engineering",
+            "weight": 16
+          },
+          {
+            "term": "cold wallet",
+            "weight": 14
+          },
+          {
+            "term": "hardware wallet",
+            "weight": 14
+          },
+          {
+            "term": "security",
+            "weight": 18
+          },
+          {
+            "term": "blacklisted",
+            "weight": 15
+          },
+          {
+            "term": "drainer",
+            "weight": 26
+          },
+          {
+            "term": "reentrancy",
+            "weight": 24
+          },
+          {
+            "term": "bridge exploit",
+            "weight": 26
+          },
+          {
+            "term": "bridge hack",
+            "weight": 26
+          },
+          {
+            "term": "address poisoning",
+            "weight": 22
+          },
+          {
+            "term": "sim swap",
+            "weight": 22
+          },
+          {
+            "term": "zachxbt",
+            "weight": 20
+          },
+          {
+            "term": "peckshield",
+            "weight": 20
+          },
+          {
+            "term": "certik",
+            "weight": 18
+          },
+          {
+            "term": "exploiter",
+            "weight": 22
+          },
+          {
+            "term": "stolen funds",
+            "weight": 24
+          },
+          {
+            "term": "loss of funds",
+            "weight": 20
+          },
+          {
+            "term": "security audit",
+            "weight": 20
+          }
+        ],
+        "weakTerms": [
+          {
+            "term": "luxury",
+            "weight": -12
+          },
+          {
+            "term": "lifestyle",
+            "weight": -12
+          },
+          {
+            "term": "lambo",
+            "weight": -15
+          },
+          {
+            "term": "token hype",
+            "weight": -10
+          },
+          {
+            "term": "gaming",
+            "weight": -8
+          },
+          {
+            "term": "presale",
+            "weight": -5
+          },
+          {
+            "term": "auction",
+            "weight": -12
+          },
+          {
+            "term": "jewelry",
+            "weight": -12
+          },
+          {
+            "term": "watch",
+            "weight": -10
+          },
+          {
+            "term": "prediction market",
+            "weight": -8
+          }
+        ],
+        "aliases": [],
+        "phrases": [],
+        "preferredSourceKeys": [
+          "the-block-rss",
+          "blockworks-rss",
+          "the-defiant-rss",
+          "coindesk-rss"
+        ],
+        "semanticAnchors": [
+          "crypto security",
+          "DeFi exploit",
+          "protocol hack",
+          "wallet drainer",
+          "rug pull",
+          "smart contract vulnerability",
+          "phishing attack",
+          "flash loan attack"
+        ],
+        "promoEnabled": true
+      }
     }
   ],
   "sources": [
