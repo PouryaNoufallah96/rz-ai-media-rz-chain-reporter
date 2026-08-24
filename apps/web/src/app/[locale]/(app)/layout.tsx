@@ -21,7 +21,11 @@ export default function AppLayout({
           />
         }
       >
-        {(banner) => <p className="text-muted-foreground text-sm">{banner}</p>}
+        {(banner) => (
+          <aside>
+            <p className="text-muted-foreground text-sm">{banner}</p>
+          </aside>
+        )}
       </Suspended>
       {children}
     </div>

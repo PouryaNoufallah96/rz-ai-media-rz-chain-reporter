@@ -1,0 +1,471 @@
+{
+  "editorial": {
+    "title": "میز تحریریه",
+    "caption": {
+      "latestRun": "آخرین اجرا {time}"
+    },
+    "run": {
+      "title": "اجرا",
+      "head": {
+        "title": "این اجرا"
+      },
+      "kind": {
+        "label": "نوع اجرا",
+        "news": "خبری",
+        "promo": "تبلیغی"
+      },
+      "brands": "برندهای رسانه‌ای",
+      "models": "مدل‌های تحریریه",
+      "platforms": "پلتفرم‌ها",
+      "platform": {
+        "x": "ایکس",
+        "telegram": "تلگرام",
+        "instagram": "اینستاگرام"
+      },
+      "sources": {
+        "label": "منابع",
+        "kind": {
+          "rss": "آر‌اس‌اس / اتم",
+          "telegram_public": "تلگرام"
+        },
+        "selected": "{n, number} از {m, number} انتخاب شده",
+        "selectAll": "همه",
+        "selectNone": "هیچ‌کدام"
+      },
+      "recency": {
+        "label": "بازهٔ زمانی",
+        "6": "۶ ساعت",
+        "12": "۱۲ ساعت",
+        "24": "۲۴ ساعت",
+        "48": "۴۸ ساعت"
+      },
+      "enrichment": "دریافت متن کامل مقاله",
+      "topics": {
+        "label": "موضوع‌ها",
+        "hint": "برای ثبت یک موضوع، Enter را بزنید یا «افزودن» را انتخاب کنید. موضوع‌های سردبیر از واژگان برند در قالب مشتری جداست.",
+        "add": "افزودن",
+        "clear": "پاک کردن موضوع‌ها",
+        "cleared": "موضوع‌ها پاک شد.",
+        "none": "بدون موضوع — وزن‌دهی «بدون موضوع» قالب اعمال می‌شود.",
+        "recent": "موضوع‌های اخیر",
+        "recentHint": "برای افزودن، روی یک موضوع بزنید. پیشنهادها هرگز خودبه‌خود در کادر نوشته نمی‌شوند.",
+        "remove": "حذف موضوع {topic}"
+      },
+      "topN": "تعداد برتر",
+      "topNHint": "نتایج رتبه‌بندی‌شدهٔ نهایی این اجرا، حداکثر {max, number}. تلگرام همین تعداد را پس از رتبه‌بندی نگه می‌دارد؛ هوش مصنوعی RSS همین تعداد را از فهرست کوتاه انتخاب می‌کند.",
+      "telegram": {
+        "ordering": {
+          "label": "ترتیب تلگرام",
+          "views": "پربازدیدترین",
+          "latest": "تازه‌ترین",
+          "views_per_source": "پربازدیدترین در هر کانال",
+          "latest_per_source": "تازه‌ترین در هر کانال",
+          "keywords": "تطبیق کلیدواژه"
+        },
+        "only": "فقط تلگرام"
+      },
+      "telegramOnly": {
+        "preserved": "مدل‌های تحریریه نگه داشته شد.",
+        "restored": "مدل‌های تحریریه بازگردانده شد.",
+        "restoredWithDrops": "مدل‌های تحریریه بازگردانده شد. {n, number} مورد دیگر در دسترس نیست."
+      },
+      "promo": {
+        "prompt": "دستور برای {brand}",
+        "noEligibleBrand": "در این قالب هیچ برندی برای اجرای تبلیغی فعال نیست."
+      },
+      "start": "شروع اجرا",
+      "starting": "در حال شروع…",
+      "cancel": "لغو اجرا",
+      "cancelConfirm": {
+        "title": "این اجرا لغو شود؟",
+        "body": "خروجی واحدهایی که پیش‌تر تمام شده‌اند باقی می‌ماند. واحدهای در حال اجرا به‌محض رسیدن درخواست لغو متوقف می‌شوند.",
+        "confirm": "لغو اجرا",
+        "dismiss": "ادامهٔ اجرا",
+        "pending": "در حال لغو"
+      },
+      "cancelLate": "درخواست لغو پس از پایان کار رسید.",
+      "usePrevious": {
+        "label": "استفاده از اجرای قبلی",
+        "loaded": "اجرای قبلی بارگذاری شد.",
+        "partial": "اجرای قبلی بارگذاری شد. {n, number} گزینه دیگر در دسترس نیست.",
+        "none": "اجرای قبلیِ سازگاری وجود ندارد",
+        "from": "از اجرای {id}"
+      },
+      "selector": {
+        "label": "اجرا",
+        "latest": "آخرین اجرای شما",
+        "option": "{kind} · {id} · {actor} · {time}",
+        "viewing": "در حال مشاهدهٔ اجرای {id}.",
+        "you": "شما"
+      },
+      "templateChanged": {
+        "tag": "قالب تغییر کرده",
+        "detail": "این اجرا با قالب {was} انجام شده؛ نصب فعلی از {now} استفاده می‌کند."
+      },
+      "empty": {
+        "title": "هنوز اجرایی نیست",
+        "hint": "برای پر شدن خط‌ها، یک اجرا شروع کنید"
+      },
+      "announce": {
+        "started": "اجرا شروع شد.",
+        "finished": "اجرا تمام شد.",
+        "finishedPartial": "اجرا تمام شد. {n, number} واحد ناموفق بود.",
+        "failed": "اجرا ناموفق بود.",
+        "cancelled": "اجرا لغو شد.",
+        "cancelRequested": "درخواست لغو ثبت شد."
+      },
+      "progress": {
+        "elapsed": "زمان سپری‌شده {duration}",
+        "last": "آخرین پیشرفت {when}"
+      }
+    },
+    "provenance": {
+      "run": "اجرا {id}",
+      "template": "قالب {fingerprint}",
+      "topN": "{n, number} برتر",
+      "import": {
+        "reused": "دریافت {id} (استفادهٔ دوباره)",
+        "started": "دریافت {id} (شروع شد)"
+      },
+      "scoring": "امتیازدهی نسخهٔ {k, number}",
+      "norm": "نرمال‌سازی نسخهٔ {k, number}",
+      "projection": "تصویرسازی نسخهٔ {k, number}"
+    },
+    "state": {
+      "queued": "در صف",
+      "queuedForDispatch": "در صف ارسال",
+      "waitingForWorker": "در انتظار پردازشگر",
+      "preparing": "در حال آماده‌سازی",
+      "acquiring": "در حال دریافت منابع",
+      "filtering": "در حال فیلتر کردن",
+      "semanticStage": "مرحلهٔ معنایی",
+      "modelsRunning": "اجرای مدل‌ها {done, number} از {total, number}",
+      "settling": "در حال ثبت نتایج",
+      "cancelling": "در حال لغو",
+      "succeeded": "موفق",
+      "failed": "ناموفق",
+      "cancelled": "لغو شد",
+      "unknown": "نتیجه نامشخص",
+      "cancelRequested": "درخواست لغو ثبت شد",
+      "partial": "ناقص — {n, number} واحد ناموفق بود",
+      "noCandidates": "اجرا بدون هیچ نامزدی تمام شد.",
+      "telegramOnlyComplete": "اجرای فقط‌تلگرام — واحد تحریریه‌ای انتظار نمی‌رود",
+      "dispatchExhausted": "تلاش‌های ارسال به پایان رسید."
+    },
+    "semantic": {
+      "status": {
+        "running": "معنایی در انتظار",
+        "succeeded": "معنایی موفق",
+        "degraded": "معنایی تنزل‌یافته"
+      },
+      "reason": {
+        "call_failed": "شکست فراخوانی",
+        "dimension_mismatch": "ناسازگاری ابعاد",
+        "non_finite_value": "مقدار نامتناهی",
+        "ambiguous_outcome": "نتیجهٔ مبهم",
+        "bounds_exceeded": "عبور از حد مجاز"
+      },
+      "deterministic": "فقط نتایج قطعی",
+      "degraded": {
+        "reason": "مرحلهٔ معنایی تنزل یافت: {reason}. فقط نتایج قطعی.",
+        "unavailable": "در دسترس نیست: تکراری‌های معنایی، رتبهٔ موضوعی معنایی، رتبهٔ برند معنایی.",
+        "tag": "تنزل‌یافته"
+      },
+      "line": "{model} · {dimension, number} بُعد · {candidates, number} نامزد · {topics, number} موضوع · {anchors, number} لنگر",
+      "deterministicOrder": "ترتیب قطعی",
+      "outsideBound": {
+        "detail": "جاسازی نشد — خارج از حد نامزدهای این اجرا.",
+        "tag": "خارج از حد معنایی"
+      },
+      "participation": {
+        "included": "جاسازی‌شده",
+        "outside_bound": "خارج از حد"
+      }
+    },
+    "errors": {
+      "fanOutExceedsMaxUnits": "این انتخاب بیش از حد مجاز قالب، واحد مدل ایجاد می‌کند.",
+      "noPromoBrand": "دست‌کم یک برند تبلیغی انتخاب کنید.",
+      "promoPromptRequired": "برای {brand} یک دستور لازم است.",
+      "promoPromptTooLong": "این دستور از حد مجاز قالب بلندتر است.",
+      "tooManyTopics": "برای یک اجرا موضوع‌های زیادی انتخاب شده است.",
+      "topicTooLong": "این موضوع از حد مجاز قالب بلندتر است.",
+      "topNExceedsCap": "تعداد برتر از حد مجاز این قالب بیشتر است."
+    },
+    "a11y": {
+      "lanesUpdated": "{n, number} خط به‌روزرسانی شد."
+    },
+    "card": {
+      "close": "بستن",
+      "description": "جزئیات فقط‌خواندنی این کارت.",
+      "rank": "رتبه {n, number}"
+    },
+    "detail": {
+      "contentLocale": "زبان محتوا",
+      "disposition": "نتیجهٔ فیلتر",
+      "duplicate": "تکراری",
+      "link": "پیوند منبع",
+      "platform": "پلتفرم پیشنهادی",
+      "publishedAt": "زمان انتشار",
+      "reason": "دلیل",
+      "reasoning": "استدلال مدل",
+      "source": "منبع",
+      "summary": "پیش‌نمایش"
+    },
+    "disposition": {
+      "shortlisted": "فهرست کوتاه",
+      "telegram_lane": "خط تلگرام",
+      "no_media_fit": "بدون تناسب رسانه‌ای",
+      "low_score": "امتیاز پایین",
+      "cap_exceeded": "عبور از سقف",
+      "duplicate": "تکراری"
+    },
+    "duplicateMethod": {
+      "canonical_url": "نشانی متعارف",
+      "title": "عنوان",
+      "semantic": "معنایی"
+    },
+    "reason": {
+      "missing_required_value_signal": "نشانهٔ ارزشی لازم موجود نیست",
+      "below_media_fit_threshold": "زیر آستانهٔ تناسب رسانه‌ای"
+    },
+    "lane": {
+      "announce": {
+        "arrived": "{model}، {brand}: {n, number} انتخاب.",
+        "arrivedNone": "{model}، {brand}: بدون انتخاب.",
+        "failed": "{model}، {brand}: ناموفق."
+      },
+      "empty": {
+        "modelOutput": "این مدل خروجی قابل استفاده‌ای تولید نکرد",
+        "selection": "برای این برند انتخابی نیست",
+        "promoIdea": "برای این برند ایدهٔ تبلیغی نیست"
+      },
+      "fallback": {
+        "detail": "خروجی از جایگاه مدل جایگزین تولید شد.",
+        "tag": "جایگزین"
+      },
+      "limitedGuidance": {
+        "announce": "{brand}: راهنمای محدود.",
+        "detail": "{brand} کتاب برند ندارد. آنچه در اختیار مدل بود: نام، کلیدواژه‌ها، لنگرها، دستور.",
+        "tag": "راهنمای محدود"
+      },
+      "model": {
+        "title": "{model} · {brand}",
+        "zone": "خط‌های مدل"
+      },
+      "noShortlist": {
+        "body": "برای این برند فهرست کوتاهی نبود",
+        "tag": "بدون فهرست کوتاه"
+      },
+      "position": "خط {i, number} از {n, number}",
+      "telegram": {
+        "title": "منبع تلگرام · {brand}",
+        "zone": "خط‌های منبع تلگرام"
+      },
+      "unit": {
+        "cancelled": "لغو شد",
+        "failed": "ناموفق",
+        "invalidOutput": "خروجی قابل اعتبارسنجی نبود",
+        "pending": "در صف",
+        "running": "در حال اجرا",
+        "succeeded": "موفق"
+      }
+    },
+    "promo": {
+      "angle": "زاویه",
+      "description": "توضیح",
+      "unit": "واحد {id}"
+    },
+    "report": {
+      "link": "گزارش فیلتر",
+      "title": "گزارش فیلتر",
+      "back": "بازگشت به میز تحریریه"
+    },
+    "selection": {
+      "confidence": "اطمینان",
+      "impact": "اثرگذاری",
+      "modelOutput": "خروجی مدل",
+      "suitability": "تناسب",
+      "virality": "امتیاز وایرال‌شدن انتخاب"
+    },
+    "telegram": {
+      "alsoIn": {
+        "label": "همچنین در",
+        "value": "همچنین در: {brands}"
+      },
+      "acquisition": {
+        "failed": "هیچ کانال تلگرامی خوانده نشد",
+        "failedAnnouncement": "هیچ کانال تلگرامی خوانده نشد. دلیل‌های خطا در مسیر تلگرام در دسترس است.",
+        "openSources": "باز کردن منابع",
+        "partial": "{acquired, number} از {total, number} کانال دریافت شد",
+        "partialAnnouncement": "{acquired, number} از {total, number} کانال تلگرام دریافت شد."
+      },
+      "arrived": "{brand}: {n, number} نامزد تلگرام.",
+      "brandRouteRank": {
+        "label": "رتبهٔ مسیر برند",
+        "report": "مسیر همین برند · رتبهٔ مسیر برند {n, number}",
+        "value": "رتبهٔ مسیر برند {n, number}"
+      },
+      "channel": "کانال",
+      "empty": "هیچ نامزد تلگرامی از فیلتر عبور نکرد",
+      "emptyLink": "ببینید فیلتر چه چیزی را رد کرد",
+      "duplicateRss": "{n, plural, one {تکراریِ # مورد RSS} other {تکراریِ # مورد RSS}}",
+      "messageLink": "پیام",
+      "none": "بدون نامزد تلگرام.",
+      "observedViews": {
+        "label": "بازدید ثبت‌شده",
+        "value": "{n, number} بازدید ثبت‌شده"
+      },
+      "ordering": {
+        "label": "ترتیب"
+      },
+      "semanticScore": "امتیاز معنایی {value, number, ::.00}",
+      "similarity": "شباهت {value, number, ::.00}",
+      "sourceOrderRank": {
+        "global": "رتبهٔ منبع {n, number}",
+        "label": "رتبهٔ ترتیب منبع",
+        "perSource": "رتبهٔ منبع {n, number} در {channel}",
+        "report": "ورودی فاز ۵ · رتبهٔ ترتیب منبع {n, number}"
+      },
+      "topics": "موضوع‌ها"
+    },
+    "transport": {
+      "asOf": "تا {time}",
+      "live": "زنده",
+      "reconnecting": "در حال اتصال دوباره…",
+      "refresh": "تازه‌سازی",
+      "refreshing": "در حال تازه‌سازی…",
+      "stale": "به‌روزرسانی متوقف شده",
+      "unavailable": "به‌روزرسانی زنده خاموش است"
+    },
+    "origin": {
+      "rss": "RSS",
+      "telegram_public": "تلگرام"
+    },
+    "funnel": {
+      "item": {
+        "title": "قیف اقلام",
+        "fetched": "دریافت‌شده",
+        "dated": "تاریخ‌دار / در بازه",
+        "unique": "یکتا",
+        "admitted": "پذیرفته‌شده",
+        "passedPolicy": "عبور از سیاست",
+        "inLane": "در یک خط خروجی"
+      },
+      "route": {
+        "title": "مسیرهای برند",
+        "rssShortlisted": "فهرست کوتاه RSS",
+        "telegramLane": "خط تلگرام",
+        "capExceeded": "عبور از سقف",
+        "noMediaFit": "بدون تناسب رسانه‌ای",
+        "lowScore": "امتیاز پایین"
+      },
+      "model": {
+        "title": "نتیجهٔ مدل‌ها",
+        "units": "واحدهای اجراشده",
+        "succeeded": "موفق",
+        "failed": "ناموفق",
+        "cancelled": "لغوشده",
+        "selections": "انتخاب‌ها",
+        "telegramCandidates": "نامزدهای تلگرام",
+        "zeroUnits": "{n, number} نامزد · ۰ واحد"
+      }
+    },
+    "filters": {
+      "label": "فیلترهای گزارش",
+      "brand": "برند",
+      "disposition": "نتیجهٔ فیلتر",
+      "semantic": "وضعیت معنایی",
+      "clear": "پاک‌کردن فیلترها",
+      "all": "همه"
+    },
+    "table": {
+      "title": "اقلام",
+      "caption": "اقلام فیلترشده: رتبه، قلم، برند، نتیجهٔ فیلتر، تناسب رسانه‌ای، سیاست، امتیاز رتبه و سهم معنایی",
+      "loading": "در حال بارگذاری اقلام فیلترشده",
+      "updating": "به‌روزرسانی نتایج.",
+      "columns": {
+        "rank": "رتبه",
+        "item": "قلم",
+        "brand": "برند",
+        "disposition": "نتیجهٔ فیلتر",
+        "mediaFit": "تناسب رسانه‌ای",
+        "policy": "سیاست",
+        "rankScore": "امتیاز رتبه",
+        "semantic": "معنایی"
+      },
+      "folded": {
+        "mediaFit": "تناسب",
+        "policy": "سیاست",
+        "rank": "رتبه"
+      },
+      "empty": {
+        "title": "این اجرا هیچ قلمی را فیلتر نکرد"
+      },
+      "filtered": {
+        "title": "هیچ ردیفی با این فیلترها همخوان نیست",
+        "hint": "فیلترشده بر اساس برند {brand}، نتیجهٔ فیلتر {disposition}، وضعیت معنایی {semantic}."
+      },
+      "tieBreak": "تفکیک تساوی: شناسه",
+      "pager": {
+        "older": "ردیف‌های بعدی",
+        "newer": "ردیف‌های قبلی",
+        "latest": "بازگشت به صفحهٔ اول"
+      }
+    },
+    "score": {
+      "description": "جزئیات فقط‌خواندنی امتیاز این ردیف.",
+      "band": {
+        "mediaFit": "تناسب رسانه‌ای",
+        "policy": "سیاست",
+        "gate": "نتیجهٔ دروازه‌ها",
+        "semanticRank": "سهم رتبهٔ معنایی",
+        "duplicate": "پیشینهٔ تکراری"
+      },
+      "itemLevel": "سطح قلم",
+      "mediaFit": {
+        "total": "امتیاز تناسب رسانه‌ای {score, number} در برابر آستانهٔ {threshold, number}",
+        "reason": "دلیل: {reason}"
+      },
+      "policy": {
+        "topicLexical": "تناسب موضوعی (واژگانی): {topic}",
+        "virality": "امتیاز وایرال‌شدن سیاست {value, number}",
+        "freshness": {
+          "value": "تازگی {value, number}",
+          "notEvaluated": "تازگی ارزیابی نشد — این قلم زمان انتشار ندارد"
+        },
+        "authority": "اعتبار منبع {value, number}",
+        "preference": "ترجیح منبع {value, number}",
+        "diversity": "تنوع منبع {value, number}",
+        "total": "سیاست {value, number} / آستانهٔ {threshold, number}"
+      },
+      "gate": {
+        "value": {
+          "notConfigured": "دروازهٔ ارزش — پیکربندی نشده",
+          "passed": "دروازهٔ ارزش — عبور · {n, number} نشانهٔ ارزشی",
+          "failed": "دروازهٔ ارزش — ناموفق · نشانهٔ ارزشی لازم موجود نیست"
+        },
+        "mediaFit": "دروازهٔ تناسب رسانه‌ای",
+        "policy": "دروازهٔ سیاست",
+        "passed": "عبور",
+        "failed": "ناموفق"
+      },
+      "notEvaluated": "ارزیابی نشد",
+      "capReached": "سقف برند {n, number} در رتبهٔ {r, number} پر شد",
+      "semantic": {
+        "brand": "شباهت معنایی برند {value, number}",
+        "topic": "موضوع معنایی {topic}: {value, number}",
+        "rankOnly": "فقط رتبه‌بندی — نمی‌تواند بپذیرد یا رد کند"
+      },
+      "duplicate": {
+        "cluster": "خوشه {id}",
+        "survivor": "بازمانده: {title} ({kind})",
+        "similarity": "شباهت {value, number, ::.00} / آستانهٔ {threshold, number, ::.00}"
+      },
+      "rankScore": {
+        "value": "امتیاز رتبه {value, number}",
+        "note": "فقط رتبه‌بندی — هیچ آستانه‌ای بر این امتیاز اعمال نمی‌شود."
+      },
+      "finalRank": "رتبهٔ نهایی {n, number}"
+    }
+  }
+}

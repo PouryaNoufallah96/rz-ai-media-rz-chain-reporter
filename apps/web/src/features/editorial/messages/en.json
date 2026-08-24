@@ -1,0 +1,471 @@
+{
+  "editorial": {
+    "title": "Editorial workspace",
+    "caption": {
+      "latestRun": "Latest run {time}"
+    },
+    "run": {
+      "title": "Run",
+      "head": {
+        "title": "This run"
+      },
+      "kind": {
+        "label": "Run kind",
+        "news": "News",
+        "promo": "Promo"
+      },
+      "brands": "Media brands",
+      "models": "Editorial models",
+      "platforms": "Platforms",
+      "platform": {
+        "x": "X",
+        "telegram": "Telegram",
+        "instagram": "Instagram"
+      },
+      "sources": {
+        "label": "Sources",
+        "kind": {
+          "rss": "RSS / ATOM",
+          "telegram_public": "Telegram"
+        },
+        "selected": "{n, number} of {m, number} selected",
+        "selectAll": "All",
+        "selectNone": "None"
+      },
+      "recency": {
+        "label": "Recency",
+        "6": "6 h",
+        "12": "12 h",
+        "24": "24 h",
+        "48": "48 h"
+      },
+      "enrichment": "Fetch full article text",
+      "topics": {
+        "label": "Topics",
+        "hint": "Press Enter or Add to commit a topic. Operator topics are separate from the template's brand terms.",
+        "add": "Add",
+        "clear": "Clear topics",
+        "cleared": "Topics cleared.",
+        "none": "No topics — the template's no-topic weighting applies.",
+        "recent": "Recent topics",
+        "recentHint": "Press to add. Suggestions never fill the field on their own.",
+        "remove": "Remove topic {topic}"
+      },
+      "topN": "Top-N",
+      "topNHint": "Final ranked results this run, up to {max, number}. Telegram keeps this many after ranking; RSS AI selects this many from the shortlist.",
+      "telegram": {
+        "ordering": {
+          "label": "Telegram ordering",
+          "views": "Most viewed",
+          "latest": "Newest first",
+          "views_per_source": "Most viewed per channel",
+          "latest_per_source": "Newest per channel",
+          "keywords": "Keyword match"
+        },
+        "only": "Telegram only"
+      },
+      "telegramOnly": {
+        "preserved": "Editorial models preserved.",
+        "restored": "Editorial models restored.",
+        "restoredWithDrops": "Editorial models restored. {n, number} no longer available."
+      },
+      "promo": {
+        "prompt": "Prompt for {brand}",
+        "noEligibleBrand": "No brand is promo-enabled in this template."
+      },
+      "start": "Start run",
+      "starting": "Starting…",
+      "cancel": "Cancel run",
+      "cancelConfirm": {
+        "title": "Cancel this run?",
+        "body": "Output already committed by finished units stays visible. Units still running stop as soon as the cancellation reaches them.",
+        "confirm": "Cancel run",
+        "dismiss": "Keep running",
+        "pending": "Cancelling"
+      },
+      "cancelLate": "Cancellation request arrived after work completed.",
+      "usePrevious": {
+        "label": "Use previous run",
+        "loaded": "Previous run loaded.",
+        "partial": "Previous run loaded. {n, number} option(s) no longer available.",
+        "none": "No compatible previous run",
+        "from": "from run {id}"
+      },
+      "selector": {
+        "label": "Run",
+        "latest": "Your latest run",
+        "option": "{kind} · {id} · {actor} · {time}",
+        "viewing": "Viewing run {id}.",
+        "you": "You"
+      },
+      "templateChanged": {
+        "tag": "template changed",
+        "detail": "This run used template {was}; the installation now uses {now}."
+      },
+      "empty": {
+        "title": "No runs yet",
+        "hint": "Start a run to fill the lanes"
+      },
+      "announce": {
+        "started": "Run started.",
+        "finished": "Run finished.",
+        "finishedPartial": "Run finished. {n, number} unit(s) failed.",
+        "failed": "Run failed.",
+        "cancelled": "Run cancelled.",
+        "cancelRequested": "Cancellation requested."
+      },
+      "progress": {
+        "elapsed": "elapsed {duration}",
+        "last": "last progress {when}"
+      }
+    },
+    "provenance": {
+      "run": "run {id}",
+      "template": "template {fingerprint}",
+      "topN": "top {n, number}",
+      "import": {
+        "reused": "import {id} (reused)",
+        "started": "import {id} (started)"
+      },
+      "scoring": "scoring v{k, number}",
+      "norm": "norm v{k, number}",
+      "projection": "projection v{k, number}"
+    },
+    "state": {
+      "queued": "queued",
+      "queuedForDispatch": "queued for dispatch",
+      "waitingForWorker": "waiting for worker",
+      "preparing": "preparing",
+      "acquiring": "acquiring sources",
+      "filtering": "filtering",
+      "semanticStage": "semantic stage",
+      "modelsRunning": "Models running {done, number} of {total, number}",
+      "settling": "settling results",
+      "cancelling": "cancelling",
+      "succeeded": "succeeded",
+      "failed": "failed",
+      "cancelled": "cancelled",
+      "unknown": "outcome unknown",
+      "cancelRequested": "cancellation requested",
+      "partial": "Partial — {n, number} unit(s) failed",
+      "noCandidates": "Run finished with no candidates.",
+      "telegramOnlyComplete": "Telegram-only run — no editorial units expected",
+      "dispatchExhausted": "Delivery attempts exhausted."
+    },
+    "semantic": {
+      "status": {
+        "running": "semantic pending",
+        "succeeded": "semantic succeeded",
+        "degraded": "semantic degraded"
+      },
+      "reason": {
+        "call_failed": "call failed",
+        "dimension_mismatch": "dimension mismatch",
+        "non_finite_value": "non-finite value",
+        "ambiguous_outcome": "ambiguous outcome",
+        "bounds_exceeded": "bounds exceeded"
+      },
+      "deterministic": "deterministic results only",
+      "degraded": {
+        "reason": "Semantic stage degraded: {reason}. Deterministic results only.",
+        "unavailable": "Unavailable: semantic duplicates, semantic topic rank, semantic brand rank.",
+        "tag": "degraded"
+      },
+      "line": "{model} · {dimension, number}-d · {candidates, number} candidates · {topics, number} topics · {anchors, number} anchors",
+      "deterministicOrder": "deterministic order",
+      "outsideBound": {
+        "detail": "Not embedded — outside this run's candidate bound.",
+        "tag": "outside semantic bound"
+      },
+      "participation": {
+        "included": "Embedded",
+        "outside_bound": "Outside bound"
+      }
+    },
+    "errors": {
+      "fanOutExceedsMaxUnits": "This selection would start more model units than the template allows.",
+      "noPromoBrand": "Select at least one promo brand.",
+      "promoPromptRequired": "A prompt is required for {brand}.",
+      "promoPromptTooLong": "This prompt is longer than the template allows.",
+      "tooManyTopics": "Too many topics for one run.",
+      "topicTooLong": "This topic is longer than the template allows.",
+      "topNExceedsCap": "Top-N is higher than this template allows."
+    },
+    "a11y": {
+      "lanesUpdated": "{n, number} lanes updated."
+    },
+    "card": {
+      "close": "Close",
+      "description": "Read-only details for this card.",
+      "rank": "rank {n, number}"
+    },
+    "detail": {
+      "contentLocale": "Content locale",
+      "disposition": "Filter outcome",
+      "duplicate": "Duplicate",
+      "link": "Source link",
+      "platform": "Suggested platform",
+      "publishedAt": "Published",
+      "reason": "Reason",
+      "reasoning": "Reasoning",
+      "source": "Source",
+      "summary": "Preview"
+    },
+    "disposition": {
+      "shortlisted": "shortlisted",
+      "telegram_lane": "telegram lane",
+      "no_media_fit": "no media fit",
+      "low_score": "low score",
+      "cap_exceeded": "cap exceeded",
+      "duplicate": "duplicate"
+    },
+    "duplicateMethod": {
+      "canonical_url": "canonical url",
+      "title": "title",
+      "semantic": "semantic"
+    },
+    "reason": {
+      "missing_required_value_signal": "Missing a required value signal",
+      "below_media_fit_threshold": "Below the media-fit threshold"
+    },
+    "lane": {
+      "announce": {
+        "arrived": "{model}, {brand}: {n, number} selection(s).",
+        "arrivedNone": "{model}, {brand}: no selection.",
+        "failed": "{model}, {brand}: failed."
+      },
+      "empty": {
+        "modelOutput": "This model produced no usable output",
+        "selection": "No selection for this brand",
+        "promoIdea": "No promo idea for this brand"
+      },
+      "fallback": {
+        "detail": "Produced by the fallback model slot.",
+        "tag": "fallback"
+      },
+      "limitedGuidance": {
+        "announce": "{brand}: limited guidance.",
+        "detail": "{brand} has no Brand Bible. Supplied: name, keywords, anchors, prompt.",
+        "tag": "limited guidance"
+      },
+      "model": {
+        "title": "{model} · {brand}",
+        "zone": "Model lanes"
+      },
+      "noShortlist": {
+        "body": "No shortlist for this brand",
+        "tag": "no shortlist"
+      },
+      "position": "Lane {i, number} of {n, number}",
+      "telegram": {
+        "title": "Telegram source · {brand}",
+        "zone": "Telegram source lanes"
+      },
+      "unit": {
+        "cancelled": "cancelled",
+        "failed": "failed",
+        "invalidOutput": "Output could not be validated",
+        "pending": "queued",
+        "running": "running",
+        "succeeded": "succeeded"
+      }
+    },
+    "promo": {
+      "angle": "Angle",
+      "description": "Description",
+      "unit": "unit {id}"
+    },
+    "report": {
+      "link": "Filtering report",
+      "title": "Filtering report",
+      "back": "Back to workspace"
+    },
+    "selection": {
+      "confidence": "Confidence",
+      "impact": "Impact",
+      "modelOutput": "Model output",
+      "suitability": "Suitability",
+      "virality": "Selection virality score"
+    },
+    "telegram": {
+      "alsoIn": {
+        "label": "Also in",
+        "value": "also in: {brands}"
+      },
+      "acquisition": {
+        "failed": "No Telegram channel could be read",
+        "failedAnnouncement": "No Telegram channel could be read. Failure reasons are available in the Telegram lane.",
+        "openSources": "Open sources",
+        "partial": "{acquired, number} of {total, number} channels acquired",
+        "partialAnnouncement": "{acquired, number} of {total, number} Telegram channels acquired."
+      },
+      "arrived": "{brand}: {n, number} Telegram candidate(s).",
+      "brandRouteRank": {
+        "label": "Brand route rank",
+        "report": "This brand lane · brand route rank {n, number}",
+        "value": "brand route rank {n, number}"
+      },
+      "channel": "Channel",
+      "empty": "No Telegram candidate passed the filter",
+      "emptyLink": "See what the filter rejected",
+      "duplicateRss": "{n, plural, one {duplicate of # RSS item} other {duplicate of # RSS items}}",
+      "messageLink": "Message",
+      "none": "No Telegram candidates.",
+      "observedViews": {
+        "label": "Observed views",
+        "value": "{n, number} observed views"
+      },
+      "ordering": {
+        "label": "Ordering"
+      },
+      "semanticScore": "semantic score {value, number, ::.00}",
+      "similarity": "similarity {value, number, ::.00}",
+      "sourceOrderRank": {
+        "global": "source rank {n, number}",
+        "label": "Source order rank",
+        "perSource": "source rank {n, number} within {channel}",
+        "report": "Phase 5 import · source order rank {n, number}"
+      },
+      "topics": "Topics"
+    },
+    "transport": {
+      "asOf": "as of {time}",
+      "live": "live",
+      "reconnecting": "reconnecting…",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "stale": "updates paused",
+      "unavailable": "live updates off"
+    },
+    "origin": {
+      "rss": "RSS",
+      "telegram_public": "Telegram"
+    },
+    "funnel": {
+      "item": {
+        "title": "Item funnel",
+        "fetched": "Fetched",
+        "dated": "Dated / in window",
+        "unique": "Unique",
+        "admitted": "Admitted",
+        "passedPolicy": "Passed policy",
+        "inLane": "In an output lane"
+      },
+      "route": {
+        "title": "Brand routes",
+        "rssShortlisted": "RSS shortlisted",
+        "telegramLane": "Telegram lane",
+        "capExceeded": "Cap exceeded",
+        "noMediaFit": "No media fit",
+        "lowScore": "Low score"
+      },
+      "model": {
+        "title": "Model outcomes",
+        "units": "Units run",
+        "succeeded": "Succeeded",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "selections": "Selections",
+        "telegramCandidates": "Telegram candidates",
+        "zeroUnits": "{n, number} candidates · 0 units"
+      }
+    },
+    "filters": {
+      "label": "Report filters",
+      "brand": "Brand",
+      "disposition": "Disposition",
+      "semantic": "Semantic status",
+      "clear": "Clear filters",
+      "all": "All"
+    },
+    "table": {
+      "title": "Items",
+      "caption": "Filtered items: rank, item, brand, disposition, media fit, policy, rank score, and semantic contribution",
+      "loading": "Loading filtered items",
+      "updating": "Updating results.",
+      "columns": {
+        "rank": "Rank",
+        "item": "Item",
+        "brand": "Brand",
+        "disposition": "Disposition",
+        "mediaFit": "Media fit",
+        "policy": "Policy",
+        "rankScore": "Rank score",
+        "semantic": "Semantic"
+      },
+      "folded": {
+        "mediaFit": "mf",
+        "policy": "pol",
+        "rank": "rank"
+      },
+      "empty": {
+        "title": "This run filtered no items"
+      },
+      "filtered": {
+        "title": "No rows match these filters",
+        "hint": "Filtered by brand {brand}, disposition {disposition}, semantic status {semantic}."
+      },
+      "tieBreak": "Tie-break: id",
+      "pager": {
+        "older": "Next rows",
+        "newer": "Previous rows",
+        "latest": "Back to first"
+      }
+    },
+    "score": {
+      "description": "Read-only score detail for this row.",
+      "band": {
+        "mediaFit": "Media fit",
+        "policy": "Policy",
+        "gate": "Gate outcome",
+        "semanticRank": "Semantic rank contributions",
+        "duplicate": "Duplicate provenance"
+      },
+      "itemLevel": "Item-level",
+      "mediaFit": {
+        "total": "Media-fit score {score, number} against threshold {threshold, number}",
+        "reason": "Reason: {reason}"
+      },
+      "policy": {
+        "topicLexical": "Topic fit (lexical): {topic}",
+        "virality": "Policy virality score {value, number}",
+        "freshness": {
+          "value": "Freshness {value, number}",
+          "notEvaluated": "Freshness not evaluated — the item carries no publication time"
+        },
+        "authority": "Source authority {value, number}",
+        "preference": "Source preference {value, number}",
+        "diversity": "Source diversity {value, number}",
+        "total": "Policy {value, number} / threshold {threshold, number}"
+      },
+      "gate": {
+        "value": {
+          "notConfigured": "Value gate — not configured",
+          "passed": "Value gate — passed · {n, number} value signal(s)",
+          "failed": "Value gate — failed · missing required value signal"
+        },
+        "mediaFit": "Media-fit gate",
+        "policy": "Policy gate",
+        "passed": "passed",
+        "failed": "failed"
+      },
+      "notEvaluated": "Not evaluated",
+      "capReached": "Brand cap {n, number} reached at rank {r, number}",
+      "semantic": {
+        "brand": "Semantic brand similarity {value, number}",
+        "topic": "Semantic topic {topic}: {value, number}",
+        "rankOnly": "Ranking only — cannot admit or reject"
+      },
+      "duplicate": {
+        "cluster": "Cluster {id}",
+        "survivor": "Survivor: {title} ({kind})",
+        "similarity": "Similarity {value, number, ::.00} / threshold {threshold, number, ::.00}"
+      },
+      "rankScore": {
+        "value": "Rank score {value, number}",
+        "note": "Ranking only — no threshold applies to this score."
+      },
+      "finalRank": "Final rank {n, number}"
+    }
+  }
+}

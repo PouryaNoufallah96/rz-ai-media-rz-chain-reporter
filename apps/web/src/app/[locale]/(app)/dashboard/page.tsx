@@ -1,9 +1,9 @@
-import { DashboardScreen } from "@/features/dashboard/components/dashboard-screen";
+import { EditorialScreen } from "@/features/editorial/components/editorial-screen";
 
-export default function DashboardPage() {
+export default function DashboardPage(props: PageProps<"/[locale]/dashboard">) {
   return (
     <main id="main-content">
-      <DashboardScreen />
+      <EditorialScreen searchParams={props.searchParams} />
     </main>
   );
 }
