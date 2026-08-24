@@ -1,18 +1,28 @@
 import {
   ADMISSION_OUTCOMES,
+  ANALYSIS_RUN_KINDS,
   ARTICLE_ADAPTERS,
   ARTICLE_FETCH_MODES,
   ATTEMPT_OUTCOMES,
   CONTENT_LOCALES,
+  DUPLICATE_METHODS,
   ENRICHMENT_OUTCOMES,
   ENRICHMENT_REASONS,
+  FILTER_DISPOSITIONS,
+  FILTERING_REASONS,
+  ITEM_ELIGIBILITIES,
   MEDIA_ASSET_LIFECYCLES,
   MODEL_BACKENDS,
+  MODEL_UNIT_STATUSES,
   OPERATION_LIFECYCLES,
   PLATFORMS,
   SCHEDULE_STATUSES,
+  SEMANTIC_DEGRADED_REASONS,
+  SEMANTIC_PARTICIPATIONS,
+  SEMANTIC_STAGE_STATUSES,
   SOURCE_FETCH_OUTCOMES,
   SOURCE_FETCH_REASONS,
+  SOURCE_IMPORT_BINDINGS,
   SOURCE_IMPORT_STAGES,
   SOURCE_ORIGINS,
   TELEGRAM_ORDERING_MODES,
@@ -66,14 +76,40 @@ export const sourceImportStage = pgEnum(
   SOURCE_IMPORT_STAGES,
 );
 
-export const analysisRunKind = pgEnum("analysis_run_kind", ["news", "promo"]);
+export const analysisRunKind = pgEnum("analysis_run_kind", ANALYSIS_RUN_KINDS);
 
-export const filterDisposition = pgEnum("filter_disposition", [
-  "rejected",
-  "scored",
-  "clustered",
-  "routed",
-]);
+export const sourceImportBinding = pgEnum(
+  "source_import_binding",
+  SOURCE_IMPORT_BINDINGS,
+);
+
+export const itemEligibility = pgEnum("item_eligibility", ITEM_ELIGIBILITIES);
+
+export const duplicateMethod = pgEnum("duplicate_method", DUPLICATE_METHODS);
+
+export const semanticParticipation = pgEnum(
+  "semantic_participation",
+  SEMANTIC_PARTICIPATIONS,
+);
+
+export const semanticStageStatus = pgEnum(
+  "semantic_stage_status",
+  SEMANTIC_STAGE_STATUSES,
+);
+
+export const semanticDegradedReason = pgEnum(
+  "semantic_degraded_reason",
+  SEMANTIC_DEGRADED_REASONS,
+);
+
+export const filterDisposition = pgEnum(
+  "filter_disposition",
+  FILTER_DISPOSITIONS,
+);
+
+export const filteringReason = pgEnum("filtering_reason", FILTERING_REASONS);
+
+export const modelUnitStatus = pgEnum("model_unit_status", MODEL_UNIT_STATUSES);
 
 export const mediaAssetLifecycle = pgEnum(
   "media_asset_lifecycle",

@@ -33,8 +33,9 @@
     "fix": "pnpm run fix:root && turbo run fix",
     "fix:root": "biome check --write .vscode/settings.json biome.json package.json tsconfig.json turbo.json",
     "doctor": "pnpm dlx -y react-doctor@latest .",
+    "i18n:check": "pnpm --filter web i18n:check",
     "openapi:check": "turbo run openapi:check --filter=web",
-    "validate": "pnpm run check && pnpm run check-types && pnpm run openapi:check && pnpm run doctor"
+    "validate": "pnpm run check && pnpm run check-types && pnpm run i18n:check && pnpm run openapi:check && pnpm run doctor"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.8",

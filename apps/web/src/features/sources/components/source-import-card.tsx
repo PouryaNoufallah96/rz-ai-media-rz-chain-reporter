@@ -11,6 +11,7 @@ import { OPERATION_ERROR_KEYS } from "@/features/operations/lib/panel-state";
 
 import { refreshSourceReadsAction } from "../actions/refresh-source-reads";
 import { SHORT_ID_LENGTH, SOURCES_NAMESPACE } from "../constants";
+import { MIX_PERCENT_FORMAT, mixPercents } from "../lib/mix-shares";
 import type {
   SourceImportCard as ImportCard,
   SourceImportSourceLine,
@@ -31,13 +32,7 @@ const OUTCOME_MARK: Record<SourceImportSourceLine["outcome"], StateMarkState> =
     failed_terminal: "failed",
   };
 
-const COUNT_KEYS = [
-  "acquired",
-  "ordered",
-  "enriched",
-  "skipped",
-  "failed",
-] as const;
+const REST_TALLY_KEYS = ["skipped", "failed"] as const;
 
 export function SourceImportRuns({ imports }: { imports: SourceImportsView }) {
   const t = useTranslations(SOURCES_NAMESPACE);
@@ -149,11 +144,16 @@ function SourceImportRunCard({ card }: { card: ImportCard }) {
           id={ledgerId}
         >
           <p className="ticket-label text-muted-foreground">
-            {t("import.bounds", {
-              hours: card.windowHours,
-              ordering: t(`import.ordering.${card.orderingMode}`),
-              topN: card.topN,
-            })}
+            {t(
+              card.sources.some((line) => line.origin === "telegram_public")
+                ? "import.boundsTelegram"
+                : "import.bounds",
+              {
+                hours: card.windowHours,
+                ordering: t(`import.ordering.${card.orderingMode}`),
+                topN: card.topN,
+              },
+            )}
           </p>
           {card.orderingMode === "keywords" &&
           card.embeddingModel &&
@@ -180,47 +180,68 @@ function SourceImportRunCard({ card }: { card: ImportCard }) {
 function SourceLine({ line }: { line: SourceImportSourceLine }) {
   const format = useFormatter();
   const t = useTranslations(SOURCES_NAMESPACE);
+  const exceptions =
+    line.enrichment &&
+    (line.enrichment.skipped > 0 ||
+      line.enrichment.failed > 0 ||
+      line.enrichment.unknown > 0)
+      ? t("counts.enrichment", {
+          enriched: line.enrichment.enriched,
+          failed: line.enrichment.failed,
+          skipped: line.enrichment.skipped,
+          unknown: line.enrichment.unknown,
+        })
+      : null;
+  const measures = [
+    ...(line.fetchedCount > 0 || line.admittedCount > 0
+      ? [
+          t("counts.pair", {
+            admitted: line.admittedCount,
+            fetched: line.fetchedCount,
+          }),
+        ]
+      : []),
+    ...line.adapterMix.map((bucket) =>
+      mixCopy(t, "count", {
+        count: bucket.count,
+        label: t(`adapter.${bucket.adapter}`),
+        reused: bucket.reused,
+      }),
+    ),
+    ...(exceptions ? [exceptions] : []),
+  ];
 
   return (
-    <li className="flex flex-wrap items-center gap-2 border-border border-b border-dashed py-1.5 last:border-b-0">
-      <StateMark state={OUTCOME_MARK[line.outcome]} />
-      <span className="min-w-0 flex-1 truncate text-xs">
-        <Bdi>{line.name}</Bdi>
-      </span>
-      <span
-        className={`text-xs ${
-          OUTCOME_MARK[line.outcome] === "failed"
-            ? "text-destructive"
-            : "text-muted-foreground"
-        }`}
-      >
-        {line.reason
-          ? `${t(`outcome.${line.outcome}`)} — ${t(`reason.${line.reason}`)}`
-          : t(`outcome.${line.outcome}`)}
-      </span>
-      <span className="font-mono text-muted-foreground text-xs tabular-nums">
-        {t("counts.pair", {
-          admitted: line.admittedCount,
-          fetched: line.fetchedCount,
-        })}
-      </span>
-      {line.enrichment ? (
-        <span className="font-mono text-muted-foreground text-xs tabular-nums">
-          {t("counts.enrichment", {
-            enriched: line.enrichment.enriched,
-            failed: line.enrichment.failed,
-            skipped: line.enrichment.skipped,
-            unknown: line.enrichment.unknown,
-          })}
+    <li className="border-border border-b border-dashed py-1.5 last:border-b-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <StateMark state={OUTCOME_MARK[line.outcome]} />
+        <span className="min-w-0 flex-1 truncate text-xs">
+          <Bdi>{line.name}</Bdi>
         </span>
-      ) : null}
-      {line.settledAt ? (
-        <time
-          className="font-mono text-muted-foreground text-xs tabular-nums"
-          dateTime={line.settledAt.toISOString()}
+        <span
+          className={`text-xs ${
+            OUTCOME_MARK[line.outcome] === "failed"
+              ? "text-destructive"
+              : "text-muted-foreground"
+          }`}
         >
-          {format.dateTime(line.settledAt, { timeStyle: "short" })}
-        </time>
+          {line.reason
+            ? `${t(`outcome.${line.outcome}`)} — ${t(`reason.${line.reason}`)}`
+            : t(`outcome.${line.outcome}`)}
+        </span>
+        {line.settledAt ? (
+          <time
+            className="font-mono text-muted-foreground text-xs tabular-nums"
+            dateTime={line.settledAt.toISOString()}
+          >
+            {format.dateTime(line.settledAt, { timeStyle: "short" })}
+          </time>
+        ) : null}
+      </div>
+      {measures.length > 0 ? (
+        <p className="ms-6 font-mono text-muted-foreground text-xs tabular-nums">
+          {measures.join(" · ")}
+        </p>
       ) : null}
     </li>
   );
@@ -250,17 +271,113 @@ function RunStateLabel({
 }
 
 function RunCounts({ card }: { card: ImportCard }) {
+  const format = useFormatter();
   const t = useTranslations(SOURCES_NAMESPACE);
 
   if (card.lifecycle === "queued") return null;
 
-  return (
-    <span className="font-mono text-muted-foreground text-xs tabular-nums">
-      {COUNT_KEYS.map((key) =>
-        t(`import.counts.${key}`, { n: card.counts[key] }),
-      ).join(" · ")}
-    </span>
+  const admissionBuckets = card.admissionMix.filter(
+    (bucket) => bucket.count > 0,
   );
+  const onlyAdmitted =
+    admissionBuckets.length === 1 &&
+    admissionBuckets[0]?.admission === "admitted";
+  const admission = onlyAdmitted
+    ? null
+    : formatMix(
+        admissionBuckets.map((bucket) => ({
+          count: bucket.count,
+          label: t(`admission.${bucket.admission}`),
+        })),
+        format,
+        t,
+      );
+  const adapters = formatMix(
+    card.adapterMix.map((bucket) => ({
+      count: bucket.count,
+      label: t(`adapter.${bucket.adapter}`),
+      reused: bucket.reused,
+    })),
+    format,
+    t,
+  );
+  const tallies = [
+    t("import.counts.acquired", { n: card.counts.acquired }),
+    ...(admission ? [admission] : []),
+    ...REST_TALLY_KEYS.flatMap((key) =>
+      card.counts[key] > 0
+        ? [t(`import.counts.${key}`, { n: card.counts[key] })]
+        : [],
+    ),
+  ];
+
+  return (
+    <>
+      <span className="font-mono text-muted-foreground text-xs tabular-nums">
+        {tallies.join(" · ")}
+      </span>
+      {adapters ? (
+        <span className="flex flex-wrap items-baseline gap-x-2">
+          <span className="ticket-label text-muted-foreground">
+            {t("import.extract")}
+          </span>
+          <span className="font-mono text-muted-foreground text-xs tabular-nums">
+            {adapters}
+          </span>
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+function formatMix(
+  buckets: readonly { count: number; label: string; reused?: number }[],
+  format: ReturnType<typeof useFormatter>,
+  t: ReturnType<typeof useTranslations<typeof SOURCES_NAMESPACE>>,
+) {
+  const present = buckets.filter((bucket) => bucket.count > 0);
+  const total = present.reduce((sum, bucket) => sum + bucket.count, 0);
+  if (total === 0) return null;
+
+  const percents = mixPercents(present.map((bucket) => bucket.count));
+
+  return present
+    .map((bucket, index) =>
+      mixCopy(t, "bucket", {
+        ...bucket,
+        percent: format.number(
+          (percents[index] ?? 0) / 100,
+          MIX_PERCENT_FORMAT,
+        ),
+      }),
+    )
+    .join(" · ");
+}
+
+function mixCopy(
+  t: ReturnType<typeof useTranslations<typeof SOURCES_NAMESPACE>>,
+  kind: "bucket" | "count",
+  bucket: {
+    count: number;
+    label: string;
+    percent?: string;
+    reused?: number;
+  },
+) {
+  const reused = bucket.reused ?? 0;
+  const key =
+    reused <= 0
+      ? (`import.mix.${kind}` as const)
+      : reused === bucket.count
+        ? (`import.mix.${kind}Reused` as const)
+        : (`import.mix.${kind}ReusedPartial` as const);
+
+  return t(key, {
+    label: bucket.label,
+    n: bucket.count,
+    percent: bucket.percent ?? "",
+    reused,
+  });
 }
 
 function RunDispatch({ card }: { card: ImportCard }) {
@@ -344,7 +461,7 @@ function cardStateOf(card: ImportCard): StateMarkState {
 
 function stateTone(state: StateMarkState) {
   if (state === "failed") return "text-destructive text-sm";
-  if (state === "succeeded") return "text-proof text-sm";
+  if (state === "succeeded") return "text-proof-text text-sm";
   if (["running", "retrying", "unknown"].includes(state)) {
     return "text-working text-sm";
   }

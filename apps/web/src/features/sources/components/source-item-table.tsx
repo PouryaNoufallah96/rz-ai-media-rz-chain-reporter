@@ -1,7 +1,6 @@
 "use client";
 
 import { ADMISSION_OUTCOMES } from "@rz-chain-reporter/contracts";
-import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import {
   Empty,
@@ -93,15 +92,6 @@ export function SourceItemTable({ stream }: { stream: SourceItemStream }) {
           value={query.import}
         />
       </form>
-      {query.import ? (
-        <p className="ticket-label mt-2 text-muted-foreground">
-          <Bdi>
-            {t("stream.importGroup", {
-              id: query.import.slice(0, SHORT_ID_LENGTH),
-            })}
-          </Bdi>
-        </p>
-      ) : null}
       {!stream.hasAnyItem ? (
         <StreamEmpty
           description={t("stream.empty.hint")}

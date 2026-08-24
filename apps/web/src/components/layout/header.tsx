@@ -1,4 +1,9 @@
-import UserMenu from "@/features/auth/components/user-menu";
+import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
+import { Suspense } from "react";
+import { getSession } from "@/features/auth/api/server/session";
+import UserMenu, {
+  type UserMenuUser,
+} from "@/features/auth/components/user-menu";
 import { OperationsIndicator } from "@/features/operations/components/operations-indicator";
 import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
@@ -10,6 +15,19 @@ import { ModeToggle } from "./mode-toggle";
 
 const NAV_LINK_CLASS =
   "underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+async function ResolvedUserMenu() {
+  const session = await getSession();
+  const user = session?.user
+    ? ({
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+      } satisfies UserMenuUser)
+    : null;
+
+  return <UserMenu user={user} />;
+}
 
 export default async function Header() {
   const t = await getT(SHARED_NAMESPACE);
@@ -49,7 +67,9 @@ export default async function Header() {
           </Localized>
           <Localized namespaces={[SHARED_NAMESPACE]}>
             <ModeToggle />
-            <UserMenu />
+            <Suspense fallback={<Skeleton className="h-8 w-20 sm:w-32" />}>
+              <ResolvedUserMenu />
+            </Suspense>
           </Localized>
         </div>
       </div>

@@ -136,8 +136,11 @@ async function startImport(workspaceId: string, args: string[]) {
   if (result.status !== "created") {
     throw new Error(result.status.toUpperCase());
   }
+  const cacheInvalidation = await notifyCacheInvalidation([
+    workspaceCacheTag(workspaceId, "sources"),
+  ]);
   console.log(
-    `source-import started operation=${operationId} sources=${selected.length}`,
+    `source-import started operation=${operationId} sources=${selected.length} cache=${cacheInvalidation}`,
   );
 }
 
@@ -159,6 +162,7 @@ async function settleImport(workspaceId: string, args: string[]) {
 
   const cacheInvalidation = await notifyCacheInvalidation([
     workspaceCacheTag(workspaceId, "sources"),
+    workspaceCacheTag(workspaceId, "usage"),
   ]);
   console.log(
     `source-import settled operation=${parsedId.data} lifecycle=${settled.lifecycle} cache=${cacheInvalidation}`,

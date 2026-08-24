@@ -1,7 +1,11 @@
 import {
+  analysisRunCancelledPayloadSchema,
+  analysisRunRequestedPayloadSchema,
   DURABLE_EVENT_SCHEMA_VERSION,
   MEDIA_UPLOAD_CONFIRMED_EVENT_NAME,
   mediaUploadConfirmedPayloadSchema,
+  OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME,
+  OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME,
   OPERATION_GENERATION_REQUESTED_EVENT_NAME,
   OPERATION_SCHEDULED_EFFECT_REQUESTED_EVENT_NAME,
   OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
@@ -20,6 +24,20 @@ export const durableEvents = {
     schema: mediaUploadConfirmedPayloadSchema,
     version: eventVersion,
   }),
+  operationAnalysisRunCancelled: eventType(
+    OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME,
+    {
+      schema: analysisRunCancelledPayloadSchema,
+      version: eventVersion,
+    },
+  ),
+  operationAnalysisRunRequested: eventType(
+    OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME,
+    {
+      schema: analysisRunRequestedPayloadSchema,
+      version: eventVersion,
+    },
+  ),
   operationGenerationRequested: eventType(
     OPERATION_GENERATION_REQUESTED_EVENT_NAME,
     {
@@ -125,6 +143,28 @@ export function createInngestEvent(outbox: OutboxEvent) {
         throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
       }
       return durableEvents.storageReconciliationRequested.create(payload.data, {
+        id: eventId,
+      });
+    }
+    case OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME: {
+      const payload = analysisRunRequestedPayloadSchema.safeParse(
+        outbox.payload,
+      );
+      if (!payload.success) {
+        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+      }
+      return durableEvents.operationAnalysisRunRequested.create(payload.data, {
+        id: eventId,
+      });
+    }
+    case OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME: {
+      const payload = analysisRunCancelledPayloadSchema.safeParse(
+        outbox.payload,
+      );
+      if (!payload.success) {
+        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+      }
+      return durableEvents.operationAnalysisRunCancelled.create(payload.data, {
         id: eventId,
       });
     }

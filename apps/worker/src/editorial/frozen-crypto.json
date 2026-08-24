@@ -1,0 +1,2733 @@
+{
+  "template": {
+    "schemaVersion": 3,
+    "customer": {
+      "key": "crypto",
+      "productName": "RZ ChainReporter",
+      "timeZone": "Asia/Tehran"
+    },
+    "workspace": {
+      "name": "RZ ChainReporter"
+    },
+    "models": {
+      "tasks": {
+        "generation-probe": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini",
+          "fallback": {
+            "backend": "remote",
+            "model": "openai/gpt-4.1-nano"
+          }
+        },
+        "keyword-embedding": {
+          "backend": "remote",
+          "model": "openai/text-embedding-3-small"
+        },
+        "enrichment-brief": {
+          "backend": "remote",
+          "model": "openai/gpt-4.1-nano",
+          "fallback": {
+            "backend": "remote",
+            "model": "openai/gpt-4.1-mini"
+          }
+        },
+        "editorial-selection:gpt": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        },
+        "promo-ideas:gpt": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        },
+        "editorial-selection:gemini": {
+          "backend": "remote",
+          "model": "google/gemini-2.5-flash"
+        },
+        "promo-ideas:gemini": {
+          "backend": "remote",
+          "model": "google/gemini-2.5-flash"
+        },
+        "editorial-selection:claude": {
+          "backend": "remote",
+          "model": "anthropic/claude-sonnet-4.5"
+        },
+        "promo-ideas:claude": {
+          "backend": "remote",
+          "model": "anthropic/claude-sonnet-4.5"
+        },
+        "editorial-selection:deepseek": {
+          "backend": "remote",
+          "model": "deepseek/deepseek-chat"
+        },
+        "promo-ideas:deepseek": {
+          "backend": "remote",
+          "model": "deepseek/deepseek-chat"
+        }
+      }
+    },
+    "editorial": {
+      "models": [
+        {
+          "key": "gpt",
+          "name": "GPT"
+        },
+        {
+          "key": "gemini",
+          "name": "Gemini"
+        },
+        {
+          "key": "claude",
+          "name": "Claude"
+        },
+        {
+          "key": "deepseek",
+          "name": "DeepSeek"
+        }
+      ],
+      "platforms": ["telegram", "x"],
+      "defaults": {
+        "brands": [
+          "rz-prime",
+          "coin-hall",
+          "chain-reporter",
+          "meta-coin-guard"
+        ],
+        "models": ["gpt"],
+        "platforms": ["telegram", "x"],
+        "windowHours": 24,
+        "enrichment": true
+      },
+      "shortlistCap": 20,
+      "selectionCap": 20,
+      "importReuseMinutes": 30,
+      "fanOut": {
+        "maxUnits": 16,
+        "unitConcurrency": 4
+      },
+      "promo": {
+        "ideaCount": 4,
+        "promptMaxChars": 1200
+      },
+      "semantic": {
+        "maxCandidates": 350,
+        "maxTopics": 10,
+        "maxAnchorsPerBrand": 8,
+        "maxChars": 500,
+        "dedupThreshold": 0.92,
+        "brandWeight": 0.15,
+        "topicWeight": 0.15
+      },
+      "policy": {
+        "weights": {
+          "withTopics": {
+            "mediaFit": 0.2,
+            "lexicalTopic": 0.5,
+            "virality": 0.1,
+            "freshness": 0.08,
+            "authority": 0.05,
+            "sourcePreference": 0.035,
+            "diversity": 0.035
+          },
+          "withoutTopics": {
+            "mediaFit": 0.43,
+            "virality": 0.24,
+            "freshness": 0.16,
+            "authority": 0.09,
+            "sourcePreference": 0.04,
+            "diversity": 0.04
+          }
+        },
+        "thresholds": {
+          "policyScore": 18
+        },
+        "freshnessLadder": [
+          {
+            "maxAgeHours": 1,
+            "score": 100
+          },
+          {
+            "maxAgeHours": 2,
+            "score": 95
+          },
+          {
+            "maxAgeHours": 4,
+            "score": 88
+          },
+          {
+            "maxAgeHours": 6,
+            "score": 80
+          },
+          {
+            "maxAgeHours": 12,
+            "score": 68
+          },
+          {
+            "maxAgeHours": 24,
+            "score": 50
+          },
+          {
+            "maxAgeHours": 36,
+            "score": 32
+          },
+          {
+            "maxAgeHours": 48,
+            "score": 20
+          },
+          {
+            "maxAgeHours": 8760,
+            "score": 8
+          }
+        ],
+        "futureDateNeutralScore": 50,
+        "virality": {
+          "powerTerms": [
+            {
+              "term": "breaking",
+              "weight": 20
+            },
+            {
+              "term": "urgent",
+              "weight": 18
+            },
+            {
+              "term": "alert",
+              "weight": 16
+            },
+            {
+              "term": "crash",
+              "weight": 22
+            },
+            {
+              "term": "surges",
+              "weight": 18
+            },
+            {
+              "term": "explodes",
+              "weight": 20
+            },
+            {
+              "term": "collapses",
+              "weight": 22
+            },
+            {
+              "term": "massive",
+              "weight": 15
+            },
+            {
+              "term": "historic",
+              "weight": 18
+            },
+            {
+              "term": "record",
+              "weight": 14
+            },
+            {
+              "term": "first ever",
+              "weight": 18
+            },
+            {
+              "term": "all-time high",
+              "weight": 22
+            },
+            {
+              "term": "ath",
+              "weight": 16
+            },
+            {
+              "term": "all-time low",
+              "weight": 22
+            },
+            {
+              "term": "atl",
+              "weight": 16
+            },
+            {
+              "term": "billions",
+              "weight": 14
+            },
+            {
+              "term": "trillion",
+              "weight": 18
+            },
+            {
+              "term": "emergency",
+              "weight": 20
+            },
+            {
+              "term": "warning",
+              "weight": 16
+            },
+            {
+              "term": "critical",
+              "weight": 15
+            },
+            {
+              "term": "catastrophic",
+              "weight": 20
+            },
+            {
+              "term": "shocking",
+              "weight": 16
+            },
+            {
+              "term": "unprecedented",
+              "weight": 18
+            },
+            {
+              "term": "exclusive",
+              "weight": 12
+            },
+            {
+              "term": "leaked",
+              "weight": 18
+            },
+            {
+              "term": "confirmed",
+              "weight": 12
+            },
+            {
+              "term": "just in",
+              "weight": 18
+            },
+            {
+              "term": "developing",
+              "weight": 14
+            },
+            {
+              "term": "soars",
+              "weight": 16
+            },
+            {
+              "term": "plunges",
+              "weight": 16
+            },
+            {
+              "term": "free fall",
+              "weight": 18
+            },
+            {
+              "term": "skyrockets",
+              "weight": 18
+            },
+            {
+              "term": "rallies",
+              "weight": 14
+            },
+            {
+              "term": "dumps",
+              "weight": 16
+            },
+            {
+              "term": "major",
+              "weight": 10
+            }
+          ],
+          "entityTerms": [
+            {
+              "term": "bitcoin",
+              "weight": 15
+            },
+            {
+              "term": "blackrock",
+              "weight": 14
+            },
+            {
+              "term": "sec",
+              "weight": 14
+            },
+            {
+              "term": "trump",
+              "weight": 16
+            },
+            {
+              "term": "binance",
+              "weight": 12
+            },
+            {
+              "term": "coinbase",
+              "weight": 10
+            },
+            {
+              "term": "federal reserve",
+              "weight": 12
+            },
+            {
+              "term": "elon musk",
+              "weight": 16
+            },
+            {
+              "term": "michael saylor",
+              "weight": 12
+            },
+            {
+              "term": "vitalik",
+              "weight": 10
+            },
+            {
+              "term": "satoshi",
+              "weight": 12
+            },
+            {
+              "term": "imf",
+              "weight": 10
+            },
+            {
+              "term": "fed",
+              "weight": 10
+            }
+          ],
+          "titleMultiplier": 1.5,
+          "bodyMultiplier": 0.4,
+          "numericSignalWeights": {
+            "number": 6,
+            "percentage": 12,
+            "currencyAmount": 10,
+            "magnitudeAmount": 14
+          }
+        },
+        "unknownSourceAuthority": 50,
+        "sourceAuthority": {
+          "the-block-rss": 92,
+          "coindesk-rss": 90,
+          "cointelegraph-rss": 88,
+          "blockworks-rss": 86,
+          "decrypt-rss": 84,
+          "bitcoin-magazine-rss": 82,
+          "chainalysis-blog-rss": 82,
+          "the-defiant-rss": 80,
+          "beincrypto-rss": 74,
+          "dl-news-rss": 74,
+          "crypto-news-rss": 70,
+          "cryptopotato-rss": 66,
+          "newsbtc-rss": 64,
+          "u-today-rss": 60,
+          "ambcrypto-rss": 52
+        }
+      }
+    },
+    "mediaBrands": [
+      {
+        "key": "rz-prime",
+        "name": "RZ Prime",
+        "brandBible": "brand-bibles/rz-prime.md",
+        "imageProfile": "image-profiles/rz-prime.json",
+        "editorial": {
+          "mediaFitThreshold": 22,
+          "strongTerms": [
+            {
+              "term": "bnb chain",
+              "weight": 25
+            },
+            {
+              "term": "binance smart chain",
+              "weight": 20
+            },
+            {
+              "term": "presale",
+              "weight": 22
+            },
+            {
+              "term": "pre-sale",
+              "weight": 22
+            },
+            {
+              "term": "non-custodial",
+              "weight": 22
+            },
+            {
+              "term": "no kyc",
+              "weight": 20
+            },
+            {
+              "term": "token launch",
+              "weight": 20
+            },
+            {
+              "term": "token sale",
+              "weight": 20
+            },
+            {
+              "term": "reservation",
+              "weight": 20
+            },
+            {
+              "term": "token reservation",
+              "weight": 22
+            },
+            {
+              "term": "private sale",
+              "weight": 16
+            },
+            {
+              "term": "public sale",
+              "weight": 16
+            },
+            {
+              "term": "bep20",
+              "weight": 16
+            },
+            {
+              "term": "bep-20",
+              "weight": 16
+            },
+            {
+              "term": "token access",
+              "weight": 18
+            },
+            {
+              "term": "token distribution",
+              "weight": 18
+            },
+            {
+              "term": "launchpad",
+              "weight": 18
+            },
+            {
+              "term": "ido",
+              "weight": 18
+            },
+            {
+              "term": "decentralized access",
+              "weight": 15
+            },
+            {
+              "term": "ico",
+              "weight": 15
+            },
+            {
+              "term": "ieo",
+              "weight": 15
+            },
+            {
+              "term": "allocation",
+              "weight": 15
+            },
+            {
+              "term": "tokenomics",
+              "weight": 14
+            },
+            {
+              "term": "pancakeswap",
+              "weight": 14
+            },
+            {
+              "term": "bnb",
+              "weight": 15
+            },
+            {
+              "term": "bsc",
+              "weight": 15
+            },
+            {
+              "term": "seed round",
+              "weight": 12
+            },
+            {
+              "term": "smart contract",
+              "weight": 12
+            },
+            {
+              "term": "on-chain",
+              "weight": 12
+            },
+            {
+              "term": "onchain",
+              "weight": 12
+            },
+            {
+              "term": "vesting",
+              "weight": 12
+            },
+            {
+              "term": "liquidity pool",
+              "weight": 10
+            },
+            {
+              "term": "kyc",
+              "weight": 10
+            },
+            {
+              "term": "staking",
+              "weight": 8
+            },
+            {
+              "term": "defi",
+              "weight": 8
+            },
+            {
+              "term": "wallet",
+              "weight": 8
+            },
+            {
+              "term": "fair launch",
+              "weight": 20
+            },
+            {
+              "term": "token generation event",
+              "weight": 20
+            },
+            {
+              "term": "tge",
+              "weight": 20
+            },
+            {
+              "term": "whitelist",
+              "weight": 18
+            },
+            {
+              "term": "soft cap",
+              "weight": 14
+            },
+            {
+              "term": "hard cap",
+              "weight": 14
+            },
+            {
+              "term": "raise",
+              "weight": 12
+            },
+            {
+              "term": "fundraise",
+              "weight": 14
+            },
+            {
+              "term": "early access",
+              "weight": 16
+            },
+            {
+              "term": "rz prime",
+              "weight": 25
+            }
+          ],
+          "weakTerms": [
+            {
+              "term": "luxury",
+              "weight": -10
+            },
+            {
+              "term": "lifestyle",
+              "weight": -10
+            },
+            {
+              "term": "gaming",
+              "weight": -8
+            },
+            {
+              "term": "watch",
+              "weight": -8
+            },
+            {
+              "term": "car",
+              "weight": -8
+            },
+            {
+              "term": "exploit",
+              "weight": -5
+            },
+            {
+              "term": "hack",
+              "weight": -5
+            },
+            {
+              "term": "rug pull",
+              "weight": -5
+            },
+            {
+              "term": "auction",
+              "weight": -8
+            },
+            {
+              "term": "jewelry",
+              "weight": -8
+            },
+            {
+              "term": "real estate",
+              "weight": -6
+            }
+          ],
+          "aliases": [],
+          "phrases": [],
+          "preferredSourceKeys": [
+            "beincrypto-rss",
+            "crypto-news-rss",
+            "cryptopotato-rss",
+            "newsbtc-rss",
+            "u-today-rss"
+          ],
+          "semanticAnchors": [
+            "presale",
+            "IDO",
+            "BNB Chain",
+            "non-custodial",
+            "no KYC",
+            "token reservation",
+            "launchpad",
+            "smart contract audit"
+          ],
+          "promoEnabled": true
+        }
+      },
+      {
+        "key": "coin-hall",
+        "name": "Coin Hall",
+        "brandBible": "brand-bibles/coin-hall.md",
+        "imageProfile": "image-profiles/coin-hall.json",
+        "editorial": {
+          "mediaFitThreshold": 22,
+          "strongTerms": [
+            {
+              "term": "prediction market",
+              "weight": 25
+            },
+            {
+              "term": "prediction",
+              "weight": 25
+            },
+            {
+              "term": "forecast",
+              "weight": 22
+            },
+            {
+              "term": "price target",
+              "weight": 22
+            },
+            {
+              "term": "oracle",
+              "weight": 20
+            },
+            {
+              "term": "polymarket",
+              "weight": 22
+            },
+            {
+              "term": "predict",
+              "weight": 22
+            },
+            {
+              "term": "price prediction",
+              "weight": 22
+            },
+            {
+              "term": "value prediction",
+              "weight": 22
+            },
+            {
+              "term": "settlement",
+              "weight": 18
+            },
+            {
+              "term": "chainlink",
+              "weight": 18
+            },
+            {
+              "term": "pyth",
+              "weight": 18
+            },
+            {
+              "term": "price feed",
+              "weight": 18
+            },
+            {
+              "term": "analyst",
+              "weight": 15
+            },
+            {
+              "term": "betting odds",
+              "weight": 18
+            },
+            {
+              "term": "probability",
+              "weight": 16
+            },
+            {
+              "term": "token launch",
+              "weight": 22
+            },
+            {
+              "term": "rally",
+              "weight": 18
+            },
+            {
+              "term": "surge",
+              "weight": 18
+            },
+            {
+              "term": "halving",
+              "weight": 20
+            },
+            {
+              "term": "dappradar",
+              "weight": 20
+            },
+            {
+              "term": "unlock",
+              "weight": 18
+            },
+            {
+              "term": "listing",
+              "weight": 18
+            },
+            {
+              "term": "mint",
+              "weight": 18
+            },
+            {
+              "term": "dapp",
+              "weight": 18
+            },
+            {
+              "term": "market cap",
+              "weight": 16
+            },
+            {
+              "term": "all-time high",
+              "weight": 18
+            },
+            {
+              "term": "ath",
+              "weight": 16
+            },
+            {
+              "term": "breakout",
+              "weight": 16
+            },
+            {
+              "term": "tvl",
+              "weight": 16
+            },
+            {
+              "term": "total value locked",
+              "weight": 16
+            },
+            {
+              "term": "auction",
+              "weight": 22
+            },
+            {
+              "term": "record sale",
+              "weight": 22
+            },
+            {
+              "term": "rolex",
+              "weight": 20
+            },
+            {
+              "term": "collectible",
+              "weight": 20
+            },
+            {
+              "term": "nft marketplace",
+              "weight": 18
+            },
+            {
+              "term": "nft",
+              "weight": 18
+            },
+            {
+              "term": "rare",
+              "weight": 18
+            },
+            {
+              "term": "ferrari",
+              "weight": 22
+            },
+            {
+              "term": "tokenized vehicle",
+              "weight": 22
+            },
+            {
+              "term": "porsche",
+              "weight": 20
+            },
+            {
+              "term": "lamborghini",
+              "weight": 20
+            },
+            {
+              "term": "luxury travel",
+              "weight": 22
+            },
+            {
+              "term": "vip",
+              "weight": 20
+            },
+            {
+              "term": "travel",
+              "weight": 18
+            },
+            {
+              "term": "yacht",
+              "weight": 18
+            },
+            {
+              "term": "resort",
+              "weight": 16
+            },
+            {
+              "term": "tokenized property",
+              "weight": 25
+            },
+            {
+              "term": "tokenized real estate",
+              "weight": 25
+            },
+            {
+              "term": "rwa",
+              "weight": 22
+            },
+            {
+              "term": "real-world asset",
+              "weight": 22
+            },
+            {
+              "term": "real estate",
+              "weight": 22
+            },
+            {
+              "term": "fractional ownership",
+              "weight": 20
+            },
+            {
+              "term": "play-to-earn",
+              "weight": 20
+            },
+            {
+              "term": "play to earn",
+              "weight": 20
+            },
+            {
+              "term": "gamefi",
+              "weight": 20
+            },
+            {
+              "term": "gaming",
+              "weight": 18
+            },
+            {
+              "term": "web3 gaming",
+              "weight": 22
+            },
+            {
+              "term": "blockchain game",
+              "weight": 20
+            }
+          ],
+          "weakTerms": [
+            {
+              "term": "sanctions",
+              "weight": -12
+            },
+            {
+              "term": "rug pull",
+              "weight": -12
+            },
+            {
+              "term": "exploit",
+              "weight": -10
+            },
+            {
+              "term": "phishing",
+              "weight": -10
+            },
+            {
+              "term": "malware",
+              "weight": -10
+            },
+            {
+              "term": "compliance",
+              "weight": -8
+            },
+            {
+              "term": "kyc",
+              "weight": -8
+            },
+            {
+              "term": "hack",
+              "weight": -10
+            },
+            {
+              "term": "breach",
+              "weight": -10
+            },
+            {
+              "term": "lawsuit",
+              "weight": -6
+            },
+            {
+              "term": "indicted",
+              "weight": -8
+            },
+            {
+              "term": "ponzi",
+              "weight": -10
+            },
+            {
+              "term": "drainer",
+              "weight": -10
+            }
+          ],
+          "aliases": [],
+          "phrases": [],
+          "preferredSourceKeys": [
+            "decrypt-rss",
+            "cointelegraph-rss",
+            "coindesk-rss",
+            "beincrypto-rss",
+            "the-block-rss"
+          ],
+          "semanticAnchors": [
+            "prediction market",
+            "luxury prize",
+            "oracle-confirmed outcome",
+            "blockchain entertainment",
+            "NFT auction",
+            "Sotheby's",
+            "Rolex",
+            "Ferrari"
+          ],
+          "promoEnabled": true,
+          "valueGate": {
+            "signalKinds": ["number", "percentage", "currency_amount"],
+            "forecastTerms": [
+              "price",
+              "forecast",
+              "predict",
+              "target",
+              "value",
+              "cost",
+              "worth",
+              "revenue",
+              "volume",
+              "tvl",
+              "market cap"
+            ]
+          }
+        }
+      },
+      {
+        "key": "chain-reporter",
+        "name": "ChainReporter",
+        "imageProfile": "image-profiles/chain-reporter.json",
+        "editorial": {
+          "mediaFitThreshold": 18,
+          "strongTerms": [
+            {
+              "term": "bitcoin etf",
+              "weight": 32
+            },
+            {
+              "term": "etf approval",
+              "weight": 30
+            },
+            {
+              "term": "bitcoin",
+              "weight": 28
+            },
+            {
+              "term": "spot etf",
+              "weight": 28
+            },
+            {
+              "term": "spot bitcoin",
+              "weight": 25
+            },
+            {
+              "term": "ethereum",
+              "weight": 24
+            },
+            {
+              "term": "sec",
+              "weight": 24
+            },
+            {
+              "term": "trump",
+              "weight": 22
+            },
+            {
+              "term": "blackrock",
+              "weight": 22
+            },
+            {
+              "term": "halving",
+              "weight": 22
+            },
+            {
+              "term": "btc",
+              "weight": 22
+            },
+            {
+              "term": "eth",
+              "weight": 20
+            },
+            {
+              "term": "regulation",
+              "weight": 20
+            },
+            {
+              "term": "institutional",
+              "weight": 20
+            },
+            {
+              "term": "cftc",
+              "weight": 18
+            },
+            {
+              "term": "fidelity",
+              "weight": 18
+            },
+            {
+              "term": "bankruptcy",
+              "weight": 18
+            },
+            {
+              "term": "indicted",
+              "weight": 18
+            },
+            {
+              "term": "grayscale",
+              "weight": 16
+            },
+            {
+              "term": "regulated",
+              "weight": 16
+            },
+            {
+              "term": "liquidation",
+              "weight": 18
+            },
+            {
+              "term": "mica",
+              "weight": 16
+            },
+            {
+              "term": "binance",
+              "weight": 16
+            },
+            {
+              "term": "lawsuit",
+              "weight": 16
+            },
+            {
+              "term": "xrp",
+              "weight": 14
+            },
+            {
+              "term": "ripple",
+              "weight": 14
+            },
+            {
+              "term": "solana",
+              "weight": 14
+            },
+            {
+              "term": "whale",
+              "weight": 14
+            },
+            {
+              "term": "stablecoin",
+              "weight": 15
+            },
+            {
+              "term": "layoff",
+              "weight": 15
+            },
+            {
+              "term": "coinbase",
+              "weight": 15
+            },
+            {
+              "term": "federal reserve",
+              "weight": 15
+            },
+            {
+              "term": "fed",
+              "weight": 15
+            },
+            {
+              "term": "macro",
+              "weight": 14
+            },
+            {
+              "term": "inflation",
+              "weight": 14
+            },
+            {
+              "term": "altseason",
+              "weight": 12
+            },
+            {
+              "term": "altcoin",
+              "weight": 12
+            },
+            {
+              "term": "usdt",
+              "weight": 12
+            },
+            {
+              "term": "usdc",
+              "weight": 12
+            },
+            {
+              "term": "policy",
+              "weight": 12
+            },
+            {
+              "term": "treasury",
+              "weight": 12
+            },
+            {
+              "term": "defi",
+              "weight": 10
+            },
+            {
+              "term": "spot ethereum etf",
+              "weight": 28
+            },
+            {
+              "term": "etf inflows",
+              "weight": 22
+            },
+            {
+              "term": "etf outflows",
+              "weight": 22
+            },
+            {
+              "term": "ibit",
+              "weight": 22
+            },
+            {
+              "term": "institutional adoption",
+              "weight": 20
+            },
+            {
+              "term": "microstrategy",
+              "weight": 18
+            },
+            {
+              "term": "goldman sachs",
+              "weight": 18
+            },
+            {
+              "term": "jpmorgan",
+              "weight": 18
+            },
+            {
+              "term": "sec approval",
+              "weight": 24
+            },
+            {
+              "term": "crypto regulation",
+              "weight": 20
+            },
+            {
+              "term": "stablecoin bill",
+              "weight": 20
+            },
+            {
+              "term": "rate cut",
+              "weight": 16
+            },
+            {
+              "term": "rate hike",
+              "weight": 16
+            },
+            {
+              "term": "fomc",
+              "weight": 16
+            },
+            {
+              "term": "market crash",
+              "weight": 18
+            },
+            {
+              "term": "all-time high",
+              "weight": 18
+            },
+            {
+              "term": "bitcoin reserve",
+              "weight": 20
+            },
+            {
+              "term": "strategic reserve",
+              "weight": 20
+            },
+            {
+              "term": "cbdc",
+              "weight": 16
+            },
+            {
+              "term": "digital dollar",
+              "weight": 16
+            }
+          ],
+          "weakTerms": [
+            {
+              "term": "presale",
+              "weight": -3
+            },
+            {
+              "term": "token reservation",
+              "weight": -5
+            },
+            {
+              "term": "gaming culture",
+              "weight": -5
+            },
+            {
+              "term": "play-to-earn",
+              "weight": -5
+            },
+            {
+              "term": "nft art",
+              "weight": -4
+            },
+            {
+              "term": "metaverse land",
+              "weight": -5
+            },
+            {
+              "term": "watch auction",
+              "weight": -6
+            },
+            {
+              "term": "jewelry",
+              "weight": -6
+            },
+            {
+              "term": "yacht",
+              "weight": -5
+            },
+            {
+              "term": "rug pull",
+              "weight": -3
+            }
+          ],
+          "aliases": [],
+          "phrases": [],
+          "preferredSourceKeys": [
+            "coindesk-rss",
+            "cointelegraph-rss",
+            "the-block-rss",
+            "blockworks-rss",
+            "bitcoin-magazine-rss"
+          ],
+          "semanticAnchors": [
+            "Bitcoin ETF approval",
+            "Ethereum SEC regulation",
+            "institutional crypto investment",
+            "BlackRock Bitcoin fund",
+            "stablecoin",
+            "Federal Reserve rate decision",
+            "crypto regulation policy",
+            "altcoin market"
+          ],
+          "promoEnabled": true
+        }
+      },
+      {
+        "key": "meta-coin-guard",
+        "name": "Meta Coin Guard",
+        "brandBible": "brand-bibles/meta-coin-guard.md",
+        "imageProfile": "image-profiles/meta-coin-guard.json",
+        "editorial": {
+          "mediaFitThreshold": 22,
+          "strongTerms": [
+            {
+              "term": "exploit",
+              "weight": 32
+            },
+            {
+              "term": "exploited",
+              "weight": 32
+            },
+            {
+              "term": "hack",
+              "weight": 30
+            },
+            {
+              "term": "hacked",
+              "weight": 30
+            },
+            {
+              "term": "wallet drainer",
+              "weight": 28
+            },
+            {
+              "term": "rug pull",
+              "weight": 28
+            },
+            {
+              "term": "flash loan attack",
+              "weight": 28
+            },
+            {
+              "term": "defi attack",
+              "weight": 28
+            },
+            {
+              "term": "breach",
+              "weight": 25
+            },
+            {
+              "term": "oracle manipulation",
+              "weight": 25
+            },
+            {
+              "term": "exit scam",
+              "weight": 24
+            },
+            {
+              "term": "phishing",
+              "weight": 24
+            },
+            {
+              "term": "vulnerability",
+              "weight": 25
+            },
+            {
+              "term": "scam",
+              "weight": 22
+            },
+            {
+              "term": "stolen",
+              "weight": 22
+            },
+            {
+              "term": "malware",
+              "weight": 22
+            },
+            {
+              "term": "withdrawal halt",
+              "weight": 22
+            },
+            {
+              "term": "funds frozen",
+              "weight": 22
+            },
+            {
+              "term": "insolvency",
+              "weight": 20
+            },
+            {
+              "term": "insolvent",
+              "weight": 20
+            },
+            {
+              "term": "theft",
+              "weight": 20
+            },
+            {
+              "term": "ofac",
+              "weight": 20
+            },
+            {
+              "term": "ponzi",
+              "weight": 20
+            },
+            {
+              "term": "audit",
+              "weight": 22
+            },
+            {
+              "term": "sanctions",
+              "weight": 20
+            },
+            {
+              "term": "aml",
+              "weight": 18
+            },
+            {
+              "term": "seed phrase",
+              "weight": 18
+            },
+            {
+              "term": "non-custodial",
+              "weight": 18
+            },
+            {
+              "term": "frozen",
+              "weight": 18
+            },
+            {
+              "term": "wallet monitoring",
+              "weight": 18
+            },
+            {
+              "term": "flash loan",
+              "weight": 20
+            },
+            {
+              "term": "attack",
+              "weight": 18
+            },
+            {
+              "term": "private key",
+              "weight": 16
+            },
+            {
+              "term": "social engineering",
+              "weight": 16
+            },
+            {
+              "term": "cold wallet",
+              "weight": 14
+            },
+            {
+              "term": "hardware wallet",
+              "weight": 14
+            },
+            {
+              "term": "security",
+              "weight": 18
+            },
+            {
+              "term": "blacklisted",
+              "weight": 15
+            },
+            {
+              "term": "drainer",
+              "weight": 26
+            },
+            {
+              "term": "reentrancy",
+              "weight": 24
+            },
+            {
+              "term": "bridge exploit",
+              "weight": 26
+            },
+            {
+              "term": "bridge hack",
+              "weight": 26
+            },
+            {
+              "term": "address poisoning",
+              "weight": 22
+            },
+            {
+              "term": "sim swap",
+              "weight": 22
+            },
+            {
+              "term": "zachxbt",
+              "weight": 20
+            },
+            {
+              "term": "peckshield",
+              "weight": 20
+            },
+            {
+              "term": "certik",
+              "weight": 18
+            },
+            {
+              "term": "exploiter",
+              "weight": 22
+            },
+            {
+              "term": "stolen funds",
+              "weight": 24
+            },
+            {
+              "term": "loss of funds",
+              "weight": 20
+            },
+            {
+              "term": "security audit",
+              "weight": 20
+            }
+          ],
+          "weakTerms": [
+            {
+              "term": "luxury",
+              "weight": -12
+            },
+            {
+              "term": "lifestyle",
+              "weight": -12
+            },
+            {
+              "term": "lambo",
+              "weight": -15
+            },
+            {
+              "term": "token hype",
+              "weight": -10
+            },
+            {
+              "term": "gaming",
+              "weight": -8
+            },
+            {
+              "term": "presale",
+              "weight": -5
+            },
+            {
+              "term": "auction",
+              "weight": -12
+            },
+            {
+              "term": "jewelry",
+              "weight": -12
+            },
+            {
+              "term": "watch",
+              "weight": -10
+            },
+            {
+              "term": "prediction market",
+              "weight": -8
+            }
+          ],
+          "aliases": [],
+          "phrases": [],
+          "preferredSourceKeys": [
+            "the-block-rss",
+            "blockworks-rss",
+            "the-defiant-rss",
+            "coindesk-rss"
+          ],
+          "semanticAnchors": [
+            "crypto security",
+            "DeFi exploit",
+            "protocol hack",
+            "wallet drainer",
+            "rug pull",
+            "smart contract vulnerability",
+            "phishing attack",
+            "flash loan attack"
+          ],
+          "promoEnabled": true
+        }
+      }
+    ],
+    "sources": [
+      {
+        "key": "coindesk-rss",
+        "origin": "rss",
+        "endpoint": "https://www.coindesk.com/arc/outboundfeeds/rss",
+        "name": "CoinDesk",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct_then_firecrawl"
+      },
+      {
+        "key": "cointelegraph-rss",
+        "origin": "rss",
+        "endpoint": "https://cointelegraph.com/rss",
+        "name": "Cointelegraph",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "decrypt-rss",
+        "origin": "rss",
+        "endpoint": "https://decrypt.co/feed",
+        "name": "Decrypt",
+        "enabled": false,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "cryptoslate-rss",
+        "origin": "rss",
+        "endpoint": "https://cryptoslate.com/feed/",
+        "name": "CryptoSlate",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "the-block-rss",
+        "origin": "rss",
+        "endpoint": "https://www.theblock.co/rss.xml",
+        "name": "The Block",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct_then_firecrawl"
+      },
+      {
+        "key": "blockworks-rss",
+        "origin": "rss",
+        "endpoint": "https://blockworks.com/feed/",
+        "name": "Blockworks",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "bitcoin-magazine-rss",
+        "origin": "rss",
+        "endpoint": "https://bitcoinmagazine.com/feed",
+        "name": "Bitcoin Magazine",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "beincrypto-rss",
+        "origin": "rss",
+        "endpoint": "https://beincrypto.com/feed/",
+        "name": "BeInCrypto",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "crypto-news-rss",
+        "origin": "rss",
+        "endpoint": "https://crypto.news/feed/",
+        "name": "Crypto.News",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "u-today-rss",
+        "origin": "rss",
+        "endpoint": "https://u.today/rss.php",
+        "name": "U.Today",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "newsbtc-rss",
+        "origin": "rss",
+        "endpoint": "https://www.newsbtc.com/feed/",
+        "name": "NewsBTC",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "cryptopotato-rss",
+        "origin": "rss",
+        "endpoint": "https://cryptopotato.com/feed/",
+        "name": "CryptoPotato",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "the-defiant-rss",
+        "origin": "rss",
+        "endpoint": "https://thedefiant.io/api/feed",
+        "name": "The Defiant",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct_then_firecrawl"
+      },
+      {
+        "key": "ambcrypto-rss",
+        "origin": "rss",
+        "endpoint": "https://ambcrypto.com/feed/",
+        "name": "AMBCrypto",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "dl-news-rss",
+        "origin": "rss",
+        "endpoint": "https://dlnews.com/arc/outboundfeeds/rss/",
+        "name": "DL News",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "chainalysis-blog-rss",
+        "origin": "rss",
+        "endpoint": "https://www.chainalysis.com/feed/",
+        "name": "Chainalysis Blog",
+        "enabled": true,
+        "contentLocale": "en",
+        "articleFetchMode": "direct"
+      },
+      {
+        "key": "cointelegraph-telegram",
+        "origin": "telegram_public",
+        "endpoint": "cointelegraph",
+        "name": "Cointelegraph Channel",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "coingraph-news-telegram",
+        "origin": "telegram_public",
+        "endpoint": "CoingraphNews",
+        "name": "Coingraph News",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "coindesk-global-telegram",
+        "origin": "telegram_public",
+        "endpoint": "CoinDeskGlobal",
+        "name": "CoinDesk Global",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "the-block-crypto-telegram",
+        "origin": "telegram_public",
+        "endpoint": "the_block_crypto",
+        "name": "The Block Crypto",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "decrypt-news-telegram",
+        "origin": "telegram_public",
+        "endpoint": "DecryptNews",
+        "name": "Decrypt News",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "lookonchain-telegram",
+        "origin": "telegram_public",
+        "endpoint": "lookonchainchannel",
+        "name": "Lookonchain",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "whale-alert-telegram",
+        "origin": "telegram_public",
+        "endpoint": "whale_alert_io",
+        "name": "Whale Alert",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "coinmarketcap-announcements-telegram",
+        "origin": "telegram_public",
+        "endpoint": "CoinMarketCapAnnouncements",
+        "name": "CoinMarketCap Announcements",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "watcher-guru-telegram",
+        "origin": "telegram_public",
+        "endpoint": "WatcherGuru",
+        "name": "Watcher Guru",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "wu-blockchain-telegram",
+        "origin": "telegram_public",
+        "endpoint": "wublockchainenglish",
+        "name": "Wu Blockchain",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "binance-announcements-telegram",
+        "origin": "telegram_public",
+        "endpoint": "binance_announcements",
+        "name": "Binance Announcements",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "okx-announcements-telegram",
+        "origin": "telegram_public",
+        "endpoint": "OKXAnnouncements",
+        "name": "OKX Announcements",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "cryptoquant-telegram",
+        "origin": "telegram_public",
+        "endpoint": "cryptoquant_official",
+        "name": "CryptoQuant",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "glassnode-telegram",
+        "origin": "telegram_public",
+        "endpoint": "glassnode",
+        "name": "Glassnode",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "crypto-news-telegram",
+        "origin": "telegram_public",
+        "endpoint": "crypto_news",
+        "name": "Crypto News",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "cryptodiffer-telegram",
+        "origin": "telegram_public",
+        "endpoint": "cryptodiffer",
+        "name": "CryptoDiffer",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "cryptorank-news-telegram",
+        "origin": "telegram_public",
+        "endpoint": "CryptoRankNews",
+        "name": "CryptoRank News",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "dwf-labs-telegram",
+        "origin": "telegram_public",
+        "endpoint": "dwflabs",
+        "name": "DWF Labs",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "gamee-telegram",
+        "origin": "telegram_public",
+        "endpoint": "gameechannel",
+        "name": "Gamee",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "polymarket-now-telegram",
+        "origin": "telegram_public",
+        "endpoint": "polymarketnow",
+        "name": "Polymarket Now",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "innmind-telegram",
+        "origin": "telegram_public",
+        "endpoint": "innmind",
+        "name": "InnMind",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "chainalysis-telegram",
+        "origin": "telegram_public",
+        "endpoint": "chainalysisinc",
+        "name": "Chainalysis",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "hacken-telegram",
+        "origin": "telegram_public",
+        "endpoint": "hackenai",
+        "name": "Hacken",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "dhl-logistics-telegram",
+        "origin": "telegram_public",
+        "endpoint": "lotdhl",
+        "name": "DHL Logistics",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "multibank-group-telegram",
+        "origin": "telegram_public",
+        "endpoint": "MultiBankio_Announcements",
+        "name": "MultiBank Group",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "coins-ph-announcements-telegram",
+        "origin": "telegram_public",
+        "endpoint": "coinsph_announcements",
+        "name": "Coins.ph Announcements",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "gram-telegram",
+        "origin": "telegram_public",
+        "endpoint": "gram",
+        "name": "Gram",
+        "enabled": true,
+        "contentLocale": "en"
+      },
+      {
+        "key": "unfolded-telegram",
+        "origin": "telegram_public",
+        "endpoint": "unfolded",
+        "name": "Unfolded",
+        "enabled": true,
+        "contentLocale": "en"
+      }
+    ],
+    "acquisition": {
+      "defaultWindowHours": 24,
+      "maxItemsPerSource": 15,
+      "telegram": {
+        "orderingMode": "views",
+        "topN": 10
+      }
+    },
+    "enrichment": {
+      "enabled": true,
+      "maxItemsPerImport": 50,
+      "freshnessHours": 24
+    },
+    "destinationAccounts": [
+      {
+        "key": "chainreporter-telegram",
+        "platform": "telegram",
+        "enabled": true,
+        "metadata": {
+          "label": "ChainReporter Telegram"
+        }
+      },
+      {
+        "key": "chainreporter-x",
+        "platform": "x",
+        "enabled": true,
+        "metadata": {
+          "label": "ChainReporter X"
+        }
+      }
+    ],
+    "brandDestinations": [
+      {
+        "brandKey": "rz-prime",
+        "destinationKey": "chainreporter-telegram"
+      },
+      {
+        "brandKey": "rz-prime",
+        "destinationKey": "chainreporter-x"
+      },
+      {
+        "brandKey": "coin-hall",
+        "destinationKey": "chainreporter-telegram"
+      },
+      {
+        "brandKey": "coin-hall",
+        "destinationKey": "chainreporter-x"
+      },
+      {
+        "brandKey": "chain-reporter",
+        "destinationKey": "chainreporter-telegram"
+      },
+      {
+        "brandKey": "chain-reporter",
+        "destinationKey": "chainreporter-x"
+      },
+      {
+        "brandKey": "meta-coin-guard",
+        "destinationKey": "chainreporter-telegram"
+      },
+      {
+        "brandKey": "meta-coin-guard",
+        "destinationKey": "chainreporter-x"
+      }
+    ]
+  },
+  "runStartedAt": "2026-08-20T12:00:00.000Z",
+  "topics": ["bitcoin etf", "stablecoin"],
+  "brands": [
+    {
+      "key": "rz-prime",
+      "mediaBrandId": "11111111-1111-4111-8111-111111111111"
+    },
+    {
+      "key": "coin-hall",
+      "mediaBrandId": "22222222-2222-4222-8222-222222222222"
+    },
+    {
+      "key": "chain-reporter",
+      "mediaBrandId": "33333333-3333-4333-8333-333333333333"
+    },
+    {
+      "key": "meta-coin-guard",
+      "mediaBrandId": "44444444-4444-4444-8444-444444444444"
+    }
+  ],
+  "items": [
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000001",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000001",
+      "sourceKey": "the-block-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T11:30:00.000Z",
+      "eligibility": "candidate",
+      "title": "Bitcoin ETF approval clears final SEC hurdle",
+      "summary": "Spot bitcoin funds from BlackRock and Fidelity list next week, with inflows expected above $2.4 billion.",
+      "canonicalUrl": "https://theblock.example.test/posts/etf-approval?utm_source=newsletter",
+      "vector": [
+        0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0,
+        1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000002",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000002",
+      "sourceKey": "cointelegraph-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T11:36:00.000Z",
+      "eligibility": "candidate",
+      "title": "Bitcoin ETF approval clears final SEC hurdle",
+      "summary": "Syndicated wire copy of the approval story.",
+      "canonicalUrl": "https://theblock.example.test/posts/etf-approval?utm_campaign=repost",
+      "vector": [
+        0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0,
+        0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000003",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000003",
+      "sourceKey": "decrypt-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T10:30:00.000Z",
+      "eligibility": "candidate",
+      "title": "Bitcoin ETF approval clears final SEC hurdle",
+      "summary": "Independent desk write-up carrying the same headline.",
+      "canonicalUrl": "https://decrypt.example.test/posts/etf-approval",
+      "vector": [
+        0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0,
+        0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000004",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000004",
+      "sourceKey": "cointelegraph-telegram",
+      "origin": "telegram_public",
+      "publishedAt": "2026-08-20T11:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Desk notes: bitcoin etf flows and stablecoin liquidity after the decision",
+      "summary": "Channel commentary on what the approval means for desks holding inventory.",
+      "canonicalUrl": "https://t.me/cointelegraph/91745",
+      "vector": [
+        0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.3,
+        0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000005",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000005",
+      "sourceKey": "blockworks-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T10:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Stablecoin bill advances as treasury weighs digital dollar options",
+      "summary": "Committee staff circulated the revised text late on Tuesday.",
+      "canonicalUrl": "https://blockworks.example.test/posts/stablecoin-bill",
+      "vector": [
+        0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7,
+        0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000006",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000006",
+      "sourceKey": "coindesk-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T09:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Ethereum regulation review opens as sec weighs staking guidance",
+      "summary": "The agency asked for comment on custody arrangements.",
+      "canonicalUrl": "https://coindesk.example.test/posts/eth-regulation",
+      "vector": [
+        0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000007",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000007",
+      "sourceKey": "bitcoin-magazine-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T08:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Spot bitcoin etf inflows reach a new weekly high",
+      "summary": "Desks reported steady demand through the middle of the week.",
+      "canonicalUrl": "https://bitcoinmagazine.example.test/posts/etf-inflows",
+      "vector": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000008",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000008",
+      "sourceKey": "the-defiant-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T06:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Defi lawsuit tests regulation of institutional lending desks",
+      "summary": "Filings describe a dispute over collateral treatment.",
+      "canonicalUrl": "https://thedefiant.example.test/posts/defi-lawsuit",
+      "vector": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000009",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000009",
+      "sourceKey": "crypto-news-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T04:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Binance and coinbase expand institutional custody regulation work",
+      "summary": "Both venues described new controls for professional clients.",
+      "canonicalUrl": "https://cryptonews.example.test/posts/custody",
+      "vector": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000010",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000010",
+      "sourceKey": "cryptopotato-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T01:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Xrp ripple lawsuit hearing set for next month",
+      "summary": "The schedule was published on the court docket.",
+      "canonicalUrl": "https://cryptopotato.example.test/posts/xrp-hearing",
+      "vector": [
+        0.0, 0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000011",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000011",
+      "sourceKey": "newsbtc-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-19T22:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Bitcoin whale liquidation triggers a brief market crash",
+      "summary": "Order books thinned out for about twenty minutes.",
+      "canonicalUrl": "https://newsbtc.example.test/posts/whale-liquidation",
+      "vector": [
+        0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000012",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000012",
+      "sourceKey": "u-today-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-19T16:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Weekly roundup of exchange listings and community notes",
+      "summary": "Volume fell 12% and the price target for the week was trimmed.",
+      "canonicalUrl": "https://utoday.example.test/posts/weekly-roundup",
+      "vector": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000013",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000013",
+      "sourceKey": "cryptopotato-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T03:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Grayscale files updated fidelity paperwork with regulators",
+      "summary": "The filing was posted to the public docket on Monday.",
+      "canonicalUrl": "https://cryptopotato.example.test/posts/grayscale-filing",
+      "vector": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000014",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000014",
+      "sourceKey": "chainalysis-blog-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T02:30:00.000Z",
+      "eligibility": "candidate",
+      "title": "Regulators receive revised paperwork from grayscale and fidelity",
+      "summary": "Analysts summarised the changes for institutional readers.",
+      "canonicalUrl": "https://chainalysis.example.test/posts/revised-filing",
+      "vector": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.55, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000015",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000015",
+      "sourceKey": "dl-news-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T11:30:00.000Z",
+      "eligibility": "candidate",
+      "title": "Ibit desk update for allocation planners",
+      "summary": "Planners updated their allocation notes for the quarter.",
+      "canonicalUrl": "https://dlnews.example.test/posts/ibit-desk",
+      "vector": [
+        0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        1.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000016",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000016",
+      "sourceKey": "beincrypto-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T11:30:00.000Z",
+      "eligibility": "candidate",
+      "title": "Halving schedule review for mining operators",
+      "summary": "Operators reviewed the schedule ahead of the next window.",
+      "canonicalUrl": "https://beincrypto.example.test/posts/halving-schedule",
+      "vector": [
+        1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000017",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000017",
+      "sourceKey": "ambcrypto-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-18T13:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Defi corner roundup for the week",
+      "summary": "Short notes from a quiet stretch of trading.",
+      "canonicalUrl": "https://ambcrypto.example.test/posts/defi-corner",
+      "vector": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000018",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000018",
+      "sourceKey": "the-block-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T09:00:00.000Z",
+      "eligibility": "candidate",
+      "title": "Prediction market volume hits a record as oracle settlement clears",
+      "summary": "Operators reported the largest settled book of the quarter.",
+      "canonicalUrl": "https://theblock.example.test/posts/prediction-market",
+      "vector": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 1.0, 0.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000019",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000019",
+      "sourceKey": "u-today-rss",
+      "origin": "rss",
+      "publishedAt": null,
+      "eligibility": "undated",
+      "title": "Undated explainer on custody arrangements",
+      "summary": "No publication timestamp was supplied by the feed.",
+      "canonicalUrl": "https://utoday.example.test/posts/undated-explainer",
+      "vector": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 1.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000020",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000020",
+      "sourceKey": "newsbtc-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-17T04:00:00.000Z",
+      "eligibility": "out_of_window",
+      "title": "Bitcoin etf approval anniversary retrospective",
+      "summary": "A look back at the first month of trading.",
+      "canonicalUrl": "https://newsbtc.example.test/posts/retrospective",
+      "vector": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 1.0
+      ]
+    }
+  ],
+  "topicVectors": [
+    [
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.0
+    ],
+    [
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.0
+    ]
+  ],
+  "anchorVectors": {
+    "rz-prime": [
+      [
+        0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    ],
+    "coin-hall": [
+      [
+        0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    ],
+    "chain-reporter": [
+      [
+        1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    ],
+    "meta-coin-guard": [
+      [
+        1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      [
+        0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    ]
+  },
+  "expected": {
+    "digests": {
+      "succeeded": "85d7cbe25717cfc4523bf5ef64befdc32021c1550a50eaaa18fd01662518660b",
+      "degraded": "c45dc8fe7b4494bd1a504fdd76a089ea52e6af036cf80cb56e43d6b6389da98a"
+    },
+    "items": [
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000001",
+        "eligibility": "candidate",
+        "duplicateMethod": null,
+        "duplicateOfSourceItemId": null,
+        "freshnessScore": 100
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000002",
+        "eligibility": "duplicate",
+        "duplicateMethod": "canonical_url",
+        "duplicateOfSourceItemId": "aaaaaaaa-0000-4000-8000-000000000001",
+        "freshnessScore": 100
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000003",
+        "eligibility": "duplicate",
+        "duplicateMethod": "title",
+        "duplicateOfSourceItemId": "aaaaaaaa-0000-4000-8000-000000000001",
+        "freshnessScore": 95
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000004",
+        "eligibility": "candidate",
+        "duplicateMethod": null,
+        "duplicateOfSourceItemId": null,
+        "freshnessScore": 95
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000007",
+        "eligibility": "candidate",
+        "duplicateMethod": null,
+        "duplicateOfSourceItemId": null,
+        "freshnessScore": 80
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000011",
+        "eligibility": "candidate",
+        "duplicateMethod": null,
+        "duplicateOfSourceItemId": null,
+        "freshnessScore": 50
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000013",
+        "eligibility": "duplicate",
+        "duplicateMethod": "semantic",
+        "duplicateOfSourceItemId": "aaaaaaaa-0000-4000-8000-000000000014",
+        "freshnessScore": 68
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000019",
+        "eligibility": "undated",
+        "duplicateMethod": null,
+        "duplicateOfSourceItemId": null,
+        "freshnessScore": null
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000020",
+        "eligibility": "out_of_window",
+        "duplicateMethod": null,
+        "duplicateOfSourceItemId": null,
+        "freshnessScore": null
+      }
+    ],
+    "routes": [
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000001",
+        "brandKey": "chain-reporter",
+        "disposition": "shortlisted",
+        "reason": null,
+        "valueSignalCount": null,
+        "rankPosition": 1
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000004",
+        "brandKey": "chain-reporter",
+        "disposition": "telegram_lane",
+        "reason": null,
+        "valueSignalCount": null,
+        "rankPosition": 4
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000014",
+        "brandKey": "chain-reporter",
+        "disposition": "shortlisted",
+        "reason": null,
+        "valueSignalCount": null,
+        "rankPosition": 9
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000010",
+        "brandKey": "chain-reporter",
+        "disposition": "shortlisted",
+        "reason": null,
+        "valueSignalCount": null,
+        "rankPosition": 10
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000015",
+        "brandKey": "chain-reporter",
+        "disposition": "shortlisted",
+        "reason": null,
+        "valueSignalCount": null,
+        "rankPosition": 11
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000016",
+        "brandKey": "chain-reporter",
+        "disposition": "shortlisted",
+        "reason": null,
+        "valueSignalCount": null,
+        "rankPosition": 12
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000017",
+        "brandKey": "chain-reporter",
+        "disposition": "low_score",
+        "reason": null,
+        "valueSignalCount": null,
+        "rankPosition": null
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000012",
+        "brandKey": "chain-reporter",
+        "disposition": "no_media_fit",
+        "reason": "below_media_fit_threshold",
+        "valueSignalCount": null,
+        "rankPosition": null
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000001",
+        "brandKey": "coin-hall",
+        "disposition": "no_media_fit",
+        "reason": "below_media_fit_threshold",
+        "valueSignalCount": 1,
+        "rankPosition": null
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000004",
+        "brandKey": "coin-hall",
+        "disposition": "no_media_fit",
+        "reason": "missing_required_value_signal",
+        "valueSignalCount": 0,
+        "rankPosition": null
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000012",
+        "brandKey": "coin-hall",
+        "disposition": "low_score",
+        "reason": null,
+        "valueSignalCount": 4,
+        "rankPosition": null
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000018",
+        "brandKey": "coin-hall",
+        "disposition": "shortlisted",
+        "reason": null,
+        "valueSignalCount": 1,
+        "rankPosition": 1
+      }
+    ]
+  }
+}

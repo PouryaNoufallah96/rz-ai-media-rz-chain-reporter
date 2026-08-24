@@ -4,7 +4,7 @@ import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import type { TableOptions } from "@tanstack/react-table";
 import type { useFormatter, useTranslations } from "next-intl";
 
-import { StateMark } from "@/components/common/state-mark";
+import { StateMark, type StateMarkState } from "@/components/common/state-mark";
 import type { keysetDataTableFeatures } from "@/components/data-table/use-keyset-data-table";
 
 import type { SOURCES_NAMESPACE } from "../constants";
@@ -87,29 +87,18 @@ export function sourceItemColumns({
       ),
     },
     {
-      accessorKey: "enrichment",
-      header: t("stream.columns.enrichment"),
-      id: "enrichment",
-      cell: ({ row }) => (
-        <span className="flex items-center gap-1 text-xs">
-          {row.original.enrichment === null ? null : (
-            <StateMark
-              state={
-                row.original.enrichment === "succeeded"
-                  ? "succeeded"
-                  : row.original.enrichment === "pending"
-                    ? "running"
-                    : row.original.enrichment === "skipped"
-                      ? "cancelled"
-                      : row.original.enrichment === "unknown"
-                        ? "unknown"
-                        : "failed"
-              }
-            />
-          )}
-          {t(`enrichment.${row.original.enrichment ?? "none"}`)}
-        </span>
-      ),
+      header: t("stream.columns.path"),
+      id: "path",
+      cell: ({ row }) => {
+        const mark = pathMark(row.original);
+
+        return (
+          <span className="flex items-center gap-1 text-xs">
+            {mark ? <StateMark state={mark} /> : null}
+            {itemPath(row.original, t)}
+          </span>
+        );
+      },
     },
     ...(showOccurrence
       ? [
@@ -147,4 +136,56 @@ export function sourceItemColumns({
       cell: ({ row }) => <SourceItemDetail row={row.original} />,
     },
   ];
+}
+
+function itemPath(row: SourceItemRow, t: Translate) {
+  if (row.admission !== null && row.admission !== "admitted") {
+    return t(`admission.${row.admission}`);
+  }
+
+  const admitted =
+    row.admission === "admitted" ? t("admission.admitted") : null;
+
+  if (row.enrichment === "pending") {
+    return joinPath(admitted, t("path.enriching"));
+  }
+
+  if (row.enrichment === "failed") {
+    return joinPath(
+      admitted,
+      row.enrichmentReason
+        ? t("path.failed", { reason: t(`reason.${row.enrichmentReason}`) })
+        : t("enrichment.failed"),
+    );
+  }
+
+  if (row.adapter) {
+    return joinPath(
+      admitted,
+      row.adapter === "firecrawl" && row.fallbackReason
+        ? t("adapter.directThenFirecrawl")
+        : t(`adapter.${row.adapter}`),
+    );
+  }
+
+  if (row.enrichment && row.enrichment !== "succeeded") {
+    return joinPath(admitted, t(`enrichment.${row.enrichment}`));
+  }
+
+  return admitted ?? t("enrichment.none");
+}
+
+function joinPath(head: string | null, tail: string) {
+  return head ? `${head} · ${tail}` : tail;
+}
+
+function pathMark(row: SourceItemRow): StateMarkState | null {
+  if (row.admission !== null && row.admission !== "admitted") {
+    return "cancelled";
+  }
+  if (row.enrichment === "pending") return "running";
+  if (row.enrichment === "failed") return "failed";
+  if (row.enrichment === "unknown") return "unknown";
+  if (row.enrichment === "skipped") return "cancelled";
+  return null;
 }

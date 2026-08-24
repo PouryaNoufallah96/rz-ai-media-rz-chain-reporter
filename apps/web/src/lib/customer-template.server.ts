@@ -1,6 +1,7 @@
 import "server-only";
 
 import { resolve } from "node:path";
+import type { RunConfigurationBounds } from "@rz-chain-reporter/contracts";
 import { loadCustomerTemplate } from "@rz-chain-reporter/customer-template/load";
 import { env } from "@rz-chain-reporter/env/server";
 
@@ -39,4 +40,37 @@ export const customerAcquisition = {
   orderingMode: template.acquisition.telegram.orderingMode,
   topN: template.acquisition.telegram.topN,
   enrichmentEnabled: template.enrichment.enabled,
+};
+
+export const customerEditorial = {
+  models: template.editorial.models,
+  brands: template.mediaBrands.map((brand) => ({
+    key: brand.key,
+    name: brand.name,
+    promoEnabled: brand.editorial.promoEnabled,
+  })),
+  platforms: template.editorial.platforms,
+  defaults: template.editorial.defaults,
+  bounds: {
+    brandKeys: template.mediaBrands.map((brand) => brand.key),
+    modelKeys: template.editorial.models.map((model) => model.key),
+    platforms: template.editorial.platforms,
+    selectionCap: template.editorial.selectionCap,
+    shortlistCap: template.editorial.shortlistCap,
+    promoPromptMaxChars: template.editorial.promo.promptMaxChars,
+    semanticMaxChars: template.editorial.semantic.maxChars,
+    semanticMaxTopics: template.editorial.semantic.maxTopics,
+    fanOutMaxUnits: template.editorial.fanOut.maxUnits,
+  } satisfies RunConfigurationBounds,
+  thresholds: {
+    policyScore: template.editorial.policy.thresholds.policyScore,
+    semanticDedup: template.editorial.semantic.dedupThreshold,
+    shortlistCap: template.editorial.shortlistCap,
+    mediaFitByBrandKey: Object.fromEntries(
+      template.mediaBrands.map((brand) => [
+        brand.key,
+        brand.editorial.mediaFitThreshold,
+      ]),
+    ),
+  },
 };

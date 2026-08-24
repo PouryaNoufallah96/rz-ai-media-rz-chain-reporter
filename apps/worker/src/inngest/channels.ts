@@ -1,5 +1,6 @@
 import type { OperationStatusRealtimeMessage } from "@rz-chain-reporter/contracts";
 import {
+  editorialRealtimeChannel,
   operationsRealtimeChannel,
   sourcesRealtimeChannel,
   usageRealtimeChannel,
@@ -52,6 +53,71 @@ export function publishSourcesChanged(
     .then(() => true)
     .catch(() => {
       workerLogger.warn("worker.sources.realtime-unavailable", {
+        workspaceId,
+      });
+      return false;
+    });
+}
+
+export function publishSourcesChangedNow(
+  client: WorkerInngestClient,
+  workspaceId: string,
+) {
+  return client.realtime
+    .publish(sourcesRealtimeChannel(workspaceId).changed, {
+      occurredAt: new Date().toISOString(),
+      schemaVersion: 1,
+    })
+    .then(() => true)
+    .catch(() => {
+      workerLogger.warn("worker.sources.realtime-unavailable", {
+        workspaceId,
+      });
+      return false;
+    });
+}
+
+export function publishEditorialChanged(
+  step: WorkerStep,
+  workspaceId: string,
+  analysisRunId: string,
+  callSite: string,
+) {
+  return step.realtime
+    .publish(
+      `publish-editorial-changed-${callSite}`,
+      editorialRealtimeChannel(workspaceId, analysisRunId).changed,
+      {
+        analysisRunId,
+        occurredAt: new Date().toISOString(),
+        schemaVersion: 1,
+      },
+    )
+    .then(() => true)
+    .catch(() => {
+      workerLogger.warn("worker.editorial.realtime-unavailable", {
+        analysisRunId,
+        workspaceId,
+      });
+      return false;
+    });
+}
+
+export function publishEditorialChangedNow(
+  client: WorkerInngestClient,
+  workspaceId: string,
+  analysisRunId: string,
+) {
+  return client.realtime
+    .publish(editorialRealtimeChannel(workspaceId, analysisRunId).changed, {
+      analysisRunId,
+      occurredAt: new Date().toISOString(),
+      schemaVersion: 1,
+    })
+    .then(() => true)
+    .catch(() => {
+      workerLogger.warn("worker.editorial.realtime-unavailable", {
+        analysisRunId,
         workspaceId,
       });
       return false;

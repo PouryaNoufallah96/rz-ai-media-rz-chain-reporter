@@ -8,7 +8,7 @@
     "bindings:prestart": "tsx src/bindings/check-cli.ts prestart",
     "bindings:record": "tsx src/bindings/record-cli.ts",
     "build": "pnpm run build:template && pnpm run build:bundle",
-    "build:bundle": "esbuild main=src/main.ts prestart=src/identity/prestart-cli.ts rearm=src/relay/rearm-cli.ts scheduled-probe=src/inngest/scheduled-probe-cli.ts generation-probe=src/inngest/generation-probe-cli.ts fetch-probe=src/fetch/probe-cli.ts source-import=src/inngest/source-import-cli.ts --bundle --packages=bundle --external:sharp --platform=node --format=esm --target=node24 --banner:js=\"import { createRequire as __chainReporterCreateRequire } from 'node:module'; const require = __chainReporterCreateRequire(import.meta.url);\" --sourcemap --outdir=dist",
+    "build:bundle": "esbuild main=src/main.ts prestart=src/identity/prestart-cli.ts rearm=src/relay/rearm-cli.ts scheduled-probe=src/inngest/scheduled-probe-cli.ts generation-probe=src/inngest/generation-probe-cli.ts fetch-probe=src/fetch/probe-cli.ts source-import=src/inngest/source-import-cli.ts editorial=src/editorial/fixture-cli.ts analysis-run=src/inngest/analysis-run-cli.ts --bundle --packages=bundle --external:sharp --platform=node --format=esm --target=node24 --banner:js=\"import { createRequire as __chainReporterCreateRequire } from 'node:module'; const require = __chainReporterCreateRequire(import.meta.url);\" --sourcemap --outdir=dist",
     "build:template": "tsx src/identity/build-cli.ts",
     "check": "biome check .",
     "check-types": "tsc --noEmit",

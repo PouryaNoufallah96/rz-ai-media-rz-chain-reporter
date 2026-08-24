@@ -3,7 +3,7 @@ import { assertAppliedIdentity } from "../identity/assert";
 import type { WorkerInngestClient } from "../inngest/client";
 import { connectWorker } from "../inngest/connect";
 import { openWorkerRuntime } from "../inngest/runtime";
-import { workerLogger } from "../logging/logger";
+import { stableFailureCode, workerLogger } from "../logging/logger";
 import { OutboxRelay } from "../relay/relay";
 import { deriveWorkerRuntimeConfig } from "../runtime/config";
 import { abortableDelay } from "../runtime/delay";
@@ -108,20 +108,25 @@ export async function runWorkerApplication(client: WorkerInngestClient) {
     let installation:
       | Awaited<ReturnType<typeof assertAppliedIdentity>>
       | undefined;
-    let dependencyFailureReported = false;
+    let reportedFailureCode: string | null = null;
     while (!initializationAbort.signal.aborted) {
       try {
         await database.check();
         installation = await assertAppliedIdentity(database.db, identity);
-        if (dependencyFailureReported) {
+        if (reportedFailureCode !== null) {
+          reportedFailureCode = null;
           workerLogger.info("worker.runtime.dependency-recovered");
         }
         break;
-      } catch {
-        if (!dependencyFailureReported) {
-          dependencyFailureReported = true;
+      } catch (error) {
+        const errorCode = stableFailureCode(
+          error,
+          "WORKER_DEPENDENCY_UNAVAILABLE",
+        );
+        if (errorCode !== reportedFailureCode) {
+          reportedFailureCode = errorCode;
           workerLogger.warn("worker.runtime.dependency-unavailable", {
-            errorCode: "WORKER_DEPENDENCY_UNAVAILABLE",
+            errorCode,
           });
         }
         await abortableDelay(IDENTITY_RETRY_MS, initializationAbort.signal);

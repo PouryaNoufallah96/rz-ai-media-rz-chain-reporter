@@ -1,5 +1,6 @@
 import { createServer, type Server, type ServerResponse } from "node:http";
 
+import { stableFailureCode } from "../logging/logger";
 import type { WorkerRuntimeState } from "../runtime/state";
 
 type ReadinessCheck = () => Promise<void>;
@@ -43,14 +44,15 @@ export function createHealthServer(
       .then(() => {
         const runtimeReady = state.runtimeReady();
         json(response, runtimeReady ? 200 : 503, {
-          status: runtimeReady ? "ready" : "unavailable",
+          status: runtimeReady ? "ready" : "starting",
           mode: state.config.mode,
           capabilities: state.capabilities(),
         });
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         json(response, 503, {
           status: "unavailable",
+          errorCode: stableFailureCode(error, "WORKER_DEPENDENCY_UNAVAILABLE"),
           mode: state.config.mode,
           capabilities: state.capabilities(),
         });

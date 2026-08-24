@@ -44,3 +44,21 @@ export const sourcesChangedRealtimeMessageSchema = z.strictObject({
   schemaVersion: z.literal(1),
   occurredAt: z.iso.datetime(),
 });
+
+const EDITORIAL_REALTIME_TOPICS = ["changed"] as const;
+export const EDITORIAL_REALTIME_CHANGED_TOPIC = EDITORIAL_REALTIME_TOPICS[0];
+
+export function getEditorialRealtimeChannelName(
+  workspaceId: string,
+  analysisRunId: string,
+) {
+  return `editorial:${workspaceId}:${analysisRunId}` as const;
+}
+
+// The run id repeats the channel scope so the island can drop a ping that
+// arrives on a socket which has not torn down yet.
+export const editorialChangedRealtimeMessageSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  occurredAt: z.iso.datetime(),
+  analysisRunId: z.uuid(),
+});

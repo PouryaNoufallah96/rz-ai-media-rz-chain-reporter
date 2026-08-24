@@ -11,9 +11,10 @@ import { Checkbox } from "@rz-chain-reporter/ui/components/checkbox";
 import { FieldGroup } from "@rz-chain-reporter/ui/components/field";
 import { Input } from "@rz-chain-reporter/ui/components/input";
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
+import { XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
-import { type Control, useForm, useWatch } from "react-hook-form";
+import { type Control, useController, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 
@@ -43,9 +44,7 @@ import {
 
 const SOURCE_KINDS: readonly SourceOrigin[] = ["rss", "telegram_public"];
 
-const importFormSchema = startSourceImportInputSchema.omit({ topics: true });
-
-type ImportFormValues = z.input<typeof importFormSchema>;
+type ImportFormValues = z.input<typeof startSourceImportInputSchema>;
 
 type ImportFormControl = Control<ImportFormValues>;
 
@@ -66,7 +65,6 @@ export function SourceImportForm({
   const resolveError = useImportErrorMessage();
   const titleId = useId();
   const startHintId = useId();
-  const [topicsText, setTopicsText] = useState("");
 
   const selectable: SourceCatalogEntry[] = [];
   for (const entry of catalog.entries) {
@@ -87,28 +85,22 @@ export function SourceImportForm({
       windowHours: imports.defaults.windowHours,
       orderingMode: imports.defaults.orderingMode,
       topN: imports.defaults.topN,
+      topics: [],
       enrichmentEnabled: imports.defaults.enrichmentEnabled,
     },
     mode: "onSubmit",
     reValidateMode: "onSubmit",
-    resolver: zodResolver(importFormSchema),
+    resolver: zodResolver(startSourceImportInputSchema),
   });
 
-  const orderingMode = useWatch({ control, name: "orderingMode" });
-  const sourceIds = useWatch({ control, name: "sourceIds" });
-  const hasSelection = sourceIds.length > 0;
-  const selectedIds = new Set(sourceIds);
-  const includesTelegram = selectable.some(
-    (entry) => entry.origin === "telegram_public" && selectedIds.has(entry.id),
-  );
   const isPending = isSubmitting || action.isPending;
 
   const onSubmit = handleSubmit(async (values) => {
     clearErrors("root");
     action.reset();
     const result = await action.execute(
-      includesTelegram
-        ? { ...values, topics: parseTopics(topicsText) }
+      selectedHasOrigin(selectable, values.sourceIds, "telegram_public")
+        ? values
         : {
             ...values,
             orderingMode: imports.defaults.orderingMode,
@@ -140,48 +132,14 @@ export function SourceImportForm({
           <SourceSelection
             control={control}
             disabled={isPending}
+            enrichmentEnabled={imports.defaults.enrichmentEnabled}
+            recentTopics={imports.recentTopics}
             resolveError={resolveError}
             selectable={selectable}
           />
           <RecencyField
             control={control}
             disabled={isPending}
-            resolveError={resolveError}
-          />
-          {includesTelegram ? (
-            <>
-              <OrderingField
-                control={control}
-                disabled={isPending}
-                resolveError={resolveError}
-              />
-              <TopNField
-                control={control}
-                disabled={isPending}
-                resolveError={resolveError}
-              />
-              {orderingMode === "keywords" ? (
-                <TopicsField
-                  disabled={isPending}
-                  onChange={setTopicsText}
-                  recentTopics={imports.recentTopics}
-                  value={topicsText}
-                />
-              ) : null}
-            </>
-          ) : null}
-          <FormCheckboxField
-            control={control}
-            description={t("import.enrichmentHint", {
-              state: t(
-                imports.defaults.enrichmentEnabled
-                  ? "import.enrichmentOn"
-                  : "import.enrichmentOff",
-              ),
-            })}
-            disabled={isPending}
-            label={t("import.enrichment")}
-            name="enrichmentEnabled"
             resolveError={resolveError}
           />
           <FormRootError
@@ -191,125 +149,230 @@ export function SourceImportForm({
                 : undefined
             }
           />
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              aria-describedby={startHintId}
-              disabled={isPending || !hasSelection}
-              type="submit"
-            >
-              {isPending ? (
-                <Spinner aria-hidden="true" data-icon="inline-start" />
-              ) : null}
-              {isPending ? t("import.pending") : t("import.start")}
-            </Button>
-            <span className="text-muted-foreground text-xs" id={startHintId}>
-              {t(hasSelection ? "import.startHint" : "import.startDisabled")}
-            </span>
-          </div>
+          <StartImportControl
+            control={control}
+            isPending={isPending}
+            startHintId={startHintId}
+          />
         </FieldGroup>
       </form>
     </section>
   );
 }
 
+function selectedHasOrigin(
+  selectable: readonly SourceCatalogEntry[],
+  sourceIds: readonly string[],
+  origin: SourceOrigin,
+) {
+  const selected = new Set(sourceIds);
+  return selectable.some(
+    (entry) => entry.origin === origin && selected.has(entry.id),
+  );
+}
+
+function StartImportControl({
+  control,
+  isPending,
+  startHintId,
+}: {
+  control: ImportFormControl;
+  isPending: boolean;
+  startHintId: string;
+}) {
+  const t = useTranslations(SOURCES_NAMESPACE);
+  const { field } = useController({ control, name: "sourceIds" });
+  const hasSelection = field.value.length > 0;
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button
+        aria-describedby={startHintId}
+        disabled={isPending || !hasSelection}
+        type="submit"
+      >
+        {isPending ? (
+          <Spinner aria-hidden="true" data-icon="inline-start" />
+        ) : null}
+        {isPending ? t("import.pending") : t("import.start")}
+      </Button>
+      <span className="text-muted-foreground text-xs" id={startHintId}>
+        {t(hasSelection ? "import.startHint" : "import.startDisabled")}
+      </span>
+    </div>
+  );
+}
+
 function SourceSelection({
   control,
   disabled,
+  enrichmentEnabled,
+  recentTopics,
   resolveError,
   selectable,
-}: FieldProps & { selectable: SourceCatalogEntry[] }) {
+}: FieldProps & {
+  enrichmentEnabled: boolean;
+  recentTopics: SourceImportsView["recentTopics"];
+  selectable: SourceCatalogEntry[];
+}) {
   const t = useTranslations(SOURCES_NAMESPACE);
-  const idsByKind = new Map<SourceOrigin, string[]>();
-
-  for (const entry of selectable) {
-    const bucket = idsByKind.get(entry.origin) ?? [];
-    bucket.push(entry.id);
-    idsByKind.set(entry.origin, bucket);
-  }
+  const { field: sourceIds } = useController({
+    control,
+    disabled,
+    name: "sourceIds",
+  });
+  const includesTelegram = selectedHasOrigin(
+    selectable,
+    sourceIds.value,
+    "telegram_public",
+  );
+  const includesRss = selectedHasOrigin(selectable, sourceIds.value, "rss");
 
   return (
-    <FormField
-      control={control}
-      disabled={disabled}
-      name="sourceIds"
-      resolveError={resolveError}
-    >
-      {({ controlId, field }) => {
-        const selected = new Set(field.value);
+    <>
+      <FormField
+        control={control}
+        disabled={disabled}
+        name="sourceIds"
+        resolveError={resolveError}
+      >
+        {({ controlId, field }) => {
+          const selected = new Set(field.value);
 
-        return (
-          <>
-            <fieldset className="grid gap-1">
-              <legend className="ticket-label">{t("import.kinds")}</legend>
-              <div className="flex flex-wrap gap-2">
-                {SOURCE_KINDS.map((origin) => {
-                  const kindIds = idsByKind.get(origin) ?? [];
+          return (
+            <fieldset className="grid gap-3">
+              <legend className="ticket-label" id={controlId}>
+                {t("import.sources")}
+              </legend>
+              {selectable.length === 0 ? (
+                <p className="text-muted-foreground text-xs">
+                  {t("catalog.empty")}
+                </p>
+              ) : (
+                SOURCE_KINDS.map((origin) => {
+                  const entries = selectable.filter(
+                    (entry) => entry.origin === origin,
+                  );
+                  if (entries.length === 0) return null;
+
+                  const kindIds = entries.map((entry) => entry.id);
+                  const selectedCount = kindIds.filter((id) =>
+                    selected.has(id),
+                  ).length;
                   const allSelected =
-                    kindIds.length > 0 &&
-                    kindIds.every((id) => selected.has(id));
+                    kindIds.length > 0 && selectedCount === kindIds.length;
+                  const headingId = `${controlId}-${origin}`;
 
                   return (
-                    <Button
-                      aria-pressed={allSelected}
-                      disabled={disabled || kindIds.length === 0}
+                    <section
+                      aria-labelledby={headingId}
+                      className="grid gap-1"
                       key={origin}
-                      onClick={() => {
-                        const next = new Set(selected);
-                        for (const id of kindIds) {
-                          if (allSelected) next.delete(id);
-                          else next.add(id);
-                        }
-                        field.onChange([...next]);
-                      }}
-                      size="sm"
-                      type="button"
-                      variant="outline"
                     >
-                      {t(`catalog.kind.${origin}`)}
-                    </Button>
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <h3
+                          className="flex min-w-0 items-baseline gap-2"
+                          id={headingId}
+                        >
+                          <span className="ticket-label">
+                            {t(`catalog.kind.${origin}`)}
+                          </span>
+                          <span className="font-mono text-muted-foreground text-xs tabular-nums">
+                            {t("import.sourcesHint", {
+                              m: kindIds.length,
+                              n: selectedCount,
+                            })}
+                          </span>
+                        </h3>
+                        <Button
+                          aria-pressed={allSelected}
+                          className="shrink-0 border border-input bg-background aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary"
+                          disabled={disabled}
+                          onClick={() => {
+                            const next = new Set(selected);
+                            for (const id of kindIds) {
+                              if (allSelected) next.delete(id);
+                              else next.add(id);
+                            }
+                            field.onChange([...next]);
+                          }}
+                          size="xs"
+                          type="button"
+                          variant="ghost"
+                        >
+                          {t(
+                            allSelected
+                              ? "import.selectNone"
+                              : "import.selectAll",
+                          )}
+                        </Button>
+                      </div>
+                      <ul className="max-h-40 overflow-y-auto border border-border border-dashed px-2 py-1">
+                        {entries.map((entry) => (
+                          <li
+                            className="flex items-center gap-2 py-0.5"
+                            key={entry.id}
+                          >
+                            <Checkbox
+                              checked={selected.has(entry.id)}
+                              disabled={disabled}
+                              id={`${controlId}-${entry.id}`}
+                              onCheckedChange={(checked) => {
+                                const next = new Set(selected);
+                                if (checked === true) next.add(entry.id);
+                                else next.delete(entry.id);
+                                field.onChange([...next]);
+                              }}
+                            />
+                            <label
+                              className="min-w-0 truncate text-xs"
+                              htmlFor={`${controlId}-${entry.id}`}
+                            >
+                              <Bdi>{entry.name}</Bdi>
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
                   );
-                })}
-              </div>
+                })
+              )}
             </fieldset>
-            <span className="ticket-label" id={controlId}>
-              {t("import.sources")}
-            </span>
-            <span className="font-mono text-muted-foreground text-xs tabular-nums">
-              {t("import.sourcesHint", {
-                m: selectable.length,
-                n: selected.size,
-              })}
-            </span>
-            <ul
-              aria-labelledby={controlId}
-              className="max-h-48 overflow-y-auto border border-border border-dashed p-2"
-            >
-              {selectable.map((entry) => (
-                <li className="flex items-center gap-2 py-0.5" key={entry.id}>
-                  <Checkbox
-                    checked={selected.has(entry.id)}
-                    disabled={disabled}
-                    id={`${controlId}-${entry.id}`}
-                    onCheckedChange={(checked) => {
-                      const next = new Set(selected);
-                      if (checked === true) next.add(entry.id);
-                      else next.delete(entry.id);
-                      field.onChange([...next]);
-                    }}
-                  />
-                  <label
-                    className="min-w-0 truncate text-xs"
-                    htmlFor={`${controlId}-${entry.id}`}
-                  >
-                    <Bdi>{entry.name}</Bdi>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </>
-        );
-      }}
-    </FormField>
+          );
+        }}
+      </FormField>
+      {includesTelegram ? (
+        <>
+          <OrderingField
+            control={control}
+            disabled={disabled}
+            recentTopics={recentTopics}
+            resolveError={resolveError}
+          />
+          <TopNField
+            control={control}
+            disabled={disabled}
+            resolveError={resolveError}
+          />
+        </>
+      ) : null}
+      {includesRss ? (
+        <FormCheckboxField
+          control={control}
+          description={t("import.enrichmentHint", {
+            state: t(
+              enrichmentEnabled
+                ? "import.enrichmentOn"
+                : "import.enrichmentOff",
+            ),
+          })}
+          disabled={disabled}
+          label={t("import.enrichment")}
+          name="enrichmentEnabled"
+          resolveError={resolveError}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -328,22 +391,19 @@ function RecencyField({ control, disabled, resolveError }: FieldProps) {
           <legend className="ticket-label">{t("import.recency.label")}</legend>
           <div className="flex flex-wrap gap-1">
             {IMPORT_WINDOW_HOURS.map((hours) => (
-              <label
-                className="cursor-pointer border border-input px-2 py-1 font-mono text-xs tabular-nums has-[input:checked]:bg-accent has-[input:checked]:text-accent-foreground has-[input:focus-visible]:ring-1 has-[input:focus-visible]:ring-ring"
+              <Button
+                aria-pressed={field.value === hours}
+                className="border border-input bg-background font-mono tabular-nums aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary"
+                disabled={disabled}
                 key={hours}
+                onBlur={field.onBlur}
+                onClick={() => field.onChange(hours)}
+                size="xs"
+                type="button"
+                variant="ghost"
               >
-                <input
-                  checked={field.value === hours}
-                  className="sr-only"
-                  disabled={disabled}
-                  name={field.name}
-                  onBlur={field.onBlur}
-                  onChange={() => field.onChange(hours)}
-                  type="radio"
-                  value={hours}
-                />
                 {t(`import.recency.${hours}`)}
-              </label>
+              </Button>
             ))}
           </div>
         </fieldset>
@@ -352,7 +412,12 @@ function RecencyField({ control, disabled, resolveError }: FieldProps) {
   );
 }
 
-function OrderingField({ control, disabled, resolveError }: FieldProps) {
+function OrderingField({
+  control,
+  disabled,
+  recentTopics,
+  resolveError,
+}: FieldProps & { recentTopics: readonly string[] }) {
   const t = useTranslations(SOURCES_NAMESPACE);
 
   return (
@@ -387,6 +452,14 @@ function OrderingField({ control, disabled, resolveError }: FieldProps) {
               </option>
             ))}
           </select>
+          {field.value === "keywords" ? (
+            <TopicsField
+              control={control}
+              disabled={disabled}
+              recentTopics={recentTopics}
+              resolveError={resolveError}
+            />
+          ) : null}
         </>
       )}
     </FormField>
@@ -434,60 +507,137 @@ function TopNField({ control, disabled, resolveError }: FieldProps) {
 }
 
 function TopicsField({
+  control,
   disabled,
-  onChange,
   recentTopics,
-  value,
-}: {
-  disabled: boolean;
-  onChange: (value: string) => void;
-  recentTopics: readonly string[];
-  value: string;
-}) {
+  resolveError,
+}: FieldProps & { recentTopics: readonly string[] }) {
   const t = useTranslations(SOURCES_NAMESPACE);
-  const fieldId = useId();
+  const [draft, setDraft] = useState("");
 
   return (
-    <div className="grid gap-1">
-      <label className="ticket-label" htmlFor={fieldId}>
-        {t("import.topics")}
-      </label>
-      <Input
-        aria-describedby={`${fieldId}-hint`}
-        disabled={disabled}
-        id={fieldId}
-        maxLength={MAX_TOPICS * (MAX_TOPIC_LENGTH + 2)}
-        onChange={(event) => onChange(event.currentTarget.value)}
-        value={value}
-      />
-      <span className="text-muted-foreground text-xs" id={`${fieldId}-hint`}>
-        {t("import.topicsHint")}
-      </span>
-      {recentTopics.length > 0 ? (
-        <fieldset className="mt-1 grid gap-1">
-          <legend className="ticket-label">{t("import.recentTopics")}</legend>
-          <div className="flex flex-wrap gap-1">
-            {recentTopics.map((topic) => (
+    <FormField
+      control={control}
+      description={t("import.topicsHint")}
+      disabled={disabled}
+      name="topics"
+      resolveError={resolveError}
+    >
+      {({ controlId, controlProps, descriptionId, field }) => {
+        const topics = field.value;
+        const atCap = topics.length >= MAX_TOPICS;
+        const add = (topic: string) => {
+          const value = topic.trim().slice(0, MAX_TOPIC_LENGTH);
+          if (value === "" || atCap || topics.includes(value)) return;
+          field.onChange([...topics, value]);
+        };
+        const commitDraft = () => {
+          add(draft);
+          setDraft("");
+        };
+
+        return (
+          <>
+            <label className="ticket-label" htmlFor={controlId}>
+              {t("import.topics")}
+            </label>
+            {topics.length === 0 ? (
+              <p className="text-muted-foreground text-xs">
+                {t("import.topicsNone")}
+              </p>
+            ) : (
+              <ul className="flex flex-wrap items-center gap-1">
+                {topics.map((topic) => (
+                  <li
+                    className="flex items-center gap-1 border border-input bg-accent ps-2 text-accent-foreground text-xs"
+                    key={topic}
+                  >
+                    <Bdi>{topic}</Bdi>
+                    <Button
+                      aria-label={t("import.topicsRemove", { topic })}
+                      disabled={disabled}
+                      onClick={() =>
+                        field.onChange(
+                          topics.filter((entry) => entry !== topic),
+                        )
+                      }
+                      size="icon-xs"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <XIcon />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                {...controlProps}
+                className="max-w-64 flex-1"
+                maxLength={MAX_TOPIC_LENGTH}
+                onBlur={field.onBlur}
+                onChange={(event) => setDraft(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  commitDraft();
+                }}
+                ref={field.ref}
+                value={draft}
+              />
               <Button
-                disabled={disabled}
-                key={topic}
-                onClick={() =>
-                  onChange(value.trim() === "" ? topic : `${value}, ${topic}`)
-                }
-                size="xs"
+                disabled={disabled || atCap || draft.trim() === ""}
+                onClick={commitDraft}
+                size="sm"
                 type="button"
                 variant="outline"
               >
-                <Bdi>{topic}</Bdi>
+                {t("import.topicsAdd")}
               </Button>
-            ))}
-          </div>
-          <span className="text-muted-foreground text-xs">
-            {t("import.recentTopicsHint")}
-          </span>
-        </fieldset>
-      ) : null}
-    </div>
+              {topics.length > 0 ? (
+                <Button
+                  disabled={disabled}
+                  onClick={() => field.onChange([])}
+                  size="sm"
+                  type="button"
+                  variant="link"
+                >
+                  {t("import.topicsClear")}
+                </Button>
+              ) : null}
+            </div>
+            <span className="text-muted-foreground text-xs" id={descriptionId}>
+              {t("import.topicsHint")}
+            </span>
+            {recentTopics.length > 0 ? (
+              <fieldset className="mt-1 grid gap-1">
+                <legend className="ticket-label">
+                  {t("import.recentTopics")}
+                </legend>
+                <div className="flex flex-wrap gap-1">
+                  {recentTopics.map((topic) => (
+                    <Button
+                      disabled={disabled || atCap || topics.includes(topic)}
+                      key={topic}
+                      onClick={() => add(topic)}
+                      size="xs"
+                      type="button"
+                      variant="outline"
+                    >
+                      <Bdi>{topic}</Bdi>
+                    </Button>
+                  ))}
+                </div>
+                <span className="text-muted-foreground text-xs">
+                  {t("import.recentTopicsHint")}
+                </span>
+              </fieldset>
+            ) : null}
+          </>
+        );
+      }}
+    </FormField>
   );
 }
 
@@ -505,15 +655,4 @@ function isOperationErrorCode(
   value: string,
 ): value is keyof typeof OPERATION_ERROR_KEYS {
   return value in OPERATION_ERROR_KEYS;
-}
-
-function parseTopics(text: string) {
-  const topics = new Set<string>();
-
-  for (const raw of text.split(",")) {
-    const topic = raw.trim().slice(0, MAX_TOPIC_LENGTH);
-    if (topic !== "" && topics.size < MAX_TOPICS) topics.add(topic);
-  }
-
-  return [...topics];
 }

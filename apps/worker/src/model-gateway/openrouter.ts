@@ -90,7 +90,16 @@ async function embedManyRemote(
     upstreamProvider: metadata?.provider,
   };
 
-  if (result.embeddings.length !== input.values.length) {
+  const dimension = result.embeddings[0]?.length ?? 0;
+  if (
+    result.embeddings.length !== input.values.length ||
+    dimension === 0 ||
+    result.embeddings.some(
+      (vector) =>
+        vector.length !== dimension ||
+        vector.some((value) => !Number.isFinite(value)),
+    )
+  ) {
     throw new AdapterInvocationError("failed", false, observation);
   }
 

@@ -1,14 +1,13 @@
 "use client";
 
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { CONTENT_HASH_DISPLAY_LENGTH, SOURCES_NAMESPACE } from "../constants";
 import type { SourceItemRow } from "../schemas/stream";
 
 export function SourceItemDetail({ row }: { row: SourceItemRow }) {
-  const format = useFormatter();
   const t = useTranslations(SOURCES_NAMESPACE);
 
   return (
@@ -17,11 +16,6 @@ export function SourceItemDetail({ row }: { row: SourceItemRow }) {
         {t("detail.open", { name: row.title })}
       </summary>
       <dl className="mt-2 grid gap-1 text-xs">
-        <Detail label={t("detail.revisions")}>
-          <span className="font-mono tabular-nums">
-            {format.number(row.revisionCount)}
-          </span>
-        </Detail>
         <Detail label={t("detail.hash")}>
           <Bdi dir="ltr" className="font-mono">
             {row.contentHash.slice(0, CONTENT_HASH_DISPLAY_LENGTH)}
@@ -30,16 +24,9 @@ export function SourceItemDetail({ row }: { row: SourceItemRow }) {
         <Detail label={t("detail.contentLocale")}>
           <span className="font-mono">{row.contentLocale}</span>
         </Detail>
-        <Detail label={t("detail.enrichment")}>
-          {row.enrichmentReason
-            ? `${t(`enrichment.${row.enrichment ?? "none"}`)} — ${t(`reason.${row.enrichmentReason}`)}`
-            : t(`enrichment.${row.enrichment ?? "none"}`)}
-        </Detail>
-        {row.adapter ? (
+        {row.adapter === "firecrawl" && row.fallbackReason ? (
           <Detail label={t("detail.adapter")}>
-            {row.adapter === "firecrawl" && row.fallbackReason
-              ? `${t("adapter.directThenFirecrawl")} · ${t("adapter.fallbackReason", { reason: t(`reason.${row.fallbackReason}`) })}`
-              : t(`adapter.${row.adapter}`)}
+            {`${t("adapter.directThenFirecrawl")} · ${t("adapter.fallbackReason", { reason: t(`reason.${row.fallbackReason}`) })}`}
           </Detail>
         ) : null}
         {row.enrichment === "unknown" ? (

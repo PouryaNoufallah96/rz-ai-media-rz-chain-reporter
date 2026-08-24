@@ -1,10 +1,13 @@
 import {
+  admissionOutcomeSchema,
+  articleAdapterSchema,
   dispatchStateSchema,
   errorCodeSchema,
   operationLifecycleSchema,
   sourceFetchOutcomeSchema,
   sourceFetchReasonSchema,
   sourceImportStageSchema,
+  sourceOriginSchema,
   telegramOrderingModeSchema,
 } from "@rz-chain-reporter/contracts";
 import { z } from "zod";
@@ -39,9 +42,21 @@ const sourceImportCountsSchema = z.object({
   failed: z.int().nonnegative(),
 });
 
+const admissionMixBucketSchema = z.object({
+  admission: admissionOutcomeSchema,
+  count: z.int().positive(),
+});
+
+const adapterMixBucketSchema = z.object({
+  adapter: articleAdapterSchema,
+  count: z.int().positive(),
+  reused: z.int().nonnegative(),
+});
+
 const sourceImportSourceLineSchema = z.object({
   sourceId: z.uuid(),
   name: z.string(),
+  origin: sourceOriginSchema,
   outcome: sourceFetchOutcomeSchema,
   reason: sourceFetchReasonSchema.nullable(),
   fetchedCount: z.int().nonnegative(),
@@ -55,6 +70,7 @@ const sourceImportSourceLineSchema = z.object({
       unknown: z.int().nonnegative(),
     })
     .nullable(),
+  adapterMix: z.array(adapterMixBucketSchema),
 });
 
 export type SourceImportSourceLine = z.infer<
@@ -69,6 +85,8 @@ const sourceImportCardSchema = z.object({
   stage: sourceImportStageSchema,
   partial: z.boolean(),
   counts: sourceImportCountsSchema,
+  admissionMix: z.array(admissionMixBucketSchema),
+  adapterMix: z.array(adapterMixBucketSchema),
   unitsPlanned: z.int().nonnegative(),
   failureCode: errorCodeSchema.nullable(),
   windowHours: z.int().positive(),

@@ -6,6 +6,7 @@ import {
   CACHE_INVALIDATION_SIGNATURE_HEADER,
   CACHE_INVALIDATION_TIMESTAMP_HEADER,
   cacheInvalidationRequestSchema,
+  cacheInvalidationResponseSchema,
 } from "@rz-chain-reporter/contracts";
 
 const REQUEST_TIMEOUT_MS = 3_000;
@@ -81,7 +82,25 @@ export async function notifyCacheInvalidation({
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
 
-    return response.ok ? "accepted" : "rejected";
+    if (!response.ok) {
+      return "rejected";
+    }
+
+    const result = cacheInvalidationResponseSchema.safeParse(
+      await response.json().catch(() => null),
+    );
+    if (
+      !result.success ||
+      result.data.tags.length !== parsed.data.tags.length ||
+      !result.data.tags.every(
+        (entry, index) =>
+          entry.tag === parsed.data.tags[index] && entry.revalidated,
+      )
+    ) {
+      return "rejected";
+    }
+
+    return "accepted";
   } catch {
     return "failed";
   }

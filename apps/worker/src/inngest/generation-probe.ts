@@ -40,6 +40,9 @@ export function createGenerationProbeFunction(
       concurrency: 1,
       retries: 0,
       triggers: [durableEvents.operationGenerationRequested],
+      onFailure: async ({ event, step }) => {
+        await notifyUsageLedgerChanged(step, event.data.event.data.workspaceId);
+      },
     },
     async ({ event, step }) => {
       const claim = await step.run("claim-operation", async () => {
@@ -52,6 +55,7 @@ export function createGenerationProbeFunction(
       });
 
       if (claim.status === "terminal") {
+        await notifyUsageLedgerChanged(step, event.data.workspaceId);
         return {
           operationId: event.data.operationId,
           replayed: true,

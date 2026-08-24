@@ -3,6 +3,7 @@ import "server-only";
 import type { RouterClient } from "@orpc/server";
 
 import { signIn, signOut } from "./auth";
+import { cancelRun, startRun } from "./editorial";
 import { overview } from "./installation";
 import { confirm, createIntent } from "./media";
 import { list } from "./operations";
@@ -11,6 +12,7 @@ import { detail as usageDetail } from "./usage";
 
 export const appRouter = {
   auth: { signIn, signOut },
+  editorial: { cancelRun, startRun },
   installation: { overview },
   media: { confirm, createIntent },
   operations: { list },

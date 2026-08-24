@@ -1,3 +1,4 @@
+import { createAnalysisRunFunctions } from "./analysis-run";
 import type { WorkerInngestClient } from "./client";
 import { createGenerationProbeFunction } from "./generation-probe";
 import { createMediaUploadVerificationFunction } from "./media-upload-function";
@@ -16,6 +17,7 @@ export function createWorkerFunctions(
     createMediaUploadVerificationFunction(client, runtime),
     createStorageReconciliationFunction(client, runtime),
     ...createSourceImportFunctions(client, runtime),
+    ...createAnalysisRunFunctions(client, runtime),
   ];
   return options.diagnosticsEnabled
     ? [...functions, createScheduledEffectProbeFunction(client, runtime)]

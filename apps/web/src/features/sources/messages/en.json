@@ -20,9 +20,11 @@
       "startHint": "Opens one ticket in the operations panel.",
       "startDisabled": "Select at least one source.",
       "started": "Import started",
-      "kinds": "Source kinds",
       "sources": "Sources",
       "sourcesHint": "{n, number} of {m, number} selected",
+      "selectAll": "All",
+      "selectNone": "None",
+      "extract": "Extract",
       "recency": {
         "label": "Recency",
         "6": "6 h",
@@ -38,10 +40,14 @@
         "latest_per_source": "Newest per channel",
         "keywords": "Keyword match"
       },
-      "topN": "Items per run",
-      "topNHint": "1 to 20 items per run.",
+      "topN": "Top-N",
+      "topNHint": "1 to 20 Telegram items this run.",
       "topics": "Topics",
-      "topicsHint": "Comma separated. Used only by keyword ordering.",
+      "topicsHint": "Press Enter or Add to commit a topic. Used only by keyword ordering.",
+      "topicsAdd": "Add",
+      "topicsClear": "Clear topics",
+      "topicsRemove": "Remove topic {topic}",
+      "topicsNone": "No topics. This run ranks by keyword match against nothing until you add one.",
       "recentTopics": "Recent topics",
       "recentTopicsHint": "Press a topic to add it to the field.",
       "enrichment": "Fetch full article text",
@@ -58,17 +64,24 @@
       },
       "counts": {
         "acquired": "acquired {n, number}",
-        "ordered": "ordered {n, number}",
-        "enriched": "enriched {n, number}",
         "skipped": "skipped {n, number}",
         "failed": "failed {n, number}"
+      },
+      "mix": {
+        "bucket": "{n, number} {label} ({percent})",
+        "bucketReused": "{n, number} {label} ({percent}) · reused",
+        "bucketReusedPartial": "{n, number} {label} ({percent}) · {reused, number} reused",
+        "count": "{n, number} {label}",
+        "countReused": "{n, number} {label} · reused",
+        "countReusedPartial": "{n, number} {label} · {reused, number} reused"
       },
       "empty": {
         "title": "No imports yet",
         "hint": "Set the bounds above, then press Start import."
       },
       "provenance": "embedding · {model} · {dimension, number}-d · cosine v1 · template {fingerprint}",
-      "bounds": "{hours, number} h window · top {topN, number} · {ordering}",
+      "bounds": "{hours, number} h window",
+      "boundsTelegram": "{hours, number} h window · top {topN, number} · {ordering}",
       "toggle": "Toggle the per-source ledger for import {id}",
       "ledger": "Per-source outcomes for import {id}",
       "recent": {
@@ -138,33 +151,35 @@
         "telegram_public": "Telegram"
       },
       "groupCount": "{n, number} sources",
+      "fetchMode": {
+        "direct": "direct",
+        "direct_then_firecrawl": "direct then firecrawl",
+        "firecrawl": "firecrawl",
+        "all": "all {mode}",
+        "bucket": "{n, number} {mode} ({percent})"
+      },
       "endpoint": "Endpoint",
       "contentLocale": "Content locale",
-      "itemCap": "Item cap",
       "lastObservation": "Last observation",
-      "fetchedCount": "Fetched",
       "validators": "Validators",
-      "validatorsPresent": "stored",
       "validatorsAbsent": "none",
-      "reasonCode": "Reason code",
       "expand": "Show details for {name}",
       "retiredNote": "Retired — not selectable for import.",
       "empty": "No sources configured."
     },
     "counts": {
       "pair": "{fetched, number} / {admitted, number}",
-      "legend": "fetched / admitted",
       "enrichment": "enriched {enriched, number} · skipped {skipped, number} · failed {failed, number} · unknown {unknown, number}"
     },
     "stream": {
       "title": "Source items",
-      "caption": "Source items: time, source, title, content revisions, and enrichment state",
+      "caption": "Source items: time, source, title, content revisions, and admission path",
       "columns": {
         "time": "Time",
         "source": "Source",
         "title": "Title",
         "revisions": "Revisions",
-        "enrichment": "Enrichment",
+        "path": "Path",
         "rank": "Rank",
         "score": "Score"
       },
@@ -200,6 +215,10 @@
       "out_of_window": "out of window",
       "over_cap": "over cap"
     },
+    "path": {
+      "enriching": "enriching",
+      "failed": "failed — {reason}"
+    },
     "enrichment": {
       "none": "none",
       "pending": "pending",
@@ -218,9 +237,7 @@
     },
     "detail": {
       "open": "Show provenance for {name}",
-      "revisions": "Revisions",
       "hash": "Content hash",
-      "enrichment": "Enrichment",
       "adapter": "Article adapter",
       "contentLocale": "Content locale",
       "brief": "Brief"

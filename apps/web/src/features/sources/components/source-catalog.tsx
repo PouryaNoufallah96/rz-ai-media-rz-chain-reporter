@@ -1,13 +1,17 @@
 "use client";
 
-import type { SourceOrigin } from "@rz-chain-reporter/contracts";
+import {
+  ARTICLE_FETCH_MODES,
+  type SourceOrigin,
+} from "@rz-chain-reporter/contracts";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
 import { StateMark, type StateMarkState } from "@/components/common/state-mark";
 
-import { SOURCES_NAMESPACE } from "../constants";
+import { SOURCE_LIFECYCLES, SOURCES_NAMESPACE } from "../constants";
+import { MIX_PERCENT_FORMAT, mixPercents } from "../lib/mix-shares";
 import type {
   SourceCatalogEntry,
   SourceCatalog as SourceCatalogView,
@@ -50,12 +54,7 @@ export function SourceCatalog({ catalog }: { catalog: SourceCatalogView }) {
           );
 
           return entries.length === 0 ? null : (
-            <SourceGroup
-              entries={entries}
-              itemCap={catalog.itemCap}
-              key={origin}
-              origin={origin}
-            />
+            <SourceGroup entries={entries} key={origin} origin={origin} />
           );
         })
       )}
@@ -65,41 +64,38 @@ export function SourceCatalog({ catalog }: { catalog: SourceCatalogView }) {
 
 function SourceGroup({
   entries,
-  itemCap,
   origin,
 }: {
   entries: SourceCatalogEntry[];
-  itemCap: number;
   origin: SourceOrigin;
 }) {
+  const format = useFormatter();
   const t = useTranslations(SOURCES_NAMESPACE);
   const labelId = useId();
+  const ordered = entries.toSorted(
+    (a, b) =>
+      SOURCE_LIFECYCLES.indexOf(a.lifecycle) -
+      SOURCE_LIFECYCLES.indexOf(b.lifecycle),
+  );
 
   return (
     <section aria-labelledby={labelId} className="mt-6">
       <h3 className="flex items-baseline gap-2" id={labelId}>
         <span className="ticket-label">{t(`catalog.kind.${origin}`)}</span>
         <span className="font-mono text-muted-foreground text-xs tabular-nums">
-          {t("catalog.groupCount", { n: entries.length })}
+          {groupMeta(origin, ordered, format, t)}
         </span>
       </h3>
       <ul className="mt-2 border-border border-t">
-        {entries.map((entry) => (
-          <SourceRow entry={entry} itemCap={itemCap} key={entry.id} />
+        {ordered.map((entry) => (
+          <SourceRow entry={entry} key={entry.id} />
         ))}
       </ul>
     </section>
   );
 }
 
-function SourceRow({
-  entry,
-  itemCap,
-}: {
-  entry: SourceCatalogEntry;
-  itemCap: number;
-}) {
-  const format = useFormatter();
+function SourceRow({ entry }: { entry: SourceCatalogEntry }) {
   const t = useTranslations(SOURCES_NAMESPACE);
   const [expanded, setExpanded] = useState(false);
   const detailId = useId();
@@ -111,26 +107,30 @@ function SourceRow({
         aria-controls={detailId}
         aria-expanded={expanded}
         aria-label={t("catalog.expand", { name: entry.name })}
-        className={`flex w-full min-w-0 items-center gap-3 py-2 text-start outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+        className={`flex w-full min-w-0 flex-col gap-1 py-2 text-start outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-row sm:items-center sm:gap-3 ${
           entry.lifecycle === "disabled" ? "text-muted-foreground" : ""
         }`}
         onClick={() => setExpanded((value) => !value)}
         type="button"
       >
-        <span className="min-w-0 flex-1 truncate text-sm">
-          <Bdi>{entry.name}</Bdi>
-        </span>
-        <span className="ticket-label border border-dashed px-1 text-muted-foreground">
-          {t(`lifecycle.${entry.lifecycle}`)}
+        <span className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="min-w-0 flex-1 truncate text-sm">
+            <Bdi>{entry.name}</Bdi>
+          </span>
+          {entry.lifecycle === "enabled" ? null : (
+            <span className="ticket-label border border-dashed px-1 text-muted-foreground">
+              {t(`lifecycle.${entry.lifecycle}`)}
+            </span>
+          )}
         </span>
         {retired ? null : (
-          <span className="hidden min-w-0 items-center gap-2 sm:flex">
+          <span className="flex min-w-0 items-center gap-2">
             <ObservationCaption observation={entry.observation} />
           </span>
         )}
       </button>
       {expanded ? (
-        <dl className="grid gap-1 pb-3 text-xs sm:grid-cols-2" id={detailId}>
+        <dl className="grid gap-1 pb-3 text-xs" id={detailId}>
           <Detail label={t("catalog.endpoint")}>
             <Bdi dir="ltr" className="font-mono">
               {entry.endpoint}
@@ -138,11 +138,6 @@ function SourceRow({
           </Detail>
           <Detail label={t("catalog.contentLocale")}>
             <span className="font-mono">{entry.contentLocale}</span>
-          </Detail>
-          <Detail label={t("catalog.itemCap")}>
-            <span className="font-mono tabular-nums">
-              {format.number(itemCap)}
-            </span>
           </Detail>
           {retired ? (
             <Detail label={t("catalog.lastObservation")}>
@@ -221,48 +216,14 @@ function ObservationDetail({
 }: {
   observation: SourceObservation | null;
 }) {
-  const format = useFormatter();
   const t = useTranslations(SOURCES_NAMESPACE);
 
-  if (!observation) {
-    return (
-      <Detail label={t("catalog.lastObservation")}>
-        {t("observation.neverFetched")}
-      </Detail>
-    );
-  }
+  if (!observation || observation.hasValidators) return null;
 
   return (
-    <>
-      <Detail label={t("catalog.fetchedCount")}>
-        <span className="font-mono tabular-nums">
-          {t("counts.pair", {
-            admitted: observation.admittedCount,
-            fetched: observation.fetchedCount,
-          })}
-        </span>
-      </Detail>
-      <Detail label={t("catalog.validators")}>
-        {t(
-          observation.hasValidators
-            ? "catalog.validatorsPresent"
-            : "catalog.validatorsAbsent",
-        )}
-      </Detail>
-      <Detail label={t("catalog.reasonCode")}>
-        <span className="font-mono">
-          {observation.reason ? t(`reason.${observation.reason}`) : "—"}
-        </span>
-      </Detail>
-      <Detail label={t("catalog.lastObservation")}>
-        <time dateTime={observation.observedAt.toISOString()}>
-          {format.dateTime(observation.observedAt, {
-            dateStyle: "short",
-            timeStyle: "short",
-          })}
-        </time>
-      </Detail>
-    </>
+    <Detail label={t("catalog.validators")}>
+      {t("catalog.validatorsAbsent")}
+    </Detail>
   );
 }
 
@@ -279,4 +240,43 @@ function Detail({
       <dd className="min-w-0">{children}</dd>
     </div>
   );
+}
+
+function groupMeta(
+  origin: SourceOrigin,
+  entries: SourceCatalogEntry[],
+  format: ReturnType<typeof useFormatter>,
+  t: ReturnType<typeof useTranslations<typeof SOURCES_NAMESPACE>>,
+) {
+  const groupCount = t("catalog.groupCount", { n: entries.length });
+  if (origin !== "rss") return groupCount;
+
+  const buckets = ARTICLE_FETCH_MODES.flatMap((mode) => {
+    const n = entries.filter((entry) => entry.articleFetchMode === mode).length;
+    return n > 0 ? [{ mode, n }] : [];
+  });
+
+  if (buckets.length === 0) return groupCount;
+
+  const only = ARTICLE_FETCH_MODES.find((mode) =>
+    entries.every((entry) => entry.articleFetchMode === mode),
+  );
+  if (only) {
+    return `${groupCount} · ${t("catalog.fetchMode.all", { mode: t(`catalog.fetchMode.${only}`) })}`;
+  }
+
+  const percents = mixPercents(buckets.map((bucket) => bucket.n));
+
+  return buckets
+    .map((bucket, index) =>
+      t("catalog.fetchMode.bucket", {
+        n: bucket.n,
+        mode: t(`catalog.fetchMode.${bucket.mode}`),
+        percent: format.number(
+          (percents[index] ?? 0) / 100,
+          MIX_PERCENT_FORMAT,
+        ),
+      }),
+    )
+    .join(" · ");
 }

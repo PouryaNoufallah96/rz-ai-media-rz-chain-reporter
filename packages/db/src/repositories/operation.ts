@@ -142,7 +142,7 @@ const LEGAL_TRANSITIONS: Record<
 > = {
   queued: ["running", "cancelled"],
   running: ["settling", "queued", "failed", "unknown", "cancelled"],
-  settling: ["succeeded", "failed"],
+  settling: ["succeeded", "failed", "cancelled"],
   succeeded: [],
   failed: [],
   cancelled: [],

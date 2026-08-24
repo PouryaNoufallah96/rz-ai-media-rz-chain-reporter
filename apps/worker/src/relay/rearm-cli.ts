@@ -1,7 +1,12 @@
+import {
+  OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
+  workspaceCacheTag,
+} from "@rz-chain-reporter/contracts";
 import { rearmOutboxEvent } from "@rz-chain-reporter/db/repositories/outbox-relay";
 import { z } from "zod";
 
 import { assertWorkspace, openWorkerRuntime } from "../inngest/runtime";
+import { notifyCacheInvalidation } from "../web-cache/notify";
 
 const EXIT_FAILURE = 1;
 const operationIdSchema = z.uuid();
@@ -41,7 +46,16 @@ try {
     throw new Error("exhausted event changed before rearm");
   }
 
-  console.log(`relay:rearm ${operationId.data} rearmed`);
+  const cacheInvalidation =
+    event.eventType === OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME
+      ? await notifyCacheInvalidation([
+          workspaceCacheTag(installation.workspaceId, "sources"),
+        ])
+      : "not-applicable";
+
+  console.log(
+    `relay:rearm ${operationId.data} rearmed cache=${cacheInvalidation}`,
+  );
 } catch {
   process.exitCode = EXIT_FAILURE;
   console.error("relay:rearm failed [REARM_REJECTED]");
