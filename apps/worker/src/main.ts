@@ -1,4 +1,4 @@
-import { workerLogger } from "./logging/logger";
+import { stableFailureCode, workerLogger } from "./logging/logger";
 import {
   captureWorkerFailure,
   initializeWorkerObservability,
@@ -15,11 +15,10 @@ async function run() {
   await runWorkerApplication(client);
 }
 
-void run().catch(async () => {
-  workerLogger.error("worker.startup.failed", {
-    errorCode: "WORKER_STARTUP_FAILED",
-  });
-  captureWorkerFailure("WORKER_STARTUP_FAILED");
+void run().catch(async (error: unknown) => {
+  const errorCode = stableFailureCode(error, "WORKER_STARTUP_FAILED");
+  workerLogger.error("worker.startup.failed", { errorCode });
+  captureWorkerFailure(errorCode);
   await shutdownWorkerObservability();
-  process.exitCode = 1;
+  process.exit(1);
 });
