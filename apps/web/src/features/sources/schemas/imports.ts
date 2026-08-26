@@ -20,7 +20,7 @@ import {
 } from "../constants";
 
 export const startSourceImportInputSchema = z.object({
-  sourceIds: z.array(z.uuid()).min(1).max(200),
+  sourceIds: z.array(z.uuid()).min(1, { error: "NO_SOURCES" }).max(200),
   windowHours: z.literal(IMPORT_WINDOW_HOURS),
   orderingMode: telegramOrderingModeSchema,
   topN: z.int().min(1).max(MAX_TOP_N),

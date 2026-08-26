@@ -26,6 +26,7 @@ const CUSTOMER_TEMPLATE_ERROR_CODES = [
   "REFERENCE_NOT_FOUND",
   "REFERENCE_ESCAPES_ROOT",
   "IMAGE_PROFILE_INVALID",
+  "BRAND_LOGO_INVALID",
   "UNDECLARED_FILE",
 ] as const;
 
@@ -175,23 +176,36 @@ function resolveReferences(
   template: CustomerTemplate,
 ): CustomerTemplateReference[] {
   const declared = template.mediaBrands.flatMap((brand) => [
-    ...(brand.brandBible ? [{ path: brand.brandBible, profile: false }] : []),
+    ...(brand.brandBible
+      ? [{ kind: "document" as const, path: brand.brandBible }]
+      : []),
     ...(brand.imageProfile
-      ? [{ path: brand.imageProfile, profile: true }]
+      ? [{ kind: "image-profile" as const, path: brand.imageProfile }]
+      : []),
+    ...(brand.brandLogo
+      ? [
+          {
+            kind: "brand-logo" as const,
+            path: brand.brandLogo.path,
+            metadata: brand.brandLogo,
+          },
+        ]
       : []),
   ]);
 
   return declared
     .sort((left, right) => (left.path < right.path ? -1 : 1))
-    .map(({ path, profile }) => {
-      const bytes = readReference(customerDir, path);
+    .map((reference) => {
+      const bytes = readReference(customerDir, reference.path);
 
-      if (profile) {
-        assertImageProfile(path, bytes);
+      if (reference.kind === "image-profile") {
+        assertImageProfile(reference.path, bytes);
+      } else if (reference.kind === "brand-logo") {
+        assertBrandLogo(reference.path, bytes, reference.metadata);
       }
 
       return {
-        path,
+        path: reference.path,
         sha256: createHash("sha256").update(bytes).digest("hex"),
       };
     });
@@ -221,6 +235,42 @@ function readReference(customerDir: string, path: string) {
   }
 
   return readFileSync(/* turbopackIgnore: true */ realReferencePath);
+}
+
+function assertBrandLogo(
+  path: string,
+  bytes: Buffer,
+  metadata: NonNullable<CustomerTemplate["mediaBrands"][number]["brandLogo"]>,
+) {
+  const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const isPng =
+    bytes.length >= 24 &&
+    bytes.subarray(0, pngSignature.length).equals(pngSignature) &&
+    bytes.subarray(12, 16).toString("ascii") === "IHDR";
+
+  if (!isPng) {
+    throw new CustomerTemplateError(
+      "BRAND_LOGO_INVALID",
+      `Brand logo "${path}" does not decode as ${metadata.mimeType}`,
+    );
+  }
+
+  const actual = {
+    pixelWidth: bytes.readUInt32BE(16),
+    pixelHeight: bytes.readUInt32BE(20),
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  };
+
+  if (
+    actual.pixelWidth !== metadata.pixelWidth ||
+    actual.pixelHeight !== metadata.pixelHeight ||
+    actual.sha256 !== metadata.sha256
+  ) {
+    throw new CustomerTemplateError(
+      "BRAND_LOGO_INVALID",
+      `Brand logo "${path}" does not match its declared dimensions and checksum`,
+    );
+  }
 }
 
 function assertImageProfile(path: string, bytes: Buffer) {

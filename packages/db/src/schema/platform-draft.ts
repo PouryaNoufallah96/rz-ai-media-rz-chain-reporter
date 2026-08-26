@@ -1,7 +1,17 @@
-import { foreignKey, integer, pgTable, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  foreignKey,
+  index,
+  integer,
+  pgTable,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { editorialSelection } from "./editorial-selection";
-import { contentLocale, platform } from "./enums";
+import { platform } from "./enums";
+import { filterResult } from "./filter-result";
 import {
   softDelete,
   timestamps,
@@ -9,7 +19,7 @@ import {
   workspaceScope,
 } from "./helpers";
 import { mediaBrand } from "./media-brand";
-import { sourceItem } from "./source-item";
+import { promoIdea } from "./promo-idea";
 import { workspace } from "./workspace";
 
 export const platformDraft = pgTable(
@@ -19,9 +29,10 @@ export const platformDraft = pgTable(
     ...workspaceScope,
     mediaBrandId: uuid("media_brand_id").notNull(),
     platform: platform("platform").notNull(),
-    contentLocale: contentLocale("content_locale").notNull(),
     editorialSelectionId: uuid("editorial_selection_id"),
-    sourceItemId: uuid("source_item_id"),
+    telegramFilterResultId: uuid("telegram_filter_result_id"),
+    promoIdeaId: uuid("promo_idea_id"),
+    lanePosition: integer("lane_position").notNull(),
     version: integer("version").default(1).notNull(),
     ...timestamps,
     ...softDelete,
@@ -43,9 +54,51 @@ export const platformDraft = pgTable(
       foreignColumns: [editorialSelection.id],
     }).onDelete("restrict"),
     foreignKey({
-      name: "fk_platform_draft_source_item_id",
-      columns: [t.sourceItemId],
-      foreignColumns: [sourceItem.id],
+      name: "fk_platform_draft_telegram_filter_result_id",
+      columns: [t.telegramFilterResultId],
+      foreignColumns: [filterResult.id],
     }).onDelete("restrict"),
+    foreignKey({
+      name: "fk_platform_draft_promo_idea_id",
+      columns: [t.promoIdeaId],
+      foreignColumns: [promoIdea.id],
+    }).onDelete("restrict"),
+    check(
+      "ck_platform_draft_exactly_one_origin",
+      sql`num_nonnulls(${t.editorialSelectionId}, ${t.telegramFilterResultId}, ${t.promoIdeaId}) = 1`,
+    ),
+    check(
+      "ck_platform_draft_lane_position_positive",
+      sql`${t.lanePosition} > 0`,
+    ),
+    check("ck_platform_draft_version_positive", sql`${t.version} > 0`),
+    uniqueIndex("uq_platform_draft_active_editorial_selection_route")
+      .on(t.workspaceId, t.editorialSelectionId, t.mediaBrandId, t.platform)
+      .where(
+        sql`${t.deletedAt} is null and ${t.editorialSelectionId} is not null`,
+      ),
+    uniqueIndex("uq_platform_draft_active_telegram_filter_result_route")
+      .on(t.workspaceId, t.telegramFilterResultId, t.mediaBrandId, t.platform)
+      .where(
+        sql`${t.deletedAt} is null and ${t.telegramFilterResultId} is not null`,
+      ),
+    uniqueIndex("uq_platform_draft_active_promo_idea_route")
+      .on(t.workspaceId, t.promoIdeaId, t.mediaBrandId, t.platform)
+      .where(sql`${t.deletedAt} is null and ${t.promoIdeaId} is not null`),
+    index("ix_platform_draft_active_workspace_media_brand_platform")
+      .on(t.workspaceId, t.mediaBrandId, t.platform, t.lanePosition, t.id)
+      .where(sql`${t.deletedAt} is null`),
+    index("ix_platform_draft_workspace_editorial_selection_id").on(
+      t.workspaceId,
+      t.editorialSelectionId,
+    ),
+    index("ix_platform_draft_workspace_telegram_filter_result_id").on(
+      t.workspaceId,
+      t.telegramFilterResultId,
+    ),
+    index("ix_platform_draft_workspace_promo_idea_id").on(
+      t.workspaceId,
+      t.promoIdeaId,
+    ),
   ],
 );

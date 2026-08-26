@@ -27,6 +27,7 @@ import { cancelAnalysisRunAction } from "../actions/cancel-analysis-run";
 import { EDITORIAL_NAMESPACE } from "../constants";
 import { useEditorialErrorMessage } from "../hooks/use-editorial-error-message";
 import type { RunHead as RunHeadView, RunOption } from "../schemas/workspace";
+import { EditorialFreshness } from "./editorial-freshness";
 import { RunSelector, SHORT_ID_LENGTH } from "./run-selector";
 
 const LIFECYCLE_MARK: Record<OperationLifecycle, StateMarkState> = {
@@ -69,6 +70,14 @@ export function RunHead({
       <h2 className="ticket-label border-b border-dashed pb-2" id={titleId}>
         {t("run.head.title")}
       </h2>
+      {head ? (
+        <EditorialFreshness
+          analysisRunId={head.id}
+          key={head.id}
+          lifecycle={head.lifecycle}
+          readAt={readAt}
+        />
+      ) : null}
       <div className="mt-3 grid gap-3">
         <RunSelector
           runs={runs}

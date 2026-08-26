@@ -63,10 +63,14 @@ export function ModelLaneColumn({
   const { brandName, lane, modelName } = slot;
   const title = t("lane.model.title", { brand: brandName, model: modelName });
   const fallback = lane?.invocationKey === "fallback";
+  const cardCount =
+    (promo ? lane?.promoIdeas.length : lane?.selections.length) ?? 0;
+  const recovered =
+    lane?.status === "succeeded" && cardCount > 0 && lane.failureCode !== null;
 
   return (
     <LaneColumn
-      count={(promo ? lane?.promoIdeas.length : lane?.selections.length) ?? 0}
+      count={cardCount}
       index={index}
       mark={
         lane ? <StateMark state={UNIT_MARK[lane.status ?? "pending"]} /> : null
@@ -78,7 +82,13 @@ export function ModelLaneColumn({
             <Tag>{t("lane.noShortlist.tag")}</Tag>
           ) : null}
           {limitedGuidance ? <Tag>{t("lane.limitedGuidance.tag")}</Tag> : null}
-          {lane?.failureCode ? <UnitFailure code={lane.failureCode} /> : null}
+          {lane?.failureCode ? (
+            recovered ? (
+              <span className="text-working">{t("lane.unit.recovered")}</span>
+            ) : (
+              <UnitFailure code={lane.failureCode} />
+            )
+          ) : null}
         </>
       }
       title={title}
@@ -99,6 +109,7 @@ export function ModelLaneColumn({
           {lane.promoIdeas.map((card) =>
             lane.unitId === null ? null : (
               <PromoLaneCard
+                brandKey={slot.brandKey}
                 brandName={brandName}
                 card={card}
                 fallback={fallback}
@@ -118,6 +129,7 @@ export function ModelLaneColumn({
         <>
           {lane.selections.map((card) => (
             <SelectionLaneCard
+              brandKey={slot.brandKey}
               card={card}
               degraded={degraded}
               fallback={fallback}
@@ -166,6 +178,7 @@ export function TelegramLaneColumn({
               .get(card.sourceItemId)
               ?.filter((brand) => brand !== lane.brandName) ?? EMPTY_BRANDS
           }
+          brandKey={lane.brandKey}
           card={card}
           degraded={degraded}
           key={card.sourceItemId}
@@ -201,7 +214,7 @@ function LaneColumn({
   return (
     <section
       aria-label={title}
-      className="flex w-[clamp(260px,30vw,320px)] shrink-0 snap-start flex-col border border-border max-[599px]:w-[min(300px,calc(100vw_-_32px))]"
+      className="flex w-[clamp(260px,30vw,320px)] shrink-0 snap-start flex-col border border-border max-[599px]:w-[min(300px,calc(100vw-32px))]"
     >
       <header className="border-border border-b border-dashed p-2">
         <div className="flex items-start gap-2">

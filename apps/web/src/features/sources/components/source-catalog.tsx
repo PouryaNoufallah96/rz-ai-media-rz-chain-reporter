@@ -5,6 +5,7 @@ import {
   type SourceOrigin,
 } from "@rz-chain-reporter/contracts";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
+import { Button } from "@rz-chain-reporter/ui/components/button";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
@@ -103,15 +104,16 @@ function SourceRow({ entry }: { entry: SourceCatalogEntry }) {
 
   return (
     <li className="border-border border-b border-dashed">
-      <button
+      <Button
         aria-controls={detailId}
         aria-expanded={expanded}
         aria-label={t("catalog.expand", { name: entry.name })}
-        className={`flex w-full min-w-0 flex-col gap-1 py-2 text-start outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-row sm:items-center sm:gap-3 ${
+        className={`h-auto w-full min-w-0 flex-col items-start justify-start gap-1 whitespace-normal rounded-none px-0 py-2 font-normal aria-expanded:bg-transparent sm:flex-row sm:items-center sm:gap-3 ${
           entry.lifecycle === "disabled" ? "text-muted-foreground" : ""
         }`}
         onClick={() => setExpanded((value) => !value)}
         type="button"
+        variant="ghost"
       >
         <span className="flex min-w-0 flex-1 items-center gap-3">
           <span className="min-w-0 flex-1 truncate text-sm">
@@ -128,7 +130,7 @@ function SourceRow({ entry }: { entry: SourceCatalogEntry }) {
             <ObservationCaption observation={entry.observation} />
           </span>
         )}
-      </button>
+      </Button>
       {expanded ? (
         <dl className="grid gap-1 pb-3 text-xs" id={detailId}>
           <Detail label={t("catalog.endpoint")}>

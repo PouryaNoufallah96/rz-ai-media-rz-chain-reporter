@@ -24,6 +24,11 @@ export type ArticleFetchResult =
     }
   | { adapter: null; reason: EnrichmentReason };
 
+export type ArticleFetcher = (
+  request: ArticleFetchRequest,
+  bindings: ArticleBindings,
+) => Promise<ArticleFetchResult>;
+
 export const EXTRACT_MAX_CHARS = 8_000;
 // Between the largest measured challenge page (575) and the thinnest real article (1819).
 export const EXTRACT_FLOOR_CHARS = 1_000;

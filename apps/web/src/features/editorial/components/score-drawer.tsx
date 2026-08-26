@@ -19,7 +19,12 @@ import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { EDITORIAL_NAMESPACE } from "../constants";
-import type { ReportRow, ReportThresholds } from "../schemas/report";
+import {
+  type ReportRow,
+  type ReportThresholds,
+  reportLaneCap,
+  reportLowScoreFailures,
+} from "../schemas/report";
 import type { RunHead } from "../schemas/workspace";
 import { ChannelPlate } from "./channel-plate";
 import { MutedTag } from "./provenance-line";
@@ -71,7 +76,7 @@ export function ScoreDrawer({
             </DrawerHeader>
             <MediaFitBand row={row} t={t} />
             <PolicyBand head={head} row={row} t={t} thresholds={thresholds} />
-            <GateBand row={row} t={t} thresholds={thresholds} />
+            <GateBand head={head} row={row} t={t} thresholds={thresholds} />
             {row.sourceOrigin === "telegram_public" ? (
               <TelegramBlock row={row} t={t} />
             ) : null}
@@ -103,7 +108,7 @@ function MediaFitBand({ row, t }: { row: ReportRow; t: Translate }) {
           </MutedTag>
         </p>
       )}
-      {row.reason ? (
+      {row.reason === "below_media_fit_threshold" ? (
         <p className="text-muted-foreground">
           {t("score.mediaFit.reason", { reason: t(`reason.${row.reason}`) })}
         </p>
@@ -124,6 +129,7 @@ function PolicyBand({
   thresholds: ReportThresholds;
 }) {
   const topic = topicAt(head, row.lexicalTopicIndex);
+  const hasTopics = hasOperatorTopics(head);
 
   return (
     <Band title={t("score.band.policy")}>
@@ -131,6 +137,18 @@ function PolicyBand({
       {topic ? (
         <p>
           <Bdi>{t("score.policy.topicLexical", { topic })}</Bdi>
+        </p>
+      ) : hasTopics ? (
+        <p>{t("score.policy.topicLexicalNoMatch")}</p>
+      ) : null}
+      {hasTopics ? (
+        <p className="tabular-nums">
+          {row.lexicalTopicScore === null
+            ? t("score.notEvaluated")
+            : t("score.policy.topicLexicalScore", {
+                threshold: thresholds.lexicalTopicScore,
+                value: row.lexicalTopicScore,
+              })}
         </p>
       ) : null}
       {row.policyViralityScore === null ? null : (
@@ -171,14 +189,19 @@ function PolicyBand({
 }
 
 function GateBand({
+  head,
   row,
   t,
   thresholds,
 }: {
+  head: RunHead;
   row: ReportRow;
   t: Translate;
   thresholds: ReportThresholds;
 }) {
+  const hasTopics = hasOperatorTopics(head);
+  const lowScoreFailures = reportLowScoreFailures(row, thresholds, hasTopics);
+
   return (
     <Band title={t("score.band.gate")}>
       <p className="tabular-nums">{valueGate(row.valueSignalCount, t)}</p>
@@ -192,10 +215,19 @@ function GateBand({
       <p>
         {`${t("score.gate.policy")} · ${gateVerdict(
           row.policyScore,
-          row.disposition === "low_score",
+          lowScoreFailures.includes("policy"),
           t,
         )}`}
       </p>
+      {hasTopics ? (
+        <p>
+          {`${t("score.gate.topicLexical")} · ${gateVerdict(
+            row.lexicalTopicScore,
+            lowScoreFailures.includes("lexical_topic"),
+            t,
+          )}`}
+        </p>
+      ) : null}
       <p>
         <span className="font-mono">{t(`disposition.${row.disposition}`)}</span>
         {row.reason ? ` · ${t(`reason.${row.reason}`)}` : null}
@@ -203,7 +235,13 @@ function GateBand({
       {row.disposition === "cap_exceeded" && row.rankPosition !== null ? (
         <p className="tabular-nums">
           {t("score.capReached", {
-            n: thresholds.shortlistCap,
+            n: reportLaneCap(
+              row,
+              thresholds,
+              head.configuration.kind === "news"
+                ? head.configuration.topN
+                : thresholds.shortlistCap,
+            ),
             r: row.rankPosition,
           })}
         </p>
@@ -383,7 +421,7 @@ function Footer({
   t: Translate;
 }) {
   return (
-    <div className="sticky bottom-0 grid gap-1 border-border border-t bg-popover pt-3">
+    <div className="sticky bottom-0 grid gap-1 bg-popover pt-3">
       {head.configuration.kind === "news" ? (
         <p className="text-muted-foreground tabular-nums">
           {t("provenance.topN", { n: head.configuration.topN })}
@@ -431,4 +469,10 @@ function topicAt(head: RunHead, index: number | null) {
   if (index === null || head.configuration.kind !== "news") return null;
 
   return head.configuration.topics[index] ?? null;
+}
+
+function hasOperatorTopics(head: RunHead) {
+  return (
+    head.configuration.kind === "news" && head.configuration.topics.length > 0
+  );
 }

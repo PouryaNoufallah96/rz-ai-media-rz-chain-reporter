@@ -62,3 +62,43 @@ export const editorialChangedRealtimeMessageSchema = z.strictObject({
   occurredAt: z.iso.datetime(),
   analysisRunId: z.uuid(),
 });
+
+export const DRAFTS_REALTIME_TOPICS = ["changed"] as const;
+export const DRAFTS_REALTIME_CHANGED_TOPIC = DRAFTS_REALTIME_TOPICS[0];
+
+export function getDraftsRealtimeChannelName(
+  workspaceId: string,
+  analysisRunId: string,
+) {
+  return `drafts:${workspaceId}:${analysisRunId}` as const;
+}
+
+export const DRAFT_CHANGE_CODES = [
+  "queued",
+  "running",
+  "unit_succeeded",
+  "unit_failed",
+  "unit_cancelled",
+  "partial",
+  "succeeded",
+  "failed",
+  "cancelled",
+  "unknown",
+  "dispatch_exhausted",
+  "rearmed",
+] as const;
+
+export const draftChangeCodeSchema = z.enum(DRAFT_CHANGE_CODES);
+
+export const draftsChangedRealtimeMessageSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  occurredAt: z.iso.datetime(),
+  analysisRunId: z.uuid(),
+  platformDraftId: z.uuid(),
+  operationId: z.uuid(),
+  code: draftChangeCodeSchema,
+});
+
+export type DraftsChangedRealtimeMessage = z.infer<
+  typeof draftsChangedRealtimeMessageSchema
+>;

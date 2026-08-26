@@ -1,29 +1,19 @@
 import type { ModelBackend } from "@rz-chain-reporter/contracts";
 import {
   type CustomerTemplate,
-  EDITORIAL_SELECTION_TASK_PREFIX,
+  IMAGE_GENERATION_TASK_PREFIX,
   type ModelTaskKey,
-  PROMO_IDEAS_TASK_PREFIX,
+  modelTaskKeySchema,
 } from "@rz-chain-reporter/customer-template/schema";
 
 import { ModelBindingError } from "./errors";
 import { resolveModelTask } from "./task";
 import type { ModelBindings } from "./types";
 
-const WORKER_MODEL_TASKS = [
-  "generation-probe",
-  "keyword-embedding",
-  "enrichment-brief",
-] as const satisfies readonly ModelTaskKey[];
-
 function workerModelTasks(template: CustomerTemplate): ModelTaskKey[] {
-  return [
-    ...WORKER_MODEL_TASKS,
-    ...template.editorial.models.flatMap((option): ModelTaskKey[] => [
-      `${EDITORIAL_SELECTION_TASK_PREFIX}${option.key}`,
-      `${PROMO_IDEAS_TASK_PREFIX}${option.key}`,
-    ]),
-  ];
+  return Object.keys(template.models.tasks).map((taskKey) =>
+    modelTaskKeySchema.parse(taskKey),
+  );
 }
 
 export function assertModelCapabilities(
@@ -33,20 +23,23 @@ export function assertModelCapabilities(
   for (const taskKey of workerModelTasks(template)) {
     const primary = resolveModelTask(template, taskKey, "primary").route;
     assertRouteBinding(taskKey, primary.backend, bindings);
-    assertEmbeddingRoute(taskKey, primary.backend);
+    assertRouteCapability(taskKey, primary.backend);
 
-    const fallback = template.models?.tasks[taskKey]?.fallback;
+    const fallback = template.models.tasks[taskKey]?.fallback;
     if (fallback) {
       assertRouteBinding(taskKey, fallback.backend, bindings);
-      assertEmbeddingRoute(taskKey, fallback.backend);
+      assertRouteCapability(taskKey, fallback.backend);
     }
   }
 }
 
-function assertEmbeddingRoute(taskKey: ModelTaskKey, backend: ModelBackend) {
-  if (taskKey === "keyword-embedding" && backend === "local") {
+function assertRouteCapability(taskKey: ModelTaskKey, backend: ModelBackend) {
+  if (
+    taskKey.startsWith(IMAGE_GENERATION_TASK_PREFIX) &&
+    backend !== "remote"
+  ) {
     throw new ModelBindingError(
-      `model task "${taskKey}" selects a local backend, which has no embedding adapter`,
+      `model task "${taskKey}" selects a local backend, but image generation requires a remote backend`,
     );
   }
 }

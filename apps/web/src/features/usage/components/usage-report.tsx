@@ -12,6 +12,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@rz-chain-reporter/ui/components/empty";
+import { Field } from "@rz-chain-reporter/ui/components/field";
 import { Input } from "@rz-chain-reporter/ui/components/input";
 import {
   Table,
@@ -32,6 +33,7 @@ import {
   type keysetDataTableFeatures,
   useKeysetDataTable,
 } from "@/components/data-table/use-keyset-data-table";
+import { FieldCaption, LabeledSelect } from "@/components/form/form-field";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 
 import { USAGE_NAMESPACE, USAGE_PERIODS, USAGE_PROVIDERS } from "../constants";
@@ -187,13 +189,23 @@ export function UsageReport({ page, query, summary }: UsageReportProps) {
 
   return (
     <>
-      <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+      <div className="mt-6 flex flex-wrap items-end gap-3">
         <UsageFilters
           onSubmit={handleTextFilters}
           onValueChange={setFilters}
           query={query}
         />
-        <UsageFreshness />
+        <div className="ms-auto flex flex-wrap items-end gap-2">
+          <Button
+            form="usage-filters"
+            size="sm"
+            type="submit"
+            variant="outline"
+          >
+            {t("filters.apply")}
+          </Button>
+          <UsageFreshness />
+        </div>
       </div>
       <UsageSummaryBlock summary={summary} />
       <section className="mt-6" aria-labelledby="usage-ledger-title">
@@ -261,11 +273,15 @@ function UsageFilters({
     <form
       aria-label={t("filters.label")}
       className="flex flex-wrap items-end gap-2"
+      id="usage-filters"
       onSubmit={onSubmit}
     >
-      <FilterSelect
+      <LabeledSelect
+        className="w-fit"
         label={t("filters.period")}
-        onChange={(value) => onValueChange({ period: value })}
+        onValueChange={(value) => {
+          if (value) onValueChange({ period: value });
+        }}
         options={USAGE_PERIODS.map((value) => ({
           label: t(`period.${value}`),
           value,
@@ -278,20 +294,22 @@ function UsageFilters({
         name="model"
         placeholder={t("filters.modelPlaceholder")}
       />
-      <FilterSelect
-        allowAll
+      <LabeledSelect
+        className="w-fit"
+        emptyLabel={t("filters.all")}
         label={t("filters.backend")}
-        onChange={(value) => onValueChange({ backend: value })}
+        onValueChange={(value) => onValueChange({ backend: value })}
         options={MODEL_BACKENDS.map((value) => ({
           label: t(`backend.${value}`),
           value,
         }))}
         value={query.backend}
       />
-      <FilterSelect
-        allowAll
+      <LabeledSelect
+        className="w-fit"
+        emptyLabel={t("filters.all")}
         label={t("filters.provider")}
-        onChange={(value) => onValueChange({ provider: value })}
+        onValueChange={(value) => onValueChange({ provider: value })}
         options={USAGE_PROVIDERS.map((value) => ({
           label: t(`provider.${value}`),
           value,
@@ -304,58 +322,18 @@ function UsageFilters({
         name="task"
         placeholder={t("filters.taskPlaceholder")}
       />
-      <FilterSelect
-        allowAll
+      <LabeledSelect
+        className="w-fit"
+        emptyLabel={t("filters.all")}
         label={t("filters.status")}
-        onChange={(value) => onValueChange({ status: value })}
+        onValueChange={(value) => onValueChange({ status: value })}
         options={USAGE_STATUSES.map((value) => ({
           label: t(`status.${value}`),
           value,
         }))}
         value={query.status}
       />
-      <Button size="sm" type="submit" variant="outline">
-        {t("filters.apply")}
-      </Button>
     </form>
-  );
-}
-
-function FilterSelect<TValue extends string>({
-  allowAll = false,
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  allowAll?: boolean;
-  label: string;
-  onChange: (value: TValue | null) => void;
-  options: readonly { label: string; value: TValue }[];
-  value: TValue | null;
-}) {
-  const t = useTranslations(USAGE_NAMESPACE);
-  return (
-    <label className="grid gap-1 text-xs">
-      <span className="ticket-label">{label}</span>
-      <select
-        className="h-8 rounded-none border border-input bg-background px-2 text-xs"
-        onChange={(event) => {
-          const selected = options.find(
-            (option) => option.value === event.target.value,
-          );
-          onChange(selected?.value ?? null);
-        }}
-        value={value ?? ""}
-      >
-        {allowAll ? <option value="">{t("filters.all")}</option> : null}
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }
 
@@ -372,10 +350,8 @@ function FilterText({
 }) {
   const id = `usage-filter-${name}`;
   return (
-    <div className="grid gap-1 text-xs">
-      <label className="ticket-label" htmlFor={id}>
-        {label}
-      </label>
+    <Field className="w-fit">
+      <FieldCaption htmlFor={id}>{label}</FieldCaption>
       <Input
         className="h-8 w-40"
         defaultValue={defaultValue}
@@ -385,7 +361,7 @@ function FilterText({
         name={name}
         placeholder={placeholder}
       />
-    </div>
+    </Field>
   );
 }
 

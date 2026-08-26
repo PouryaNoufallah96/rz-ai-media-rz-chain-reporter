@@ -5,13 +5,16 @@ import {
   ARTICLE_FETCH_MODES,
   ATTEMPT_OUTCOMES,
   CONTENT_LOCALES,
+  DRAFT_REVISION_COMMAND_KINDS,
   DUPLICATE_METHODS,
   ENRICHMENT_OUTCOMES,
   ENRICHMENT_REASONS,
   FILTER_DISPOSITIONS,
   FILTERING_REASONS,
+  IMAGE_SOURCE_PROJECTION_KINDS,
   ITEM_ELIGIBILITIES,
   MEDIA_ASSET_LIFECYCLES,
+  MEDIA_DERIVATION_PURPOSES,
   MODEL_BACKENDS,
   MODEL_UNIT_STATUSES,
   OPERATION_LIFECYCLES,
@@ -142,3 +145,18 @@ export const usageCostAuthority = pgEnum(
 export const usageSource = pgEnum("usage_source", USAGE_SOURCES);
 
 export const scheduleStatus = pgEnum("schedule_status", SCHEDULE_STATUSES);
+
+export const draftRevisionCommandKind = pgEnum(
+  "draft_revision_command_kind",
+  DRAFT_REVISION_COMMAND_KINDS,
+);
+
+export const imageSourceProjectionKind = pgEnum(
+  "image_source_projection_kind",
+  IMAGE_SOURCE_PROJECTION_KINDS,
+);
+
+export const mediaDerivationPurpose = pgEnum(
+  "media_derivation_purpose",
+  MEDIA_DERIVATION_PURPOSES,
+);

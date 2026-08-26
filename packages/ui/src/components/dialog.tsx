@@ -30,7 +30,7 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "data-closed:fade-out-0 data-open:fade-in-0 fixed inset-0 isolate z-50 bg-black/45 duration-100 data-closed:animate-out data-open:animate-in motion-reduce:animate-none!",
+        "fixed inset-0 isolate z-50 bg-black/45 opacity-0 transition-opacity duration-100 ease-out data-ending-style:opacity-0 data-open:opacity-100 data-starting-style:opacity-0 motion-reduce:transition-none",
         className,
       )}
       {...props}
@@ -122,7 +122,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-2 border-t border-dashed pt-3 sm:flex-row sm:justify-end",
+        "flex flex-col-reverse gap-2 pt-3 sm:flex-row sm:justify-end",
         className,
       )}
       {...props}

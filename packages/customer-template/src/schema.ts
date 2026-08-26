@@ -18,7 +18,7 @@ export { imageProfileSchema } from "./image-profile";
 
 // Loader compatibility only. Git owns content versioning, so this bumps solely
 // when a template that loaded before would no longer load.
-export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 3;
+export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 5;
 
 const trimmedText = z
   .string()
@@ -50,11 +50,24 @@ const referencePathSchema = z
   );
 
 const score = z.number().min(0).max(100);
+const relevanceThreshold = z.number().min(1).max(100);
 const weight = z.number().min(0).max(1);
+const positiveTermWeight = z.number().positive().max(100);
+const negativeTermWeight = z.number().min(-100).negative();
 
-const weightedTermSchema = z.strictObject({
+const positiveWeightedTermSchema = z.strictObject({
   term: trimmedText,
-  weight: z.number(),
+  weight: positiveTermWeight,
+});
+
+const negativeWeightedTermSchema = z.strictObject({
+  term: trimmedText,
+  weight: negativeTermWeight,
+});
+
+const aliasSchema = z.strictObject({
+  canonical: trimmedText,
+  surfaces: z.array(trimmedText).min(1),
 });
 
 export const VALUE_SIGNAL_KINDS = [
@@ -68,18 +81,19 @@ export type ValueSignalKind = (typeof VALUE_SIGNAL_KINDS)[number];
 
 const brandEditorialSchema = z.strictObject({
   mediaFitThreshold: score,
-  strongTerms: z.array(weightedTermSchema),
-  weakTerms: z.array(weightedTermSchema),
-  aliases: z.array(
-    z.strictObject({
-      canonical: trimmedText,
-      surfaces: z.array(trimmedText),
-    }),
+  strongTerms: z.array(positiveWeightedTermSchema),
+  weakTerms: z.array(negativeWeightedTermSchema),
+  aliases: z.array(aliasSchema),
+  phrases: z.array(
+    z.strictObject({ phrase: trimmedText, weight: positiveTermWeight }),
   ),
-  phrases: z.array(z.strictObject({ phrase: trimmedText, weight: z.number() })),
   preferredSourceKeys: z.array(stableKeySchema),
   semanticAnchors: z.array(trimmedText),
   promoEnabled: z.boolean(),
+  canonicalHashtags: z.strictObject({
+    en: trimmedText.regex(/^#[^\s#]+$/, "Expected one canonical hashtag"),
+    fa: trimmedText.regex(/^#[^\s#]+$/, "Expected one canonical hashtag"),
+  }),
   valueGate: z
     .strictObject({
       signalKinds: z.array(z.enum(VALUE_SIGNAL_KINDS)),
@@ -88,11 +102,20 @@ const brandEditorialSchema = z.strictObject({
     .optional(),
 });
 
+const brandLogoSchema = z.strictObject({
+  path: referencePathSchema,
+  mimeType: z.literal("image/png"),
+  pixelWidth: z.int().positive(),
+  pixelHeight: z.int().positive(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/, "Expected a SHA-256 digest"),
+});
+
 const mediaBrandSchema = z.strictObject({
   key: stableKeySchema,
   name: trimmedText,
   brandBible: referencePathSchema.optional(),
   imageProfile: referencePathSchema.optional(),
+  brandLogo: brandLogoSchema.optional(),
   editorial: brandEditorialSchema,
 });
 
@@ -100,15 +123,21 @@ export const MODEL_TASK_KEYS = [
   "generation-probe",
   "keyword-embedding",
   "enrichment-brief",
+  "image-template-selection",
+  "image-creative-brief",
 ] as const;
 
 export const EDITORIAL_SELECTION_TASK_PREFIX = "editorial-selection:";
 export const PROMO_IDEAS_TASK_PREFIX = "promo-ideas:";
+export const COPY_GENERATION_TASK_PREFIX = "copy-generation:";
+export const IMAGE_GENERATION_TASK_PREFIX = "image-generation:";
 
 export const modelTaskKeySchema = z.union([
   z.enum(MODEL_TASK_KEYS),
   z.templateLiteral([EDITORIAL_SELECTION_TASK_PREFIX, z.string()]),
   z.templateLiteral([PROMO_IDEAS_TASK_PREFIX, z.string()]),
+  z.templateLiteral([COPY_GENERATION_TASK_PREFIX, z.string()]),
+  z.templateLiteral([IMAGE_GENERATION_TASK_PREFIX, z.string()]),
 ]);
 
 export type ModelTaskKey = z.infer<typeof modelTaskKeySchema>;
@@ -170,10 +199,11 @@ void assertSourceOriginCoverage;
 
 const MAX_TELEGRAM_TOP_N = 20;
 const MAX_ENRICHMENT_ITEMS_PER_IMPORT = 200;
+const MAX_ITEMS_PER_SOURCE = 100;
 
 const acquisitionSchema = z.strictObject({
   defaultWindowHours: z.int().positive(),
-  maxItemsPerSource: z.int().positive(),
+  maxItemsPerSource: z.int().min(1).max(MAX_ITEMS_PER_SOURCE),
   telegram: z.strictObject({
     orderingMode: telegramOrderingModeSchema,
     topN: z.int().min(1).max(MAX_TELEGRAM_TOP_N),
@@ -186,7 +216,52 @@ const enrichmentSchema = z.strictObject({
   freshnessHours: z.int().positive(),
 });
 
+const boundedRangeSchema = z.strictObject({
+  min: z.int().nonnegative(),
+  max: z.int().positive(),
+});
+
+const variantKeySchema = z
+  .string()
+  .regex(/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/, "Expected a stable variant key");
+
+const platformDraftingPolicySchema = z.strictObject({
+  platform: platformSchema,
+  variants: z
+    .array(
+      z.strictObject({
+        key: variantKeySchema,
+        instruction: trimmedText,
+      }),
+    )
+    .min(1),
+  assembledCharacters: boundedRangeSchema,
+  hashtags: boundedRangeSchema,
+  emojiGraphemeCap: z.int().nonnegative(),
+});
+
+const draftingSchema = z.strictObject({
+  copy: z.strictObject({
+    fetchMinimumChars: z.int().positive(),
+    modelMaxChars: z.int().positive(),
+    platforms: z.array(platformDraftingPolicySchema).min(1),
+  }),
+  image: z.strictObject({
+    models: z
+      .array(
+        z.strictObject({
+          key: stableKeySchema,
+          name: trimmedText,
+          enabled: z.boolean(),
+        }),
+      )
+      .min(1),
+    defaultModelKey: stableKeySchema,
+  }),
+});
+
 const editorialSchema = z.strictObject({
+  topicAliases: z.array(aliasSchema),
   models: z
     .array(z.strictObject({ key: stableKeySchema, name: trimmedText }))
     .min(1)
@@ -211,6 +286,7 @@ const editorialSchema = z.strictObject({
     ideaCount: z.int().min(1).max(10),
     promptMaxChars: z.int().min(1).max(4000),
   }),
+  drafting: draftingSchema,
   semantic: z.strictObject({
     maxCandidates: z.int().min(1).max(400),
     maxTopics: z.int().min(1).max(20),
@@ -242,21 +318,22 @@ const editorialSchema = z.strictObject({
     }),
     thresholds: z.strictObject({
       policyScore: score,
+      lexicalTopicScore: relevanceThreshold,
     }),
     freshnessLadder: z
       .array(z.strictObject({ maxAgeHours: z.int().positive(), score }))
       .min(1, { error: "FRESHNESS_LADDER_EMPTY" }),
     futureDateNeutralScore: score,
     virality: z.strictObject({
-      powerTerms: z.array(weightedTermSchema),
-      entityTerms: z.array(weightedTermSchema),
+      powerTerms: z.array(positiveWeightedTermSchema),
+      entityTerms: z.array(positiveWeightedTermSchema),
       titleMultiplier: z.number().nonnegative(),
       bodyMultiplier: z.number().nonnegative(),
       numericSignalWeights: z.strictObject({
-        number: z.number(),
-        percentage: z.number(),
-        currencyAmount: z.number(),
-        magnitudeAmount: z.number(),
+        number: positiveTermWeight,
+        percentage: positiveTermWeight,
+        currencyAmount: positiveTermWeight,
+        magnitudeAmount: positiveTermWeight,
       }),
     }),
     unknownSourceAuthority: score,
@@ -347,7 +424,7 @@ const customerTemplateShapeSchema = z.strictObject({
   editorial: editorialSchema,
   destinationAccounts: z.array(destinationAccountSchema),
   brandDestinations: z.array(brandDestinationSchema),
-  models: modelsSchema.optional(),
+  models: modelsSchema,
 });
 
 export const customerTemplateSchema = customerTemplateShapeSchema.superRefine(
@@ -395,6 +472,19 @@ export const customerTemplateSchema = customerTemplateShapeSchema.superRefine(
     );
     const mapped = new Set<string>();
 
+    for (const [index, brand] of template.mediaBrands.entries()) {
+      if (
+        (brand.imageProfile === undefined) !==
+        (brand.brandLogo === undefined)
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["mediaBrands", index, "brandLogo"],
+          message: "IMAGE_PROFILE_BRAND_LOGO_PAIR_REQUIRED",
+        });
+      }
+    }
+
     for (const [index, mapping] of template.brandDestinations.entries()) {
       if (!brandKeys.has(mapping.brandKey)) {
         ctx.addIssue({
@@ -438,13 +528,49 @@ function reportEditorialIssues(
 ) {
   const { editorial } = template;
   const optionKeys = new Set(editorial.models.map((option) => option.key));
+  const imageOptionKeys = new Set(
+    editorial.drafting.image.models.map((option) => option.key),
+  );
   const sourceKeys = new Set(template.sources.map((source) => source.key));
-  const taskKeys = Object.keys(template.models?.tasks ?? {});
+  const taskKeys = Object.keys(template.models.tasks);
+
+  reportAliasIssues(ctx, editorial.topicAliases, ["editorial", "topicAliases"]);
+  reportDuplicateValues(
+    ctx,
+    editorial.models.map((model, index) => ({
+      path: ["editorial", "models", index, "key"],
+      value: model.key,
+    })),
+    "DUPLICATE_EDITORIAL_MODEL",
+  );
+  reportDuplicateValues(
+    ctx,
+    editorial.platforms.map((platform, index) => ({
+      path: ["editorial", "platforms", index],
+      value: platform,
+    })),
+    "DUPLICATE_EDITORIAL_PLATFORM",
+  );
+  reportDuplicateValues(
+    ctx,
+    [
+      ...editorial.policy.virality.powerTerms.map((entry, index) => ({
+        path: ["editorial", "policy", "virality", "powerTerms", index, "term"],
+        value: entry.term,
+      })),
+      ...editorial.policy.virality.entityTerms.map((entry, index) => ({
+        path: ["editorial", "policy", "virality", "entityTerms", index, "term"],
+        value: entry.term,
+      })),
+    ],
+    "DUPLICATE_VIRALITY_TERM",
+  );
 
   for (const [index, option] of editorial.models.entries()) {
     const routed = [
       `${EDITORIAL_SELECTION_TASK_PREFIX}${option.key}`,
       `${PROMO_IDEAS_TASK_PREFIX}${option.key}`,
+      `${COPY_GENERATION_TASK_PREFIX}${option.key}`,
     ].every((taskKey) => taskKeys.includes(taskKey));
 
     if (!routed) {
@@ -456,12 +582,42 @@ function reportEditorialIssues(
     }
   }
 
+  const requiredTaskKeys = [
+    "keyword-embedding",
+    "image-template-selection",
+    "image-creative-brief",
+    ...(template.enrichment.enabled ? (["enrichment-brief"] as const) : []),
+  ] satisfies readonly ModelTaskKey[];
+
+  for (const fixedTaskKey of requiredTaskKeys) {
+    if (!taskKeys.includes(fixedTaskKey)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["models", "tasks", fixedTaskKey],
+        message: "IMAGE_TASK_ROUTE_MISSING",
+      });
+    }
+  }
+
+  for (const [index, option] of editorial.drafting.image.models.entries()) {
+    const taskKey = `${IMAGE_GENERATION_TASK_PREFIX}${option.key}`;
+
+    if (!taskKeys.includes(taskKey)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["editorial", "drafting", "image", "models", index, "key"],
+        message: "IMAGE_MODEL_ROUTE_MISSING",
+      });
+    }
+  }
+
   // A prefixed family accepts any suffix, so an orphan route would validate,
   // never be asserted at prestart, and silently do nothing.
   for (const taskKey of taskKeys) {
     for (const prefix of [
       EDITORIAL_SELECTION_TASK_PREFIX,
       PROMO_IDEAS_TASK_PREFIX,
+      COPY_GENERATION_TASK_PREFIX,
     ]) {
       if (
         taskKey.startsWith(prefix) &&
@@ -474,7 +630,20 @@ function reportEditorialIssues(
         });
       }
     }
+
+    if (
+      taskKey.startsWith(IMAGE_GENERATION_TASK_PREFIX) &&
+      !imageOptionKeys.has(taskKey.slice(IMAGE_GENERATION_TASK_PREFIX.length))
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["models", "tasks", taskKey],
+        message: "IMAGE_MODEL_ROUTE_ORPHANED",
+      });
+    }
   }
+
+  reportDraftingIssues(ctx, editorial);
 
   for (const key of Object.keys(editorial.policy.sourceAuthority)) {
     if (!sourceKeys.has(key)) {
@@ -556,6 +725,113 @@ function reportEditorialIssues(
   }
 }
 
+function reportDraftingIssues(
+  ctx: z.RefinementCtx,
+  editorial: z.infer<typeof editorialSchema>,
+) {
+  const policyPlatforms = new Set<string>();
+
+  for (const [index, policy] of editorial.drafting.copy.platforms.entries()) {
+    if (policyPlatforms.has(policy.platform)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["editorial", "drafting", "copy", "platforms", index, "platform"],
+        message: "DUPLICATE_DRAFTING_PLATFORM",
+      });
+    }
+    policyPlatforms.add(policy.platform);
+
+    const variantKeys = new Set<string>();
+    for (const [variantIndex, variant] of policy.variants.entries()) {
+      if (variantKeys.has(variant.key)) {
+        ctx.addIssue({
+          code: "custom",
+          path: [
+            "editorial",
+            "drafting",
+            "copy",
+            "platforms",
+            index,
+            "variants",
+            variantIndex,
+            "key",
+          ],
+          message: "DUPLICATE_COPY_VARIANT",
+        });
+      }
+      variantKeys.add(variant.key);
+    }
+
+    for (const [field, range] of [
+      ["assembledCharacters", policy.assembledCharacters],
+      ["hashtags", policy.hashtags],
+    ] as const) {
+      if (range.min > range.max) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["editorial", "drafting", "copy", "platforms", index, field],
+          message: "DRAFTING_RANGE_REVERSED",
+        });
+      }
+    }
+  }
+
+  for (const [index, platform] of editorial.platforms.entries()) {
+    if (!policyPlatforms.has(platform)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["editorial", "platforms", index],
+        message: "DRAFTING_PLATFORM_POLICY_MISSING",
+      });
+    }
+  }
+
+  for (const policy of editorial.drafting.copy.platforms) {
+    if (!editorial.platforms.includes(policy.platform)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["editorial", "drafting", "copy", "platforms"],
+        message: "DRAFTING_PLATFORM_POLICY_ORPHANED",
+      });
+    }
+  }
+
+  if (
+    editorial.drafting.copy.fetchMinimumChars >
+    editorial.drafting.copy.modelMaxChars
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["editorial", "drafting", "copy", "fetchMinimumChars"],
+      message: "COPY_FETCH_MINIMUM_EXCEEDS_MODEL_CAP",
+    });
+  }
+
+  const imageModelKeys = new Set<string>();
+  for (const [index, model] of editorial.drafting.image.models.entries()) {
+    if (imageModelKeys.has(model.key)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["editorial", "drafting", "image", "models", index, "key"],
+        message: "DUPLICATE_IMAGE_MODEL",
+      });
+    }
+    imageModelKeys.add(model.key);
+  }
+
+  const defaultImageModel = editorial.drafting.image.models.find(
+    (model) => model.key === editorial.drafting.image.defaultModelKey,
+  );
+
+  if (defaultImageModel === undefined || !defaultImageModel.enabled) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["editorial", "drafting", "image", "defaultModelKey"],
+      message: "ENABLED_DEFAULT_IMAGE_MODEL_REQUIRED",
+    });
+  }
+}
+
 function reportUnknownDefaults(
   ctx: z.RefinementCtx,
   editorial: z.infer<typeof editorialSchema>,
@@ -565,6 +841,22 @@ function reportUnknownDefaults(
 ) {
   const { defaults } = editorial;
   const platforms = new Set<string>(editorial.platforms);
+
+  for (const [field, values] of [
+    ["brands", defaults.brands],
+    ["models", defaults.models],
+    ["platforms", defaults.platforms],
+    ["sourceKeys", defaults.sourceKeys ?? []],
+  ] as const) {
+    reportDuplicateValues(
+      ctx,
+      values.map((value, index) => ({
+        path: ["editorial", "defaults", field, index],
+        value,
+      })),
+      "DUPLICATE_EDITORIAL_DEFAULT",
+    );
+  }
 
   const unknown = [
     ["brands", defaults.brands, brandKeys, "UNKNOWN_DEFAULT_BRAND"],
@@ -604,6 +896,42 @@ function reportBrandEditorialIssues(
     "editorial",
     ...path,
   ];
+
+  reportAliasIssues(ctx, brand.aliases, at("aliases"));
+  reportDuplicateValues(
+    ctx,
+    [
+      ...brand.strongTerms.map((entry, position) => ({
+        path: at("strongTerms", position, "term"),
+        value: entry.term,
+      })),
+      ...brand.weakTerms.map((entry, position) => ({
+        path: at("weakTerms", position, "term"),
+        value: entry.term,
+      })),
+      ...brand.phrases.map((entry, position) => ({
+        path: at("phrases", position, "phrase"),
+        value: entry.phrase,
+      })),
+    ],
+    "DUPLICATE_BRAND_VOCABULARY",
+  );
+  reportDuplicateValues(
+    ctx,
+    brand.preferredSourceKeys.map((value, position) => ({
+      path: at("preferredSourceKeys", position),
+      value,
+    })),
+    "DUPLICATE_PREFERRED_SOURCE",
+  );
+  reportDuplicateValues(
+    ctx,
+    brand.semanticAnchors.map((value, position) => ({
+      path: at("semanticAnchors", position),
+      value,
+    })),
+    "DUPLICATE_SEMANTIC_ANCHOR",
+  );
 
   for (const [position, key] of brand.preferredSourceKeys.entries()) {
     if (!sourceKeys.has(key)) {
@@ -654,4 +982,90 @@ function reportBrandEditorialIssues(
       message: "VALUE_GATE_EMPTY",
     });
   }
+
+  if (brand.valueGate !== undefined) {
+    reportDuplicateValues(
+      ctx,
+      brand.valueGate.signalKinds.map((value, position) => ({
+        path: at("valueGate", "signalKinds", position),
+        value,
+      })),
+      "DUPLICATE_VALUE_SIGNAL_KIND",
+    );
+    reportDuplicateValues(
+      ctx,
+      brand.valueGate.forecastTerms.map((value, position) => ({
+        path: at("valueGate", "forecastTerms", position),
+        value,
+      })),
+      "DUPLICATE_FORECAST_TERM",
+    );
+  }
+}
+
+function reportDuplicateValues(
+  ctx: z.RefinementCtx,
+  entries: readonly {
+    path: readonly (string | number)[];
+    value: string;
+  }[],
+  message: string,
+) {
+  const seen = new Set<string>();
+
+  for (const entry of entries) {
+    const normalized = normalizeAliasTerm(entry.value);
+    if (seen.has(normalized)) {
+      ctx.addIssue({ code: "custom", path: [...entry.path], message });
+    }
+    seen.add(normalized);
+  }
+}
+
+function reportAliasIssues(
+  ctx: z.RefinementCtx,
+  aliases: readonly z.infer<typeof aliasSchema>[],
+  path: readonly (string | number)[],
+) {
+  const terms = new Map<string, "canonical" | "surface">();
+
+  for (const [aliasIndex, alias] of aliases.entries()) {
+    const canonical = normalizeAliasTerm(alias.canonical);
+    const canonicalKind = terms.get(canonical);
+
+    if (canonicalKind !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: [...path, aliasIndex, "canonical"],
+        message:
+          canonicalKind === "canonical"
+            ? "DUPLICATE_ALIAS_CANONICAL"
+            : "ALIAS_CANONICAL_SURFACE_COLLISION",
+      });
+    } else {
+      terms.set(canonical, "canonical");
+    }
+
+    for (const [surfaceIndex, surfaceValue] of alias.surfaces.entries()) {
+      const surface = normalizeAliasTerm(surfaceValue);
+      const existingKind = terms.get(surface);
+
+      if (existingKind !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: [...path, aliasIndex, "surfaces", surfaceIndex],
+          message:
+            existingKind === "canonical"
+              ? "ALIAS_CANONICAL_SURFACE_COLLISION"
+              : "DUPLICATE_ALIAS_SURFACE",
+        });
+      } else {
+        terms.set(surface, "surface");
+      }
+    }
+  }
+}
+
+function normalizeAliasTerm(value: string): string {
+  return value.normalize("NFKC").toLowerCase().replace(/\s+/gu, " ");
 }

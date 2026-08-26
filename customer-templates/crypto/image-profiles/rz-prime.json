@@ -160,17 +160,32 @@
     "dataElementLabelTemplate": " with the label \"{label}\"",
     "headlineUppercase": true
   },
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.096,
+    "insetShortSideRatio": 0.045
+  },
   "fallbackBrief": {
-    "read": "LAUNCH",
-    "family": "product",
-    "headline": "CRYPTO MARKETS MOVE",
-    "data_elements": [],
-    "environment": "circuit_floor",
-    "camera": "eye_level_symmetric",
-    "energy": "calm_premium",
-    "mood_accent": "cyan",
-    "wolf": "none",
-    "subject_scene": "A single clear glass UI panel sits on a dark circuit-board platform with glowing cyan trace lines, displaying a clean app-mockup interface with a status indicator and the green RZ coin icon, radiating soft cyan light."
+    "selection": {
+      "family": "product",
+      "axes": {
+        "environment": "circuit_floor",
+        "camera": "eye_level_symmetric",
+        "energy": "calm_premium",
+        "mood_accent": "cyan",
+        "wolf": "none"
+      }
+    },
+    "brief": {
+      "headline": "CRYPTO MARKETS MOVE",
+      "subjectScene": "A single clear glass UI panel sits on a dark circuit-board platform with glowing cyan trace lines, displaying a clean app-mockup interface with a status indicator and the green RZ coin icon, radiating soft cyan light.",
+      "dataElements": []
+    }
   },
   "briefExamples": "Worked examples (for guidance only -- do not copy headlines or scenes verbatim):\n\nA. Article: \"Why custodial exchanges still hold your crypto hostage\"\n{\"read\": \"CONTRAST\", \"family\": \"versus\", \"headline\": \"NOT YOUR KEYS, NOT YOUR CRYPTO\", \"data_elements\": [{\"value\": \"CUSTODY\", \"label\": \"\"}, {\"value\": \"ON-CHAIN\", \"label\": \"\"}, {\"value\": \"MIDDLEMAN\", \"label\": \"\"}, {\"value\": \"DIRECT\", \"label\": \"\"}], \"environment\": \"circuit_floor\", \"camera\": \"eye_level_symmetric\", \"energy\": \"dramatic_tension\", \"mood_accent\": \"cyan_vs_red\", \"wolf\": \"both\", \"subject_scene\": \"On the left, a dim red-tinted panel shows CUSTODY and MIDDLEMAN with red X marks, broken glass fragments drifting from it. On the right, a pristine cyan-green panel shows ON-CHAIN and DIRECT with green checkmarks. The Blue Kid and Wolf stand on the right side, the Kid pointing at the positive panel while the Wolf gestures dismissively at the broken left side. Circuit-board floor with glowing traces beneath.\"}\n\nB. Article: \"RZ Prime launches structured early access for token reservations\"\n{\"read\": \"LAUNCH\", \"family\": \"product\", \"headline\": \"EARLY ACCESS SHOULD BE STRUCTURED\", \"data_elements\": [{\"value\": \"RESERVE\", \"label\": \"\"}, {\"value\": \"RZUSD\", \"label\": \"\"}, {\"value\": \"AVAILABLE\", \"label\": \"\"}], \"environment\": \"circuit_floor\", \"camera\": \"low_angle_hero\", \"energy\": \"calm_premium\", \"mood_accent\": \"cyan_vs_green\", \"wolf\": \"none\", \"subject_scene\": \"A large clear glass UI panel sits on a circuit-board platform, displaying an app-mockup reserve interface with RESERVE, RZUSD, and AVAILABLE fields glowing in cyan and green, the green RZ coin icon hovering beside it.\"}\n\nC. Article: \"What actually happens when your reservation window expires\"\n{\"read\": \"PROCESS\", \"family\": \"flow\", \"headline\": \"WHAT ACTUALLY HAPPENS IF I DO NOTHING\", \"data_elements\": [{\"value\": \"EXPIRES\", \"label\": \"WINDOW\"}, {\"value\": \"RELEASED\", \"label\": \"TOKENS\"}, {\"value\": \"$0\", \"label\": \"COST\"}], \"environment\": \"circuit_floor\", \"camera\": \"eye_level_symmetric\", \"energy\": \"calm_premium\", \"mood_accent\": \"cyan\", \"wolf\": \"both\", \"subject_scene\": \"Three connected clear glass panels descend diagonally on a circuit-board platform, arrows linking them: WINDOW EXPIRES at top, TOKENS RELEASED in middle, YOU PAY ZERO at bottom with a green checkmark. The Blue Kid touches the top panel while the Wolf stands at the bottom, gesturing calmly toward the zero-cost outcome.\"}\n\nD. Article: \"The old model vs RZ Prime: a feature comparison\"\n{\"read\": \"CONTRAST\", \"family\": \"table\", \"headline\": \"WHY ARE PEOPLE STILL USING THE OLD MODEL\", \"data_elements\": [{\"value\": \"CeFi\", \"label\": \"\"}, {\"value\": \"RZ\", \"label\": \"\"}, {\"value\": \"FEES\", \"label\": \"\"}, {\"value\": \"KYC\", \"label\": \"\"}, {\"value\": \"CUSTODY\", \"label\": \"\"}], \"environment\": \"circuit_floor\", \"camera\": \"slight_overhead\", \"energy\": \"calm_premium\", \"mood_accent\": \"cyan_vs_red\", \"wolf\": \"kid\", \"subject_scene\": \"A glass comparison table fills the center on a circuit-board platform: CeFi column dim and red-tinted on the left, RZ PRIME column glowing cyan-green on the right, with rows for FEES, KYC, and CUSTODY. The Blue Kid stands beside the table, pointing at the RZ PRIME column. Green checkmarks on the RZ side, red X marks on the CeFi side.\"}\n\nE. Article: \"RZ Prime fees are transparent: 3%, 6%, or 9%\"\n{\"read\": \"NUMBER\", \"family\": \"data_tiles\", \"headline\": \"CLEAR FEE, CLEAR TIMING, CLEAR OUTCOME\", \"data_elements\": [{\"value\": \"3%\", \"label\": \"TIER 1\"}, {\"value\": \"6%\", \"label\": \"TIER 2\"}, {\"value\": \"9%\", \"label\": \"TIER 3\"}], \"environment\": \"circuit_floor\", \"camera\": \"low_angle_hero\", \"energy\": \"calm_premium\", \"mood_accent\": \"cyan_vs_green\", \"wolf\": \"none\", \"subject_scene\": \"Three ascending clear glass tiles rise from a circuit-board platform like stairs, each displaying a fee percentage in large cyan text with a tier label below, the tiles growing taller left to right, soft green glow on the highest tier.\"}\n\nF. Article: \"In a space where humans make mistakes, code doesn't\"\n{\"read\": \"THREAT\", \"family\": \"shatter\", \"headline\": \"IN A SPACE WHERE HUMANS MAKE MISTAKES CODE DOESN'T\", \"data_elements\": [{\"value\": \"VERIFIED\", \"label\": \"\"}, {\"value\": \"AUDITED\", \"label\": \"\"}, {\"value\": \"ON-CHAIN\", \"label\": \"\"}, {\"value\": \"CUSTODY\", \"label\": \"\"}, {\"value\": \"MIDDLEMAN\", \"label\": \"\"}], \"environment\": \"circuit_floor\", \"camera\": \"low_angle_hero\", \"energy\": \"explosive_dynamic\", \"mood_accent\": \"cyan_vs_red\", \"wolf\": \"none\", \"subject_scene\": \"A pristine glass cube at center glows cyan with VERIFIED, AUDITED, and ON-CHAIN badges in green on its faces. At the edges, crumbling legacy elements labeled CUSTODY and MIDDLEMAN shatter outward with red X marks and alarm-red cracks, fragments suspended mid-air. Circuit-board floor with glowing traces radiates beneath the intact cube.\"}"
 }

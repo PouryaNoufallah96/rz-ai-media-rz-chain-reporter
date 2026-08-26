@@ -205,18 +205,31 @@
     "noTextMode": "art_drop",
     "noTextLine": "No text, no letters, no numbers anywhere in the image."
   },
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.096,
+    "insetShortSideRatio": 0.045
+  },
   "fallbackBrief": {
-    "family": "duotone",
-    "headline": "CRYPTO MARKETS MOVE",
-    "layout": "art_only",
-    "data_elements": [],
-    "stage": "photo_real",
-    "composition": "full_bleed_photo",
-    "energy": "newsroom_neutral",
-    "accent": "cr_signal",
-    "accent_justification": "",
-    "art_style": "",
-    "subject_scene": "A black-and-white macro photograph of a chrome coin fills the frame, its surface catching cold studio light, while two giant signal-orange ring shapes sweep across the composition from opposite corners."
+    "selection": {
+      "family": "duotone",
+      "axes": {
+        "stage": "photo_real",
+        "composition": "full_bleed_photo",
+        "energy": "newsroom_neutral",
+        "accent": "cr_signal"
+      }
+    },
+    "brief": {
+      "headline": "CRYPTO MARKETS MOVE",
+      "subjectScene": "A black-and-white macro photograph of a chrome coin fills the frame, its surface catching cold studio light, while two giant signal-orange ring shapes sweep across the composition from opposite corners.",
+      "dataElements": []
+    }
   },
   "briefExamples": "Worked examples (for guidance only -- do not copy headlines or scenes verbatim):\n\nA. Article: \"SEC approves first crypto perps framework\"\n{\"family\": \"duotone\", \"headline\": \"THE DOOR OPENS FOR CRYPTO PERPS\", \"layout\": \"art_only\", \"data_elements\": [], \"stage\": \"photo_real\", \"composition\": \"full_bleed_photo\", \"energy\": \"newsroom_neutral\", \"accent\": \"cr_signal\", \"accent_justification\": \"\", \"art_style\": \"\", \"subject_scene\": \"A monochrome photographic close-up of a classical federal building facade fills the frame, its columns rendered in cold black-and-white; two giant signal-orange rings sweep across the composition from opposite corners, one passing behind the columns and one in front.\"}\n\nB. Article: \"Uniswap does $100M volume on Polygon in 24h\"\n{\"family\": \"big_number\", \"headline\": \"$100M IN A SINGLE DAY\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"$100M+\", \"label\": \"24H VOLUME\"}], \"stage\": \"studio_dark\", \"composition\": \"centered_hero\", \"energy\": \"celebratory\", \"accent\": \"story_color\", \"accent_justification\": \"Polygon violet, since the volume happened on the Polygon network\", \"art_style\": \"\", \"subject_scene\": \"A near-black studio field holds one giant violet figure reading $100M+ dominating the upper half of the frame, with a cluster of small violet dots scattered along the bottom edge.\"}\n\nC. Article: \"Daily Bitcoin price post -- $76,940\"\n{\"family\": \"art_drop\", \"headline\": \"BITCOIN AT $76,940\", \"layout\": \"art_only\", \"data_elements\": [], \"stage\": \"texture_macro\", \"composition\": \"full_bleed_photo\", \"energy\": \"playful\", \"accent\": \"free\", \"accent_justification\": \"\", \"art_style\": \"vintage botanical engraving\", \"subject_scene\": \"A Bitcoin coin is rendered as the head of a sunflower, its petals radiating outward in fine engraved linework, surrounded by detailed botanical leaves and stems in the style of a 19th-century natural history print.\"}\n\nD. Article: \"Chainlink integrates with major L2\"\n{\"family\": \"lockup\", \"headline\": \"A NEW DATA BRIDGE GOES LIVE\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"LINK\", \"label\": \"\"}, {\"value\": \"L2NAME\", \"label\": \"\"}], \"stage\": \"gradient_sweep\", \"composition\": \"centered_hero\", \"energy\": \"celebratory\", \"accent\": \"cr_signal\", \"accent_justification\": \"\", \"art_style\": \"\", \"subject_scene\": \"Two chrome medallions, each engraved with an abstract geometric glyph, sit side by side on a soft gradient stage, joined by a glowing signal-orange light-bridge arcing between them.\"}\n\nE. Article: \"How restaking actually works\"\n{\"family\": \"flat_explainer\", \"headline\": \"RESTAKING, EXPLAINED\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"STAKE\", \"label\": \"\"}, {\"value\": \"EARN\", \"label\": \"\"}], \"stage\": \"flat_field\", \"composition\": \"isometric\", \"energy\": \"newsroom_neutral\", \"accent\": \"story_color\", \"accent_justification\": \"teal and white, a calm two-color palette suited to a clean technical explainer\", \"art_style\": \"\", \"subject_scene\": \"Three flat translucent slabs are stacked in isometric perspective, with small coin shapes flowing in a cycle between them via simple arrows, rendered in a clean two-color illustration style.\"}\n\nF. Article: \"Weekly market recap: 4 key numbers\"\n{\"family\": \"stat_card\", \"headline\": \"THE WEEK IN NUMBERS\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"+4.2%\", \"label\": \"BTC\"}, {\"value\": \"+6.8%\", \"label\": \"ETH\"}, {\"value\": \"$182B\", \"label\": \"TVL\"}, {\"value\": \"+38%\", \"label\": \"TOP GAINER\"}], \"stage\": \"studio_light\", \"composition\": \"card_grid\", \"energy\": \"newsroom_neutral\", \"accent\": \"cr_signal\", \"accent_justification\": \"\", \"art_style\": \"\", \"subject_scene\": \"A bright off-white studio field holds a grid of four rounded stat tiles beneath a bold title block, each tile carrying one icon and one large value, with a small 3D chart-arrow object anchoring the bottom-right corner.\"}\n\nG. Article: \"DOGE pumps 40% on viral moment\" (only reachable if meme_enabled is turned on)\n{\"family\": \"meme\", \"headline\": \"DOGE GOES TO THE MOON, LITERALLY\", \"layout\": \"art_only\", \"data_elements\": [], \"stage\": \"photo_real\", \"composition\": \"centered_hero\", \"energy\": \"playful\", \"accent\": \"story_color\", \"accent_justification\": \"earthlight green, matching the rising chart in the joke\", \"art_style\": \"\", \"subject_scene\": \"A photoreal shiba inu in a tiny astronaut suit sits calmly on the lunar surface sipping from a coffee cup, while a glowing green candlestick chart rises across the dark sky behind it, lit by soft earthlight.\"}"
 }

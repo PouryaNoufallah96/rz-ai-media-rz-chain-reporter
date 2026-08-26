@@ -1,2 +1,6 @@
-// Control payloads only — not article bodies or uploads.
-export const MAX_CONTROL_PAYLOAD_BYTES = 1024 * 1024;
+import { MAX_REFERENCE_IMAGE_BYTES } from "@rz-chain-reporter/contracts";
+
+const MULTIPART_ENVELOPE_BYTES = 128 * 1024;
+
+export const MAX_RPC_MULTIPART_BODY_BYTES =
+  MAX_REFERENCE_IMAGE_BYTES + MULTIPART_ENVELOPE_BYTES;

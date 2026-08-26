@@ -44,6 +44,7 @@ const fixtureSchema = z.strictObject({
   template: customerTemplateSchema,
   runStartedAt: z.iso.datetime(),
   topics: z.array(z.string()),
+  telegramLaneCap: z.int().min(1),
   brands: z.array(z.strictObject({ key: z.string(), mediaBrandId: z.uuid() })),
   items: z.array(fixtureItemSchema),
   topicVectors: z.array(z.array(z.number())),
@@ -66,7 +67,27 @@ const fixtureSchema = z.strictObject({
         disposition: filterDispositionSchema,
         reason: filteringReasonSchema.nullable(),
         valueSignalCount: z.int().nullable(),
+        mediaFitScore: z.int().nullable().optional(),
         rankPosition: z.int().nullable(),
+      }),
+    ),
+    topicRelevanceRejected: z.array(
+      z.strictObject({
+        sourceItemId: z.uuid(),
+        brandKey: z.string(),
+        lexicalTopicScore: z.int(),
+      }),
+    ),
+    boundedSummaryRejected: z.array(
+      z.strictObject({ sourceItemId: z.uuid(), brandKey: z.string() }),
+    ),
+    originCaps: z.array(
+      z.strictObject({
+        brandKey: z.string(),
+        rssShortlisted: z.int().nonnegative(),
+        telegramLane: z.int().nonnegative(),
+        rssCapExceeded: z.int().nonnegative(),
+        telegramCapExceeded: z.int().nonnegative(),
       }),
     ),
   }),
@@ -103,6 +124,19 @@ async function runFixture(fixturePath: string): Promise<boolean> {
     shuffledPrepared,
     layoutVectors(fixture, shuffledPrepared),
   );
+  const reversedBrandConfiguration = {
+    ...configuration,
+    brands: [...configuration.brands].reverse(),
+  };
+  const reversedBrandPrepared = prepare(
+    fixture,
+    reversedBrandConfiguration,
+    fixture.items,
+  );
+  const reversedBrands = scoreAndRoute(
+    reversedBrandPrepared,
+    layoutVectors(fixture, reversedBrandPrepared),
+  );
   const rssOnlyPrepared = prepare(
     fixture,
     configuration,
@@ -119,6 +153,7 @@ async function runFixture(fixturePath: string): Promise<boolean> {
   report("succeeded", succeededDigest, succeeded);
   report("degraded", degradedDigest, degraded);
   report("shuffled", digest(shuffled), shuffled);
+  report("reversed-brands", digest(reversedBrands), reversedBrands);
   report("rss-only", digest(rssOnly), rssOnly);
 
   const checks = [
@@ -132,6 +167,14 @@ async function runFixture(fixturePath: string): Promise<boolean> {
     ),
     check("digest.distinct", succeededDigest !== degradedDigest),
     check("digest.shuffled", digest(shuffled) === succeededDigest),
+    check(
+      "caps.input_order",
+      sameOriginCapDispositions(fixture, succeeded, shuffled),
+    ),
+    check(
+      "topics.brand_order",
+      sameTopicScores(succeeded.runItems, reversedBrands.runItems),
+    ),
     check("telegram.rss_dispositions", sameRssDispositions(succeeded, rssOnly)),
     check(
       "semantic.vector_count",
@@ -156,6 +199,9 @@ async function runFixture(fixturePath: string): Promise<boolean> {
     ),
     ...expectedItemChecks(fixture, succeeded.runItems),
     ...expectedRouteChecks(fixture, succeeded.filterRows),
+    ...expectedTopicRelevanceChecks(fixture, succeeded),
+    ...expectedBoundedSummaryChecks(fixture, succeeded),
+    ...expectedOriginCapChecks(fixture, succeeded),
   ];
 
   return checks.every((passed) => passed);
@@ -170,6 +216,8 @@ function buildConfiguration(fixture: Fixture): PipelineConfiguration {
     policy: fixture.template.editorial.policy,
     semantic: fixture.template.editorial.semantic,
     shortlistCap: fixture.template.editorial.shortlistCap,
+    telegramLaneCap: fixture.telegramLaneCap,
+    topicAliases: fixture.template.editorial.topicAliases,
     brands: fixture.brands.map((brand) => {
       const editorial = brands.get(brand.key);
       if (editorial === undefined) {
@@ -372,6 +420,8 @@ function expectedRouteChecks(
       actual.disposition === expected.disposition &&
       actual.reason === expected.reason &&
       actual.valueSignalCount === expected.valueSignalCount &&
+      (expected.mediaFitScore === undefined ||
+        actual.mediaFitScore === expected.mediaFitScore) &&
       actual.rankPosition === expected.rankPosition;
 
     return check(
@@ -379,7 +429,7 @@ function expectedRouteChecks(
       passed,
       passed
         ? ""
-        : `disposition=${actual?.disposition} reason=${actual?.reason} valueSignalCount=${actual?.valueSignalCount} rankPosition=${actual?.rankPosition}`,
+        : `disposition=${actual?.disposition} reason=${actual?.reason} valueSignalCount=${actual?.valueSignalCount} mediaFitScore=${actual?.mediaFitScore} rankPosition=${actual?.rankPosition}`,
     );
   });
 }
@@ -406,6 +456,170 @@ function sameRssDispositions(withTelegram: Outcome, rssOnly: Outcome): boolean {
   }
 
   return true;
+}
+
+function sameOriginCapDispositions(
+  fixture: Fixture,
+  outcome: Outcome,
+  shuffled: Outcome,
+): boolean {
+  const origins = new Map(
+    fixture.items.map((item) => [item.sourceItemId, item.origin]),
+  );
+  const dispositions = (candidate: Outcome) =>
+    candidate.filterRows
+      .filter(
+        (row) =>
+          row.disposition === "shortlisted" ||
+          row.disposition === "telegram_lane" ||
+          row.disposition === "cap_exceeded",
+      )
+      .map((row) =>
+        [
+          row.mediaBrandId,
+          row.sourceItemId,
+          origins.get(row.sourceItemId),
+          row.disposition,
+        ].join(" "),
+      )
+      .sort();
+
+  return dispositions(outcome).join("\n") === dispositions(shuffled).join("\n");
+}
+
+function sameTopicScores(
+  outcome: readonly AnalysisRunItemScores[],
+  reversedBrands: readonly AnalysisRunItemScores[],
+): boolean {
+  const baseline = new Map(
+    outcome.map((item) => [
+      item.sourceItemId,
+      `${item.lexicalTopicScore} ${item.lexicalTopicIndex}`,
+    ]),
+  );
+
+  return (
+    outcome.length === reversedBrands.length &&
+    reversedBrands.every(
+      (item) =>
+        baseline.get(item.sourceItemId) ===
+        `${item.lexicalTopicScore} ${item.lexicalTopicIndex}`,
+    )
+  );
+}
+
+function expectedTopicRelevanceChecks(
+  fixture: Fixture,
+  outcome: Outcome,
+): boolean[] {
+  const brandIds = new Map(
+    fixture.brands.map((brand) => [brand.key, brand.mediaBrandId]),
+  );
+  const runItems = new Map(
+    outcome.runItems.map((item) => [item.sourceItemId, item]),
+  );
+  const routes = new Map(
+    outcome.filterRows.map((row) => [
+      `${row.mediaBrandId} ${row.sourceItemId}`,
+      row,
+    ]),
+  );
+
+  return fixture.expected.topicRelevanceRejected.map((expected) => {
+    const item = runItems.get(expected.sourceItemId);
+    const route = routes.get(
+      `${brandIds.get(expected.brandKey) ?? ""} ${expected.sourceItemId}`,
+    );
+    const passed =
+      fixture.topics.length > 0 &&
+      item?.lexicalTopicScore === expected.lexicalTopicScore &&
+      route?.disposition === "low_score";
+
+    return check(
+      `topic_relevance.${expected.brandKey}.${expected.sourceItemId}`,
+      passed,
+      passed
+        ? ""
+        : `lexicalTopicScore=${item?.lexicalTopicScore} disposition=${route?.disposition}`,
+    );
+  });
+}
+
+function expectedBoundedSummaryChecks(
+  fixture: Fixture,
+  outcome: Outcome,
+): boolean[] {
+  const brandIds = new Map(
+    fixture.brands.map((brand) => [brand.key, brand.mediaBrandId]),
+  );
+  const runItems = new Map(
+    outcome.runItems.map((item) => [item.sourceItemId, item]),
+  );
+  const routes = new Map(
+    outcome.filterRows.map((row) => [
+      `${row.mediaBrandId} ${row.sourceItemId}`,
+      row,
+    ]),
+  );
+
+  return fixture.expected.boundedSummaryRejected.map((expected) => {
+    const item = runItems.get(expected.sourceItemId);
+    const route = routes.get(
+      `${brandIds.get(expected.brandKey) ?? ""} ${expected.sourceItemId}`,
+    );
+    const passed =
+      item?.lexicalTopicScore === null && route?.disposition === "no_media_fit";
+
+    return check(
+      `bounded_summary.${expected.brandKey}.${expected.sourceItemId}`,
+      passed,
+      passed
+        ? ""
+        : `lexicalTopicScore=${item?.lexicalTopicScore} disposition=${route?.disposition}`,
+    );
+  });
+}
+
+function expectedOriginCapChecks(
+  fixture: Fixture,
+  outcome: Outcome,
+): boolean[] {
+  const brandIds = new Map(
+    fixture.brands.map((brand) => [brand.key, brand.mediaBrandId]),
+  );
+  const origins = new Map(
+    fixture.items.map((item) => [item.sourceItemId, item.origin]),
+  );
+
+  return fixture.expected.originCaps.map((expected) => {
+    const mediaBrandId = brandIds.get(expected.brandKey);
+    const rows = outcome.filterRows.filter(
+      (row) => row.mediaBrandId === mediaBrandId,
+    );
+    const count = (origin: "rss" | "telegram_public", disposition: string) =>
+      rows.filter(
+        (row) =>
+          origins.get(row.sourceItemId) === origin &&
+          row.disposition === disposition,
+      ).length;
+    const actual = {
+      rssShortlisted: count("rss", "shortlisted"),
+      telegramLane: count("telegram_public", "telegram_lane"),
+      rssCapExceeded: count("rss", "cap_exceeded"),
+      telegramCapExceeded: count("telegram_public", "cap_exceeded"),
+    };
+    const passed =
+      actual.rssShortlisted === expected.rssShortlisted &&
+      actual.telegramLane === expected.telegramLane &&
+      actual.rssCapExceeded === expected.rssCapExceeded &&
+      actual.telegramCapExceeded === expected.telegramCapExceeded;
+
+    return check(
+      `caps.${expected.brandKey}`,
+      passed,
+      passed ? "" : JSON.stringify(actual),
+    );
+  });
 }
 
 function throwsWith(run: () => unknown, reason: string): boolean {

@@ -79,6 +79,7 @@
       "forbidden": "This account cannot perform that action.",
       "idempotencyKeyReused": "This request key was already used with different details. Send the original request or start a new one.",
       "internalServerError": "The operation could not be completed.",
+      "imageSourceExtractRequired": "This RSS copy only has feed text. Refresh the article and regenerate the copy before generating an image.",
       "mediaRejected": "The uploaded file failed verification and was removed.",
       "modelInvocationFailed": "The model call did not complete. Its tokens and cost are recorded on the usage screen.",
       "notFound": "The target of this operation is no longer available.",

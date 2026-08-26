@@ -97,7 +97,9 @@ export function ConfirmDialog({
             onClick={confirm}
             variant={variant}
           >
-            {isPending ? <Spinner label={pendingLabel} /> : null}
+            {isPending ? (
+              <Spinner data-icon="inline-start" label={pendingLabel} />
+            ) : null}
             {confirmLabel}
           </Button>
         </ResponsiveModalFooter>

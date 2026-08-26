@@ -3,36 +3,73 @@ import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
 import {
   publishSourcesChanged,
   publishSourcesChangedNow,
+  publishUsageLedgerChanged,
   type WorkerStep,
 } from "../inngest/channels";
 import type { WorkerInngestClient } from "../inngest/client";
-import { notifyCacheInvalidation } from "./notify";
+import { notifyCacheInvalidation, waitForCacheFlush } from "./notify";
 
-// Web's tag flush settles a little after its 202, so a ping sent immediately
-// makes the refresh re-read the entry the flush is still recomputing.
-const CACHE_FLUSH_SETTLE = "1s";
-const CACHE_FLUSH_SETTLE_MS = 1_000;
+type SourcesNotificationCallSite =
+  | "running"
+  | "enriching"
+  | "settled"
+  | "failed"
+  | "replayed";
 
-export async function notifySourcesChanged(
+export function notifySourcesChanged(
   step: WorkerStep,
   workspaceId: string,
-  callSite: "running" | "enriching" | "settled" | "failed" | "replayed",
+  callSite: SourcesNotificationCallSite,
 ) {
+  return notifySources(step, workspaceId, callSite, false);
+}
+
+export function notifySourcesAndUsageChanged(
+  step: WorkerStep,
+  workspaceId: string,
+  callSite: SourcesNotificationCallSite,
+) {
+  return notifySources(step, workspaceId, callSite, true);
+}
+
+async function notifySources(
+  step: WorkerStep,
+  workspaceId: string,
+  callSite: SourcesNotificationCallSite,
+  withUsage: boolean,
+) {
+  const tags = withUsage
+    ? [
+        workspaceCacheTag(workspaceId, "sources"),
+        workspaceCacheTag(workspaceId, "usage"),
+      ]
+    : [workspaceCacheTag(workspaceId, "sources")];
+
   const cacheInvalidation = await step.run(
     `notify-sources-cache-${callSite}`,
-    () => notifySourcesCacheChanged(workspaceId),
+    () => notifyCacheInvalidation(tags),
   );
 
-  if (cacheInvalidation === "accepted") {
-    await step.sleep(`let-web-cache-flush-${callSite}`, CACHE_FLUSH_SETTLE);
+  if (cacheInvalidation !== "accepted") {
+    return {
+      cacheInvalidation,
+      sourcesRealtimePublished: false,
+      usageRealtimePublished: false,
+    };
   }
+
+  await step.sleep(`let-web-cache-flush-${callSite}`, "1s");
 
   return {
     cacheInvalidation,
-    sourcesRealtimePublished:
-      cacheInvalidation === "accepted"
-        ? await publishSourcesChanged(step, workspaceId, callSite)
-        : false,
+    sourcesRealtimePublished: await publishSourcesChanged(
+      step,
+      workspaceId,
+      callSite,
+    ),
+    usageRealtimePublished: withUsage
+      ? await publishUsageLedgerChanged(step, workspaceId)
+      : false,
   };
 }
 
@@ -46,7 +83,7 @@ export async function notifySourcesChangedNow(
     return { cacheInvalidation, sourcesRealtimePublished: false };
   }
 
-  await new Promise((resolve) => setTimeout(resolve, CACHE_FLUSH_SETTLE_MS));
+  await waitForCacheFlush();
 
   return {
     cacheInvalidation,

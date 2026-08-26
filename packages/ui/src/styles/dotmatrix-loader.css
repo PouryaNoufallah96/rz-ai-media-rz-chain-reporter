@@ -1,0 +1,26 @@
+@keyframes dmx-spiral-snake {
+  0%,
+  100% {
+    opacity: 0.08;
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  16% {
+    opacity: 0.66;
+  }
+
+  24% {
+    opacity: 0.44;
+  }
+
+  32% {
+    opacity: 0.24;
+  }
+
+  40% {
+    opacity: 0.12;
+  }
+}

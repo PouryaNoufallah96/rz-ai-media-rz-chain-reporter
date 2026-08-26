@@ -87,15 +87,30 @@
     "dataElementTemplate": "a broadcast panel displaying \"{value}\"{label_part}",
     "dataElementLabelTemplate": " under the label \"{label}\""
   },
+  "output": {
+    "width": 1200,
+    "height": 1200,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-right",
+    "widthShortSideRatio": 0.12,
+    "insetShortSideRatio": 0.04
+  },
   "fallbackBrief": {
-    "family": "player_hero",
-    "headline": "MATCH DAY IS HERE",
-    "layout": "art_only",
-    "data_elements": [],
-    "venue": "night_stadium",
-    "camera": "low_angle_hero",
-    "energy": "build_up",
-    "accent": "pitch_green",
-    "subject_scene": "A single anonymous player silhouette stands at the centre circle under floodlights, breath visible in the cold air, the stadium bowl fading into darkness behind."
+    "selection": {
+      "family": "player_hero",
+      "axes": {
+        "venue": "night_stadium",
+        "camera": "low_angle_hero",
+        "energy": "build_up",
+        "accent": "pitch_green"
+      }
+    },
+    "brief": {
+      "headline": "MATCH DAY IS HERE",
+      "subjectScene": "A single anonymous player silhouette stands at the centre circle under floodlights, breath visible in the cold air, the stadium bowl fading into darkness behind.",
+      "dataElements": []
+    }
   }
 }

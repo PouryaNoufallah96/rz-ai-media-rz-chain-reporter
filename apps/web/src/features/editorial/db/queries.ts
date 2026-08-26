@@ -1,12 +1,16 @@
 import "server-only";
 
 import type {
+  CardOriginReference,
+  ContentLocale,
   FilterDisposition,
+  ModelUnitStatus,
   OperationLifecycle,
   RunConfiguration,
   SourceFetchOutcome,
   SourceFetchReason,
   SourceImportStage,
+  SourceOrigin,
 } from "@rz-chain-reporter/contracts";
 import { OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
@@ -17,12 +21,17 @@ import { analysisModelUnit } from "@rz-chain-reporter/db/schema/analysis-model-u
 import { analysisRun } from "@rz-chain-reporter/db/schema/analysis-run";
 import { analysisRunItem } from "@rz-chain-reporter/db/schema/analysis-run-item";
 import { user } from "@rz-chain-reporter/db/schema/auth";
+import { copyGeneration } from "@rz-chain-reporter/db/schema/copy-generation";
+import { copyGenerationUnit } from "@rz-chain-reporter/db/schema/copy-generation-unit";
+import { copyVariant } from "@rz-chain-reporter/db/schema/copy-variant";
+import { draftRevision } from "@rz-chain-reporter/db/schema/draft-revision";
 import { editorialSelection } from "@rz-chain-reporter/db/schema/editorial-selection";
 import { filterResult } from "@rz-chain-reporter/db/schema/filter-result";
 import { mediaBrand } from "@rz-chain-reporter/db/schema/media-brand";
 import { operation } from "@rz-chain-reporter/db/schema/operation";
 import { operationAttempt } from "@rz-chain-reporter/db/schema/operation-attempt";
 import { outboxEvent } from "@rz-chain-reporter/db/schema/outbox-event";
+import { platformDraft } from "@rz-chain-reporter/db/schema/platform-draft";
 import { promoIdea } from "@rz-chain-reporter/db/schema/promo-idea";
 import { source } from "@rz-chain-reporter/db/schema/source";
 import { sourceImport } from "@rz-chain-reporter/db/schema/source-import";
@@ -30,7 +39,7 @@ import { sourceImportItem } from "@rz-chain-reporter/db/schema/source-import-ite
 import { sourceImportSource } from "@rz-chain-reporter/db/schema/source-import-source";
 import { sourceItem } from "@rz-chain-reporter/db/schema/source-item";
 import { sourceItemRevision } from "@rz-chain-reporter/db/schema/source-item-revision";
-import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 
 import {
   decodeKeysetCursor,
@@ -42,6 +51,7 @@ import {
   RECENT_TOPIC_RUNS,
   REPORT_PAGE_SIZE,
 } from "../constants";
+import type { PlatformDraftCard } from "../schemas/drafts";
 import {
   type ReportBrandOption,
   type ReportCursor,
@@ -110,6 +120,453 @@ export async function readEditorialWorkspace(
     modelLanes,
     telegramLanes: telegram.lanes,
   };
+}
+
+type PlatformDraftProjectionRow = {
+  id: string;
+  mediaBrandId: string;
+  brandKey: string;
+  brandName: string;
+  platform: PlatformDraftCard["platform"];
+  lanePosition: number;
+  version: number;
+  editorialSelectionId: string | null;
+  telegramFilterResultId: string | null;
+  promoIdeaId: string | null;
+  originTitle: string;
+  sourceKind: "promo" | "rss" | "telegram";
+  operationId: string | null;
+  lifecycle: OperationLifecycle | null;
+  modelOptionKey: string | null;
+  requestedContentLocale: ContentLocale | null;
+  limited: boolean | null;
+  forceArticleRefresh: boolean | null;
+  generationCreatedAt: Date | null;
+  imageOperationId: string | null;
+  imageDraftRevisionId: string | null;
+  imageLifecycle: OperationLifecycle | null;
+  imageModelOptionKey: string | null;
+  imageReferenceMediaAssetId: string | null;
+  imageProviderOriginalMediaAssetId: string | null;
+  imageFinalMediaAssetId: string | null;
+  imageCreatedAt: Date | null;
+};
+
+export async function readPlatformDrafts(
+  executor: Executor,
+  workspaceId: string,
+  analysisRunId: string,
+  imageModels: readonly { key: string; name: string }[] = [],
+): Promise<PlatformDraftCard[]> {
+  const result = await executor.execute<PlatformDraftProjectionRow>(sql`
+    select
+      draft.id,
+      draft.media_brand_id as "mediaBrandId",
+      brand.key as "brandKey",
+      brand.name as "brandName",
+      draft.platform,
+      draft.lane_position as "lanePosition",
+      draft.version,
+      draft.editorial_selection_id as "editorialSelectionId",
+      draft.telegram_filter_result_id as "telegramFilterResultId",
+      draft.promo_idea_id as "promoIdeaId",
+      coalesce(selection_item.title, telegram_item.title, promo.title) as "originTitle",
+      case
+        when draft.promo_idea_id is not null then 'promo'
+        when draft.telegram_filter_result_id is not null or selection_item.origin = 'telegram_public' then 'telegram'
+        else 'rss'
+      end as "sourceKind",
+      latest.operation_id as "operationId",
+      latest.lifecycle,
+      latest.model_option_key as "modelOptionKey",
+      latest.requested_content_locale as "requestedContentLocale",
+      latest.limited,
+      latest.force_article_refresh as "forceArticleRefresh",
+      latest.created_at as "generationCreatedAt"
+      , latest_image.operation_id as "imageOperationId"
+      , latest_image.draft_revision_id as "imageDraftRevisionId"
+      , latest_image.lifecycle as "imageLifecycle"
+      , latest_image.model_option_key as "imageModelOptionKey"
+      , latest_image.reference_media_asset_id as "imageReferenceMediaAssetId"
+      , latest_image.provider_original_media_asset_id as "imageProviderOriginalMediaAssetId"
+      , latest_image.final_media_asset_id as "imageFinalMediaAssetId"
+      , latest_image.created_at as "imageCreatedAt"
+    from platform_draft draft
+    inner join media_brand brand
+      on brand.id = draft.media_brand_id
+      and brand.workspace_id = draft.workspace_id
+      and brand.deleted_at is null
+    left join editorial_selection selection
+      on selection.id = draft.editorial_selection_id
+      and selection.workspace_id = draft.workspace_id
+    left join analysis_model_unit selection_unit
+      on selection_unit.id = selection.analysis_model_unit_id
+      and selection_unit.workspace_id = draft.workspace_id
+    left join source_item selection_item
+      on selection_item.id = selection.source_item_id
+      and selection_item.workspace_id = draft.workspace_id
+    left join filter_result telegram
+      on telegram.id = draft.telegram_filter_result_id
+      and telegram.workspace_id = draft.workspace_id
+    left join source_item telegram_item
+      on telegram_item.id = telegram.source_item_id
+      and telegram_item.workspace_id = draft.workspace_id
+    left join promo_idea promo
+      on promo.id = draft.promo_idea_id
+      and promo.workspace_id = draft.workspace_id
+    left join analysis_model_unit promo_unit
+      on promo_unit.id = promo.analysis_model_unit_id
+      and promo_unit.workspace_id = draft.workspace_id
+    left join lateral (
+      select
+        generation.operation_id,
+        generation.model_option_key,
+        generation.requested_content_locale,
+        generation.limited,
+        generation.force_article_refresh,
+        generation.created_at,
+        generation_operation.lifecycle
+      from copy_generation generation
+      inner join operation generation_operation
+        on generation_operation.id = generation.operation_id
+        and generation_operation.workspace_id = generation.workspace_id
+      where generation.workspace_id = draft.workspace_id
+        and generation.platform_draft_id = draft.id
+      order by generation.created_at desc, generation.operation_id desc
+      limit 1
+    ) latest on true
+    left join lateral (
+      select
+        generation.operation_id,
+        generation.draft_revision_id,
+        generation.model_option_key,
+        generation.reference_media_asset_id,
+        generation.provider_original_media_asset_id,
+        generation.final_media_asset_id,
+        generation.created_at,
+        generation_operation.lifecycle
+      from image_generation generation
+      inner join draft_revision image_revision
+        on image_revision.id = generation.draft_revision_id
+        and image_revision.workspace_id = generation.workspace_id
+      inner join operation generation_operation
+        on generation_operation.id = generation.operation_id
+        and generation_operation.workspace_id = generation.workspace_id
+      where generation.workspace_id = draft.workspace_id
+        and image_revision.platform_draft_id = draft.id
+      order by generation.created_at desc, generation.operation_id desc
+      limit 1
+    ) latest_image on true
+    where draft.workspace_id = ${workspaceId}::uuid
+      and draft.deleted_at is null
+      and coalesce(
+        selection_unit.analysis_run_id,
+        telegram.analysis_run_id,
+        promo_unit.analysis_run_id
+      ) = ${analysisRunId}::uuid
+    order by brand.sort_order, draft.platform, draft.lane_position, draft.id
+  `);
+
+  const operationIds = result.rows.flatMap((row) =>
+    row.operationId ? [row.operationId] : [],
+  );
+  const units =
+    operationIds.length === 0
+      ? []
+      : await executor
+          .select({
+            id: copyGenerationUnit.id,
+            operationId: copyGenerationUnit.copyGenerationId,
+            status: copyGenerationUnit.status,
+            variantKey: copyGenerationUnit.variantKey,
+          })
+          .from(copyGenerationUnit)
+          .where(
+            and(
+              inWorkspace(copyGenerationUnit, workspaceId),
+              inArray(copyGenerationUnit.copyGenerationId, operationIds),
+            ),
+          )
+          .orderBy(
+            asc(copyGenerationUnit.createdAt),
+            asc(copyGenerationUnit.variantKey),
+          );
+  const unitsByOperation = new Map<
+    string,
+    { id: string; variantKey: string; status: ModelUnitStatus }[]
+  >();
+  for (const unit of units) {
+    const existing = unitsByOperation.get(unit.operationId);
+    if (existing) {
+      existing.push({
+        id: unit.id,
+        variantKey: unit.variantKey,
+        status: unit.status,
+      });
+    } else {
+      unitsByOperation.set(unit.operationId, [
+        { id: unit.id, variantKey: unit.variantKey, status: unit.status },
+      ]);
+    }
+  }
+
+  const draftIds = result.rows.map((row) => row.id);
+  const [variants, revisions] =
+    draftIds.length === 0
+      ? [[], []]
+      : await Promise.all([
+          executor
+            .select({
+              id: copyVariant.id,
+              platformDraftId: copyGeneration.platformDraftId,
+              operationId: copyGeneration.operationId,
+              variantKey: copyGenerationUnit.variantKey,
+              contentLocale: copyVariant.contentLocale,
+              headline: copyVariant.headline,
+              body: copyVariant.body,
+              hashtags: copyVariant.hashtags,
+              limited: copyGeneration.limited,
+              modelOptionKey: copyGeneration.modelOptionKey,
+              createdAt: copyVariant.createdAt,
+            })
+            .from(copyVariant)
+            .innerJoin(
+              copyGenerationUnit,
+              and(
+                inWorkspace(copyGenerationUnit, workspaceId),
+                eq(copyGenerationUnit.id, copyVariant.copyGenerationUnitId),
+              ),
+            )
+            .innerJoin(
+              copyGeneration,
+              and(
+                inWorkspace(copyGeneration, workspaceId),
+                eq(
+                  copyGeneration.operationId,
+                  copyGenerationUnit.copyGenerationId,
+                ),
+                inArray(copyGeneration.platformDraftId, draftIds),
+              ),
+            )
+            .where(inWorkspace(copyVariant, workspaceId))
+            .orderBy(desc(copyVariant.createdAt), asc(copyVariant.id)),
+          executor
+            .select({
+              id: draftRevision.id,
+              platformDraftId: draftRevision.platformDraftId,
+              revisionNumber: draftRevision.revisionNumber,
+              contentLocale: draftRevision.contentLocale,
+              headline: draftRevision.headline,
+              body: draftRevision.body,
+              hashtags: draftRevision.hashtags,
+              originatingCopyVariantId: draftRevision.originatingCopyVariantId,
+              imageSourceReadiness: sql<"ready" | "extract_required">`case
+                when ${platformDraft.promoIdeaId} is not null then 'ready'
+                when ${sourceItem.origin} = 'telegram_public' then 'ready'
+                when ${sourceItem.origin} = 'rss'
+                  and not ${copyGeneration.limited}
+                  and ${copyGeneration.sourceItemEnrichmentId} is not null
+                  and ${copyGeneration.pageContentHash} is not null then 'ready'
+                else 'extract_required'
+              end`,
+              selectedFinalMediaAssetId:
+                draftRevision.selectedFinalMediaAssetId,
+              authoredBy: draftRevision.authoredBy,
+              authorName: user.name,
+              createdAt: draftRevision.createdAt,
+            })
+            .from(draftRevision)
+            .innerJoin(
+              platformDraft,
+              and(
+                eq(platformDraft.id, draftRevision.platformDraftId),
+                eq(platformDraft.workspaceId, draftRevision.workspaceId),
+              ),
+            )
+            .innerJoin(
+              copyVariant,
+              and(
+                eq(copyVariant.id, draftRevision.originatingCopyVariantId),
+                eq(copyVariant.workspaceId, draftRevision.workspaceId),
+              ),
+            )
+            .innerJoin(
+              copyGenerationUnit,
+              and(
+                eq(copyGenerationUnit.id, copyVariant.copyGenerationUnitId),
+                eq(copyGenerationUnit.workspaceId, copyVariant.workspaceId),
+              ),
+            )
+            .innerJoin(
+              copyGeneration,
+              and(
+                eq(
+                  copyGeneration.operationId,
+                  copyGenerationUnit.copyGenerationId,
+                ),
+                eq(copyGeneration.workspaceId, copyGenerationUnit.workspaceId),
+              ),
+            )
+            .leftJoin(
+              sourceItemRevision,
+              and(
+                eq(sourceItemRevision.id, copyGeneration.sourceItemRevisionId),
+                eq(sourceItemRevision.workspaceId, copyGeneration.workspaceId),
+              ),
+            )
+            .leftJoin(
+              sourceItem,
+              and(
+                eq(sourceItem.id, sourceItemRevision.sourceItemId),
+                eq(sourceItem.workspaceId, sourceItemRevision.workspaceId),
+              ),
+            )
+            .innerJoin(user, eq(user.id, draftRevision.authoredBy))
+            .where(
+              and(
+                inWorkspace(draftRevision, workspaceId),
+                inArray(draftRevision.platformDraftId, draftIds),
+              ),
+            )
+            .orderBy(
+              asc(draftRevision.platformDraftId),
+              desc(draftRevision.revisionNumber),
+            ),
+        ]);
+  const candidatesByDraft = new Map<
+    string,
+    Omit<(typeof variants)[number], "platformDraftId">[]
+  >();
+  for (const { platformDraftId, ...variant } of variants) {
+    const existing = candidatesByDraft.get(platformDraftId);
+    if (existing) existing.push(variant);
+    else candidatesByDraft.set(platformDraftId, [variant]);
+  }
+  const revisionsByDraft = new Map<
+    string,
+    Omit<(typeof revisions)[number], "platformDraftId">[]
+  >();
+  for (const { platformDraftId, ...revision } of revisions) {
+    const existing = revisionsByDraft.get(platformDraftId);
+    if (existing) existing.push(revision);
+    else revisionsByDraft.set(platformDraftId, [revision]);
+  }
+
+  return result.rows.map((row) => {
+    const origin = platformDraftOrigin(row);
+    const generation =
+      row.operationId &&
+      row.lifecycle &&
+      row.modelOptionKey &&
+      row.requestedContentLocale !== null
+        ? {
+            operationId: row.operationId,
+            lifecycle: row.lifecycle,
+            modelOptionKey: row.modelOptionKey,
+            requestedContentLocale: row.requestedContentLocale,
+            limited: row.limited ?? false,
+            forceArticleRefresh: row.forceArticleRefresh ?? false,
+            createdAt: row.generationCreatedAt ?? new Date(0),
+            units: unitsByOperation.get(row.operationId) ?? [],
+          }
+        : null;
+    const imageGeneration =
+      row.imageOperationId &&
+      row.imageDraftRevisionId &&
+      row.imageLifecycle &&
+      row.imageModelOptionKey
+        ? {
+            operationId: row.imageOperationId,
+            draftRevisionId: row.imageDraftRevisionId,
+            lifecycle: row.imageLifecycle,
+            modelOptionKey: row.imageModelOptionKey,
+            referenceMediaAssetId: row.imageReferenceMediaAssetId,
+            providerOriginalMediaAssetId: row.imageProviderOriginalMediaAssetId,
+            finalMediaAssetId: row.imageFinalMediaAssetId,
+            createdAt: row.imageCreatedAt ?? new Date(0),
+          }
+        : null;
+
+    return {
+      id: row.id,
+      mediaBrandId: row.mediaBrandId,
+      brandKey: row.brandKey,
+      brandName: row.brandName,
+      platform: row.platform,
+      lanePosition: row.lanePosition,
+      version: row.version,
+      origin,
+      originTitle: row.originTitle,
+      sourceKind: row.sourceKind,
+      generation,
+      candidates: candidatesByDraft.get(row.id) ?? [],
+      revisions: revisionsByDraft.get(row.id) ?? [],
+      imageGeneration,
+      imageModels: [...imageModels],
+    };
+  });
+}
+
+export async function readPlatformDraftBrands(
+  executor: Executor,
+  workspaceId: string,
+) {
+  return executor
+    .select({
+      id: mediaBrand.id,
+      key: mediaBrand.key,
+      name: mediaBrand.name,
+    })
+    .from(mediaBrand)
+    .where(
+      and(
+        inWorkspace(mediaBrand, workspaceId),
+        sql`${mediaBrand.deletedAt} is null`,
+      ),
+    )
+    .orderBy(asc(mediaBrand.sortOrder), asc(mediaBrand.id));
+}
+
+export async function readPlatformDraftRunConfiguration(
+  executor: Executor,
+  workspaceId: string,
+  analysisRunId: string,
+): Promise<RunConfiguration | null> {
+  const [row] = await executor
+    .select({ configuration: analysisRun.configuration })
+    .from(analysisRun)
+    .where(
+      and(
+        inWorkspace(analysisRun, workspaceId),
+        eq(analysisRun.id, analysisRunId),
+      ),
+    );
+
+  return row?.configuration ?? null;
+}
+
+function platformDraftOrigin(
+  row: Pick<
+    PlatformDraftProjectionRow,
+    "editorialSelectionId" | "promoIdeaId" | "telegramFilterResultId"
+  >,
+): CardOriginReference {
+  if (row.editorialSelectionId) {
+    return {
+      kind: "editorial_selection",
+      editorialSelectionId: row.editorialSelectionId,
+    };
+  }
+  if (row.telegramFilterResultId) {
+    return {
+      kind: "telegram_filter_result",
+      telegramFilterResultId: row.telegramFilterResultId,
+    };
+  }
+  if (row.promoIdeaId) {
+    return { kind: "promo_idea", promoIdeaId: row.promoIdeaId };
+  }
+  throw new Error("platform draft origin is missing");
 }
 
 async function readRunHead(
@@ -574,28 +1031,24 @@ async function readTelegramLanes(
   }
 
   const result = await executor.execute<TelegramLaneSqlRow>(sql`
-    with acquisition as (
+    with channel_acquisition as (
       select
-        count(*)::int as "totalChannels",
-        count(*) filter (
-          where import_source.outcome in ('succeeded', 'not_modified')
-        )::int as "acquiredChannels",
-        coalesce(
-          array_agg(telegram_source.endpoint order by telegram_source.name, telegram_source.id)
-            filter (
-              where import_source.outcome not in ('pending', 'succeeded', 'not_modified')
-            ),
-          array[]::text[]
-        ) as "failureChannels",
-        coalesce(
-          array_agg(
-            coalesce(import_source.reason::text, import_source.outcome::text)
-            order by telegram_source.name, telegram_source.id
-          ) filter (
-            where import_source.outcome not in ('pending', 'succeeded', 'not_modified')
-          ),
-          array[]::text[]
-        ) as "failureCodes"
+        telegram_source.id,
+        telegram_source.endpoint,
+        telegram_source.name,
+        import_source.outcome,
+        import_source.reason,
+        import_source.outcome in ('succeeded', 'not_modified') or exists (
+          select 1
+          from ${sourceImportItem} as acquired_item
+          join ${sourceItem} as acquired_source_item
+            on acquired_source_item.id = acquired_item.source_item_id
+            and acquired_source_item.workspace_id = acquired_item.workspace_id
+          where acquired_item.workspace_id = ${workspaceId}
+            and acquired_item.source_import_id = ${sourceImportId}
+            and acquired_item.admission = 'admitted'
+            and acquired_source_item.source_id = import_source.source_id
+        ) as acquired
       from ${sourceImportSource} as import_source
       join ${source} as telegram_source
         on telegram_source.id = import_source.source_id
@@ -603,9 +1056,28 @@ async function readTelegramLanes(
         and import_source.source_import_id = ${sourceImportId}
         and telegram_source.origin = 'telegram_public'
     ),
+    acquisition as (
+      select
+        count(*)::int as "totalChannels",
+        count(*) filter (where acquired)::int as "acquiredChannels",
+        coalesce(
+          array_agg(endpoint order by name, id)
+            filter (where not acquired and outcome <> 'pending'),
+          array[]::text[]
+        ) as "failureChannels",
+        coalesce(
+          array_agg(
+            coalesce(reason::text, outcome::text)
+            order by name, id
+          ) filter (where not acquired and outcome <> 'pending'),
+          array[]::text[]
+        ) as "failureCodes"
+      from channel_acquisition
+    ),
     cards as (
       select
         route.media_brand_id as "mediaBrandId",
+        route.id as "telegramFilterResultId",
         brand.key as "brandKey",
         brand.name as "brandName",
         route.source_item_id as "sourceItemId",
@@ -705,6 +1177,7 @@ async function readTelegramLanes(
       reason: row.reason,
       semanticParticipation: row.semanticParticipation,
       sourceItemId: row.sourceItemId,
+      telegramFilterResultId: row.telegramFilterResultId,
       sourceName: row.sourceName,
       sourceRank: row.sourceRank,
       summary: row.summary,
@@ -1085,4 +1558,24 @@ export async function readRunLifecycle(
     );
 
   return row;
+}
+
+export async function selectAnalysisRunSources(
+  executor: Executor,
+  workspaceId: string,
+  sourceIds: readonly string[],
+): Promise<{ id: string; origin: SourceOrigin }[]> {
+  if (sourceIds.length === 0) return [];
+
+  return executor
+    .select({ id: source.id, origin: source.origin })
+    .from(source)
+    .where(
+      and(
+        inWorkspace(source, workspaceId),
+        inArray(source.id, [...sourceIds]),
+        eq(source.enabled, true),
+        isNull(source.deletedAt),
+      ),
+    );
 }

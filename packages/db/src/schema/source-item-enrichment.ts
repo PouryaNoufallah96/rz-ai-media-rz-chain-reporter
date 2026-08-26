@@ -26,7 +26,7 @@ export const sourceItemEnrichment = pgTable(
     fallbackReason: enrichmentReason("fallback_reason"),
     pageContentHash: text("page_content_hash").notNull(),
     extract: text("extract").notNull(),
-    brief: jsonb("brief").notNull(),
+    brief: jsonb("brief"),
     providerRequestId: text("provider_request_id"),
     ...timestamps,
   },

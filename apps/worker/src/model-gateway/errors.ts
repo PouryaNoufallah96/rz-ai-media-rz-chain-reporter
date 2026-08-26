@@ -24,6 +24,16 @@ export class AdapterInvocationError extends Error {
   }
 }
 
+export class ImagePreparationError extends Error {
+  readonly ambiguous: boolean;
+
+  constructor(options: { outcome: "ambiguous" | "definite" }) {
+    super("image result preparation failed");
+    this.name = "ImagePreparationError";
+    this.ambiguous = options.outcome === "ambiguous";
+  }
+}
+
 export class ModelTaskConfigurationError extends Error {
   readonly code = "MODEL_TASK_CONFIGURATION";
 

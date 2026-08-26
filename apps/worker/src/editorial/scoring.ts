@@ -3,7 +3,7 @@ import { VALUE_SIGNAL_KINDS } from "@rz-chain-reporter/customer-template/schema"
 
 import { matchTerms } from "./text";
 
-export const SCORING_VERSION = "1";
+export const SCORING_VERSION = "4";
 
 type WeightedTerms = readonly { term: string; weight: number }[];
 type Aliases = readonly { canonical: string; surfaces: readonly string[] }[];
@@ -54,13 +54,16 @@ type PolicyInput = {
   sourceAuthorityScore: number;
   diversityScore: number;
   weights: PolicyWeights;
-  threshold: number;
+  thresholds: {
+    policyScore: number;
+    lexicalTopicScore: number;
+  };
 };
 
 const NO_ALIASES: Aliases = [];
 const DIVERSITY_LADDER = [100, 70, 40, 20];
 const TITLE_TOPIC_SCORE = 100;
-const BODY_TOPIC_SCORE = 50;
+const BODY_TOPIC_SCORE = 40;
 
 const VALUE_SIGNAL_DETECTORS: Record<ValueSignalKind, RegExp> = {
   number: /(?<![\p{L}\p{N}])\d{4,}(?![\p{L}\p{N}])/u,
@@ -241,7 +244,9 @@ export function scorePolicy(input: PolicyInput): {
 
   return {
     policyScore,
-    passed: policyScore >= input.threshold,
+    passed:
+      policyScore >= input.thresholds.policyScore &&
+      (!hasTopics || (topic.score ?? 0) >= input.thresholds.lexicalTopicScore),
     sourcePreferenceScore,
     lexicalTopicScore: topic.score,
     lexicalTopicIndex: topic.index,

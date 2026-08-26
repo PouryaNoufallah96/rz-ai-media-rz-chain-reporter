@@ -3,15 +3,11 @@ import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
 import {
   publishEditorialChanged,
   publishEditorialChangedNow,
+  publishUsageLedgerChanged,
   type WorkerStep,
 } from "../inngest/channels";
 import type { WorkerInngestClient } from "../inngest/client";
-import { notifyCacheInvalidation } from "./notify";
-
-// Web's tag flush settles a little after its 202, so a ping sent immediately
-// makes the refresh re-read the entry the flush is still recomputing.
-const CACHE_FLUSH_SETTLE = "1s";
-const CACHE_FLUSH_SETTLE_MS = 1_000;
+import { notifyCacheInvalidation, waitForCacheFlush } from "./notify";
 
 type EditorialNotificationCallSite =
   | "claimed"
@@ -25,33 +21,64 @@ type EditorialNotificationCallSite =
   | "settled"
   | "failed";
 
-export async function notifyEditorialChanged(
+export function notifyEditorialChanged(
   step: WorkerStep,
   workspaceId: string,
   analysisRunId: string,
   callSite: EditorialNotificationCallSite,
 ) {
+  return notifyEditorial(step, workspaceId, analysisRunId, callSite, false);
+}
+
+export function notifyEditorialAndUsageChanged(
+  step: WorkerStep,
+  workspaceId: string,
+  analysisRunId: string,
+  callSite: EditorialNotificationCallSite,
+) {
+  return notifyEditorial(step, workspaceId, analysisRunId, callSite, true);
+}
+
+async function notifyEditorial(
+  step: WorkerStep,
+  workspaceId: string,
+  analysisRunId: string,
+  callSite: EditorialNotificationCallSite,
+  withUsage: boolean,
+) {
+  const tags = withUsage
+    ? [
+        workspaceCacheTag(workspaceId, "editorial"),
+        workspaceCacheTag(workspaceId, "usage"),
+      ]
+    : [workspaceCacheTag(workspaceId, "editorial")];
+
   const cacheInvalidation = await step.run(
     `notify-editorial-cache-${callSite}`,
-    () =>
-      notifyCacheInvalidation([workspaceCacheTag(workspaceId, "editorial")]),
+    () => notifyCacheInvalidation(tags),
   );
 
-  if (cacheInvalidation === "accepted") {
-    await step.sleep(`let-web-cache-flush-${callSite}`, CACHE_FLUSH_SETTLE);
+  if (cacheInvalidation !== "accepted") {
+    return {
+      cacheInvalidation,
+      editorialRealtimePublished: false,
+      usageRealtimePublished: false,
+    };
   }
+
+  await step.sleep(`let-web-cache-flush-${callSite}`, "1s");
 
   return {
     cacheInvalidation,
-    editorialRealtimePublished:
-      cacheInvalidation === "accepted"
-        ? await publishEditorialChanged(
-            step,
-            workspaceId,
-            analysisRunId,
-            callSite,
-          )
-        : false,
+    editorialRealtimePublished: await publishEditorialChanged(
+      step,
+      workspaceId,
+      analysisRunId,
+      callSite,
+    ),
+    usageRealtimePublished: withUsage
+      ? await publishUsageLedgerChanged(step, workspaceId)
+      : false,
   };
 }
 
@@ -68,7 +95,7 @@ export async function notifyEditorialChangedNow(
     return { cacheInvalidation, editorialRealtimePublished: false };
   }
 
-  await new Promise((resolve) => setTimeout(resolve, CACHE_FLUSH_SETTLE_MS));
+  await waitForCacheFlush();
 
   return {
     cacheInvalidation,

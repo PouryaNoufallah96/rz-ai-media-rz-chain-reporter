@@ -3,13 +3,12 @@
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState, useTransition } from "react";
+import { useId, useState } from "react";
 
 import { StateMark, type StateMarkState } from "@/components/common/state-mark";
 import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
 import { OPERATION_ERROR_KEYS } from "@/features/operations/lib/panel-state";
 
-import { refreshSourceReadsAction } from "../actions/refresh-source-reads";
 import { SHORT_ID_LENGTH, SOURCES_NAMESPACE } from "../constants";
 import { MIX_PERCENT_FORMAT, mixPercents } from "../lib/mix-shares";
 import type {
@@ -17,6 +16,7 @@ import type {
   SourceImportSourceLine,
   SourceImportsView,
 } from "../schemas/imports";
+import { SourcesFreshness } from "./sources-freshness";
 
 const OUTCOME_MARK: Record<SourceImportSourceLine["outcome"], StateMarkState> =
   {
@@ -43,17 +43,14 @@ export function SourceImportRuns({ imports }: { imports: SourceImportsView }) {
   return (
     <div className="flex flex-col gap-6">
       <section aria-labelledby={currentId} className="border border-border p-4">
-        <h2 className="ticket-label border-b border-dashed pb-2" id={currentId}>
-          {t("import.current")}
-        </h2>
+        <header className="flex min-w-0 flex-wrap items-center gap-2 border-border border-b border-dashed pb-2">
+          <h2 className="ticket-label" id={currentId}>
+            {t("import.current")}
+          </h2>
+          <SourcesFreshness readAt={imports.readAt} />
+        </header>
         {current ? (
-          <>
-            <SourceImportRunCard card={current} />
-            <RunFreshness
-              readAt={imports.readAt}
-              running={isRunning(current)}
-            />
-          </>
+          <SourceImportRunCard card={current} />
         ) : (
           <div className="mt-3">
             <p className="text-sm">{t("import.empty.title")}</p>
@@ -103,13 +100,14 @@ function SourceImportRunCard({ card }: { card: ImportCard }) {
 
   return (
     <div className="py-2">
-      <button
+      <Button
         aria-controls={ledgerId}
         aria-expanded={expanded}
         aria-label={t("import.toggle", { id: shortId })}
-        className="flex w-full min-w-0 items-start gap-3 text-start outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        className="h-auto w-full min-w-0 items-start justify-start gap-3 whitespace-normal rounded-none px-0 font-normal aria-expanded:bg-transparent"
         onClick={() => setExpanded((value) => !value)}
         type="button"
+        variant="ghost"
       >
         <StateMark
           dispatchExhausted={card.dispatch?.state === "exhausted"}
@@ -136,7 +134,7 @@ function SourceImportRunCard({ card }: { card: ImportCard }) {
         >
           {format.dateTime(card.createdAt, { timeStyle: "short" })}
         </time>
-      </button>
+      </Button>
       {expanded ? (
         <section
           aria-label={t("import.ledger", { id: shortId })}
@@ -417,36 +415,6 @@ function RunDispatch({ card }: { card: ImportCard }) {
 function FailureText({ code }: { code: keyof typeof OPERATION_ERROR_KEYS }) {
   const t = useTranslations(OPERATIONS_NAMESPACE);
   return t(OPERATION_ERROR_KEYS[code]);
-}
-
-function RunFreshness({ readAt, running }: { readAt: Date; running: boolean }) {
-  const format = useFormatter();
-  const t = useTranslations(SOURCES_NAMESPACE);
-  const [isRefreshing, startRefresh] = useTransition();
-
-  if (!running) return null;
-
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-2">
-      <span
-        className="font-mono text-muted-foreground text-xs tabular-nums"
-        role="status"
-      >
-        {t("import.asOf", {
-          time: format.dateTime(readAt, { timeStyle: "medium" }),
-        })}
-      </span>
-      <Button
-        disabled={isRefreshing}
-        onClick={() => startRefresh(refreshSourceReadsAction)}
-        size="xs"
-        type="button"
-        variant="outline"
-      >
-        {isRefreshing ? t("import.refreshing") : t("import.refresh")}
-      </Button>
-    </div>
-  );
 }
 
 function isRunning(card: ImportCard) {

@@ -6,9 +6,13 @@ import { EDITORIAL_NAMESPACE } from "../constants";
 
 const EDITORIAL_ERROR_KEYS = {
   FAN_OUT_EXCEEDS_MAX_UNITS: "errors.fanOutExceedsMaxUnits",
+  KEYWORD_TOPIC_REQUIRED: "errors.keywordTopicRequired",
   NO_PROMO_BRAND: "errors.noPromoBrand",
+  NO_SOURCES: "errors.noSources",
   PROMO_PROMPT_REQUIRED: "errors.promoPromptRequired",
   PROMO_PROMPT_TOO_LONG: "errors.promoPromptTooLong",
+  TELEGRAM_SOURCE_REQUIRED: "errors.telegramSourceRequired",
+  TEMPLATE_DRIFT: "errors.templateDrift",
   TOO_MANY_TOPICS: "errors.tooManyTopics",
   TOPIC_TOO_LONG: "errors.topicTooLong",
   TOP_N_EXCEEDS_CAP: "errors.topNExceedsCap",

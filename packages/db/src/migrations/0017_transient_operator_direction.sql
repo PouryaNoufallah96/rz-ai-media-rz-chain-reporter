@@ -1,0 +1,3 @@
+ALTER TABLE "image_generation" ADD COLUMN "operator_direction" text;--> statement-breakpoint
+ALTER TABLE "image_generation" ADD CONSTRAINT "ck_image_generation_operator_direction_bounds" CHECK ("image_generation"."operator_direction" is null or (char_length("image_generation"."operator_direction") <= 1000 and octet_length("image_generation"."operator_direction") <= 4000 and "image_generation"."operator_direction" !~ '[\x00-\x08\x0B-\x1F\x7F-\x9F]' and "image_generation"."operator_direction" !~ '[؜‎‏‪-‮⁦-⁩]'));--> statement-breakpoint
+ALTER TABLE "image_generation" ADD CONSTRAINT "ck_image_generation_bound_direction_cleared" CHECK ("image_generation"."image_brief_id" is null or "image_generation"."operator_direction" is null);

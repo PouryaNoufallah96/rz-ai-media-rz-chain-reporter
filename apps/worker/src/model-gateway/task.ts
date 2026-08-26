@@ -23,7 +23,7 @@ export function resolveModelTask(
     throw new ModelTaskConfigurationError(`unknown model task "${taskKey}"`);
   }
 
-  const task = template.models?.tasks[parsedTaskKey.data];
+  const task = template.models.tasks[parsedTaskKey.data];
 
   if (!task) {
     throw new ModelTaskConfigurationError(

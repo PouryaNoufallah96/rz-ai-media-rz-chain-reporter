@@ -16,7 +16,6 @@ import { SourceCatalog } from "./source-catalog";
 import { SourceImportRuns } from "./source-import-card";
 import { SourceImportForm } from "./source-import-form";
 import { SourceItemTable } from "./source-item-table";
-import { SourcesFreshness } from "./sources-freshness";
 
 export function SourcesScreen({
   searchParams,
@@ -31,9 +30,6 @@ export function SourcesScreen({
       {([t, format]) => (
         <>
           <h1 className="mt-2 font-semibold text-3xl">{t("title")}</h1>
-          <Localized namespaces={[SOURCES_NAMESPACE]}>
-            <SourcesFreshness />
-          </Localized>
           <Suspended data={getSourceCatalog} fallback={<CatalogSkeleton />}>
             {(catalog) => (
               <>

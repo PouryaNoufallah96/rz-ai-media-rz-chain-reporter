@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
+  type AttemptOutcome,
   analysisRunRequestedPayloadSchema,
   type ErrorCode,
   errorCodeSchema,
@@ -8,12 +9,14 @@ import {
   type ModelUnitStatus,
   modelUnitStatusSchema,
   OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME,
+  type OperationLifecycle,
   type Platform,
   type RunConfiguration,
   runConfigurationSchema,
   type SemanticDegradedReason,
   type SemanticStageStatus,
   type SourceImportBinding,
+  type SourceImportStage,
   type TelegramOrderingMode,
   type UsageStatus,
 } from "@rz-chain-reporter/contracts";
@@ -26,14 +29,15 @@ import {
 } from "@rz-chain-reporter/customer-template/schema";
 import { classifyDbError } from "@rz-chain-reporter/db/db-error";
 import type { Executor, Transaction } from "@rz-chain-reporter/db/executor";
+import { markPendingAttemptUsageUnknown } from "@rz-chain-reporter/db/repositories/ai-usage-event";
 import {
   type AnalysisModelUnitOutput,
   type AnalysisModelUnitPlan,
   advanceAnalysisRunSemanticStage,
-  analysisRunHasRunningUnit,
   analysisRunProgress,
   bindAnalysisRunSourceImport,
   cancelAnalysisRunInBand,
+  ensureAnalysisModelUnitAttempt,
   findAnalysisModelUnit,
   findAnalysisRunByOperationId,
   loadAnalysisRunCandidates,
@@ -45,17 +49,22 @@ import {
   settleAnalysisRun,
   startAnalysisModelUnit,
 } from "@rz-chain-reporter/db/repositories/analysis-run";
-import { allocateOperationAttempt } from "@rz-chain-reporter/db/repositories/operation-attempt";
+import {
+  allocateOperationAttempt,
+  settleOperationAttempt,
+} from "@rz-chain-reporter/db/repositories/operation-attempt";
 import {
   findAttemptUsageSlots,
   startSourceImport,
 } from "@rz-chain-reporter/db/repositories/source-import";
+import { analysisModelUnit } from "@rz-chain-reporter/db/schema/analysis-model-unit";
 import { analysisRunItem } from "@rz-chain-reporter/db/schema/analysis-run-item";
 import { filterResult } from "@rz-chain-reporter/db/schema/filter-result";
 import { mediaBrand } from "@rz-chain-reporter/db/schema/media-brand";
 import { operation } from "@rz-chain-reporter/db/schema/operation";
 import { source } from "@rz-chain-reporter/db/schema/source";
 import { sourceImport } from "@rz-chain-reporter/db/schema/source-import";
+import { sourceImportItem } from "@rz-chain-reporter/db/schema/source-import-item";
 import { sourceImportSource } from "@rz-chain-reporter/db/schema/source-import-source";
 import { sourceItem } from "@rz-chain-reporter/db/schema/source-item";
 import { sourceItemRevision } from "@rz-chain-reporter/db/schema/source-item-revision";
@@ -77,7 +86,10 @@ import {
   type ModelGateway,
 } from "../model-gateway/gateway";
 import { workerEnv } from "../runtime/env";
-import { notifyEditorialChanged } from "../web-cache/editorial";
+import {
+  notifyEditorialAndUsageChanged,
+  notifyEditorialChanged,
+} from "../web-cache/editorial";
 import { notifyUsageLedgerChanged } from "../web-cache/usage-ledger";
 import { publishOperationStatus, type WorkerStep } from "./channels";
 import type { WorkerInngestClient } from "./client";
@@ -91,14 +103,16 @@ const UNIT_RETRIES = 0;
 
 const EMBEDDING_DEADLINE_MS = 60_000;
 const SEMANTIC_TASK_KEY = "keyword-embedding";
-const SEMANTIC_IMPORT_POLL_INTERVAL = "30s";
-const SEMANTIC_IMPORT_POLL_PASSES = 20;
+const SOURCE_IMPORT_READY_WAIT_SLICE = "10s";
+const SOURCE_IMPORT_READY_WAIT_SLICES = 72;
 
-const UNIT_DEADLINE_MS = 90_000;
+const UNIT_TOTAL_DEADLINE_MS = 30_000;
+const UNIT_PRIMARY_DEADLINE_MS = 20_000;
+const UNIT_REPAIR_DEADLINE_MS = 10_000;
 const UNIT_REASONING_MAX_CHARS = 600;
 const UNIT_TEXT_MAX_CHARS = 400;
-const UNIT_QUIESCENCE_INTERVAL = "5s";
-const UNIT_QUIESCENCE_PASSES = 12;
+const UNIT_REPAIR_INSTRUCTIONS =
+  "Return a complete response that strictly matches the requested schema and constraints.";
 
 // inngest/function.failed may carry only this message; keep it a stable code.
 class AnalysisRunError extends Error {
@@ -322,14 +336,20 @@ async function claimAnalysisRun(
 type ReusableImport = {
   id: string;
   enrichmentEnabled: boolean;
+  failureCode: ErrorCode | null;
+  lifecycle: OperationLifecycle;
+  operationId: string;
   orderingMode: string;
+  stage: SourceImportStage;
   settled: boolean;
   settledAt: Date;
   succeeded: boolean;
   sourceIds: string[];
   templateFingerprint: string;
+  telegramSourceIds: string[];
   topN: number;
   topics: string[];
+  usableSourceIds: string[];
   windowHours: number;
 };
 
@@ -343,6 +363,8 @@ async function readWorkspaceImports(
       id: sourceImport.id,
       enrichmentEnabled: sourceImport.enrichmentEnabled,
       failureCode: sourceImport.failureCode,
+      lifecycle: operation.lifecycle,
+      operationId: sourceImport.operationId,
       orderingMode: sourceImport.orderingMode,
       stage: sourceImport.stage,
       templateFingerprint: sourceImport.templateFingerprint,
@@ -352,6 +374,13 @@ async function readWorkspaceImports(
       windowHours: sourceImport.windowHours,
     })
     .from(sourceImport)
+    .innerJoin(
+      operation,
+      and(
+        eq(operation.id, sourceImport.operationId),
+        eq(operation.workspaceId, sourceImport.workspaceId),
+      ),
+    )
     .where(
       and(
         eq(sourceImport.workspaceId, workspaceId),
@@ -374,8 +403,27 @@ async function readWorkspaceImports(
     .select({
       sourceImportId: sourceImportSource.sourceImportId,
       sourceId: sourceImportSource.sourceId,
+      origin: source.origin,
+      outcome: sourceImportSource.outcome,
+      hasItem: sql<boolean>`exists (
+        select 1
+        from ${sourceImportItem}
+        inner join ${sourceItem}
+          on ${sourceItem.id} = ${sourceImportItem.sourceItemId}
+         and ${sourceItem.workspaceId} = ${sourceImportItem.workspaceId}
+        where ${sourceImportItem.workspaceId} = ${sourceImportSource.workspaceId}
+          and ${sourceImportItem.sourceImportId} = ${sourceImportSource.sourceImportId}
+          and ${sourceItem.sourceId} = ${sourceImportSource.sourceId}
+      )`,
     })
     .from(sourceImportSource)
+    .innerJoin(
+      source,
+      and(
+        eq(source.id, sourceImportSource.sourceId),
+        eq(source.workspaceId, sourceImportSource.workspaceId),
+      ),
+    )
     .where(
       and(
         eq(sourceImportSource.workspaceId, workspaceId),
@@ -389,23 +437,49 @@ async function readWorkspaceImports(
   return rows.map((row) => ({
     id: row.id,
     enrichmentEnabled: row.enrichmentEnabled,
+    failureCode: row.failureCode,
+    lifecycle: row.lifecycle,
+    operationId: row.operationId,
     orderingMode: row.orderingMode,
+    stage: row.stage,
     settled: row.stage === "settled",
     settledAt: row.updatedAt,
-    succeeded: row.failureCode === null,
+    succeeded: row.lifecycle === "succeeded",
     sourceIds: members
       .filter((member) => member.sourceImportId === row.id)
       .map((member) => member.sourceId),
     templateFingerprint: row.templateFingerprint,
+    telegramSourceIds: members
+      .filter(
+        (member) =>
+          member.sourceImportId === row.id &&
+          member.origin === "telegram_public",
+      )
+      .map((member) => member.sourceId),
     topN: row.topN,
     topics: row.topics,
+    usableSourceIds: members
+      .filter(
+        (member) =>
+          member.sourceImportId === row.id &&
+          (member.outcome === "succeeded" ||
+            member.outcome === "not_modified" ||
+            (member.outcome === "partial" && member.hasItem)),
+      )
+      .map((member) => member.sourceId),
     windowHours: row.windowHours,
   }));
 }
 
-// Reuse requires matching policy and coverage; source supersets may cover subsets.
-// Ordering and top-N match only when the request includes a telegram_public source.
-function importCovers(
+const GLOBAL_TELEGRAM_ORDERING_MODES = new Set<TelegramOrderingMode>([
+  "keywords",
+  "latest",
+  "views",
+]);
+
+// A source superset is reusable outside global Telegram ordering. Global
+// ordering is computed across selected channels, so its membership is exact.
+export function importCovers(
   candidate: ReusableImport,
   request: {
     enrichmentEnabled: boolean;
@@ -413,18 +487,34 @@ function importCovers(
     orderingMode: string;
     sourceIds: readonly string[];
     templateFingerprint: string;
+    telegramSourceIds: readonly string[];
     topN: number;
     topics: readonly string[];
     windowHours: number;
   },
+  requireUsableCoverage = false,
 ) {
   const members = new Set(candidate.sourceIds);
+  const usableMembers = new Set(candidate.usableSourceIds);
+  const candidateTelegram = new Set(candidate.telegramSourceIds);
+  const exactTelegramCoverage =
+    !request.includesTelegram ||
+    !GLOBAL_TELEGRAM_ORDERING_MODES.has(
+      request.orderingMode as TelegramOrderingMode,
+    ) ||
+    (candidateTelegram.size === request.telegramSourceIds.length &&
+      request.telegramSourceIds.every((sourceId) =>
+        candidateTelegram.has(sourceId),
+      ));
 
   return (
     candidate.windowHours >= request.windowHours &&
     candidate.templateFingerprint === request.templateFingerprint &&
     (candidate.enrichmentEnabled || !request.enrichmentEnabled) &&
     request.sourceIds.every((sourceId) => members.has(sourceId)) &&
+    (!requireUsableCoverage ||
+      request.sourceIds.every((sourceId) => usableMembers.has(sourceId))) &&
+    exactTelegramCoverage &&
     sameTopics(candidate.topics, request.topics) &&
     (!request.includesTelegram ||
       (candidate.orderingMode === request.orderingMode &&
@@ -432,14 +522,38 @@ function importCovers(
   );
 }
 
-async function requestIncludesTelegram(
+export function importIsAnalysisReady(
+  candidate: ReusableImport,
+  request: Parameters<typeof importCovers>[1],
+) {
+  if (candidate.stage === "acquiring") return false;
+
+  const hasUsableRequestedSource = request.sourceIds.some((sourceId) =>
+    candidate.usableSourceIds.includes(sourceId),
+  );
+  if (!hasUsableRequestedSource || !importCovers(candidate, request)) {
+    return false;
+  }
+
+  if (candidate.stage === "enriching") {
+    return (
+      candidate.lifecycle === "running" ||
+      candidate.lifecycle === "settling" ||
+      candidate.lifecycle === "succeeded"
+    );
+  }
+
+  return candidate.lifecycle === "succeeded";
+}
+
+async function requestTelegramSourceIds(
   executor: Executor,
   workspaceId: string,
   sourceIds: readonly string[],
 ) {
-  if (sourceIds.length === 0) return false;
+  if (sourceIds.length === 0) return [];
 
-  const [row] = await executor
+  const rows = await executor
     .select({ id: source.id })
     .from(source)
     .where(
@@ -448,10 +562,9 @@ async function requestIncludesTelegram(
         inArray(source.id, [...sourceIds]),
         eq(source.origin, "telegram_public"),
       ),
-    )
-    .limit(1);
+    );
 
-  return row !== undefined;
+  return rows.map((row) => row.id);
 }
 
 function sameTopics(left: readonly string[], right: readonly string[]) {
@@ -600,11 +713,14 @@ async function readUnitShortlist(
 function pipelineConfiguration(
   template: CustomerTemplate,
   brands: readonly { id: string; key: string }[],
+  telegramLaneCap: number,
 ): PipelineConfiguration {
   return {
     policy: template.editorial.policy,
     semantic: template.editorial.semantic,
     shortlistCap: template.editorial.shortlistCap,
+    telegramLaneCap,
+    topicAliases: template.editorial.topicAliases,
     brands: brands.map((brand) => ({
       mediaBrandId: brand.id,
       editorial: templateBrand(template, brand.key).editorial,
@@ -708,13 +824,12 @@ export function createAnalysisRunFunctions(
       );
     }
 
-    await notifyEditorialChanged(
+    await notifyEditorialAndUsageChanged(
       step,
       input.workspaceId,
       input.analysisRunId,
       "cancelled",
     );
-    await notifyUsageLedgerChanged(step, input.workspaceId);
 
     return {
       analysisRunId: input.analysisRunId,
@@ -751,7 +866,10 @@ export function createAnalysisRunFunctions(
             if (!attempt) {
               throw new NonRetriableError("NOT_FOUND");
             }
-            return { attemptId: attempt.id };
+            return {
+              attemptId: attempt.id,
+              attemptStartedAt: attempt.createdAt.toISOString(),
+            };
           }),
         );
 
@@ -763,22 +881,72 @@ export function createAnalysisRunFunctions(
               workspaceId,
               analysisModelUnitId,
             );
-            if (!unit) {
-              throw new NonRetriableError("NOT_FOUND");
+            const run = await findAnalysisRunByOperationId(
+              runtime.db,
+              workspaceId,
+              operationId,
+            );
+            if (!unit || !run) {
+              await settleOperationAttempt(runtime.db, workspaceId, {
+                failureCode: "NOT_FOUND",
+                id: allocated.attemptId,
+                outcome: "failed_terminal",
+              });
+              return { settled: "failed" as const, slots: null };
             }
 
             if (unit.status !== "pending" && unit.status !== "running") {
+              await settleOperationAttempt(runtime.db, workspaceId, {
+                failureCode: unit.failureCode,
+                id: allocated.attemptId,
+                outcome:
+                  unit.status === "succeeded" ? "succeeded" : "failed_terminal",
+              });
               return { settled: unit.status, slots: null };
             }
 
+            const settleFailed = async (
+              failureCode: ErrorCode,
+              outcome: "ambiguous" | "failed_terminal",
+            ) => {
+              await runtime.db.transaction(async (tx) => {
+                const settledUnit = await settleAnalysisModelUnit(
+                  tx,
+                  workspaceId,
+                  {
+                    analysisModelUnitId,
+                    failureCode,
+                    operationAttemptId: allocated.attemptId,
+                    status: "failed",
+                  },
+                );
+                if (!settledUnit) {
+                  throw new Error("analysis model unit was already settled");
+                }
+                const settledAttempt = await settleOperationAttempt(
+                  tx,
+                  workspaceId,
+                  {
+                    failureCode,
+                    id: allocated.attemptId,
+                    outcome,
+                  },
+                );
+                if (!settledAttempt) {
+                  throw new Error("analysis model attempt was already settled");
+                }
+              });
+              return { settled: "failed" as const, slots: null };
+            };
+
             const parsedTaskKey = modelTaskKeySchema.safeParse(unit.taskKey);
             if (!parsedTaskKey.success) {
-              throw new NonRetriableError("TEMPLATE_DRIFT");
+              return settleFailed("TEMPLATE_DRIFT", "failed_terminal");
             }
             const task =
               runtime.template.models?.tasks[parsedTaskKey.data] ?? null;
             if (!task) {
-              throw new NonRetriableError("TEMPLATE_DRIFT");
+              return settleFailed("TEMPLATE_DRIFT", "failed_terminal");
             }
 
             const slots = await findAttemptUsageSlots(
@@ -789,33 +957,32 @@ export function createAnalysisRunFunctions(
             const primary = usageStatusOf(slots, "primary") ?? null;
             const retry = usageStatusOf(slots, "retry-1") ?? null;
             const fallback = usageStatusOf(slots, "fallback") ?? null;
-            const recorded = fallback ?? retry ?? primary;
             const hasFallback = task.fallback !== undefined;
 
-            const settleFailed = async () => {
-              await settleAnalysisModelUnit(runtime.db, workspaceId, {
-                analysisModelUnitId,
-                status: "failed",
-                failureCode: "MODEL_INVOCATION_FAILED",
-              });
-              return { settled: "failed" as const, slots: null };
-            };
-
-            if (
-              recorded === "pending" ||
-              recorded === "unknown" ||
-              recorded === "succeeded"
-            ) {
-              return settleFailed();
-            }
-
-            if (recorded !== null && !hasFallback) {
-              return settleFailed();
+            const unresolved = [fallback, retry, primary].find(
+              (status) =>
+                status === "pending" ||
+                status === "unknown" ||
+                status === "succeeded",
+            );
+            if (unresolved !== undefined && run.kind !== "news") {
+              return settleFailed(
+                "MODEL_INVOCATION_FAILED",
+                unresolved === "pending" || unresolved === "unknown"
+                  ? "ambiguous"
+                  : "failed_terminal",
+              );
             }
 
             return {
               settled: null,
-              slots: { fallback, hasFallback, primary, retry },
+              slots: {
+                fallback,
+                hasFallback,
+                primary,
+                primaryFailureCode: unit.failureCode,
+                retry,
+              },
             };
           }),
         );
@@ -834,11 +1001,10 @@ export function createAnalysisRunFunctions(
             if (cancellation?.cancelRequestedAt != null) {
               return { cancelled: true };
             }
-            await startAnalysisModelUnit(
-              runtime.db,
-              workspaceId,
+            await startAnalysisModelUnit(runtime.db, workspaceId, {
               analysisModelUnitId,
-            );
+              operationAttemptId: allocated.attemptId,
+            });
             return { cancelled: false };
           }),
         );
@@ -846,10 +1012,32 @@ export function createAnalysisRunFunctions(
         if (started.cancelled) {
           await step.run("settle-unit-cancelled", () =>
             coded(() =>
-              settleAnalysisModelUnit(runtime.db, workspaceId, {
-                analysisModelUnitId,
-                status: "cancelled",
-                failureCode: null,
+              runtime.db.transaction(async (tx) => {
+                const settledUnit = await settleAnalysisModelUnit(
+                  tx,
+                  workspaceId,
+                  {
+                    analysisModelUnitId,
+                    failureCode: null,
+                    operationAttemptId: allocated.attemptId,
+                    status: "cancelled",
+                  },
+                );
+                if (!settledUnit) {
+                  throw new Error("analysis model unit was already settled");
+                }
+                const settledAttempt = await settleOperationAttempt(
+                  tx,
+                  workspaceId,
+                  {
+                    failureCode: null,
+                    id: allocated.attemptId,
+                    outcome: "failed_terminal",
+                  },
+                );
+                if (!settledAttempt) {
+                  throw new Error("analysis model attempt was already settled");
+                }
               }),
             ),
           );
@@ -875,6 +1063,7 @@ export function createAnalysisRunFunctions(
               analysisModelUnitId,
               analysisRunId,
               attemptId: allocated.attemptId,
+              attemptStartedAt: allocated.attemptStartedAt,
               operationId,
               slots: resumed.slots,
               workspaceId,
@@ -895,12 +1084,104 @@ export function createAnalysisRunFunctions(
   ) =>
     step.run(`settle-unit-${analysisModelUnitId}`, () =>
       coded(async () => {
-        const settled = await settleAnalysisModelUnit(runtime.db, workspaceId, {
-          analysisModelUnitId,
-          status: "failed",
-          failureCode: "MODEL_INVOCATION_FAILED",
+        const settled = await runtime.db.transaction(async (tx) => {
+          const unit = await findAnalysisModelUnit(
+            tx,
+            workspaceId,
+            analysisModelUnitId,
+          );
+          if (!unit) return false;
+          const settledUnit = await settleAnalysisModelUnit(tx, workspaceId, {
+            analysisModelUnitId,
+            failureCode: "MODEL_INVOCATION_FAILED",
+            operationAttemptId: unit.operationAttemptId ?? undefined,
+            status: "failed",
+          });
+          if (!settledUnit || unit.operationAttemptId === null) {
+            return settledUnit;
+          }
+          const settledAttempt = await settleOperationAttempt(tx, workspaceId, {
+            failureCode: "MODEL_INVOCATION_FAILED",
+            id: unit.operationAttemptId,
+            outcome: "failed_terminal",
+          });
+          if (!settledAttempt) {
+            throw new Error("analysis model attempt was already settled");
+          }
+          return true;
         });
         return { analysisModelUnitId, settled };
+      }),
+    );
+
+  const recoverNewsUnitNonTerminal = (
+    step: WorkerStep,
+    workspaceId: string,
+    input: {
+      analysisModelUnitId: string;
+      analysisRunId: string;
+      operationId: string;
+    },
+  ) =>
+    step.run(`recover-news-unit-${input.analysisModelUnitId}`, () =>
+      coded(async () => {
+        const attempt = await ensureAnalysisModelUnitAttempt(
+          runtime.db,
+          workspaceId,
+          {
+            analysisModelUnitId: input.analysisModelUnitId,
+            operationId: input.operationId,
+          },
+        );
+        if (attempt.status === "not_found") {
+          throw new NonRetriableError("NOT_FOUND");
+        }
+        if (attempt.status === "settled") {
+          return {
+            analysisModelUnitId: input.analysisModelUnitId,
+            status: attempt.unitStatus,
+          };
+        }
+
+        try {
+          const recovered = await runModelUnit(runtime, gateway(), {
+            analysisModelUnitId: input.analysisModelUnitId,
+            analysisRunId: input.analysisRunId,
+            attemptId: attempt.attemptId,
+            attemptStartedAt: attempt.attemptStartedAt.toISOString(),
+            forceDeterministic: true,
+            operationId: input.operationId,
+            slots: {
+              fallback: null,
+              hasFallback: false,
+              primary: null,
+              primaryFailureCode: "MODEL_INVOCATION_FAILED",
+              retry: null,
+            },
+            workspaceId,
+          });
+          return {
+            analysisModelUnitId: input.analysisModelUnitId,
+            status: recovered.status,
+          };
+        } catch (error) {
+          const current = await findAnalysisModelUnit(
+            runtime.db,
+            workspaceId,
+            input.analysisModelUnitId,
+          );
+          if (
+            current &&
+            current.status !== "pending" &&
+            current.status !== "running"
+          ) {
+            return {
+              analysisModelUnitId: input.analysisModelUnitId,
+              status: current.status,
+            };
+          }
+          throw error;
+        }
       }),
     );
 
@@ -946,17 +1227,15 @@ export function createAnalysisRunFunctions(
           );
           analysisRunId = settled.analysisRunId;
         } finally {
-          try {
-            if (analysisRunId !== null) {
-              await notifyEditorialChanged(
-                step,
-                workspaceId,
-                analysisRunId,
-                "failed",
-              );
-            }
-          } finally {
+          if (analysisRunId === null) {
             await notifyUsageLedgerChanged(step, workspaceId);
+          } else {
+            await notifyEditorialAndUsageChanged(
+              step,
+              workspaceId,
+              analysisRunId,
+              "failed",
+            );
           }
         }
       },
@@ -975,6 +1254,9 @@ export function createAnalysisRunFunctions(
         }
 
         const { analysisRunId } = claim;
+        if (claim.templateFingerprint !== runtime.identity.fingerprint) {
+          throw new NonRetriableError("TEMPLATE_DRIFT");
+        }
         await notifyEditorialChanged(
           step,
           workspaceId,
@@ -1033,44 +1315,70 @@ export function createAnalysisRunFunctions(
             ),
           );
 
-          for (
-            let pass = 1;
-            resolved.status === "waiting" &&
-            pass <= SEMANTIC_IMPORT_POLL_PASSES;
-            pass += 1
-          ) {
+          if (resolved.status === "waiting") {
             if (
               await readCancelRequested(
                 step,
                 workspaceId,
                 analysisRunId,
-                `import-poll-${pass}`,
+                "import-ready-pre-wait",
               )
             ) {
               return cancelInBand(
                 step,
                 { analysisRunId, operationId, workspaceId },
-                `import-poll-${pass}`,
+                "import-ready-pre-wait",
               );
             }
 
-            await step.sleep(
-              `await-import-${pass}`,
-              SEMANTIC_IMPORT_POLL_INTERVAL,
-            );
-            resolved = await step.run(`reread-import-${pass}`, () =>
-              coded(() =>
-                resolveImportBinding(runtime, workspaceId, {
+            const sourceImportOperationId = resolved.sourceImportOperationId;
+            if (sourceImportOperationId === null) {
+              throw new AnalysisRunError("TRANSIENT_CONFLICT");
+            }
+
+            for (
+              let waitSlice = 0;
+              waitSlice < SOURCE_IMPORT_READY_WAIT_SLICES;
+              waitSlice += 1
+            ) {
+              await step.waitForEvent(`await-import-ready-${waitSlice}`, {
+                event: durableEvents.sourceImportReady,
+                if: `event.data.workspaceId == async.data.workspaceId && async.data.operationId == "${sourceImportOperationId}"`,
+                timeout: SOURCE_IMPORT_READY_WAIT_SLICE,
+              });
+
+              if (
+                await readCancelRequested(
+                  step,
+                  workspaceId,
                   analysisRunId,
-                  operationId,
-                  request,
-                }),
-              ),
-            );
+                  `import-ready-post-wait-${waitSlice}`,
+                )
+              ) {
+                return cancelInBand(
+                  step,
+                  { analysisRunId, operationId, workspaceId },
+                  `import-ready-post-wait-${waitSlice}`,
+                );
+              }
+
+              resolved = await step.run(
+                `resolve-import-after-ready-${waitSlice}`,
+                () =>
+                  coded(() =>
+                    resolveImportBinding(runtime, workspaceId, {
+                      analysisRunId,
+                      operationId,
+                      request,
+                    }),
+                  ),
+              );
+              if (resolved.status === "bound") break;
+            }
           }
 
           if (resolved.status === "waiting") {
-            throw new NonRetriableError("SOURCE_IMPORT_IN_PROGRESS");
+            throw new AnalysisRunError("TRANSIENT_CONFLICT");
           }
 
           sourceImportId = resolved.sourceImportId;
@@ -1213,7 +1521,15 @@ export function createAnalysisRunFunctions(
                 },
               })
               .then((result) => unitResultSchema.parse(result))
-              .catch(() => settleUnitNonTerminal(step, workspaceId, unit.id)),
+              .catch(() =>
+                run.kind === "news"
+                  ? recoverNewsUnitNonTerminal(step, workspaceId, {
+                      analysisModelUnitId: unit.id,
+                      analysisRunId,
+                      operationId,
+                    })
+                  : settleUnitNonTerminal(step, workspaceId, unit.id),
+              ),
           ),
         );
 
@@ -1278,13 +1594,12 @@ export function createAnalysisRunFunctions(
           },
           "worker.analysis-run.realtime-unavailable",
         );
-        await notifyEditorialChanged(
+        await notifyEditorialAndUsageChanged(
           step,
           workspaceId,
           analysisRunId,
           settled.cancelled || cancelRequested ? "cancelled" : "settled",
         );
-        await notifyUsageLedgerChanged(step, workspaceId);
 
         return {
           analysisRunId,
@@ -1340,39 +1655,6 @@ export function createAnalysisRunFunctions(
         return { settled: false };
       }
 
-      let running = true;
-      for (let pass = 1; running && pass <= UNIT_QUIESCENCE_PASSES; pass += 1) {
-        running = await step.run(`unit-quiescence-${pass}`, () =>
-          coded(() =>
-            analysisRunHasRunningUnit(
-              runtime.db,
-              workspaceId,
-              run.analysisRunId,
-            ),
-          ),
-        );
-        if (running) {
-          await step.sleep(
-            `await-unit-quiescence-${pass}`,
-            UNIT_QUIESCENCE_INTERVAL,
-          );
-        }
-      }
-
-      // cancelled_at is written only after work stops; wedged units require
-      // `analysis-run settle <operationId>`.
-      if (running) {
-        await step.run("report-recovery-required", async () => {
-          workerLogger.error("worker.analysis-run.recovery-required", {
-            analysisRunId: run.analysisRunId,
-            errorCode: "TRANSIENT_CONFLICT",
-            operationId,
-          });
-          return { analysisRunId: run.analysisRunId };
-        });
-        return { settled: false };
-      }
-
       const settled = await step.run("settle-cancelled-run", () =>
         coded(async () => {
           const result = await settleAnalysisRun(runtime.db, workspaceId, {
@@ -1402,13 +1684,12 @@ export function createAnalysisRunFunctions(
         },
         "worker.analysis-run.realtime-unavailable",
       );
-      await notifyEditorialChanged(
+      await notifyEditorialAndUsageChanged(
         step,
         workspaceId,
         run.analysisRunId,
-        "cancelled",
+        settled.cancelled ? "cancelled" : "settled",
       );
-      await notifyUsageLedgerChanged(step, workspaceId);
 
       return { lifecycle: settled.lifecycle, settled: true };
     },
@@ -1418,7 +1699,7 @@ export function createAnalysisRunFunctions(
 }
 
 type ImportBinding =
-  | { status: "waiting" }
+  | { status: "waiting"; sourceImportOperationId: string | null }
   | { status: "bound"; binding: SourceImportBinding; sourceImportId: string };
 
 type ImportRequest = {
@@ -1433,7 +1714,7 @@ type ImportRequest = {
 };
 
 // Prefer an unsettled import, then a fresh settled import; otherwise start one.
-// Reevaluate on every poll pass so binding has one decision path.
+// PostgreSQL remains readiness truth before and after the event wake.
 async function resolveImportBinding(
   runtime: WorkerRuntime,
   workspaceId: string,
@@ -1449,25 +1730,40 @@ async function resolveImportBinding(
     throw new NonRetriableError("NOT_FOUND");
   }
 
-  if (run.sourceImportId !== null) {
-    const [bound] = await readWorkspaceImports(runtime.db, workspaceId, {
-      sourceImportId: run.sourceImportId,
-    });
-    return bound?.settled === true
-      ? {
-          status: "bound",
-          binding: run.sourceImportBinding ?? "started",
-          sourceImportId: bound.id,
-        }
-      : { status: "waiting" };
-  }
-
-  const includesTelegram = await requestIncludesTelegram(
+  const telegramSourceIds = await requestTelegramSourceIds(
     runtime.db,
     workspaceId,
     input.request.sourceIds,
   );
-  const request = { ...input.request, includesTelegram };
+  const request = {
+    ...input.request,
+    includesTelegram: telegramSourceIds.length > 0,
+    telegramSourceIds,
+  };
+
+  if (run.sourceImportId !== null) {
+    const [bound] = await readWorkspaceImports(runtime.db, workspaceId, {
+      sourceImportId: run.sourceImportId,
+    });
+    if (!bound) {
+      return { status: "waiting", sourceImportOperationId: null };
+    }
+    if (
+      bound.lifecycle === "failed" ||
+      bound.lifecycle === "cancelled" ||
+      bound.lifecycle === "unknown"
+    ) {
+      throw new AnalysisRunError(bound.failureCode ?? "NOT_FOUND");
+    }
+    const binding = run.sourceImportBinding ?? "started";
+    if (!importIsAnalysisReady(bound, request)) {
+      return {
+        status: "waiting",
+        sourceImportOperationId: bound.operationId,
+      };
+    }
+    return { status: "bound", binding, sourceImportId: bound.id };
+  }
 
   const [unsettled] = await readWorkspaceImports(runtime.db, workspaceId, {
     unsettledOnly: true,
@@ -1479,8 +1775,18 @@ async function resolveImportBinding(
         sourceImportId: unsettled.id,
         binding: "reused_in_flight",
       });
+      if (importIsAnalysisReady(unsettled, request)) {
+        return {
+          status: "bound",
+          binding: "reused_in_flight",
+          sourceImportId: unsettled.id,
+        };
+      }
     }
-    return { status: "waiting" };
+    return {
+      status: "waiting",
+      sourceImportOperationId: unsettled.operationId,
+    };
   }
 
   const reuseCutoff =
@@ -1492,7 +1798,7 @@ async function resolveImportBinding(
       candidate.settled &&
       candidate.succeeded &&
       candidate.settledAt.getTime() >= reuseCutoff &&
-      importCovers(candidate, request),
+      importCovers(candidate, request, true),
   );
   if (reusable) {
     await bindAnalysisRunSourceImport(runtime.db, workspaceId, {
@@ -1508,25 +1814,38 @@ async function resolveImportBinding(
   }
 
   const idempotencyKey = `analysis-run:${input.analysisRunId}`;
-  const started = await startSourceImport(runtime.db, workspaceId, {
-    operationId: randomUUID(),
-    actor: input.request.actor,
-    idempotencyKey,
-    requestHash: createHash("sha256").update(idempotencyKey).digest("hex"),
-    requestId: null,
-    sourceIds: input.request.sourceIds,
-    windowHours: input.request.windowHours,
-    orderingMode: input.request.orderingMode,
-    topN: input.request.topN,
-    topics: input.request.topics,
-    enrichmentEnabled: input.request.enrichmentEnabled,
-    templateFingerprint: input.request.templateFingerprint,
-  }).catch((error: unknown) => {
-    if (classifyDbError(error)?.kind === "code") {
-      throw new AnalysisRunError("SOURCE_IMPORT_IN_PROGRESS");
+  let started: Awaited<ReturnType<typeof startSourceImport>>;
+  try {
+    started = await startSourceImport(runtime.db, workspaceId, {
+      operationId: randomUUID(),
+      actor: input.request.actor,
+      idempotencyKey,
+      requestHash: createHash("sha256").update(idempotencyKey).digest("hex"),
+      requestId: null,
+      sourceIds: input.request.sourceIds,
+      windowHours: input.request.windowHours,
+      orderingMode: input.request.orderingMode,
+      topN: input.request.topN,
+      topics: input.request.topics,
+      enrichmentEnabled: input.request.enrichmentEnabled,
+      templateFingerprint: input.request.templateFingerprint,
+    });
+  } catch (error) {
+    const failure = classifyDbError(error);
+    if (
+      failure?.kind !== "code" ||
+      failure.code !== "SOURCE_IMPORT_IN_PROGRESS"
+    ) {
+      throw error;
     }
-    throw error;
-  });
+    const [active] = await readWorkspaceImports(runtime.db, workspaceId, {
+      unsettledOnly: true,
+    });
+    return {
+      status: "waiting",
+      sourceImportOperationId: active?.operationId ?? null,
+    };
+  }
 
   if (started.status === "created") {
     await bindAnalysisRunSourceImport(runtime.db, workspaceId, {
@@ -1534,11 +1853,17 @@ async function resolveImportBinding(
       sourceImportId: started.sourceImportId,
       binding: "started",
     });
-    return { status: "waiting" };
+    return {
+      status: "waiting",
+      sourceImportOperationId: started.operationId,
+    };
   }
 
   if (started.status === "replayed") {
-    return { status: "waiting" };
+    return {
+      status: "waiting",
+      sourceImportOperationId: started.operationId,
+    };
   }
 
   throw new NonRetriableError("VALIDATION_FAILED");
@@ -1550,6 +1875,24 @@ type FilterOutcome = {
   semanticReason: SemanticDegradedReason | null;
   semanticStatus: SemanticStageStatus;
 };
+
+export function semanticAttemptFinalization(
+  reason: SemanticDegradedReason | null,
+): { failureCode: ErrorCode | null; outcome: AttemptOutcome } {
+  if (reason === null) {
+    return { failureCode: null, outcome: "succeeded" };
+  }
+  if (reason === "ambiguous_outcome") {
+    return { failureCode: "MODEL_INVOCATION_FAILED", outcome: "ambiguous" };
+  }
+  if (reason === "call_failed") {
+    return {
+      failureCode: "MODEL_INVOCATION_FAILED",
+      outcome: "failed_terminal",
+    };
+  }
+  return { failureCode: "VALIDATION_FAILED", outcome: "failed_terminal" };
+}
 
 // One step: embed, score, route and commit. Vectors, projections and score
 // components never leave the process, so the step returns counts and ids only.
@@ -1622,7 +1965,11 @@ async function filterAndScore(
       canonicalUrl: candidate.canonicalUrl,
     })),
     runStartedAt: input.runStartedAt,
-    configuration: pipelineConfiguration(runtime.template, brands),
+    configuration: pipelineConfiguration(
+      runtime.template,
+      brands,
+      input.configuration.topN,
+    ),
     topics: input.configuration.topics,
   });
 
@@ -1638,8 +1985,8 @@ async function filterAndScore(
 
   const degrade = async (reason: SemanticDegradedReason) => {
     const scored = scoreAndRoute(prepared, null);
-    await runtime.db.transaction((tx) =>
-      persistAnalysisRunFilterOutput(tx, input.workspaceId, {
+    await runtime.db.transaction(async (tx) => {
+      await persistAnalysisRunFilterOutput(tx, input.workspaceId, {
         analysisRunId: input.analysisRunId,
         scoringVersion: SCORING_VERSION,
         semantic: {
@@ -1654,8 +2001,21 @@ async function filterAndScore(
         },
         items: scored.runItems,
         filterRows: scored.filterRows,
-      }),
-    );
+      });
+      const finalization = semanticAttemptFinalization(reason);
+      const settledAttempt = await settleOperationAttempt(
+        tx,
+        input.workspaceId,
+        {
+          failureCode: finalization.failureCode,
+          id: input.semanticAttemptId,
+          outcome: finalization.outcome,
+        },
+      );
+      if (!settledAttempt) {
+        throw new Error("semantic operation attempt was already settled");
+      }
+    });
     return logged({
       candidateCount: prepared.items.length,
       routeCount: scored.filterRows.length,
@@ -1717,6 +2077,19 @@ async function filterAndScore(
             items: scored.output.runItems,
             filterRows: scored.output.filterRows,
           });
+          const finalization = semanticAttemptFinalization(scored.reason);
+          const settledAttempt = await settleOperationAttempt(
+            tx,
+            input.workspaceId,
+            {
+              failureCode: finalization.failureCode,
+              id: input.semanticAttemptId,
+              outcome: finalization.outcome,
+            },
+          );
+          if (!settledAttempt) {
+            throw new Error("semantic operation attempt was already settled");
+          }
           committed = {
             candidateCount: prepared.items.length,
             routeCount: scored.output.filterRows.length,
@@ -1844,8 +2217,98 @@ type UnitSlots = {
   fallback: UsageStatus | null;
   hasFallback: boolean;
   primary: UsageStatus | null;
+  primaryFailureCode: ErrorCode | null;
   retry: UsageStatus | null;
 };
+
+type NewsModelRecoveryDecision =
+  | { kind: "repair" }
+  | {
+      kind: "deterministic";
+      failureCode: ErrorCode | null;
+      outcome: AttemptOutcome;
+    };
+
+export function decideNewsModelRecovery(
+  error: Pick<ModelGatewayInvocationError, "ambiguous" | "code">,
+  repairAttempted: true,
+): Extract<NewsModelRecoveryDecision, { kind: "deterministic" }>;
+export function decideNewsModelRecovery(
+  error: Pick<ModelGatewayInvocationError, "ambiguous" | "code">,
+  repairAttempted: false,
+): NewsModelRecoveryDecision;
+export function decideNewsModelRecovery(
+  error: Pick<ModelGatewayInvocationError, "ambiguous" | "code">,
+  repairAttempted: boolean,
+): NewsModelRecoveryDecision;
+export function decideNewsModelRecovery(
+  error: Pick<ModelGatewayInvocationError, "ambiguous" | "code">,
+  repairAttempted: boolean,
+): NewsModelRecoveryDecision {
+  if (
+    !repairAttempted &&
+    !error.ambiguous &&
+    error.code === "STRUCTURED_OUTPUT_INVALID"
+  ) {
+    return { kind: "repair" };
+  }
+
+  return {
+    kind: "deterministic",
+    failureCode: error.code,
+    outcome: error.ambiguous ? "ambiguous" : "failed_terminal",
+  };
+}
+
+export function decideRecordedNewsModelRecovery(
+  slots: UnitSlots,
+): NewsModelRecoveryDecision | null {
+  if (
+    slots.primaryFailureCode === "STRUCTURED_OUTPUT_INVALID" &&
+    slots.retry === null &&
+    slots.fallback === null
+  ) {
+    return { kind: "repair" };
+  }
+
+  const usageSlots = [
+    ["fallback", slots.fallback],
+    ["retry-1", slots.retry],
+    ["primary", slots.primary],
+  ] satisfies [InvocationKey, UsageStatus | null][];
+  const recorded = usageSlots.find(
+    (entry): entry is [InvocationKey, UsageStatus] => entry[1] !== null,
+  );
+  if (!recorded) return null;
+
+  const [invocationKey, status] = recorded;
+  if (status === "succeeded") {
+    return {
+      kind: "deterministic",
+      failureCode: null,
+      outcome: "succeeded",
+    };
+  }
+  if (status === "pending" || status === "unknown") {
+    return {
+      kind: "deterministic",
+      failureCode: "MODEL_INVOCATION_FAILED",
+      outcome: "ambiguous",
+    };
+  }
+  if (invocationKey === "primary") {
+    return {
+      failureCode: slots.primaryFailureCode ?? "MODEL_INVOCATION_FAILED",
+      kind: "deterministic",
+      outcome: "failed_terminal",
+    };
+  }
+  return {
+    kind: "deterministic",
+    failureCode: "MODEL_INVOCATION_FAILED",
+    outcome: "failed_terminal",
+  };
+}
 
 async function runModelUnit(
   runtime: WorkerRuntime,
@@ -1854,6 +2317,8 @@ async function runModelUnit(
     analysisModelUnitId: string;
     analysisRunId: string;
     attemptId: string;
+    attemptStartedAt: string;
+    forceDeterministic?: boolean;
     operationId: string;
     slots: UnitSlots;
     workspaceId: string;
@@ -1862,6 +2327,37 @@ async function runModelUnit(
   status: Extract<ModelUnitStatus, "cancelled" | "failed" | "succeeded">;
 }> {
   await assertWorkspace(runtime, input.workspaceId);
+  const settleUnit = async (
+    status: Extract<ModelUnitStatus, "cancelled" | "failed">,
+    failureCode: ErrorCode | null,
+    outcome: "ambiguous" | "failed_terminal",
+  ) => {
+    await runtime.db.transaction(async (tx) => {
+      const settledUnit = await settleAnalysisModelUnit(tx, input.workspaceId, {
+        analysisModelUnitId: input.analysisModelUnitId,
+        failureCode,
+        operationAttemptId: input.attemptId,
+        status,
+      });
+      if (!settledUnit) {
+        throw new Error("analysis model unit was already settled");
+      }
+      const settledAttempt = await settleOperationAttempt(
+        tx,
+        input.workspaceId,
+        {
+          failureCode,
+          id: input.attemptId,
+          outcome,
+        },
+      );
+      if (!settledAttempt) {
+        throw new Error("analysis model attempt was already settled");
+      }
+    });
+    return { status };
+  };
+
   const unit = await findAnalysisModelUnit(
     runtime.db,
     input.workspaceId,
@@ -1873,20 +2369,11 @@ async function runModelUnit(
     input.operationId,
   );
   if (!unit || !run) {
-    throw new NonRetriableError("NOT_FOUND");
+    return settleUnit("failed", "NOT_FOUND", "failed_terminal");
   }
-
-  const settleUnit = async (
-    status: Extract<ModelUnitStatus, "cancelled" | "failed">,
-    failureCode: ErrorCode | null,
-  ) => {
-    await settleAnalysisModelUnit(runtime.db, input.workspaceId, {
-      analysisModelUnitId: input.analysisModelUnitId,
-      status,
-      failureCode,
-    });
-    return { status };
-  };
+  if (unit.status !== "pending" && unit.status !== "running") {
+    return { status: unit.status };
+  }
 
   const cancelRequested = async (executor: Executor) => {
     const cancellation = await readAnalysisRunCancellation(
@@ -1898,12 +2385,12 @@ async function runModelUnit(
   };
 
   if (await cancelRequested(runtime.db)) {
-    return settleUnit("cancelled", null);
+    return settleUnit("cancelled", null, "failed_terminal");
   }
 
   const parsedTaskKey = modelTaskKeySchema.safeParse(unit.taskKey);
   if (!parsedTaskKey.success) {
-    throw new NonRetriableError("TEMPLATE_DRIFT");
+    return settleUnit("failed", "TEMPLATE_DRIFT", "failed_terminal");
   }
   const brand = await readBrand(
     runtime.db,
@@ -1911,17 +2398,34 @@ async function runModelUnit(
     unit.mediaBrandId,
   );
   if (!brand) {
-    throw new NonRetriableError("NOT_FOUND");
+    return settleUnit("failed", "NOT_FOUND", "failed_terminal");
   }
-  const material = templateBrand(runtime.template, brand.key).editorial;
+  const configuredBrand = runtime.template.mediaBrands.find(
+    (entry) => entry.key === brand.key,
+  );
+  if (!configuredBrand) {
+    return settleUnit("failed", "TEMPLATE_DRIFT", "failed_terminal");
+  }
+  const material = configuredBrand.editorial;
   const taskKey = parsedTaskKey.data;
+  const unitDeadlineAt =
+    Date.parse(input.attemptStartedAt) + UNIT_TOTAL_DEADLINE_MS;
 
   let discarded = false;
-  const persist = async (tx: Transaction, output: AnalysisModelUnitOutput) => {
+  const persist = async (
+    tx: Transaction,
+    output: AnalysisModelUnitOutput,
+    finalization: {
+      failureCode: ErrorCode | null;
+      outcome: AttemptOutcome;
+    } = { failureCode: null, outcome: "succeeded" },
+  ) => {
     discarded = await cancelRequested(tx);
     await persistAnalysisModelUnitResult(tx, input.workspaceId, {
       analysisModelUnitId: input.analysisModelUnitId,
+      failureCode: discarded ? null : finalization.failureCode,
       operationAttemptId: input.attemptId,
+      outcome: discarded ? "failed_terminal" : finalization.outcome,
       output: discarded ? { kind: "discarded" } : output,
     });
   };
@@ -1929,11 +2433,14 @@ async function runModelUnit(
   let invokeSlot: (
     invocationKey: InvocationKey,
   ) => Promise<ModelGatewayInvocationError | null>;
+  const settled = () => ({
+    status: discarded ? ("cancelled" as const) : ("succeeded" as const),
+  });
 
   if (run.configuration.kind === "promo") {
     const brief = run.configuration.promo.prompts[brand.key];
     if (brief === undefined) {
-      throw new NonRetriableError("VALIDATION_FAILED");
+      return settleUnit("failed", "VALIDATION_FAILED", "failed_terminal");
     }
     const ideaCount = runtime.template.editorial.promo.ideaCount;
     const prompt = promoPrompt({
@@ -1945,6 +2452,13 @@ async function runModelUnit(
 
     invokeSlot = (invocationKey) =>
       invokeUnitSlot(gateway, {
+        deadlineMs: unitInvocationDeadlineMs(
+          unitDeadlineAt,
+          invocationKey,
+          Date.now(),
+        ),
+        instructions:
+          invocationKey === "retry-1" ? UNIT_REPAIR_INSTRUCTIONS : undefined,
         invocationKey,
         operationAttemptId: input.attemptId,
         operationId: input.operationId,
@@ -1970,9 +2484,13 @@ async function runModelUnit(
       mediaBrandId: unit.mediaBrandId,
     });
     if (shortlist.length === 0) {
-      throw new NonRetriableError("NOT_FOUND");
+      return settleUnit("failed", "NOT_FOUND", "failed_terminal");
     }
     const platforms = run.configuration.platforms;
+    const deterministicPlatform = platforms[0];
+    if (deterministicPlatform === undefined) {
+      return settleUnit("failed", "VALIDATION_FAILED", "failed_terminal");
+    }
     const target = Math.min(run.configuration.topN, shortlist.length);
     const prompt = selectionPrompt({
       brandName: brand.name,
@@ -1987,12 +2505,88 @@ async function runModelUnit(
       target,
     });
 
+    const deterministicOutput: AnalysisModelUnitOutput = {
+      kind: "selection",
+      rows: shortlist.slice(0, target).map((item, index) => ({
+        rank: index + 1,
+        sourceItemId: item.sourceItemId,
+        suggestedPlatform: deterministicPlatform,
+        reasoning: null,
+        selectionSuitabilityScore: null,
+        selectionImpactScore: null,
+        selectionViralityScore: null,
+        selectionConfidenceScore: null,
+      })),
+    };
+
+    let deterministicSelectionPersisted = false;
+    const persistDeterministicSelection = async (
+      finalization: Extract<
+        NewsModelRecoveryDecision,
+        { kind: "deterministic" }
+      >,
+    ) => {
+      await runtime.db.transaction(async (tx) => {
+        const ambiguousUsageCount = await markPendingAttemptUsageUnknown(
+          tx,
+          input.workspaceId,
+          input.attemptId,
+        );
+        await persist(tx, deterministicOutput, {
+          ...finalization,
+          outcome: ambiguousUsageCount > 0 ? "ambiguous" : finalization.outcome,
+        });
+      });
+      deterministicSelectionPersisted = true;
+    };
+
+    if (input.forceDeterministic) {
+      await persistDeterministicSelection({
+        failureCode: "MODEL_INVOCATION_FAILED",
+        kind: "deterministic",
+        outcome: "failed_terminal",
+      });
+      return settled();
+    }
+
     invokeSlot = (invocationKey) =>
       invokeUnitSlot(gateway, {
+        deadlineMs: unitInvocationDeadlineMs(
+          unitDeadlineAt,
+          invocationKey,
+          Date.now(),
+        ),
+        instructions:
+          invocationKey === "retry-1" ? UNIT_REPAIR_INSTRUCTIONS : undefined,
         invocationKey,
         operationAttemptId: input.attemptId,
         operationId: input.operationId,
         outputName: "editorial_selection",
+        persistDefiniteFailure: async (tx, failure) => {
+          if (invocationKey === "primary") {
+            const [marked] = await tx
+              .update(analysisModelUnit)
+              .set({ failureCode: failure.code })
+              .where(
+                and(
+                  eq(analysisModelUnit.workspaceId, input.workspaceId),
+                  eq(analysisModelUnit.id, input.analysisModelUnitId),
+                  eq(analysisModelUnit.operationAttemptId, input.attemptId),
+                  inArray(analysisModelUnit.status, ["pending", "running"]),
+                ),
+              )
+              .returning({ id: analysisModelUnit.id });
+            if (!marked) {
+              throw new Error("analysis model unit could not record repair");
+            }
+          } else {
+            await persist(tx, deterministicOutput, {
+              failureCode: failure.code,
+              outcome: "failed_terminal",
+            });
+            deterministicSelectionPersisted = true;
+          }
+        },
         persistResult: (tx, output) =>
           persist(tx, {
             kind: "selection",
@@ -2016,16 +2610,56 @@ async function runModelUnit(
         taskKey,
         workspaceId: input.workspaceId,
       });
-  }
 
-  const settled = () => ({
-    status: discarded ? ("cancelled" as const) : ("succeeded" as const),
-  });
+    const currentUsageSlots = await findAttemptUsageSlots(
+      runtime.db,
+      input.workspaceId,
+      input.attemptId,
+    );
+    const recorded = decideRecordedNewsModelRecovery({
+      fallback:
+        usageStatusOf(currentUsageSlots, "fallback") ?? input.slots.fallback,
+      hasFallback: input.slots.hasFallback,
+      primary:
+        usageStatusOf(currentUsageSlots, "primary") ?? input.slots.primary,
+      primaryFailureCode: unit.failureCode,
+      retry: usageStatusOf(currentUsageSlots, "retry-1") ?? input.slots.retry,
+    });
+    if (recorded?.kind === "deterministic") {
+      await persistDeterministicSelection(recorded);
+      return settled();
+    }
+
+    const invocationKey = recorded?.kind === "repair" ? "retry-1" : "primary";
+    const error = await invokeSlot(invocationKey);
+    if (error === null || deterministicSelectionPersisted) {
+      return settled();
+    }
+
+    const decision = decideNewsModelRecovery(
+      error,
+      invocationKey === "retry-1",
+    );
+    if (decision.kind === "deterministic") {
+      await persistDeterministicSelection(decision);
+      return settled();
+    }
+
+    const repaired = await invokeSlot("retry-1");
+    if (repaired === null || deterministicSelectionPersisted) {
+      return settled();
+    }
+    await persistDeterministicSelection(
+      decideNewsModelRecovery(repaired, true),
+    );
+    return settled();
+  }
 
   const failUnit = (error: ModelGatewayInvocationError) =>
     settleUnit(
       "failed",
       error.code === "TEMPLATE_DRIFT" ? "TEMPLATE_DRIFT" : error.code,
+      error.ambiguous ? "ambiguous" : "failed_terminal",
     );
 
   const openFallback = async (prior: ModelGatewayInvocationError) => {
@@ -2036,17 +2670,39 @@ async function runModelUnit(
     return error === null ? settled() : failUnit(error);
   };
 
-  if (input.slots.primary !== null) {
+  if (
+    input.slots.fallback === "failed" ||
+    (input.slots.retry === "failed" && !input.slots.hasFallback)
+  ) {
+    return settleUnit("failed", "MODEL_INVOCATION_FAILED", "failed_terminal");
+  }
+
+  if (input.slots.retry === "failed") {
     const error = await invokeSlot("fallback");
     return error === null ? settled() : failUnit(error);
   }
 
-  const primary = await invokeSlot("primary");
+  const primary = await invokeSlot(
+    input.slots.primary === "failed" ? "retry-1" : "primary",
+  );
   if (primary === null) {
     return settled();
   }
   if (primary.ambiguous) {
     return failUnit(primary);
+  }
+  if (input.slots.primary === "failed") {
+    return openFallback(primary);
+  }
+  if (primary.code === "STRUCTURED_OUTPUT_INVALID") {
+    const repaired = await invokeSlot("retry-1");
+    if (repaired === null) {
+      return settled();
+    }
+    if (repaired.ambiguous) {
+      return failUnit(repaired);
+    }
+    return openFallback(repaired);
   }
   if (!primary.retryable) {
     return openFallback(primary);
@@ -2065,10 +2721,15 @@ async function runModelUnit(
 async function invokeUnitSlot<TOutput>(
   gateway: ModelGateway,
   input: {
+    deadlineMs: number | null;
+    instructions?: string;
     invocationKey: InvocationKey;
     operationAttemptId: string;
     operationId: string;
     outputName: string;
+    persistDefiniteFailure?: NonNullable<
+      Parameters<ModelGateway["invokeStructured"]>[0]["persistDefiniteFailure"]
+    >;
     persistResult: (tx: Transaction, output: TOutput) => Promise<void>;
     prompt: string;
     schema: z.ZodType<TOutput>;
@@ -2076,14 +2737,20 @@ async function invokeUnitSlot<TOutput>(
     workspaceId: string;
   },
 ): Promise<ModelGatewayInvocationError | null> {
+  if (input.deadlineMs === null) {
+    return new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED");
+  }
+
   try {
     await gateway.invokeStructured({
-      deadlineMs: UNIT_DEADLINE_MS,
+      deadlineMs: input.deadlineMs,
+      instructions: input.instructions,
       invocationKey: input.invocationKey,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       operationAttemptId: input.operationAttemptId,
       operationId: input.operationId,
       outputName: input.outputName,
+      persistDefiniteFailure: input.persistDefiniteFailure,
       persistResult: input.persistResult,
       prompt: input.prompt,
       schema: input.schema,
@@ -2097,6 +2764,21 @@ async function invokeUnitSlot<TOutput>(
     }
     return error;
   }
+}
+
+export function unitInvocationDeadlineMs(
+  deadlineAt: number,
+  invocationKey: InvocationKey,
+  now: number,
+): number | null {
+  const remainingMs = deadlineAt - now;
+  if (remainingMs <= 0) return null;
+
+  const slotLimit =
+    invocationKey === "retry-1"
+      ? UNIT_REPAIR_DEADLINE_MS
+      : UNIT_PRIMARY_DEADLINE_MS;
+  return Math.min(remainingMs, slotLimit);
 }
 
 function brandFocus(anchors: readonly string[]) {

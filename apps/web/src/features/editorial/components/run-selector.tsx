@@ -1,8 +1,8 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import { useId } from "react";
 
+import { LabeledSelect } from "@/components/form/form-field";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 
 import { EDITORIAL_NAMESPACE } from "../constants";
@@ -19,45 +19,36 @@ export function RunSelector({
 }) {
   const format = useFormatter();
   const t = useTranslations(EDITORIAL_NAMESPACE);
-  const controlId = useId();
   const { isPending, setValues } = useTransitionUrlState(
     workspaceSearchParsers,
   );
   // A run reached by URL can sit outside the recent window the selector lists.
   const listed =
     selected === null || runs.some((run) => run.id === selected.id);
+  const options = (
+    listed || selected === null ? runs : [selected, ...runs]
+  ).map((run) => ({
+    label: t("run.selector.option", {
+      actor: run.mine ? t("run.selector.you") : run.actorName,
+      id: run.id.slice(0, SHORT_ID_LENGTH),
+      kind: t(`run.kind.${run.kind}`),
+      time: format.dateTime(run.startedAt, {
+        dateStyle: "short",
+        timeStyle: "medium",
+      }),
+    }),
+    value: run.id,
+  }));
 
   return (
-    <div aria-busy={isPending} className="grid gap-1">
-      <label className="ticket-label" htmlFor={controlId}>
-        {t("run.selector.label")}
-      </label>
-      <select
-        className="h-8 w-full rounded-none border border-input bg-background px-2 text-xs"
-        data-pending={isPending || undefined}
-        id={controlId}
-        onChange={(event) =>
-          setValues({
-            run: event.target.value === "" ? null : event.target.value,
-          })
-        }
-        value={selected?.id ?? ""}
-      >
-        <option value="">{t("run.selector.latest")}</option>
-        {(listed ? runs : [selected, ...runs]).map((run) => (
-          <option key={run.id} value={run.id}>
-            {t("run.selector.option", {
-              actor: run.mine ? t("run.selector.you") : run.actorName,
-              id: run.id.slice(0, SHORT_ID_LENGTH),
-              kind: t(`run.kind.${run.kind}`),
-              time: format.dateTime(run.startedAt, {
-                dateStyle: "short",
-                timeStyle: "medium",
-              }),
-            })}
-          </option>
-        ))}
-      </select>
-    </div>
+    <LabeledSelect
+      busy={isPending}
+      emptyLabel={t("run.selector.latest")}
+      label={t("run.selector.label")}
+      onValueChange={(run) => setValues({ run })}
+      options={options}
+      triggerClassName="w-full"
+      value={selected?.id ?? null}
+    />
   );
 }

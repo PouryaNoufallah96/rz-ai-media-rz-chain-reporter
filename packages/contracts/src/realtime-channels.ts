@@ -1,8 +1,11 @@
 import { realtime } from "inngest";
 
 import {
+  DRAFTS_REALTIME_CHANGED_TOPIC,
+  draftsChangedRealtimeMessageSchema,
   EDITORIAL_REALTIME_CHANGED_TOPIC,
   editorialChangedRealtimeMessageSchema,
+  getDraftsRealtimeChannelName,
   getEditorialRealtimeChannelName,
   getOperationsRealtimeChannelName,
   getSourcesRealtimeChannelName,
@@ -49,6 +52,15 @@ export const editorialRealtimeChannel = realtime.channel({
   topics: {
     [EDITORIAL_REALTIME_CHANGED_TOPIC]: {
       schema: editorialChangedRealtimeMessageSchema,
+    },
+  },
+});
+
+export const draftsRealtimeChannel = realtime.channel({
+  name: getDraftsRealtimeChannelName,
+  topics: {
+    [DRAFTS_REALTIME_CHANGED_TOPIC]: {
+      schema: draftsChangedRealtimeMessageSchema,
     },
   },
 });

@@ -149,11 +149,46 @@ export type ReportBrandOption = {
 };
 
 export type ReportThresholds = {
+  lexicalTopicScore: number;
   policyScore: number;
   semanticDedup: number;
   shortlistCap: number;
   mediaFitByBrandKey: Record<string, number>;
 };
+
+export function reportLaneCap(
+  row: Pick<ReportRow, "sourceOrigin">,
+  thresholds: Pick<ReportThresholds, "shortlistCap">,
+  telegramLaneCap: number,
+) {
+  return row.sourceOrigin === "telegram_public"
+    ? telegramLaneCap
+    : thresholds.shortlistCap;
+}
+
+export type LowScoreFailure = "lexical_topic" | "policy";
+
+export function reportLowScoreFailures(
+  row: Pick<ReportRow, "disposition" | "lexicalTopicScore" | "policyScore">,
+  thresholds: Pick<ReportThresholds, "lexicalTopicScore" | "policyScore">,
+  hasTopics: boolean,
+): LowScoreFailure[] {
+  if (row.disposition !== "low_score") return [];
+
+  const failures: LowScoreFailure[] = [];
+  if (row.policyScore !== null && row.policyScore < thresholds.policyScore) {
+    failures.push("policy");
+  }
+  if (
+    hasTopics &&
+    row.lexicalTopicScore !== null &&
+    row.lexicalTopicScore < thresholds.lexicalTopicScore
+  ) {
+    failures.push("lexical_topic");
+  }
+
+  return failures;
+}
 
 export type RunReport = {
   page: ReportPage;

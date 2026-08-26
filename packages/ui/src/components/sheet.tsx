@@ -124,7 +124,7 @@ function SheetContent({
 }: React.ComponentProps<typeof SheetPopup>) {
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className="transition-opacity duration-220" />
       <SheetViewport side={side}>
         <SheetPopup data-slot="sheet-content" side={side} {...props} />
       </SheetViewport>

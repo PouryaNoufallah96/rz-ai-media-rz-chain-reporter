@@ -1,6 +1,13 @@
 import { createHash } from "node:crypto";
+import {
+  MAX_REFERENCE_IMAGE_BYTES,
+  MAX_REFERENCE_IMAGE_DIMENSION,
+  MAX_REFERENCE_IMAGE_PIXELS,
+  REFERENCE_IMAGE_KIND,
+} from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import {
+  claimMediaCleanup,
   claimMediaValidation,
   getMediaAsset,
   markMediaDeleteFailed,
@@ -11,9 +18,8 @@ import {
 import type { Storage } from "@rz-chain-reporter/storage";
 import sharp from "sharp";
 
-const MAX_VERIFIED_MEDIA_BYTES = 512 * 1024;
-const MAX_DIMENSION = 4096;
-const MAX_PIXELS = 16_000_000;
+const REFERENCE_CLEANUP_DELAY_MS = 24 * 60 * 60 * 1000;
+const CLEANUP_CLAIM_MS = 15 * 60 * 1000;
 
 const MEDIA_REJECTION_REASONS = {
   checksum: "CHECKSUM_MISMATCH",
@@ -70,7 +76,7 @@ async function readBounded(stream: ReadableStream<Uint8Array>) {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > MAX_VERIFIED_MEDIA_BYTES) {
+    if (size > MAX_REFERENCE_IMAGE_BYTES) {
       await reader.cancel();
       return { status: "oversize" as const };
     }
@@ -89,7 +95,7 @@ async function decodeImage(bytes: Buffer) {
   try {
     const image = sharp(bytes, {
       failOn: "warning",
-      limitInputPixels: MAX_PIXELS,
+      limitInputPixels: MAX_REFERENCE_IMAGE_PIXELS,
     });
     const metadata = await image.metadata();
     await image.stats();
@@ -105,7 +111,7 @@ async function inspect(
 ): Promise<Inspection> {
   try {
     const head = await storage.head(asset.objectKey);
-    if (head.size > MAX_VERIFIED_MEDIA_BYTES) {
+    if (head.size > MAX_REFERENCE_IMAGE_BYTES) {
       return rejected(MEDIA_REJECTION_REASONS.oversize, {
         actualBytes: head.size,
       });
@@ -138,8 +144,9 @@ async function inspect(
     !mimeType ||
     !metadata.width ||
     !metadata.height ||
-    metadata.width > MAX_DIMENSION ||
-    metadata.height > MAX_DIMENSION ||
+    metadata.width > MAX_REFERENCE_IMAGE_DIMENSION ||
+    metadata.height > MAX_REFERENCE_IMAGE_DIMENSION ||
+    metadata.width * metadata.height > MAX_REFERENCE_IMAGE_PIXELS ||
     (metadata.pages ?? 1) !== 1
   ) {
     return rejected(MEDIA_REJECTION_REASONS.malformed, observed);
@@ -156,6 +163,51 @@ async function inspect(
     : rejected(MEDIA_REJECTION_REASONS.declaredMime, decoded);
 }
 
+export async function cleanupMediaAsset(
+  executor: Executor,
+  storage: Storage,
+  workspaceId: string,
+  asset: MediaAsset,
+) {
+  if (
+    asset.lifecycle !== "verified" &&
+    asset.lifecycle !== "rejected" &&
+    asset.lifecycle !== "expired"
+  ) {
+    return { status: "conflict" as const };
+  }
+  const claimedAt = new Date();
+  const claimed = await claimMediaCleanup(executor, workspaceId, {
+    id: asset.id,
+    version: asset.version,
+    lifecycle: asset.lifecycle,
+    claimedAt,
+    claimUntil: new Date(claimedAt.getTime() + CLEANUP_CLAIM_MS),
+  });
+  if (claimed.status !== "claimed") return claimed;
+
+  try {
+    await storage.delete([claimed.asset.objectKey]);
+    const removed = await markMediaObjectRemoved(executor, workspaceId, {
+      id: claimed.asset.id,
+      version: claimed.asset.version,
+      lifecycle: claimed.asset.lifecycle,
+    });
+    return removed.status === "updated"
+      ? ({ status: "removed" } as const)
+      : removed;
+  } catch {
+    const failed = await markMediaDeleteFailed(executor, workspaceId, {
+      id: claimed.asset.id,
+      version: claimed.asset.version,
+      lifecycle: claimed.asset.lifecycle,
+    });
+    return failed.status === "updated"
+      ? ({ status: "delete_failed" } as const)
+      : failed;
+  }
+}
+
 async function rejectAndDelete(
   executor: Executor,
   storage: Storage,
@@ -170,21 +222,8 @@ async function rejectAndDelete(
     reason,
     ...observed,
   });
-  if (marked.status !== "updated") return;
-
-  try {
-    await storage.delete([marked.asset.objectKey]);
-    await markMediaObjectRemoved(executor, workspaceId, {
-      id: marked.asset.id,
-      version: marked.asset.version,
-      lifecycle: "rejected",
-    });
-  } catch {
-    await markMediaDeleteFailed(executor, workspaceId, {
-      id: marked.asset.id,
-      version: marked.asset.version,
-      lifecycle: "rejected",
-    });
+  if (marked.status === "updated") {
+    await cleanupMediaAsset(executor, storage, workspaceId, marked.asset);
   }
 }
 
@@ -223,6 +262,10 @@ export async function verifyMediaUpload(
   const verified = await markMediaVerified(executor, workspaceId, {
     id: asset.id,
     version: asset.version,
+    cleanupAfter:
+      asset.kind === REFERENCE_IMAGE_KIND
+        ? new Date(Date.now() + REFERENCE_CLEANUP_DELAY_MS)
+        : null,
     ...inspection.observed,
   });
   return verified.status === "updated"

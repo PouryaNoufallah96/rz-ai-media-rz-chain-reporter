@@ -8,20 +8,39 @@ import {
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { Checkbox } from "@rz-chain-reporter/ui/components/checkbox";
-import { FieldGroup } from "@rz-chain-reporter/ui/components/field";
+import {
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@rz-chain-reporter/ui/components/field";
 import { Input } from "@rz-chain-reporter/ui/components/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@rz-chain-reporter/ui/components/input-group";
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
 import { XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
-import { type Control, useController, useForm } from "react-hook-form";
+import {
+  type Control,
+  useController,
+  useForm,
+  useWatch,
+} from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 
 import {
+  FieldCaption,
   FormCheckboxField,
   FormField,
   FormRootError,
+  FormSelectField,
 } from "@/components/form/form-field";
 import { useFallbackErrorMessage } from "@/components/form/use-error-message";
 import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
@@ -191,9 +210,7 @@ function StartImportControl({
         disabled={isPending || !hasSelection}
         type="submit"
       >
-        {isPending ? (
-          <Spinner aria-hidden="true" data-icon="inline-start" />
-        ) : null}
+        {isPending ? <Spinner data-icon="inline-start" /> : null}
         {isPending ? t("import.pending") : t("import.start")}
       </Button>
       <span className="text-muted-foreground text-xs" id={startHintId}>
@@ -218,7 +235,6 @@ function SourceSelection({
   const t = useTranslations(SOURCES_NAMESPACE);
   const { field: sourceIds } = useController({
     control,
-    disabled,
     name: "sourceIds",
   });
   const includesTelegram = selectedHasOrigin(
@@ -240,10 +256,14 @@ function SourceSelection({
           const selected = new Set(field.value);
 
           return (
-            <fieldset className="grid gap-3">
-              <legend className="ticket-label" id={controlId}>
+            <>
+              <FieldLegend
+                className="ticket-label mb-0"
+                id={controlId}
+                variant="label"
+              >
                 {t("import.sources")}
-              </legend>
+              </FieldLegend>
               {selectable.length === 0 ? (
                 <p className="text-muted-foreground text-xs">
                   {t("catalog.empty")}
@@ -324,12 +344,12 @@ function SourceSelection({
                                 field.onChange([...next]);
                               }}
                             />
-                            <label
-                              className="min-w-0 truncate text-xs"
+                            <FieldLabel
+                              className="min-w-0 truncate font-normal"
                               htmlFor={`${controlId}-${entry.id}`}
                             >
                               <Bdi>{entry.name}</Bdi>
-                            </label>
+                            </FieldLabel>
                           </li>
                         ))}
                       </ul>
@@ -337,7 +357,7 @@ function SourceSelection({
                   );
                 })
               )}
-            </fieldset>
+            </>
           );
         }}
       </FormField>
@@ -387,8 +407,10 @@ function RecencyField({ control, disabled, resolveError }: FieldProps) {
       resolveError={resolveError}
     >
       {({ field }) => (
-        <fieldset className="grid gap-1">
-          <legend className="ticket-label">{t("import.recency.label")}</legend>
+        <>
+          <FieldLegend className="ticket-label mb-0" variant="label">
+            {t("import.recency.label")}
+          </FieldLegend>
           <div className="flex flex-wrap gap-1">
             {IMPORT_WINDOW_HOURS.map((hours) => (
               <Button
@@ -406,7 +428,7 @@ function RecencyField({ control, disabled, resolveError }: FieldProps) {
               </Button>
             ))}
           </div>
-        </fieldset>
+        </>
       )}
     </FormField>
   );
@@ -419,50 +441,30 @@ function OrderingField({
   resolveError,
 }: FieldProps & { recentTopics: readonly string[] }) {
   const t = useTranslations(SOURCES_NAMESPACE);
+  const orderingMode = useWatch({ control, name: "orderingMode" });
 
   return (
-    <FormField
-      control={control}
-      disabled={disabled}
-      name="orderingMode"
-      resolveError={resolveError}
-    >
-      {({ controlId, controlProps, field }) => (
-        <>
-          <label className="ticket-label" htmlFor={controlId}>
-            {t("import.ordering.label")}
-          </label>
-          <select
-            {...controlProps}
-            className="h-8 rounded-none border border-input bg-background px-2 text-xs"
-            name={field.name}
-            onBlur={field.onBlur}
-            onChange={(event) => {
-              const selected = TELEGRAM_ORDERING_MODES.find(
-                (mode) => mode === event.target.value,
-              );
-              if (selected) field.onChange(selected);
-            }}
-            ref={field.ref}
-            value={field.value}
-          >
-            {TELEGRAM_ORDERING_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {t(`import.ordering.${mode}`)}
-              </option>
-            ))}
-          </select>
-          {field.value === "keywords" ? (
-            <TopicsField
-              control={control}
-              disabled={disabled}
-              recentTopics={recentTopics}
-              resolveError={resolveError}
-            />
-          ) : null}
-        </>
-      )}
-    </FormField>
+    <>
+      <FormSelectField
+        control={control}
+        disabled={disabled}
+        label={t("import.ordering.label")}
+        name="orderingMode"
+        options={TELEGRAM_ORDERING_MODES.map((mode) => ({
+          label: t(`import.ordering.${mode}`),
+          value: mode,
+        }))}
+        resolveError={resolveError}
+      />
+      {orderingMode === "keywords" ? (
+        <TopicsField
+          control={control}
+          disabled={disabled}
+          recentTopics={recentTopics}
+          resolveError={resolveError}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -479,9 +481,7 @@ function TopNField({ control, disabled, resolveError }: FieldProps) {
     >
       {({ controlId, controlProps, descriptionId, field }) => (
         <>
-          <label className="ticket-label" htmlFor={controlId}>
-            {t("import.topN")}
-          </label>
+          <FieldCaption htmlFor={controlId}>{t("import.topN")}</FieldCaption>
           <Input
             {...controlProps}
             className="w-24"
@@ -497,9 +497,9 @@ function TopNField({ control, disabled, resolveError }: FieldProps) {
             type="number"
             value={Number.isNaN(field.value) ? "" : field.value}
           />
-          <span className="text-muted-foreground text-xs" id={descriptionId}>
+          <FieldDescription id={descriptionId}>
             {t("import.topNHint")}
-          </span>
+          </FieldDescription>
         </>
       )}
     </FormField>
@@ -538,9 +538,9 @@ function TopicsField({
 
         return (
           <>
-            <label className="ticket-label" htmlFor={controlId}>
+            <FieldCaption htmlFor={controlId}>
               {t("import.topics")}
-            </label>
+            </FieldCaption>
             {topics.length === 0 ? (
               <p className="text-muted-foreground text-xs">
                 {t("import.topicsNone")}
@@ -572,29 +572,29 @@ function TopicsField({
               </ul>
             )}
             <div className="flex flex-wrap items-center gap-2">
-              <Input
-                {...controlProps}
-                className="max-w-64 flex-1"
-                maxLength={MAX_TOPIC_LENGTH}
-                onBlur={field.onBlur}
-                onChange={(event) => setDraft(event.currentTarget.value)}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter") return;
-                  event.preventDefault();
-                  commitDraft();
-                }}
-                ref={field.ref}
-                value={draft}
-              />
-              <Button
-                disabled={disabled || atCap || draft.trim() === ""}
-                onClick={commitDraft}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                {t("import.topicsAdd")}
-              </Button>
+              <InputGroup className="max-w-64 flex-1">
+                <InputGroupInput
+                  {...controlProps}
+                  maxLength={MAX_TOPIC_LENGTH}
+                  onBlur={field.onBlur}
+                  onChange={(event) => setDraft(event.currentTarget.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    commitDraft();
+                  }}
+                  ref={field.ref}
+                  value={draft}
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    disabled={disabled || atCap || draft.trim() === ""}
+                    onClick={commitDraft}
+                  >
+                    {t("import.topicsAdd")}
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
               {topics.length > 0 ? (
                 <Button
                   disabled={disabled}
@@ -607,14 +607,14 @@ function TopicsField({
                 </Button>
               ) : null}
             </div>
-            <span className="text-muted-foreground text-xs" id={descriptionId}>
+            <FieldDescription id={descriptionId}>
               {t("import.topicsHint")}
-            </span>
+            </FieldDescription>
             {recentTopics.length > 0 ? (
-              <fieldset className="mt-1 grid gap-1">
-                <legend className="ticket-label">
+              <FieldSet className="mt-1 grid gap-1">
+                <FieldLegend className="ticket-label mb-0" variant="label">
                   {t("import.recentTopics")}
-                </legend>
+                </FieldLegend>
                 <div className="flex flex-wrap gap-1">
                   {recentTopics.map((topic) => (
                     <Button
@@ -629,10 +629,10 @@ function TopicsField({
                     </Button>
                   ))}
                 </div>
-                <span className="text-muted-foreground text-xs">
+                <FieldDescription>
                   {t("import.recentTopicsHint")}
-                </span>
-              </fieldset>
+                </FieldDescription>
+              </FieldSet>
             ) : null}
           </>
         );
@@ -642,13 +642,16 @@ function TopicsField({
 }
 
 function useImportErrorMessage() {
-  const t = useTranslations(OPERATIONS_NAMESPACE);
+  const t = useTranslations(SOURCES_NAMESPACE);
+  const tOperations = useTranslations(OPERATIONS_NAMESPACE);
   const fallback = useFallbackErrorMessage();
 
-  return (code: string | undefined) =>
-    code !== undefined && isOperationErrorCode(code)
-      ? t(OPERATION_ERROR_KEYS[code])
+  return (code: string | undefined) => {
+    if (code === "NO_SOURCES") return t("import.noSources");
+    return code !== undefined && isOperationErrorCode(code)
+      ? tOperations(OPERATION_ERROR_KEYS[code])
       : fallback();
+  };
 }
 
 function isOperationErrorCode(

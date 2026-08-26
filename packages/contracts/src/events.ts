@@ -10,6 +10,10 @@ export const DURABLE_EVENT_NAMES = [
   "operation/source-import.requested",
   "operation/analysis-run.requested",
   "operation/analysis-run.cancelled",
+  "operation/copy-generation.requested",
+  "operation/image-generation.requested",
+  "source-import/enrichment.requested",
+  "operation/source-import.ready",
 ] as const;
 
 export const OPERATION_GENERATION_REQUESTED_EVENT_NAME = DURABLE_EVENT_NAMES[0];
@@ -24,6 +28,13 @@ export const OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME =
   DURABLE_EVENT_NAMES[5];
 export const OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME =
   DURABLE_EVENT_NAMES[6];
+export const OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME =
+  DURABLE_EVENT_NAMES[7];
+export const OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME =
+  DURABLE_EVENT_NAMES[8];
+export const SOURCE_IMPORT_ENRICHMENT_REQUESTED_EVENT_NAME =
+  DURABLE_EVENT_NAMES[9];
+export const OPERATION_SOURCE_IMPORT_READY_EVENT_NAME = DURABLE_EVENT_NAMES[10];
 
 export type DurableEventName = (typeof DURABLE_EVENT_NAMES)[number];
 
@@ -33,6 +44,8 @@ export const GENERATION_PROBE_COMMAND_PREFIX = "generation-probe:";
 export const SCHEDULED_EFFECT_PROBE_COMMAND_PREFIX = "scheduled-effect-probe:";
 export const SOURCE_IMPORT_COMMAND_PREFIX = "source-import:";
 export const ANALYSIS_RUN_COMMAND_PREFIX = "analysis-run:";
+export const COPY_GENERATION_COMMAND_PREFIX = "copy-generation:";
+export const IMAGE_GENERATION_COMMAND_PREFIX = "image-generation:";
 
 const durableEventPayloadSchema = z.strictObject({
   schemaVersion: z.literal(DURABLE_EVENT_SCHEMA_VERSION),
@@ -64,8 +77,27 @@ export const storageReconciliationRequestedPayloadSchema =
 export const operationSourceImportRequestedPayloadSchema =
   durableEventPayloadSchema.extend({ operationId: z.uuid() });
 
+export const sourceImportEnrichmentRequestedPayloadSchema =
+  durableEventPayloadSchema.extend({
+    operationAttemptId: z.uuid(),
+    operationId: z.uuid(),
+    sourceItemRevisionId: z.uuid(),
+  });
+
+export const operationSourceImportReadyPayloadSchema =
+  durableEventPayloadSchema.extend({ operationId: z.uuid() });
+
 export const analysisRunRequestedPayloadSchema =
   durableEventPayloadSchema.extend({ operationId: z.uuid() });
 
 export const analysisRunCancelledPayloadSchema =
   durableEventPayloadSchema.extend({ operationId: z.uuid() });
+
+export const copyGenerationRequestedPayloadSchema =
+  durableEventPayloadSchema.extend({ operationId: z.uuid() });
+
+export const imageGenerationRequestedPayloadSchema =
+  durableEventPayloadSchema.extend({
+    imageGenerationId: z.uuid(),
+    operationId: z.uuid(),
+  });

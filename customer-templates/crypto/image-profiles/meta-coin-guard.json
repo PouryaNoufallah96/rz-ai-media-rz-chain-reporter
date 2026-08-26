@@ -193,18 +193,33 @@
     "dataElementLabelTemplate": " labeled \"{label}\"",
     "headlineUppercase": true
   },
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.096,
+    "insetShortSideRatio": 0.045
+  },
   "fallbackBrief": {
-    "family": "shield_hero",
-    "headline": "THE GUARD HOLDS",
-    "layout": "art_only",
-    "data_elements": [],
-    "environment": "steel_platform",
-    "camera": "low_angle_hero",
-    "energy": "calm_structure",
-    "mood_accent": "teal",
-    "finish": "glass_dark",
-    "headline_layout": "centered_top",
-    "subject_scene": "A translucent glass shield with visible circuit-board internals stands on a dark polished steel pedestal, glowing with teal light from within, teal conduit traces converging toward it across the circuit-board floor, server rack silhouettes fading into shadow behind it."
+    "selection": {
+      "family": "shield_hero",
+      "axes": {
+        "environment": "steel_platform",
+        "camera": "low_angle_hero",
+        "energy": "calm_structure",
+        "mood_accent": "teal",
+        "finish": "glass_dark",
+        "headline_layout": "centered_top"
+      }
+    },
+    "brief": {
+      "headline": "THE GUARD HOLDS",
+      "subjectScene": "A translucent glass shield with visible circuit-board internals stands on a dark polished steel pedestal, glowing with teal light from within, teal conduit traces converging toward it across the circuit-board floor, server rack silhouettes fading into shadow behind it.",
+      "dataElements": []
+    }
   },
   "briefExamples": "Worked examples (for guidance only -- do not copy headlines or scenes verbatim):\n\nA. Article: \"Bridge protocol exploited for $120M\"\n{\"family\": \"threat_vs_guard\", \"headline\": \"PROTOCOLS FALL, RULES DON'T\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"$120M\", \"label\": \"DRAINED\"}], \"environment\": \"ruin_contrast\", \"camera\": \"dutch_or_split\", \"energy\": \"storm_tension\", \"mood_accent\": \"teal_vs_red\", \"finish\": \"glass_dark\", \"headline_layout\": \"centered_top\", \"subject_scene\": \"The left side shows crumbling server structures with red ember glow and smoke, labeled panels falling from rusted walls; the right side shows the MCG shield standing intact on a clean glass platform connected by teal conduit lines, transparent glass panels with visible circuitry glowing steadily behind it.\"}\n\nB. Article: \"Major audit firm publishes smart-contract security report\"\n{\"family\": \"code_terminal\", \"headline\": \"CLEAR RULES FAVOR CLEAR CODE\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"verify\", \"label\": \"\"}, {\"value\": \"execute\", \"label\": \"\"}, {\"value\": \"settle\", \"label\": \"\"}], \"environment\": \"server_corridor\", \"camera\": \"frontal_terminal\", \"energy\": \"calm_structure\", \"mood_accent\": \"teal_purple\", \"finish\": \"glass_dark\", \"headline_layout\": \"left_block\", \"subject_scene\": \"A stack of three glass-and-steel rule panels with purple neon borders floats within the outline of the MCG shield, each panel showing a short glowing line of text with a small icon, thin teal data threads anchoring the panels to the server racks behind them.\"}\n\nC. Article: \"DeFi TVL hits $200B milestone\"\n{\"family\": \"plan_blocks\", \"headline\": \"THE FLOOR JUST GOT HIGHER\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"$200B\", \"label\": \"TVL\"}, {\"value\": \"+40%\", \"label\": \"YOY\"}], \"environment\": \"circuit_terrain\", \"camera\": \"isometric_high\", \"energy\": \"ascendant\", \"mood_accent\": \"teal_purple\", \"finish\": \"glass_dark\", \"headline_layout\": \"centered_top\", \"subject_scene\": \"Two translucent glass-and-steel blocks stand on circuit-board terrain in ascending steps, each block glowing with teal internal light and carrying a large value on its face, a purple shield badge hovering above the taller block, teal conduit traces connecting the blocks along the ground.\"}\n\nD. Article: \"How the parametric cover protocol works\"\n{\"family\": \"protocol_flow\", \"headline\": \"STRUCTURE BEFORE VOLATILITY\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"ACTIVATE\", \"label\": \"\"}, {\"value\": \"MONITOR\", \"label\": \"\"}, {\"value\": \"EXECUTE\", \"label\": \"\"}], \"environment\": \"steel_platform\", \"camera\": \"frontal_wide\", \"energy\": \"calm_structure\", \"mood_accent\": \"teal\", \"finish\": \"glass_dark\", \"headline_layout\": \"centered_top\", \"subject_scene\": \"Three translucent glass cards sit in a horizontal row on a dark steel platform, connected by glowing teal arrows, the first card showing a wallet icon, the second a pulse monitor, the third a shield with checkmark, each card glowing faintly from within with circuit-board patterns visible through the glass.\"}\n\nE. Article: \"Why panic selling costs more than the drop\"\n{\"family\": \"guardian\", \"headline\": \"PANIC IS THE EXPENSIVE PART\", \"layout\": \"art_only\", \"data_elements\": [], \"environment\": \"steel_platform\", \"camera\": \"low_angle_hero\", \"energy\": \"calm_structure\", \"mood_accent\": \"teal_purple\", \"finish\": \"glass_dark\", \"headline_layout\": \"centered_top\", \"subject_scene\": \"The anonymous armored sentinel stands motionless on a raised dark platform, sleek dark armor with teal accent lines and a reflective visor, a faint three-node timeline glowing behind it with teal dots connected by a horizontal line, circuit-board floor beneath and server rack silhouettes in the background.\"}\n\nF. Article: \"New wallet-monitoring dashboard launches\"\n{\"family\": \"dashboard\", \"headline\": \"WHEN MARKETS MOVE FAST, RULES MATTER\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"INS\", \"label\": \"Token\"}, {\"value\": \"4 mo\", \"label\": \"Duration\"}], \"environment\": \"steel_platform\", \"camera\": \"frontal_wide\", \"energy\": \"calm_structure\", \"mood_accent\": \"teal_purple\", \"finish\": \"glass_bright\", \"headline_layout\": \"centered_top\", \"subject_scene\": \"A dark UI card showing a wallet balance with a glowing green checkmark sits centrally, framed by a translucent glass shield structure with visible circuitry, floating glass badges around it display parameters, teal energy waves flowing through the background.\"}"
 }

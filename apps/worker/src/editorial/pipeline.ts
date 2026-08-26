@@ -44,6 +44,8 @@ export type PipelineConfiguration = {
   policy: CustomerTemplate["editorial"]["policy"];
   semantic: CustomerTemplate["editorial"]["semantic"];
   shortlistCap: number;
+  telegramLaneCap: number;
+  topicAliases: CustomerTemplate["editorial"]["topicAliases"];
   brands: readonly {
     mediaBrandId: string;
     editorial: CustomerTemplate["mediaBrands"][number]["editorial"];
@@ -141,12 +143,15 @@ export function prepareCandidates(input: {
       }
 
       const normalizedTitle = normalizeText(revision.title);
-      const normalizedBody =
-        revision.summary === null ? "" : normalizeText(revision.summary);
-      const normalizedText =
-        normalizedBody.length === 0
-          ? normalizedTitle
-          : `${normalizedTitle} ${normalizedBody}`;
+      const projection = buildProjection(
+        revision,
+        configuration.semantic.maxChars,
+      );
+      const normalizedTitleLength = Array.from(normalizedTitle).length;
+      const normalizedBody = Array.from(projection)
+        .slice(normalizedTitleLength + 1)
+        .join("");
+      const normalizedText = projection;
       const candidate = item.eligibility === "candidate";
 
       return {
@@ -159,7 +164,7 @@ export function prepareCandidates(input: {
         normalizedTitle,
         normalizedBody,
         normalizedText,
-        projection: buildProjection(revision, configuration.semantic.maxChars),
+        projection,
         sourceAuthorityScore: candidate
           ? resolveAuthority(configuration, item.sourceKey)
           : null,
@@ -412,7 +417,7 @@ export function scoreAndRoute(
       normalizedTitle: entry.item.normalizedTitle,
       normalizedText: entry.item.normalizedText,
       topics,
-      aliases: brand.editorial.aliases,
+      aliases: configuration.topicAliases,
       sourceKey: entry.item.sourceKey,
       preferredSourceKeys: brand.editorial.preferredSourceKeys,
       mediaFitScore: entry.mediaFitScore,
@@ -421,7 +426,7 @@ export function scoreAndRoute(
       sourceAuthorityScore: entry.item.sourceAuthorityScore ?? 0,
       diversityScore,
       weights: configuration.policy.weights,
-      threshold: configuration.policy.thresholds.policyScore,
+      thresholds: configuration.policy.thresholds,
     });
 
     const ordered = admitted
@@ -493,6 +498,7 @@ export function scoreAndRoute(
           compare(left.item.sourceItemId, right.item.sourceItemId),
       );
     const shortlisted: string[] = [];
+    let telegramLaneCount = 0;
 
     for (const [position, entry] of passing.entries()) {
       let disposition: AnalysisRunFilterRow["disposition"] = "telegram_lane";
@@ -503,6 +509,10 @@ export function scoreAndRoute(
         } else {
           disposition = "cap_exceeded";
         }
+      } else if (telegramLaneCount < configuration.telegramLaneCap) {
+        telegramLaneCount += 1;
+      } else {
+        disposition = "cap_exceeded";
       }
 
       filterRows.push(

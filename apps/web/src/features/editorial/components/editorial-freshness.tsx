@@ -24,11 +24,13 @@ export function EditorialFreshness({
   );
 
   return (
-    <div className="mt-8 flex min-w-0 flex-wrap items-center gap-2">
-      <span className="wrap-break-word min-w-0 font-mono text-muted-foreground text-xs tabular-nums">
-        {isRefreshing ? t("transport.refreshing") : t(`transport.${transport}`)}
-      </span>
-      {transport === "live" ? null : (
+    <div className="flex min-w-0 flex-wrap items-center gap-2 border-border border-b border-dashed py-2">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <span className="wrap-break-word min-w-0 font-mono text-muted-foreground text-xs tabular-nums">
+          {isRefreshing
+            ? t("transport.refreshing")
+            : t(`transport.${transport}`)}
+        </span>
         <span className="font-mono text-muted-foreground text-xs tabular-nums">
           {t("transport.asOf", {
             time: format.dateTime(readAt, {
@@ -37,7 +39,7 @@ export function EditorialFreshness({
             }),
           })}
         </span>
-      )}
+      </div>
       <Button
         disabled={isRefreshing}
         onClick={refresh}

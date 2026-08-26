@@ -9,10 +9,17 @@ import { approval } from "./schema/approval";
 import { assistantConversation } from "./schema/assistant-conversation";
 import { assistantMessage } from "./schema/assistant-message";
 import { user } from "./schema/auth";
+import { copyGeneration } from "./schema/copy-generation";
+import { copyGenerationUnit } from "./schema/copy-generation-unit";
+import { copyVariant } from "./schema/copy-variant";
 import { destinationAccount } from "./schema/destination-account";
 import { draftRevision } from "./schema/draft-revision";
+import { draftRevisionCommandReceipt } from "./schema/draft-revision-command-receipt";
 import { editorialSelection } from "./schema/editorial-selection";
 import { filterResult } from "./schema/filter-result";
+import { imageBrief } from "./schema/image-brief";
+import { imageGeneration } from "./schema/image-generation";
+import { imageVarietyMemory } from "./schema/image-variety-memory";
 import { mediaAsset } from "./schema/media-asset";
 import { mediaBrand } from "./schema/media-brand";
 import { mediaBrandDestinationAccount } from "./schema/media-brand-destination-account";
@@ -27,6 +34,7 @@ import { savedCard } from "./schema/saved-card";
 import { schedule } from "./schema/schedule";
 import { sourceImport } from "./schema/source-import";
 import { sourceItem } from "./schema/source-item";
+import { sourceItemEnrichment } from "./schema/source-item-enrichment";
 import { sourceItemRevision } from "./schema/source-item-revision";
 
 // Relations mirror the foreign keys the tables already declare, minus the
@@ -166,28 +174,111 @@ export const platformDraftRelations = relations(
       fields: [platformDraft.editorialSelectionId],
       references: [editorialSelection.id],
     }),
-    sourceItem: one(sourceItem, {
-      fields: [platformDraft.sourceItemId],
-      references: [sourceItem.id],
+    telegramFilterResult: one(filterResult, {
+      fields: [platformDraft.telegramFilterResultId],
+      references: [filterResult.id],
     }),
+    promoIdea: one(promoIdea, {
+      fields: [platformDraft.promoIdeaId],
+      references: [promoIdea.id],
+    }),
+    copyGenerations: many(copyGeneration),
     revisions: many(draftRevision),
   }),
 );
 
-export const draftRevisionRelations = relations(draftRevision, ({ one }) => ({
-  platformDraft: one(platformDraft, {
-    fields: [draftRevision.platformDraftId],
-    references: [platformDraft.id],
+export const draftRevisionRelations = relations(
+  draftRevision,
+  ({ one, many }) => ({
+    platformDraft: one(platformDraft, {
+      fields: [draftRevision.platformDraftId],
+      references: [platformDraft.id],
+    }),
+    originatingCopyVariant: one(copyVariant, {
+      fields: [draftRevision.originatingCopyVariantId],
+      references: [copyVariant.id],
+    }),
+    selectedFinalMediaAsset: one(mediaAsset, {
+      fields: [draftRevision.selectedFinalMediaAssetId],
+      references: [mediaAsset.id],
+    }),
+    author: one(user, {
+      fields: [draftRevision.authoredBy],
+      references: [user.id],
+    }),
+    commandReceipts: many(draftRevisionCommandReceipt),
+    imageBriefs: many(imageBrief),
+    imageGenerations: many(imageGeneration),
   }),
-  mediaAsset: one(mediaAsset, {
-    fields: [draftRevision.mediaAssetId],
-    references: [mediaAsset.id],
+);
+
+export const copyGenerationRelations = relations(
+  copyGeneration,
+  ({ one, many }) => ({
+    operation: one(operation, {
+      fields: [copyGeneration.operationId],
+      references: [operation.id],
+    }),
+    platformDraft: one(platformDraft, {
+      fields: [copyGeneration.platformDraftId],
+      references: [platformDraft.id],
+    }),
+    pageFetchOperationAttempt: one(operationAttempt, {
+      fields: [copyGeneration.pageFetchOperationAttemptId],
+      references: [operationAttempt.id],
+    }),
+    sourceItemRevision: one(sourceItemRevision, {
+      fields: [copyGeneration.sourceItemRevisionId],
+      references: [sourceItemRevision.id],
+    }),
+    sourceItemEnrichment: one(sourceItemEnrichment, {
+      fields: [copyGeneration.sourceItemEnrichmentId],
+      references: [sourceItemEnrichment.id],
+    }),
+    units: many(copyGenerationUnit),
   }),
-  author: one(user, {
-    fields: [draftRevision.authoredBy],
-    references: [user.id],
+);
+
+export const copyGenerationUnitRelations = relations(
+  copyGenerationUnit,
+  ({ one }) => ({
+    generation: one(copyGeneration, {
+      fields: [copyGenerationUnit.copyGenerationId],
+      references: [copyGeneration.operationId],
+    }),
+    operationAttempt: one(operationAttempt, {
+      fields: [copyGenerationUnit.operationAttemptId],
+      references: [operationAttempt.id],
+    }),
+    variant: one(copyVariant),
   }),
+);
+
+export const copyVariantRelations = relations(copyVariant, ({ one, many }) => ({
+  unit: one(copyGenerationUnit, {
+    fields: [copyVariant.copyGenerationUnitId],
+    references: [copyGenerationUnit.id],
+  }),
+  revisions: many(draftRevision),
 }));
+
+export const draftRevisionCommandReceiptRelations = relations(
+  draftRevisionCommandReceipt,
+  ({ one }) => ({
+    actor: one(user, {
+      fields: [draftRevisionCommandReceipt.actorId],
+      references: [user.id],
+    }),
+    platformDraft: one(platformDraft, {
+      fields: [draftRevisionCommandReceipt.platformDraftId],
+      references: [platformDraft.id],
+    }),
+    resultingDraftRevision: one(draftRevision, {
+      fields: [draftRevisionCommandReceipt.resultingDraftRevisionId],
+      references: [draftRevision.id],
+    }),
+  }),
+);
 
 export const savedCardRelations = relations(savedCard, ({ one }) => ({
   platformDraft: one(platformDraft, {
@@ -216,15 +307,119 @@ export const approvalRelations = relations(approval, ({ one }) => ({
 }));
 
 export const mediaAssetRelations = relations(mediaAsset, ({ many }) => ({
-  derivations: many(mediaDerivation),
+  sourceDerivations: many(mediaDerivation, {
+    relationName: "mediaDerivationSource",
+  }),
+  derivedDerivations: many(mediaDerivation, {
+    relationName: "mediaDerivationDerived",
+  }),
+  referenceImageGenerations: many(imageGeneration, {
+    relationName: "imageGenerationReference",
+  }),
+  originalImageGenerations: many(imageGeneration, {
+    relationName: "imageGenerationOriginal",
+  }),
+  finalImageGenerations: many(imageGeneration, {
+    relationName: "imageGenerationFinal",
+  }),
 }));
 
 export const mediaDerivationRelations = relations(
   mediaDerivation,
   ({ one }) => ({
-    mediaAsset: one(mediaAsset, {
-      fields: [mediaDerivation.mediaAssetId],
+    sourceMediaAsset: one(mediaAsset, {
+      fields: [mediaDerivation.sourceMediaAssetId],
       references: [mediaAsset.id],
+      relationName: "mediaDerivationSource",
+    }),
+    derivedMediaAsset: one(mediaAsset, {
+      fields: [mediaDerivation.derivedMediaAssetId],
+      references: [mediaAsset.id],
+      relationName: "mediaDerivationDerived",
+    }),
+  }),
+);
+
+export const imageBriefRelations = relations(imageBrief, ({ one, many }) => ({
+  draftRevision: one(draftRevision, {
+    fields: [imageBrief.draftRevisionId],
+    references: [draftRevision.id],
+  }),
+  repeatedMemory: one(imageVarietyMemory, {
+    fields: [imageBrief.repeatedImageVarietyMemoryId],
+    references: [imageVarietyMemory.id],
+  }),
+  templateSelectionOperationAttempt: one(operationAttempt, {
+    fields: [imageBrief.templateSelectionOperationAttemptId],
+    references: [operationAttempt.id],
+  }),
+  creativeBriefOperationAttempt: one(operationAttempt, {
+    fields: [imageBrief.creativeBriefOperationAttemptId],
+    references: [operationAttempt.id],
+  }),
+  rssSourceItemEnrichment: one(sourceItemEnrichment, {
+    fields: [imageBrief.rssSourceItemEnrichmentId],
+    references: [sourceItemEnrichment.id],
+  }),
+  telegramSourceItemRevision: one(sourceItemRevision, {
+    fields: [imageBrief.telegramSourceItemRevisionId],
+    references: [sourceItemRevision.id],
+  }),
+  promoIdea: one(promoIdea, {
+    fields: [imageBrief.promoIdeaId],
+    references: [promoIdea.id],
+  }),
+  imageGenerations: many(imageGeneration),
+}));
+
+export const imageGenerationRelations = relations(
+  imageGeneration,
+  ({ one }) => ({
+    operation: one(operation, {
+      fields: [imageGeneration.operationId],
+      references: [operation.id],
+    }),
+    draftRevision: one(draftRevision, {
+      fields: [imageGeneration.draftRevisionId],
+      references: [draftRevision.id],
+    }),
+    imageBrief: one(imageBrief, {
+      fields: [imageGeneration.imageBriefId],
+      references: [imageBrief.id],
+    }),
+    referenceMediaAsset: one(mediaAsset, {
+      fields: [imageGeneration.referenceMediaAssetId],
+      references: [mediaAsset.id],
+      relationName: "imageGenerationReference",
+    }),
+    providerGenerationOperationAttempt: one(operationAttempt, {
+      fields: [imageGeneration.providerGenerationOperationAttemptId],
+      references: [operationAttempt.id],
+    }),
+    providerOriginalMediaAsset: one(mediaAsset, {
+      fields: [imageGeneration.providerOriginalMediaAssetId],
+      references: [mediaAsset.id],
+      relationName: "imageGenerationOriginal",
+    }),
+    finalMediaAsset: one(mediaAsset, {
+      fields: [imageGeneration.finalMediaAssetId],
+      references: [mediaAsset.id],
+      relationName: "imageGenerationFinal",
+    }),
+    varietyMemory: one(imageVarietyMemory),
+  }),
+);
+
+export const imageVarietyMemoryRelations = relations(
+  imageVarietyMemory,
+  ({ one }) => ({
+    mediaBrand: one(mediaBrand, {
+      fields: [imageVarietyMemory.mediaBrandId],
+      references: [mediaBrand.id],
+    }),
+    imageGeneration: one(imageGeneration, {
+      fields: [imageVarietyMemory.imageGenerationId],
+      references: [imageGeneration.operationId],
     }),
   }),
 );
@@ -236,6 +431,8 @@ export const operationRelations = relations(operation, ({ one, many }) => ({
   }),
   attempts: many(operationAttempt),
   usageEvents: many(aiUsageEvent),
+  copyGeneration: one(copyGeneration),
+  imageGeneration: one(imageGeneration),
   publish: one(publishOperation),
   sourceImport: one(sourceImport),
   outboxEvents: many(outboxEvent),

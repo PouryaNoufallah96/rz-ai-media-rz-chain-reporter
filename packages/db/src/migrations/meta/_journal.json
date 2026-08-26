@@ -113,6 +113,27 @@
       "when": 1787551758497,
       "tag": "0015_daffy_the_hood",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1787608835309,
+      "tag": "0016_uneven_namora",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1787670500835,
+      "tag": "0017_transient_operator_direction",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787692452236,
+      "tag": "0018_new_red_skull",
+      "breakpoints": true
     }
   ]
 }

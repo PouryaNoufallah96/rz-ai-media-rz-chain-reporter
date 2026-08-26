@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 5,
   "customer": {
     "key": "demo-sports",
     "productName": "Demo Sports Desk",
@@ -37,6 +37,38 @@
       "promo-ideas:standard": {
         "backend": "remote",
         "model": "openai/gpt-4o-mini"
+      },
+      "copy-generation:standard": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4.1-mini"
+        }
+      },
+      "image-template-selection": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini",
+        "fallback": {
+          "backend": "remote",
+          "model": "google/gemini-2.5-flash"
+        }
+      },
+      "image-creative-brief": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini",
+        "fallback": {
+          "backend": "remote",
+          "model": "google/gemini-2.5-flash"
+        }
+      },
+      "image-generation:standard-image": {
+        "backend": "remote",
+        "model": "openai/gpt-5.4-image-2",
+        "fallback": {
+          "backend": "remote",
+          "model": "google/gemini-3.1-flash-image"
+        }
       }
     }
   },
@@ -52,6 +84,7 @@
       "x",
       "instagram"
     ],
+    "topicAliases": [],
     "defaults": {
       "brands": [
         "match-day",
@@ -81,6 +114,98 @@
     "promo": {
       "ideaCount": 3,
       "promptMaxChars": 800
+    },
+    "drafting": {
+      "copy": {
+        "fetchMinimumChars": 1500,
+        "modelMaxChars": 6000,
+        "platforms": [
+          {
+            "platform": "telegram",
+            "variants": [
+              {
+                "key": "match_report",
+                "instruction": "Lead with the result or confirmed development, then add the most useful match context."
+              },
+              {
+                "key": "analysis",
+                "instruction": "Explain the sporting consequence using only confirmed match or competition facts."
+              },
+              {
+                "key": "quick_take",
+                "instruction": "Deliver the essential confirmed update in a compact newsroom form."
+              }
+            ],
+            "assembledCharacters": {
+              "min": 240,
+              "max": 500
+            },
+            "hashtags": {
+              "min": 2,
+              "max": 4
+            },
+            "emojiGraphemeCap": 2
+          },
+          {
+            "platform": "x",
+            "variants": [
+              {
+                "key": "update",
+                "instruction": "State the newest confirmed sports fact first and keep the consequence clear."
+              },
+              {
+                "key": "question",
+                "instruction": "Frame one focused question that the confirmed result or report can answer."
+              },
+              {
+                "key": "reaction",
+                "instruction": "Offer a concise evidence-based reaction without speculating about private decisions."
+              }
+            ],
+            "assembledCharacters": {
+              "min": 120,
+              "max": 240
+            },
+            "hashtags": {
+              "min": 1,
+              "max": 2
+            },
+            "emojiGraphemeCap": 1
+          },
+          {
+            "platform": "instagram",
+            "variants": [
+              {
+                "key": "story",
+                "instruction": "Build a clear match-day narrative from the confirmed sequence of events."
+              },
+              {
+                "key": "discussion",
+                "instruction": "Open with the confirmed development and invite a focused sporting discussion."
+              }
+            ],
+            "assembledCharacters": {
+              "min": 400,
+              "max": 900
+            },
+            "hashtags": {
+              "min": 3,
+              "max": 5
+            },
+            "emojiGraphemeCap": 6
+          }
+        ]
+      },
+      "image": {
+        "models": [
+          {
+            "key": "standard-image",
+            "name": "Standard Image",
+            "enabled": true
+          }
+        ],
+        "defaultModelKey": "standard-image"
+      }
     },
     "semantic": {
       "maxCandidates": 200,
@@ -112,7 +237,8 @@
         }
       },
       "thresholds": {
-        "policyScore": 18
+        "policyScore": 18,
+        "lexicalTopicScore": 40
       },
       "freshnessLadder": [
         {
@@ -217,6 +343,13 @@
       "key": "match-day",
       "name": "Match Day",
       "imageProfile": "image-profiles/match-day.json",
+      "brandLogo": {
+        "path": "brand-logos/match-day.png",
+        "mimeType": "image/png",
+        "pixelWidth": 400,
+        "pixelHeight": 400,
+        "sha256": "2a5c0ce22fc143282f65c701dcb51c8aa7eea22e24cc5f4521a4ca9cd366634f"
+      },
       "editorial": {
         "mediaFitThreshold": 22,
         "strongTerms": [
@@ -328,7 +461,11 @@
           "derby day",
           "stoppage-time winner"
         ],
-        "promoEnabled": true
+        "promoEnabled": true,
+        "canonicalHashtags": {
+          "en": "#MatchDay",
+          "fa": "#روز_مسابقه"
+        }
       }
     },
     {
@@ -425,7 +562,11 @@
           "deadline day signing",
           "contract extension"
         ],
-        "promoEnabled": true
+        "promoEnabled": true,
+        "canonicalHashtags": {
+          "en": "#TransferDesk",
+          "fa": "#میز_نقل_و_انتقال"
+        }
       }
     },
     {
@@ -514,7 +655,11 @@
           "training camp schedule",
           "squad rotation plan"
         ],
-        "promoEnabled": false
+        "promoEnabled": false,
+        "canonicalHashtags": {
+          "en": "#TrainingGround",
+          "fa": "#زمین_تمرین"
+        }
       }
     }
   ],
