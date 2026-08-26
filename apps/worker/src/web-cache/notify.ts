@@ -6,6 +6,14 @@ import {
 import { workerLogger } from "../logging/logger";
 import { workerEnv } from "../runtime/env";
 
+const CACHE_FLUSH_SETTLE_MS = 250;
+
+export function waitForCacheFlush() {
+  return new Promise<void>((resolve) =>
+    setTimeout(resolve, CACHE_FLUSH_SETTLE_MS),
+  );
+}
+
 export function reportCacheInvalidationConfiguration() {
   const hasSecret = workerEnv.CACHE_INVALIDATION_WEBHOOK_SECRET !== undefined;
   const hasBaseUrl = workerEnv.WEB_INTERNAL_BASE_URL !== undefined;

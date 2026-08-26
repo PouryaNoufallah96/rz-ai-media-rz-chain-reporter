@@ -12,7 +12,7 @@ export type ModelBindings = {
 
 export type ModelCallObservation = Omit<
   FinalizeUsageInput,
-  "finalizedAt" | "id" | "status"
+  "claimFence" | "finalizedAt" | "id" | "status"
 >;
 
 export type ObservedModelStep = {
@@ -58,7 +58,22 @@ export type EmbeddingAdapterResult = {
   responseBody: unknown;
 };
 
+export type ImageAdapterInput = {
+  abortSignal?: AbortSignal;
+  deadlineMs: number;
+  model: string;
+  prompt: string;
+  reference?: { bytes: Uint8Array; mimeType: string };
+};
+
+export type ImageAdapterResult = {
+  bytes: Uint8Array;
+  mimeType: string;
+  observation: ModelCallObservation;
+};
+
 export interface ModelAdapter {
+  embedMany?(input: EmbeddingAdapterInput): Promise<EmbeddingAdapterResult>;
   generateStructured<TOutput>(
     input: StructuredAdapterInput<TOutput>,
   ): Promise<StructuredAdapterResult<TOutput>>;
@@ -66,6 +81,7 @@ export interface ModelAdapter {
 
 export interface RemoteModelAdapter extends ModelAdapter {
   embedMany(input: EmbeddingAdapterInput): Promise<EmbeddingAdapterResult>;
+  generateImage(input: ImageAdapterInput): Promise<ImageAdapterResult>;
 }
 
 export type StructuredModelInvocation<TOutput> = {
@@ -77,11 +93,25 @@ export type StructuredModelInvocation<TOutput> = {
   operationAttemptId: string;
   operationId: string;
   outputName: string;
+  persistDefiniteFailure?: (
+    tx: Transaction,
+    failure: StructuredModelDefiniteFailure,
+  ) => Promise<void>;
   persistResult: (tx: Transaction, output: TOutput) => Promise<void>;
   prompt: string;
   schema: z.ZodType<TOutput>;
   taskKey: ModelTaskKey;
   workspaceId: string;
+  claimFence?: ModelInvocationClaimFence;
+};
+
+export type ModelInvocationClaimFence = {
+  claimedBy: string;
+  expectedVersion: number;
+};
+
+export type StructuredModelDefiniteFailure = {
+  code: "STRUCTURED_OUTPUT_INVALID";
 };
 
 export type StructuredModelResult<TOutput> = {
@@ -104,5 +134,50 @@ export type EmbeddingModelInvocation = {
 export type EmbeddingModelResult = {
   embeddings: number[][];
   responseBody: unknown;
+  usageEventId: string;
+};
+
+export type PreparedImageResult = {
+  actualBytes: number;
+  checksum: string;
+  height: number;
+  mediaAssetId: string;
+  mimeType: string;
+  objectKey: string;
+  width: number;
+};
+
+export type ImageModelInvocation = {
+  abortSignal?: AbortSignal;
+  deadlineMs: number;
+  invocationKey: InvocationKey;
+  operationAttemptId: string;
+  operationId: string;
+  persistResult: (
+    tx: Transaction,
+    result: PreparedImageResult,
+  ) => Promise<void>;
+  compensatePreparedResult: (
+    result: PreparedImageResult,
+  ) => Promise<"compensated" | "uncertain">;
+  rejectUnpreparedResult: () => Promise<"rejected" | "uncertain">;
+  resolvePreparedResult: (
+    result: PreparedImageResult,
+    usageEventId: string,
+  ) => Promise<"absent" | "committed" | "uncertain">;
+  prepareResult: (input: {
+    bytes: Uint8Array;
+    mimeType: string;
+    usageEventId: string;
+  }) => Promise<PreparedImageResult>;
+  prompt: string;
+  reference?: { bytes: Uint8Array; mimeType: string };
+  taskKey: ModelTaskKey;
+  workspaceId: string;
+  claimFence?: ModelInvocationClaimFence;
+};
+
+export type ImageModelResult = {
+  prepared: PreparedImageResult;
   usageEventId: string;
 };

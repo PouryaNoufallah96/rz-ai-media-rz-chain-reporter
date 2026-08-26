@@ -1,10 +1,14 @@
 import {
   OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME,
   OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME,
+  OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
+  OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME,
   OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
 } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import { findAnalysisRunByOperationId } from "@rz-chain-reporter/db/repositories/analysis-run";
+import { findCopyExecutionContext } from "@rz-chain-reporter/db/repositories/copy-generation";
+import { findImageExecutionContext } from "@rz-chain-reporter/db/repositories/image-generation";
 import {
   claimOutboxEvents,
   markOutboxDispatched,
@@ -18,6 +22,7 @@ import {
 } from "../inngest/events";
 import { workerLogger } from "../logging/logger";
 import { abortableDelay } from "../runtime/delay";
+import { notifyDraftsChangedNow } from "../web-cache/drafts";
 import { notifyEditorialChangedNow } from "../web-cache/editorial";
 import {
   notifySourcesCacheChanged,
@@ -26,8 +31,8 @@ import {
 
 type ClaimedOutboxEvent = Awaited<ReturnType<typeof claimOutboxEvents>>[number];
 
-const BATCH_SIZE = 20;
-const LEASE_DURATION_MS = 30_000;
+const BATCH_SIZE = 5;
+const LEASE_DURATION_MS = 120_000;
 const MAX_ATTEMPTS = 8;
 const MAX_BACKOFF_MS = 60_000;
 const POLL_INTERVAL_MS = 500;
@@ -104,15 +109,28 @@ export class OutboxRelay {
           }
         }
 
-        const analysisDispatchChanges: ClaimedOutboxEvent[] = [];
-        for (const event of events) {
-          const changed = await this.dispatch(event);
-          if (changed && this.isAnalysisRunEvent(event)) {
-            analysisDispatchChanges.push(event);
-          }
-        }
-        for (const event of analysisDispatchChanges) {
-          await this.notifyAnalysisRunDispatchChanged(event);
+        const dispatches = await Promise.allSettled(
+          events.map(async (event) => ({
+            changed: await this.dispatch(event),
+            event,
+          })),
+        );
+        const completed = dispatches.flatMap((result) =>
+          result.status === "fulfilled" ? [result.value] : [],
+        );
+        await Promise.allSettled(
+          completed
+            .filter(
+              ({ changed, event }) => changed && this.isAnalysisRunEvent(event),
+            )
+            .map(({ event }) => this.notifyAnalysisRunDispatchChanged(event)),
+        );
+
+        if (completed.length !== dispatches.length) {
+          workerLogger.error("worker.relay.batch-failed", {
+            errorCode: "OUTBOX_RELAY_BATCH_FAILED",
+          });
+          await abortableDelay(POLL_INTERVAL_MS, this.abortController.signal);
         }
 
         if (events.length === 0) {
@@ -155,6 +173,8 @@ export class OutboxRelay {
         workspaceId: event.workspaceId,
       });
       await this.notifySourceImportDispatchChanged(event);
+      await this.notifyCopyDispatchChanged(event, "queued");
+      await this.notifyImageDispatchChanged(event, "queued");
       return true;
     } catch (error) {
       const failure = failureCode(error);
@@ -193,6 +213,14 @@ export class OutboxRelay {
         },
       );
       await this.notifySourceImportDispatchChanged(event);
+      await this.notifyCopyDispatchChanged(
+        event,
+        exhausted ? "dispatch_exhausted" : "queued",
+      );
+      await this.notifyImageDispatchChanged(
+        event,
+        exhausted ? "dispatch_exhausted" : "queued",
+      );
       return true;
     }
   }
@@ -223,6 +251,69 @@ export class OutboxRelay {
       }
     } catch {
       workerLogger.warn("worker.editorial.cache-notification-unavailable", {
+        operationId: event.operationId,
+        workspaceId: event.workspaceId,
+      });
+    }
+  }
+
+  private async notifyCopyDispatchChanged(
+    event: ClaimedOutboxEvent,
+    code: "dispatch_exhausted" | "queued",
+  ) {
+    if (event.eventType !== OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME) {
+      return;
+    }
+    try {
+      const context = await findCopyExecutionContext(
+        this.executor,
+        event.workspaceId,
+        event.operationId,
+      );
+      if (context) {
+        await notifyDraftsChangedNow(this.client, event.workspaceId, {
+          analysisRunId: context.analysisRunId,
+          code,
+          operationId: event.operationId,
+          platformDraftId: context.platformDraftId,
+        });
+      }
+    } catch {
+      workerLogger.warn("worker.drafts.cache-notification-unavailable", {
+        operationId: event.operationId,
+        workspaceId: event.workspaceId,
+      });
+    }
+  }
+
+  private async notifyImageDispatchChanged(
+    event: ClaimedOutboxEvent,
+    code: "dispatch_exhausted" | "queued",
+  ) {
+    if (event.eventType !== OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME) {
+      return;
+    }
+    try {
+      const context = await findImageExecutionContext(
+        this.executor,
+        event.workspaceId,
+        event.operationId,
+      );
+      if (!context) return;
+      const copy = await findCopyExecutionContext(
+        this.executor,
+        event.workspaceId,
+        context.copyOperationId,
+      );
+      if (!copy) return;
+      await notifyDraftsChangedNow(this.client, event.workspaceId, {
+        analysisRunId: copy.analysisRunId,
+        code,
+        operationId: event.operationId,
+        platformDraftId: context.platformDraftId,
+      });
+    } catch {
+      workerLogger.warn("worker.drafts.cache-notification-unavailable", {
         operationId: event.operationId,
         workspaceId: event.workspaceId,
       });

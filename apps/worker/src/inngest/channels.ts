@@ -1,5 +1,9 @@
-import type { OperationStatusRealtimeMessage } from "@rz-chain-reporter/contracts";
+import type {
+  DraftsChangedRealtimeMessage,
+  OperationStatusRealtimeMessage,
+} from "@rz-chain-reporter/contracts";
 import {
+  draftsRealtimeChannel,
   editorialRealtimeChannel,
   operationsRealtimeChannel,
   sourcesRealtimeChannel,
@@ -136,6 +140,48 @@ export function publishUsageLedgerChanged(
     .then(() => true)
     .catch(() => {
       workerLogger.warn("worker.usage-ledger.realtime-unavailable", {
+        workspaceId,
+      });
+      return false;
+    });
+}
+
+export function publishDraftsChanged(
+  step: WorkerStep,
+  workspaceId: string,
+  message: DraftsChangedRealtimeMessage,
+  callSite: string,
+) {
+  return step.realtime
+    .publish(
+      `publish-drafts-changed-${callSite}`,
+      draftsRealtimeChannel(workspaceId, message.analysisRunId).changed,
+      message,
+    )
+    .then(() => true)
+    .catch(() => {
+      workerLogger.warn("worker.drafts.realtime-unavailable", {
+        operationId: message.operationId,
+        workspaceId,
+      });
+      return false;
+    });
+}
+
+export function publishDraftsChangedNow(
+  client: WorkerInngestClient,
+  workspaceId: string,
+  message: DraftsChangedRealtimeMessage,
+) {
+  return client.realtime
+    .publish(
+      draftsRealtimeChannel(workspaceId, message.analysisRunId).changed,
+      message,
+    )
+    .then(() => true)
+    .catch(() => {
+      workerLogger.warn("worker.drafts.realtime-unavailable", {
+        operationId: message.operationId,
         workspaceId,
       });
       return false;

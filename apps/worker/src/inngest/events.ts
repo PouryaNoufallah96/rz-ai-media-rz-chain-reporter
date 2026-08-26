@@ -1,18 +1,26 @@
 import {
   analysisRunCancelledPayloadSchema,
   analysisRunRequestedPayloadSchema,
+  copyGenerationRequestedPayloadSchema,
   DURABLE_EVENT_SCHEMA_VERSION,
+  imageGenerationRequestedPayloadSchema,
   MEDIA_UPLOAD_CONFIRMED_EVENT_NAME,
   mediaUploadConfirmedPayloadSchema,
   OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME,
   OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME,
+  OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
   OPERATION_GENERATION_REQUESTED_EVENT_NAME,
+  OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME,
   OPERATION_SCHEDULED_EFFECT_REQUESTED_EVENT_NAME,
+  OPERATION_SOURCE_IMPORT_READY_EVENT_NAME,
   OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
   operationGenerationRequestedPayloadSchema,
   operationScheduledEffectRequestedPayloadSchema,
+  operationSourceImportReadyPayloadSchema,
   operationSourceImportRequestedPayloadSchema,
+  SOURCE_IMPORT_ENRICHMENT_REQUESTED_EVENT_NAME,
   STORAGE_RECONCILIATION_REQUESTED_EVENT_NAME,
+  sourceImportEnrichmentRequestedPayloadSchema,
   storageReconciliationRequestedPayloadSchema,
 } from "@rz-chain-reporter/contracts";
 import { eventType } from "inngest";
@@ -38,6 +46,20 @@ export const durableEvents = {
       version: eventVersion,
     },
   ),
+  operationCopyGenerationRequested: eventType(
+    OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
+    {
+      schema: copyGenerationRequestedPayloadSchema,
+      version: eventVersion,
+    },
+  ),
+  operationImageGenerationRequested: eventType(
+    OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME,
+    {
+      schema: imageGenerationRequestedPayloadSchema,
+      version: eventVersion,
+    },
+  ),
   operationGenerationRequested: eventType(
     OPERATION_GENERATION_REQUESTED_EVENT_NAME,
     {
@@ -56,6 +78,17 @@ export const durableEvents = {
     OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
     {
       schema: operationSourceImportRequestedPayloadSchema,
+      version: eventVersion,
+    },
+  ),
+  sourceImportReady: eventType(OPERATION_SOURCE_IMPORT_READY_EVENT_NAME, {
+    schema: operationSourceImportReadyPayloadSchema,
+    version: eventVersion,
+  }),
+  sourceImportEnrichmentRequested: eventType(
+    SOURCE_IMPORT_ENRICHMENT_REQUESTED_EVENT_NAME,
+    {
+      schema: sourceImportEnrichmentRequestedPayloadSchema,
       version: eventVersion,
     },
   ),
@@ -99,6 +132,18 @@ export function createInngestEvent(outbox: OutboxEvent) {
   const eventId = `outbox:${outbox.eventType}:${outbox.id}`;
 
   switch (outbox.eventType) {
+    case OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME: {
+      const payload = copyGenerationRequestedPayloadSchema.safeParse(
+        outbox.payload,
+      );
+      if (!payload.success) {
+        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+      }
+      return durableEvents.operationCopyGenerationRequested.create(
+        payload.data,
+        { id: eventId },
+      );
+    }
     case OPERATION_GENERATION_REQUESTED_EVENT_NAME: {
       const payload = operationGenerationRequestedPayloadSchema.safeParse(
         outbox.payload,
@@ -109,6 +154,18 @@ export function createInngestEvent(outbox: OutboxEvent) {
       return durableEvents.operationGenerationRequested.create(payload.data, {
         id: eventId,
       });
+    }
+    case OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME: {
+      const payload = imageGenerationRequestedPayloadSchema.safeParse(
+        outbox.payload,
+      );
+      if (!payload.success) {
+        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+      }
+      return durableEvents.operationImageGenerationRequested.create(
+        payload.data,
+        { id: eventId },
+      );
     }
     case OPERATION_SCHEDULED_EFFECT_REQUESTED_EVENT_NAME: {
       const payload = operationScheduledEffectRequestedPayloadSchema.safeParse(

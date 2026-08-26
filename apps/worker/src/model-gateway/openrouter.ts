@@ -1,17 +1,26 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { APICallError, type EmbeddingModel, embedMany } from "ai";
+import type { EmbedManyResult } from "ai";
 import { z } from "zod";
 
 import { AdapterInvocationError } from "./errors";
-import { generateStructured } from "./generate";
+import {
+  generateEmbeddings,
+  generateImageOnce,
+  generateStructured,
+} from "./generate";
 import type {
-  EmbeddingAdapterInput,
-  EmbeddingAdapterResult,
+  ImageAdapterInput,
+  ImageAdapterResult,
   ModelCallObservation,
   ObservedModelStep,
   RemoteModelAdapter,
 } from "./types";
-import { commonObservation } from "./usage";
+import {
+  commonObservation,
+  readProviderFailure,
+  recordProviderFailure,
+} from "./usage";
 
 const openRouterMetadataSchema = z.object({
   openrouter: z.object({
@@ -30,122 +39,190 @@ const openRouterMetadataSchema = z.object({
   }),
 });
 
-export function createOpenRouterAdapter(apiKey: string): RemoteModelAdapter {
+const imageResponseMetadataSchema = z.looseObject({
+  id: z.string().min(1).optional(),
+  model: z.string().min(1).optional(),
+  usage: z
+    .looseObject({
+      completion_tokens: z.number().finite().nonnegative().optional(),
+      cost: z.number().finite().nonnegative().optional(),
+      prompt_tokens: z.number().finite().nonnegative().optional(),
+      total_tokens: z.number().finite().nonnegative().optional(),
+    })
+    .optional(),
+});
+
+type ImageResponseMetadata = z.infer<typeof imageResponseMetadataSchema>;
+
+export function createOpenRouterAdapter(
+  apiKey: string,
+  options: { fetch?: typeof fetch } = {},
+): RemoteModelAdapter {
   let provider: ReturnType<typeof createOpenRouter> | undefined;
+  const responseMetadata = new AsyncLocalStorage<{
+    body?: ImageResponseMetadata;
+    headers?: Record<string, string>;
+  }>();
+  const observedFetch: typeof fetch = async (input, init) => {
+    const response = await (options.fetch ?? fetch)(input, init);
+    const observer = responseMetadata.getStore();
+    if (observer && response.ok) {
+      observer.headers = Object.fromEntries(response.headers.entries());
+      const parsed = imageResponseMetadataSchema.safeParse(
+        await response
+          .clone()
+          .json()
+          .catch(() => null),
+      );
+      if (parsed.success) observer.body = parsed.data;
+    }
+    return response;
+  };
+
+  const getProvider = () =>
+    (provider ??= createOpenRouter({
+      apiKey,
+      compatibility: "strict",
+      fetch: observedFetch,
+    }));
 
   return {
     embedMany(input) {
-      provider ??= createOpenRouter({ apiKey, compatibility: "strict" });
+      return generateEmbeddings(
+        getProvider().textEmbeddingModel(input.model),
+        input,
+        emptyObservation(),
+        observeOpenRouterEmbedding,
+      );
+    },
 
-      return embedManyRemote(provider.textEmbeddingModel(input.model), input);
+    async generateImage(input: ImageAdapterInput): Promise<ImageAdapterResult> {
+      const observer: {
+        body?: ImageResponseMetadata;
+        headers?: Record<string, string>;
+      } = {};
+      let generated: Awaited<ReturnType<typeof generateImageOnce>>;
+      try {
+        generated = await responseMetadata.run(observer, () =>
+          generateImageOnce(getProvider().imageModel(input.model), input),
+        );
+      } catch (error) {
+        if (!(error instanceof AdapterInvocationError)) throw error;
+        const observation = mergeImageFailureObservation(
+          error.observation,
+          inlineImageObservation(
+            observer.headers?.["x-generation-id"] ?? observer.body?.id,
+            observer.body,
+          ),
+        );
+        const observedError = new AdapterInvocationError(
+          error.kind,
+          error.retryable,
+          observation,
+        );
+        const diagnosis = readProviderFailure(error);
+        throw diagnosis
+          ? recordProviderFailure(observedError, diagnosis)
+          : observedError;
+      }
+      const generationId =
+        observer.headers?.["x-generation-id"] ?? observer.body?.id;
+      const inlineObservation = inlineImageObservation(
+        generationId,
+        observer.body,
+        generated.usage,
+      );
+      if (generated.responses.length !== 1 || !generationId) {
+        throw new AdapterInvocationError("unknown", false, inlineObservation);
+      }
+      return {
+        bytes: generated.bytes,
+        mimeType: generated.mimeType,
+        observation: inlineObservation,
+      };
     },
 
     generateStructured(input) {
-      provider ??= createOpenRouter({ apiKey, compatibility: "strict" });
-      const model = provider.chat(input.model);
+      const model = getProvider().chat(input.model);
 
       return generateStructured(
         model,
         input,
-        emptyObservation(input.model),
+        emptyObservation(),
         observeOpenRouterStep,
       );
     },
   };
 }
 
-async function embedManyRemote(
-  model: EmbeddingModel,
-  input: EmbeddingAdapterInput,
-): Promise<EmbeddingAdapterResult> {
-  const deadline = AbortSignal.timeout(input.deadlineMs);
-  const result = await embedMany({
-    model,
-    values: input.values,
-    maxRetries: 0,
-    abortSignal: input.abortSignal
-      ? AbortSignal.any([input.abortSignal, deadline])
-      : deadline,
-    telemetry: {
-      functionId: "model-gateway.embed-many",
-      isEnabled: true,
-      recordInputs: false,
-      recordOutputs: false,
-    },
-  }).catch((error: unknown) => {
-    throw classifyEmbeddingFailure(error, input);
-  });
-
+function observeOpenRouterEmbedding(
+  result: EmbedManyResult,
+): ModelCallObservation {
   const parsed = openRouterMetadataSchema.safeParse(result.providerMetadata);
   const metadata = parsed.success ? parsed.data.openrouter : undefined;
   const usage = metadata?.usage;
-  const observation: ModelCallObservation = {
+
+  return {
     completionTokens: finiteTokens(usage?.completionTokens),
     costAuthority: usage?.cost === undefined ? "unknown" : "billed_openrouter",
     generationId: null,
     openrouterCost: usage?.cost === undefined ? undefined : String(usage.cost),
     promptTokens: finiteTokens(usage?.promptTokens ?? result.usage.tokens),
-    resolvedModel: input.model,
     totalTokens: finiteTokens(usage?.totalTokens ?? result.usage.tokens),
     upstreamProvider: metadata?.provider,
   };
+}
 
-  const dimension = result.embeddings[0]?.length ?? 0;
-  if (
-    result.embeddings.length !== input.values.length ||
-    dimension === 0 ||
-    result.embeddings.some(
-      (vector) =>
-        vector.length !== dimension ||
-        vector.some((value) => !Number.isFinite(value)),
-    )
-  ) {
-    throw new AdapterInvocationError("failed", false, observation);
-  }
+function inlineImageObservation(
+  generationId: string | undefined,
+  response: ImageResponseMetadata | undefined,
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+  },
+): ModelCallObservation {
+  const responseUsage = response?.usage;
+  const openrouterCost = responseUsage?.cost;
 
   return {
-    embeddings: result.embeddings,
-    observation,
-    responseBody: result.responses?.[0]?.body,
+    costAuthority:
+      openrouterCost === undefined ? "unknown" : "billed_openrouter",
+    ...(generationId === undefined ? {} : { generationId }),
+    ...(openrouterCost === undefined
+      ? {}
+      : { openrouterCost: String(openrouterCost) }),
+    promptTokens: finiteTokens(
+      responseUsage?.prompt_tokens ?? usage?.inputTokens,
+    ),
+    ...(response?.model === undefined ? {} : { resolvedModel: response.model }),
+    totalTokens: finiteTokens(
+      responseUsage?.total_tokens ?? usage?.totalTokens,
+    ),
+    completionTokens: finiteTokens(
+      responseUsage?.completion_tokens ?? usage?.outputTokens,
+    ),
   };
 }
 
-function classifyEmbeddingFailure(
-  error: unknown,
-  input: EmbeddingAdapterInput,
-): AdapterInvocationError {
-  const observation = emptyObservation(input.model);
-
-  if (input.abortSignal?.aborted) {
-    return new AdapterInvocationError("cancelled", false, observation);
-  }
-
-  if (
-    (error instanceof Error || error instanceof DOMException) &&
-    (error.name === "TimeoutError" || error.name === "AbortError")
-  ) {
-    return new AdapterInvocationError("unknown", false, observation);
-  }
-
-  if (APICallError.isInstance(error)) {
-    return new AdapterInvocationError(
-      error.statusCode === undefined ? "unknown" : "failed",
-      error.isRetryable,
-      observation,
-    );
-  }
-
-  return new AdapterInvocationError("failed", false, observation);
+function mergeImageFailureObservation(
+  failure: ModelCallObservation,
+  inline: ModelCallObservation,
+): ModelCallObservation {
+  return {
+    ...failure,
+    ...inline,
+    finishReason: failure.finishReason ?? inline.finishReason,
+  };
 }
 
 function finiteTokens(tokens: number | undefined) {
   return tokens === undefined || !Number.isFinite(tokens) ? null : tokens;
 }
 
-function emptyObservation(model: string): ModelCallObservation {
+function emptyObservation(): ModelCallObservation {
   return {
     costAuthority: "unknown",
-    resolvedModel: model,
   };
 }
 
