@@ -4,26 +4,37 @@ import {
 } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import {
+  findCopyExecutionContext,
+  listStaleCopyOperations,
+  settleStaleCopyOperation,
+} from "@rz-chain-reporter/db/repositories/copy-generation";
+import {
+  findImageExecutionContext,
+  findOldestImageOperationForBrand,
+  listStaleImageOperations,
+  settleStaleImageOperation,
+} from "@rz-chain-reporter/db/repositories/image-generation";
+import {
   expirePendingMedia,
   getMediaAssetByObjectKey,
   listMediaReconciliationCandidates,
-  markMediaDeleteFailed,
-  markMediaObjectRemoved,
   requeueStaleMediaValidation,
 } from "@rz-chain-reporter/db/repositories/media-asset";
 import type { Storage } from "@rz-chain-reporter/storage";
 import { NonRetriableError } from "inngest";
 import { z } from "zod";
-
+import { type DraftChange, notifyDraftsChanged } from "../web-cache/drafts";
 import type { WorkerInngestClient } from "./client";
 import { durableEvents } from "./events";
 import { workerStorage } from "./media-storage";
-import { verifyMediaUpload } from "./media-verification";
+import { cleanupMediaAsset, verifyMediaUpload } from "./media-verification";
 import { assertWorkspace, type WorkerRuntime } from "./runtime";
 
 const RECONCILIATION_BATCH_SIZE = 25;
 const OBJECT_ORPHAN_GRACE_MS = 60 * 60 * 1000;
 const VALIDATION_STALE_MS = 15 * 60 * 1000;
+const STALE_COPY_OPERATION_BATCH = 10;
+const STALE_IMAGE_OPERATION_BATCH = 10;
 
 type ReconciliationCursor = {
   db?: string | null;
@@ -77,24 +88,16 @@ async function cleanupTerminal(
   workspaceId: string,
   asset: Awaited<ReturnType<typeof listMediaReconciliationCandidates>>[number],
 ) {
-  if (asset.lifecycle !== "rejected" && asset.lifecycle !== "expired") return;
-  try {
-    await storage.delete([asset.objectKey]);
-    await markMediaObjectRemoved(executor, workspaceId, {
-      id: asset.id,
-      version: asset.version,
-      lifecycle: asset.lifecycle,
-    });
-  } catch {
-    await markMediaDeleteFailed(executor, workspaceId, {
-      id: asset.id,
-      version: asset.version,
-      lifecycle: asset.lifecycle,
-    });
-  }
+  if (
+    asset.lifecycle !== "verified" &&
+    asset.lifecycle !== "rejected" &&
+    asset.lifecycle !== "expired"
+  )
+    return;
+  await cleanupMediaAsset(executor, storage, workspaceId, asset);
 }
 
-async function reconcileStorage(
+export async function reconcileStorage(
   executor: Executor,
   storage: Storage,
   workspaceId: string,
@@ -179,6 +182,127 @@ async function reconcileStorage(
   };
 }
 
+export async function reconcileStaleImageOperations(
+  executor: Executor,
+  workspaceId: string,
+  now: Date,
+) {
+  const candidates = await listStaleImageOperations(executor, workspaceId, {
+    limit: STALE_IMAGE_OPERATION_BATCH,
+    now,
+  });
+  const changes: DraftChange[] = [];
+  let settled = 0;
+  for (const candidate of candidates) {
+    const admitted =
+      candidate.lifecycle !== "queued" ||
+      (await findOldestImageOperationForBrand(
+        executor,
+        workspaceId,
+        candidate.mediaBrandId,
+      )) === candidate.operationId;
+    if (!admitted) continue;
+    const outcome = await settleStaleImageOperation(executor, workspaceId, {
+      expectedVersion: candidate.operationVersion,
+      mediaBrandId: candidate.mediaBrandId,
+      now,
+      operationId: candidate.operationId,
+    });
+    if (!outcome) continue;
+    settled += 1;
+    changes.push(
+      await loadSettledDraftChange(
+        executor,
+        workspaceId,
+        candidate.operationId,
+        outcome.operation.lifecycle === "unknown" ? "unknown" : "failed",
+      ),
+    );
+  }
+  return {
+    settledDraftChanges: changes,
+    staleImageOperationsObserved: candidates.length,
+    staleImageOperationsSettled: settled,
+  };
+}
+
+export async function reconcileStaleCopyOperations(
+  executor: Executor,
+  workspaceId: string,
+  now: Date,
+) {
+  const candidates = await listStaleCopyOperations(executor, workspaceId, {
+    limit: STALE_COPY_OPERATION_BATCH,
+    now,
+  });
+  const changes: DraftChange[] = [];
+  for (const candidate of candidates) {
+    const settled = await settleStaleCopyOperation(executor, workspaceId, {
+      expectedVersion: candidate.operationVersion,
+      now,
+      operationId: candidate.operationId,
+    });
+    if (!settled) continue;
+    changes.push(
+      await loadSettledCopyDraftChange(
+        executor,
+        workspaceId,
+        candidate.operationId,
+      ),
+    );
+  }
+  return {
+    settledDraftChanges: changes,
+    staleCopyOperationsObserved: candidates.length,
+    staleCopyOperationsSettled: changes.length,
+  };
+}
+
+async function loadSettledCopyDraftChange(
+  executor: Executor,
+  workspaceId: string,
+  operationId: string,
+): Promise<DraftChange> {
+  const copy = await findCopyExecutionContext(
+    executor,
+    workspaceId,
+    operationId,
+  );
+  if (!copy) throw new NonRetriableError("NOT_FOUND");
+  return {
+    analysisRunId: copy.analysisRunId,
+    code: "failed",
+    operationId,
+    platformDraftId: copy.platformDraftId,
+  };
+}
+
+async function loadSettledDraftChange(
+  executor: Executor,
+  workspaceId: string,
+  operationId: string,
+  code: DraftChange["code"],
+): Promise<DraftChange> {
+  const image = await findImageExecutionContext(
+    executor,
+    workspaceId,
+    operationId,
+  );
+  if (!image) throw new NonRetriableError("NOT_FOUND");
+  const copy = await findCopyExecutionContext(
+    executor,
+    workspaceId,
+    image.copyOperationId,
+  );
+  if (!copy) throw new NonRetriableError("NOT_FOUND");
+  return {
+    analysisRunId: copy.analysisRunId,
+    code,
+    operationId,
+    platformDraftId: image.platformDraftId,
+  };
+}
+
 export function createStorageReconciliationFunction(
   client: WorkerInngestClient,
   runtime: WorkerRuntime,
@@ -211,6 +335,38 @@ export function createStorageReconciliationFunction(
         );
         return { ...reconciliation, workspaceId };
       });
+      if (!("cursor" in event.data && event.data.cursor)) {
+        const staleCopy = await step.run("settle-stale-copy-operations", () =>
+          reconcileStaleCopyOperations(
+            runtime.db,
+            result.workspaceId,
+            new Date(event.ts),
+          ),
+        );
+        for (const change of staleCopy.settledDraftChanges) {
+          await notifyDraftsChanged(
+            step,
+            result.workspaceId,
+            change,
+            `stale-copy-${change.operationId}`,
+          );
+        }
+        const stale = await step.run("settle-stale-image-operations", () =>
+          reconcileStaleImageOperations(
+            runtime.db,
+            result.workspaceId,
+            new Date(event.ts),
+          ),
+        );
+        for (const change of stale.settledDraftChanges) {
+          await notifyDraftsChanged(
+            step,
+            result.workspaceId,
+            change,
+            `stale-image-${change.operationId}`,
+          );
+        }
+      }
       if (result.nextCursor) {
         const continuation =
           durableEvents.storageReconciliationRequested.create({

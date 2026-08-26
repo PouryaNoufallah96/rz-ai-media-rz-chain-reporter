@@ -2,14 +2,14 @@ import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
 import { SimpleCsrfProtectionHandlerPlugin } from "@orpc/server/plugins";
 import { problemResponse, withRequestId } from "@rz-chain-reporter/api/request";
 import type { NextRequest } from "next/server";
-import { MAX_CONTROL_PAYLOAD_BYTES } from "@/lib/payload-limits";
+import { MAX_RPC_MULTIPART_BODY_BYTES } from "@/lib/payload-limits";
 import { createInstallationContext } from "@/server/rpc/context";
 import { appRouter } from "@/server/rpc/routers/index";
 
 const rpcHandler = new RPCHandler(appRouter, {
   plugins: [
     new SimpleCsrfProtectionHandlerPlugin(),
-    new BodyLimitPlugin({ maxBodySize: MAX_CONTROL_PAYLOAD_BYTES }),
+    new BodyLimitPlugin({ maxBodySize: MAX_RPC_MULTIPART_BODY_BYTES }),
   ],
 });
 
@@ -32,7 +32,9 @@ async function handleRequest(req: NextRequest) {
   const context = createInstallationContext(req.headers);
   const { requestId } = context;
 
-  if (Number(req.headers.get("content-length")) > MAX_CONTROL_PAYLOAD_BYTES) {
+  if (
+    Number(req.headers.get("content-length")) > MAX_RPC_MULTIPART_BODY_BYTES
+  ) {
     return problemResponse(
       requestId,
       413,
