@@ -14,7 +14,13 @@ import {
   EmptyHeader,
 } from "@rz-chain-reporter/ui/components/empty";
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
-import { Check, Copy } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@rz-chain-reporter/ui/components/tooltip";
+import { cn } from "@rz-chain-reporter/ui/lib/utils";
+import { Check, ChevronRight, Copy } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
@@ -87,13 +93,14 @@ function OperationRow({ operation }: { operation: OperationSummary }) {
   return (
     <li className="border-border border-b py-2 last:border-b-0">
       <div className="flex items-start gap-1">
-        <button
+        <Button
           aria-controls={recordId}
           aria-expanded={expanded}
           aria-label={t("panel.toggleTimeline", { id: operation.id, kind })}
-          className="group flex min-w-0 flex-1 items-start gap-3 text-start outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="h-auto min-w-0 flex-1 items-start justify-start gap-3 whitespace-normal rounded-none px-0 font-normal aria-expanded:bg-transparent"
           onClick={() => setExpanded((value) => !value)}
           type="button"
+          variant="ghost"
         >
           <StateMark dispatchExhausted={exhausted} state={state} />
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -118,8 +125,14 @@ function OperationRow({ operation }: { operation: OperationSummary }) {
           >
             {format.dateTime(operation.createdAt, { timeStyle: "short" })}
           </time>
-          <FoldPointer expanded={expanded} />
-        </button>
+          <ChevronRight
+            aria-hidden="true"
+            className={cn(
+              "size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none",
+              expanded ? "rotate-90" : "rtl:rotate-180",
+            )}
+          />
+        </Button>
         {exhausted ? <CopyOperationId id={operation.id} /> : null}
       </div>
       <DispatchCaption operation={operation} />
@@ -228,38 +241,25 @@ function CopyOperationId({ id }: { id: string }) {
   };
 
   return (
-    <Button
-      aria-label={t("dispatch.copyId")}
-      onClick={copy}
-      size="icon-xs"
-      title={t("dispatch.copyId")}
-      type="button"
-      variant="ghost"
-    >
-      {copied ? <Check /> : <Copy />}
-      <span aria-live="polite" className="sr-only">
-        {copied ? t("dispatch.copied") : null}
-      </span>
-    </Button>
-  );
-}
-
-function FoldPointer({ expanded }: { expanded: boolean }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={`size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none ${
-        expanded ? "rotate-90" : ""
-      }`}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={1.5}
-      viewBox="0 0 16 16"
-    >
-      <path d="m6 4 4 4-4 4" />
-    </svg>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            aria-label={t("dispatch.copyId")}
+            onClick={copy}
+            size="icon-xs"
+            type="button"
+            variant="ghost"
+          />
+        }
+      >
+        {copied ? <Check /> : <Copy />}
+        <span aria-live="polite" className="sr-only">
+          {copied ? t("dispatch.copied") : null}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{t("dispatch.copyId")}</TooltipContent>
+    </Tooltip>
   );
 }
 

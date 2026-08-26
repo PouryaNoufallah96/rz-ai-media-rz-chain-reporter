@@ -96,9 +96,7 @@ export default function SignInForm() {
             }
           />
           <Button className="w-full" disabled={isPending} type="submit">
-            {isPending ? (
-              <Spinner aria-hidden="true" data-icon="inline-start" />
-            ) : null}
+            {isPending ? <Spinner data-icon="inline-start" /> : null}
             {isPending ? t("signIn.submitting") : t("signIn.submit")}
           </Button>
         </FieldGroup>

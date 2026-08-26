@@ -19,6 +19,7 @@
       "pending": "Starting…",
       "startHint": "Opens one ticket in the operations panel.",
       "startDisabled": "Select at least one source.",
+      "noSources": "Select at least one source.",
       "started": "Import started",
       "sources": "Sources",
       "sourcesHint": "{n, number} of {m, number} selected",

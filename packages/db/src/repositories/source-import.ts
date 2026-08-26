@@ -25,7 +25,9 @@ import {
   inArray,
   isNotNull,
   like,
+  max,
   ne,
+  or,
   sql,
 } from "drizzle-orm";
 
@@ -41,6 +43,7 @@ import { sourceImportSource } from "../schema/source-import-source";
 import { sourceItem } from "../schema/source-item";
 import { sourceItemEnrichment } from "../schema/source-item-enrichment";
 import { sourceItemRevision } from "../schema/source-item-revision";
+import { matchesAppliedCustomerTemplate } from "./customer-template-identity";
 import { createOperation } from "./operation";
 
 export const SOURCE_IMPORT_COMMAND_TYPE = `${SOURCE_IMPORT_COMMAND_PREFIX}start`;
@@ -64,6 +67,7 @@ export type StartSourceImportResult =
   | { status: "created"; operationId: string; sourceImportId: string }
   | { status: "replayed"; operationId: string }
   | { status: "mismatch" }
+  | { status: "template_drift" }
   | { status: "empty_selection" };
 
 // 23505 on uq_source_import_workspace_id_unsettled maps to SOURCE_IMPORT_IN_PROGRESS.
@@ -78,6 +82,16 @@ export async function startSourceImport(
 
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
+
+    if (
+      !(await matchesAppliedCustomerTemplate(
+        tx,
+        workspaceId,
+        input.templateFingerprint,
+      ))
+    ) {
+      return { status: "template_drift" };
+    }
 
     const operation = await createOperation(tx, workspaceId, {
       operationId: input.operationId,
@@ -169,6 +183,7 @@ export async function findSourceImportByOperationId(
       topN: sourceImport.topN,
       topics: sourceImport.topics,
       enrichmentEnabled: sourceImport.enrichmentEnabled,
+      templateFingerprint: sourceImport.templateFingerprint,
       embeddingAttemptId: sourceImport.embeddingAttemptId,
     })
     .from(sourceImport)
@@ -252,9 +267,17 @@ export async function findSourceImportSourceUnit(
       enabled: source.enabled,
       contentLocale: source.contentLocale,
       deletedAt: source.deletedAt,
+      templateFingerprint: sourceImport.templateFingerprint,
     })
     .from(sourceImportSource)
     .innerJoin(source, eq(source.id, sourceImportSource.sourceId))
+    .innerJoin(
+      sourceImport,
+      and(
+        eq(sourceImport.id, sourceImportSource.sourceImportId),
+        eq(sourceImport.workspaceId, sourceImportSource.workspaceId),
+      ),
+    )
     .where(
       and(
         inWorkspace(sourceImportSource, workspaceId),
@@ -271,13 +294,23 @@ export async function findSourceImportSourceUnit(
     .select({
       etag: sourceImportSource.etag,
       lastModified: sourceImportSource.lastModified,
+      sourceImportId: sourceImportSource.sourceImportId,
     })
     .from(sourceImportSource)
+    .innerJoin(
+      sourceImport,
+      and(
+        eq(sourceImport.id, sourceImportSource.sourceImportId),
+        eq(sourceImport.workspaceId, sourceImportSource.workspaceId),
+      ),
+    )
     .where(
       and(
         inWorkspace(sourceImportSource, workspaceId),
         eq(sourceImportSource.sourceId, input.sourceId),
         eq(sourceImportSource.outcome, "succeeded"),
+        ne(sourceImportSource.sourceImportId, input.sourceImportId),
+        eq(sourceImport.templateFingerprint, unit.templateFingerprint),
       ),
     )
     .orderBy(desc(sourceImportSource.startedAt))
@@ -287,6 +320,7 @@ export async function findSourceImportSourceUnit(
     ...unit,
     etag: validators?.etag ?? null,
     lastModified: validators?.lastModified ?? null,
+    priorSourceImportId: validators?.sourceImportId ?? null,
   };
 }
 
@@ -331,9 +365,7 @@ export async function settleSourceImportSource(
   return settled !== undefined;
 }
 
-export type SourceItemUpsertInput = {
-  sourceId: string;
-  origin: SourceOrigin;
+export type PersistSourceImportItemInput = {
   externalId: string;
   title: string;
   summary: string | null;
@@ -342,35 +374,54 @@ export type SourceItemUpsertInput = {
   contentLocale: ContentLocale;
   contentHash: string;
   publishedAt: Date | null;
+  admission: AdmissionOutcome;
+  views?: number | null;
 };
 
-export type UpsertedSourceItem = {
-  sourceItemId: string;
-  sourceItemRevisionId: string;
-  revisionNumber: number;
+export type PersistSourceImportItemsInput = {
+  sourceImportId: string;
+  sourceId: string;
+  origin: SourceOrigin;
+  items: readonly PersistSourceImportItemInput[];
 };
 
-export async function upsertSourceItem(
+export async function persistSourceImportItems(
   executor: Executor,
   workspaceId: string,
-  input: SourceItemUpsertInput,
-): Promise<UpsertedSourceItem> {
+  input: PersistSourceImportItemsInput,
+) {
+  if (input.items.length === 0) {
+    return { admittedCount: 0, associatedCount: 0 };
+  }
+
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext('source-import-items'), hashtext(${`${workspaceId}:${input.sourceId}`}))`,
+    );
+
+    const identities = new Map<string, PersistSourceImportItemInput>();
+    for (const item of input.items) {
+      if (!identities.has(item.externalId)) {
+        identities.set(item.externalId, item);
+      }
+    }
 
     await tx
       .insert(sourceItem)
-      .values({
-        workspaceId,
-        sourceId: input.sourceId,
-        origin: input.origin,
-        externalId: input.externalId,
-        title: input.title,
-        url: input.canonicalUrl,
-        attribution: input.attribution,
-        contentLocale: input.contentLocale,
-        publishedAt: input.publishedAt,
-      })
+      .values(
+        [...identities.values()].map((item) => ({
+          workspaceId,
+          sourceId: input.sourceId,
+          origin: input.origin,
+          externalId: item.externalId,
+          title: item.title,
+          url: item.canonicalUrl,
+          attribution: item.attribution,
+          contentLocale: item.contentLocale,
+          publishedAt: item.publishedAt,
+        })),
+      )
       .onConflictDoNothing({
         target: [
           sourceItem.workspaceId,
@@ -379,120 +430,270 @@ export async function upsertSourceItem(
         ],
       });
 
-    const [item] = await tx
-      .select({ id: sourceItem.id })
+    const storedItems = await tx
+      .select({ externalId: sourceItem.externalId, id: sourceItem.id })
       .from(sourceItem)
       .where(
         and(
           inWorkspace(sourceItem, workspaceId),
           eq(sourceItem.sourceId, input.sourceId),
-          eq(sourceItem.externalId, input.externalId),
+          inArray(sourceItem.externalId, [...identities.keys()]),
         ),
       );
 
-    if (!item) {
-      throw new Error("source item upsert resolved no row");
+    if (storedItems.length !== identities.size) {
+      throw new Error(
+        "source item batch upsert resolved incomplete identities",
+      );
     }
 
-    // Match every revision: a reverted feed must resolve to the hash it already has.
-    const [known] = await tx
+    const itemByExternalId = new Map(
+      storedItems.map((item) => [item.externalId, item]),
+    );
+    const desiredRevisions = new Map<
+      string,
+      PersistSourceImportItemInput & { sourceItemId: string }
+    >();
+    for (const item of input.items) {
+      const stored = itemByExternalId.get(item.externalId);
+      if (!stored) {
+        throw new Error("source item batch resolved no identity");
+      }
+      const key = `${stored.id}:${item.contentHash}`;
+      if (!desiredRevisions.has(key)) {
+        desiredRevisions.set(key, { ...item, sourceItemId: stored.id });
+      }
+    }
+
+    const sourceItemIds = [...new Set(storedItems.map((item) => item.id))];
+    const contentHashes = [
+      ...new Set(input.items.map((item) => item.contentHash)),
+    ];
+    const knownRevisions = await tx
       .select({
+        contentHash: sourceItemRevision.contentHash,
         id: sourceItemRevision.id,
         revisionNumber: sourceItemRevision.revisionNumber,
+        sourceItemId: sourceItemRevision.sourceItemId,
       })
       .from(sourceItemRevision)
       .where(
         and(
           inWorkspace(sourceItemRevision, workspaceId),
-          eq(sourceItemRevision.sourceItemId, item.id),
-          eq(sourceItemRevision.contentHash, input.contentHash),
+          inArray(sourceItemRevision.sourceItemId, sourceItemIds),
+          inArray(sourceItemRevision.contentHash, contentHashes),
         ),
       );
 
-    if (known) {
-      return {
-        sourceItemId: item.id,
-        sourceItemRevisionId: known.id,
-        revisionNumber: known.revisionNumber,
-      };
+    const revisionByKey = new Map(
+      knownRevisions.map((revision) => [
+        `${revision.sourceItemId}:${revision.contentHash}`,
+        revision,
+      ]),
+    );
+    const missing = [...desiredRevisions].filter(
+      ([key]) => !revisionByKey.has(key),
+    );
+
+    if (missing.length > 0) {
+      const latestRevisions = await tx
+        .select({
+          revisionNumber: max(sourceItemRevision.revisionNumber),
+          sourceItemId: sourceItemRevision.sourceItemId,
+        })
+        .from(sourceItemRevision)
+        .where(
+          and(
+            inWorkspace(sourceItemRevision, workspaceId),
+            inArray(sourceItemRevision.sourceItemId, [
+              ...new Set(missing.map(([, item]) => item.sourceItemId)),
+            ]),
+          ),
+        )
+        .groupBy(sourceItemRevision.sourceItemId);
+      const nextRevisionByItem = new Map(
+        latestRevisions.map((revision) => [
+          revision.sourceItemId,
+          revision.revisionNumber ?? 0,
+        ]),
+      );
+      const appended = await tx
+        .insert(sourceItemRevision)
+        .values(
+          missing.map(([, item]) => {
+            const revisionNumber =
+              (nextRevisionByItem.get(item.sourceItemId) ?? 0) + 1;
+            nextRevisionByItem.set(item.sourceItemId, revisionNumber);
+            return {
+              workspaceId,
+              sourceItemId: item.sourceItemId,
+              revisionNumber,
+              title: item.title,
+              summary: item.summary,
+              canonicalUrl: item.canonicalUrl,
+              contentLocale: item.contentLocale,
+              contentHash: item.contentHash,
+            };
+          }),
+        )
+        .returning({
+          contentHash: sourceItemRevision.contentHash,
+          id: sourceItemRevision.id,
+          revisionNumber: sourceItemRevision.revisionNumber,
+          sourceItemId: sourceItemRevision.sourceItemId,
+        });
+      for (const revision of appended) {
+        revisionByKey.set(
+          `${revision.sourceItemId}:${revision.contentHash}`,
+          revision,
+        );
+      }
     }
 
-    const [latest] = await tx
-      .select({ revisionNumber: sourceItemRevision.revisionNumber })
-      .from(sourceItemRevision)
+    const associations = new Map<
+      string,
+      {
+        admission: AdmissionOutcome;
+        sourceItemId: string;
+        sourceItemRevisionId: string;
+        views: number | null;
+      }
+    >();
+    for (const item of input.items) {
+      const stored = itemByExternalId.get(item.externalId);
+      const revision = stored
+        ? revisionByKey.get(`${stored.id}:${item.contentHash}`)
+        : undefined;
+      if (!stored || !revision) {
+        throw new Error("source item batch resolved no revision");
+      }
+      if (!associations.has(stored.id)) {
+        associations.set(stored.id, {
+          admission: item.admission,
+          sourceItemId: stored.id,
+          sourceItemRevisionId: revision.id,
+          views: item.views ?? null,
+        });
+      }
+    }
+
+    await tx
+      .insert(sourceImportItem)
+      .values(
+        [...associations.values()].map((item) => ({
+          workspaceId,
+          sourceImportId: input.sourceImportId,
+          ...item,
+        })),
+      )
+      .onConflictDoNothing({
+        target: [
+          sourceImportItem.workspaceId,
+          sourceImportItem.sourceImportId,
+          sourceImportItem.sourceItemId,
+        ],
+      });
+
+    const [current] = await tx
+      .select({
+        admitted: sql<number>`count(*) filter (where ${sourceImportItem.admission} = 'admitted')::int`,
+        associated: sql<number>`count(*)::int`,
+      })
+      .from(sourceImportItem)
+      .innerJoin(sourceItem, eq(sourceItem.id, sourceImportItem.sourceItemId))
       .where(
         and(
-          inWorkspace(sourceItemRevision, workspaceId),
-          eq(sourceItemRevision.sourceItemId, item.id),
+          inWorkspace(sourceImportItem, workspaceId),
+          eq(sourceImportItem.sourceImportId, input.sourceImportId),
+          eq(sourceItem.sourceId, input.sourceId),
         ),
-      )
-      .orderBy(desc(sourceItemRevision.revisionNumber))
-      .limit(1);
-
-    const revisionNumber = (latest?.revisionNumber ?? 0) + 1;
-
-    const [appended] = await tx
-      .insert(sourceItemRevision)
-      .values({
-        workspaceId,
-        sourceItemId: item.id,
-        revisionNumber,
-        title: input.title,
-        summary: input.summary,
-        canonicalUrl: input.canonicalUrl,
-        contentLocale: input.contentLocale,
-        contentHash: input.contentHash,
-      })
-      .returning({ id: sourceItemRevision.id });
-
-    if (!appended) {
-      throw new Error("source item revision insert returned no row");
-    }
+      );
 
     return {
-      sourceItemId: item.id,
-      sourceItemRevisionId: appended.id,
-      revisionNumber,
+      admittedCount: current?.admitted ?? 0,
+      associatedCount: current?.associated ?? 0,
     };
   });
 }
 
-export type SourceImportItemInput = {
+export type ReuseSourceImportItemsInput = {
+  sourceId: string;
   sourceImportId: string;
-  sourceItemId: string;
-  sourceItemRevisionId: string;
-  admission: AdmissionOutcome;
-  views?: number | null;
+  priorSourceImportId: string;
 };
 
-export async function recordSourceImportItems(
+export async function reuseSourceImportItems(
   executor: Executor,
   workspaceId: string,
-  items: readonly SourceImportItemInput[],
+  input: ReuseSourceImportItemsInput,
 ) {
-  if (items.length === 0) {
-    return;
+  const [reusable] = await executor
+    .select({ items: sql<number>`count(*)::int` })
+    .from(sourceImportItem)
+    .innerJoin(sourceItem, eq(sourceItem.id, sourceImportItem.sourceItemId))
+    .where(
+      and(
+        inWorkspace(sourceImportItem, workspaceId),
+        eq(sourceImportItem.sourceImportId, input.priorSourceImportId),
+        eq(sourceItem.sourceId, input.sourceId),
+      ),
+    );
+  const reusableCount = reusable?.items ?? 0;
+  const inserted = await executor.execute<{ id: string }>(sql`
+    insert into source_import_item (
+      workspace_id,
+      source_import_id,
+      source_item_id,
+      source_item_revision_id,
+      admission,
+      views
+    )
+    select
+      ${workspaceId}::uuid,
+      ${input.sourceImportId}::uuid,
+      prior.source_item_id,
+      prior.source_item_revision_id,
+      case
+        when prior.admission in ('out_of_window', 'over_cap')
+          then 'admitted'::admission_outcome
+        else prior.admission
+      end,
+      prior.views
+    from source_import_item prior
+    inner join source_item item
+      on item.id = prior.source_item_id
+      and item.workspace_id = prior.workspace_id
+    where prior.workspace_id = ${workspaceId}::uuid
+      and prior.source_import_id = ${input.priorSourceImportId}::uuid
+      and item.source_id = ${input.sourceId}::uuid
+    on conflict (workspace_id, source_import_id, source_item_id) do nothing
+    returning id
+  `);
+
+  const [current] = await executor
+    .select({
+      admitted: sql<number>`count(*) filter (where ${sourceImportItem.admission} = 'admitted')::int`,
+      associated: sql<number>`count(*)::int`,
+    })
+    .from(sourceImportItem)
+    .innerJoin(sourceItem, eq(sourceItem.id, sourceImportItem.sourceItemId))
+    .where(
+      and(
+        inWorkspace(sourceImportItem, workspaceId),
+        eq(sourceImportItem.sourceImportId, input.sourceImportId),
+        eq(sourceItem.sourceId, input.sourceId),
+      ),
+    );
+  const associatedCount = current?.associated ?? 0;
+  if (associatedCount !== reusableCount) {
+    throw new Error("not-modified source reuse count mismatch");
   }
 
-  await executor
-    .insert(sourceImportItem)
-    .values(
-      items.map((item) => ({
-        workspaceId,
-        sourceImportId: item.sourceImportId,
-        sourceItemId: item.sourceItemId,
-        sourceItemRevisionId: item.sourceItemRevisionId,
-        admission: item.admission,
-        views: item.views ?? null,
-      })),
-    )
-    .onConflictDoNothing({
-      target: [
-        sourceImportItem.workspaceId,
-        sourceImportItem.sourceImportId,
-        sourceImportItem.sourceItemId,
-      ],
-    });
+  return {
+    admittedCount: current?.admitted ?? 0,
+    associatedCount,
+    insertedCount: inserted.rows.length,
+  };
 }
 
 export async function listSourceImportCandidates(
@@ -568,26 +769,37 @@ export async function recordSourceImportItemRanks(
     return;
   }
 
-  await executor.transaction(async (tx) => {
-    await withWorkspaceContext(tx, workspaceId);
+  const updated = await executor.execute<{ id: string }>(sql`
+    update source_import_item as item
+    set
+      rank = ranked.item_rank,
+      keyword_score = ranked.keyword_score,
+      enrichment_outcome = ranked.enrichment_outcome::enrichment_outcome,
+      updated_at = now()
+    from jsonb_to_recordset(
+      ${JSON.stringify(
+        ranks.map((entry) => ({
+          enrichment_outcome: entry.enrichmentOutcome,
+          item_rank: entry.rank,
+          keyword_score: entry.keywordScore,
+          source_item_id: entry.sourceItemId,
+        })),
+      )}::jsonb
+    ) as ranked(
+      source_item_id uuid,
+      item_rank integer,
+      keyword_score double precision,
+      enrichment_outcome text
+    )
+    where item.workspace_id = ${workspaceId}::uuid
+      and item.source_import_id = ${sourceImportId}::uuid
+      and item.source_item_id = ranked.source_item_id
+    returning item.id
+  `);
 
-    for (const entry of ranks) {
-      await tx
-        .update(sourceImportItem)
-        .set({
-          rank: entry.rank,
-          keywordScore: entry.keywordScore,
-          enrichmentOutcome: entry.enrichmentOutcome,
-        })
-        .where(
-          and(
-            inWorkspace(sourceImportItem, workspaceId),
-            eq(sourceImportItem.sourceImportId, sourceImportId),
-            eq(sourceImportItem.sourceItemId, entry.sourceItemId),
-          ),
-        );
-    }
-  });
+  if (updated.rows.length !== ranks.length) {
+    throw new Error("source import rank batch updated incomplete items");
+  }
 }
 
 export type EnrichmentUnitInput = {
@@ -669,7 +881,7 @@ export type SourceItemEnrichmentInput = {
   fallbackReason: EnrichmentReason | null;
   pageContentHash: string;
   extract: string;
-  brief: unknown;
+  brief: unknown | null;
   providerRequestId: string | null;
 };
 
@@ -805,6 +1017,33 @@ export async function findRevisionEnrichment(
   return row;
 }
 
+export async function findRevisionPageEnrichment(
+  executor: Executor,
+  workspaceId: string,
+  sourceItemRevisionId: string,
+) {
+  const [row] = await executor
+    .select({
+      id: sourceItemEnrichment.id,
+      adapter: sourceItemEnrichment.adapter,
+      pageContentHash: sourceItemEnrichment.pageContentHash,
+      extract: sourceItemEnrichment.extract,
+      createdAt: sourceItemEnrichment.createdAt,
+    })
+    .from(sourceItemEnrichment)
+    .where(
+      and(
+        inWorkspace(sourceItemEnrichment, workspaceId),
+        eq(sourceItemEnrichment.sourceItemRevisionId, sourceItemRevisionId),
+        inArray(sourceItemEnrichment.adapter, ["direct", "firecrawl"]),
+      ),
+    )
+    .orderBy(desc(sourceItemEnrichment.createdAt))
+    .limit(1);
+
+  return row;
+}
+
 export type AttemptUsageSlot = {
   invocationKey: InvocationKey;
   status: UsageStatus;
@@ -853,7 +1092,7 @@ export async function settleSourceImport(
     );
 }
 
-export async function sourceImportHasAcquiredSource(
+export async function sourceImportHasUsableSource(
   executor: Executor,
   workspaceId: string,
   sourceImportId: string,
@@ -861,11 +1100,32 @@ export async function sourceImportHasAcquiredSource(
   const [row] = await executor
     .select({ id: sourceImportSource.id })
     .from(sourceImportSource)
+    .leftJoin(
+      sourceImportItem,
+      and(
+        eq(sourceImportItem.workspaceId, sourceImportSource.workspaceId),
+        eq(sourceImportItem.sourceImportId, sourceImportSource.sourceImportId),
+      ),
+    )
+    .leftJoin(
+      sourceItem,
+      and(
+        eq(sourceItem.id, sourceImportItem.sourceItemId),
+        eq(sourceItem.workspaceId, sourceImportSource.workspaceId),
+        eq(sourceItem.sourceId, sourceImportSource.sourceId),
+      ),
+    )
     .where(
       and(
         inWorkspace(sourceImportSource, workspaceId),
         eq(sourceImportSource.sourceImportId, sourceImportId),
-        inArray(sourceImportSource.outcome, ["succeeded", "not_modified"]),
+        or(
+          inArray(sourceImportSource.outcome, ["succeeded", "not_modified"]),
+          and(
+            eq(sourceImportSource.outcome, "partial"),
+            isNotNull(sourceItem.id),
+          ),
+        ),
       ),
     )
     .limit(1);
@@ -949,7 +1209,6 @@ export async function sourceImportProgress(
         sourceImportId: sourceImportSource.sourceImportId,
         outcome: sourceImportSource.outcome,
         sources: count(),
-        fetched: sql<number>`coalesce(sum(${sourceImportSource.fetchedCount}), 0)::int`,
       })
       .from(sourceImportSource)
       .where(
@@ -1052,8 +1311,6 @@ export async function sourceImportProgress(
       continue;
     }
 
-    entry.counts.acquired += row.fetched;
-
     if (row.outcome === "skipped") {
       entry.counts.skipped += row.sources;
     }
@@ -1074,6 +1331,7 @@ export async function sourceImportProgress(
     }
 
     entry.admissionMix[row.admission] = row.items;
+    entry.counts.acquired += row.items;
 
     if (row.admission === "admitted") {
       entry.counts.ordered = row.items;

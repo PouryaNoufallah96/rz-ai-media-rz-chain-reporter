@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  effectiveNewsSourceIds,
   type Platform,
   type RunConfiguration,
   runConfigurationSchema,
@@ -11,19 +12,38 @@ import {
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { Checkbox } from "@rz-chain-reporter/ui/components/checkbox";
-import { FieldGroup } from "@rz-chain-reporter/ui/components/field";
+import {
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@rz-chain-reporter/ui/components/field";
 import { Input } from "@rz-chain-reporter/ui/components/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@rz-chain-reporter/ui/components/input-group";
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
-import { Textarea } from "@rz-chain-reporter/ui/components/textarea";
 import { XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { type Control, useController, useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { FormField, FormRootError } from "@/components/form/form-field";
+import {
+  FieldCaption,
+  FormCheckboxField,
+  FormField,
+  FormRootError,
+  FormSelectField,
+  FormTextareaField,
+} from "@/components/form/form-field";
 import type { SourceCatalogEntry } from "@/features/sources/schemas/catalog";
 import { applyActionErrorToForm, useAction } from "@/hooks/use-action";
+import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 
 import { startAnalysisRunAction } from "../actions/start-analysis-run";
 import { EDITORIAL_NAMESPACE } from "../constants";
@@ -32,6 +52,7 @@ import type {
   RunOptions,
   startAnalysisRunInputSchema,
 } from "../schemas/workspace";
+import { workspaceSearchParsers } from "../schemas/workspace";
 import { SHORT_ID_LENGTH } from "./run-selector";
 
 const SOURCE_KINDS: readonly SourceOrigin[] = ["rss", "telegram_public"];
@@ -68,9 +89,17 @@ export function RunConfigurationForm({
   );
 
   const selectable = sources.filter((entry) => entry.lifecycle === "enabled");
+  const telegramSourceIds = selectable.flatMap((entry) =>
+    entry.origin === "telegram_public" ? [entry.id] : [],
+  );
+  const selectableSourceIdSet = new Set(selectable.map((entry) => entry.id));
+  const telegramSourceIdSet = new Set(telegramSourceIds);
   const promoBrands = options.brands.filter((brand) => brand.promoEnabled);
 
   const action = useAction(startAnalysisRunAction);
+  const { isPending: isNavigationPending, setValues } = useTransitionUrlState(
+    workspaceSearchParsers,
+  );
   const {
     clearErrors,
     control,
@@ -87,9 +116,9 @@ export function RunConfigurationForm({
     reValidateMode: "onSubmit",
     resolver: zodResolver(
       z.custom<RunFormValues>().superRefine((values, ctx) => {
-        const parsed = runConfigurationSchema(options.bounds).safeParse(
-          toConfiguration(values),
-        );
+        const parsed = runConfigurationSchema(options.bounds, {
+          telegramSourceIds,
+        }).safeParse(toConfiguration(values, telegramSourceIds));
         if (parsed.success) return;
 
         for (const issue of parsed.error.issues) {
@@ -103,28 +132,47 @@ export function RunConfigurationForm({
     ),
   });
 
-  const isPending = isSubmitting || action.isPending;
+  const isPending = isSubmitting || action.isPending || isNavigationPending;
   const { field: kind } = useController({
     control,
-    disabled: isPending,
     name: "kind",
   });
 
   const onSubmit = handleSubmit(async (values) => {
     clearErrors("root");
     action.reset();
-    const result = await action.execute(toConfiguration(values));
+    const result = await action.execute(
+      toConfiguration(values, telegramSourceIds),
+    );
 
     if (result.status === "error") {
       applyActionErrorToForm(setError, result, setFocus);
+      return;
     }
+
+    await setValues({ run: null });
   });
 
   const loadPreviousRun = () => {
     const previous = options.previousRun;
     if (!previous) return;
 
-    reset(toFormValues(previous.configuration, getValues()));
+    const previousValues = toFormValues(previous.configuration, getValues());
+    reset(
+      previousValues.kind === "news"
+        ? {
+            ...previousValues,
+            sourceIds: previousValues.sourceIds.filter((sourceId) =>
+              selectableSourceIdSet.has(sourceId),
+            ),
+            telegramOnly:
+              previousValues.telegramOnly &&
+              previousValues.sourceIds.some((sourceId) =>
+                telegramSourceIdSet.has(sourceId),
+              ),
+          }
+        : previousValues,
+    );
     preserved.current = null;
     setFromRunId(previous.id);
     setAnnouncement(
@@ -171,6 +219,20 @@ export function RunConfigurationForm({
     commit(checked);
   };
 
+  const reconcileTelegramOnly = (sourceIds: readonly string[]) => {
+    if (!getValues("telegramOnly")) return;
+    if (sourceIds.some((sourceId) => telegramSourceIdSet.has(sourceId))) {
+      return;
+    }
+
+    toggleTelegramOnly(false, (checked) =>
+      setValue("telegramOnly", checked, {
+        shouldDirty: true,
+        shouldValidate: true,
+      }),
+    );
+  };
+
   return (
     <section aria-labelledby={titleId} className="border border-border p-4">
       <h2 className="ticket-label border-b border-dashed pb-2" id={titleId}>
@@ -201,6 +263,7 @@ export function RunConfigurationForm({
               announce={setAnnouncement}
               control={control}
               disabled={isPending}
+              onSourceIdsChange={reconcileTelegramOnly}
               onToggleTelegramOnly={toggleTelegramOnly}
               options={options}
               resolveError={resolveError}
@@ -278,9 +341,7 @@ function StartRunControl({
         disabled={isPending || noPromoBrand}
         type="submit"
       >
-        {isPending ? (
-          <Spinner aria-hidden="true" data-icon="inline-start" />
-        ) : null}
+        {isPending ? <Spinner data-icon="inline-start" /> : null}
         {isPending ? t("run.starting") : t("run.start")}
       </Button>
     </div>
@@ -300,7 +361,6 @@ function PromoFields({
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const { field: brands } = useController({
     control,
-    disabled,
     name: "promo.brands",
   });
   const selected = new Set(brands.value);
@@ -348,12 +408,14 @@ function NewsFields({
   announce,
   control,
   disabled,
+  onSourceIdsChange,
   onToggleTelegramOnly,
   options,
   resolveError,
   selectable,
 }: FieldProps & {
   announce: (message: string) => void;
+  onSourceIdsChange: (sourceIds: readonly string[]) => void;
   onToggleTelegramOnly: (
     checked: boolean,
     commit: (value: boolean) => void,
@@ -364,7 +426,6 @@ function NewsFields({
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const { field: telegramOnly } = useController({
     control,
-    disabled,
     name: "telegramOnly",
   });
 
@@ -414,6 +475,7 @@ function NewsFields({
       <SourceSubsetField
         control={control}
         disabled={disabled}
+        onSourceIdsChange={onSourceIdsChange}
         onToggleTelegramOnly={onToggleTelegramOnly}
         resolveError={resolveError}
         selectable={selectable}
@@ -457,8 +519,10 @@ function KindField({ control, disabled, resolveError }: FieldProps) {
       resolveError={resolveError}
     >
       {({ field }) => (
-        <fieldset className="grid gap-1">
-          <legend className="ticket-label">{t("run.kind.label")}</legend>
+        <>
+          <FieldLegend className="ticket-label mb-0" variant="label">
+            {t("run.kind.label")}
+          </FieldLegend>
           <div className="flex flex-wrap gap-1">
             {(["news", "promo"] as const).map((value) => (
               <Button
@@ -476,7 +540,7 @@ function KindField({ control, disabled, resolveError }: FieldProps) {
               </Button>
             ))}
           </div>
-        </fieldset>
+        </>
       )}
     </FormField>
   );
@@ -505,10 +569,14 @@ function CheckboxListField({
         const selected = new Set(field.value);
 
         return (
-          <fieldset className="grid gap-1">
-            <legend className="ticket-label" id={controlId}>
+          <>
+            <FieldLegend
+              className="ticket-label mb-0"
+              id={controlId}
+              variant="label"
+            >
               {legend}
-            </legend>
+            </FieldLegend>
             <ul className="grid gap-0.5 sm:grid-cols-2">
               {options.map((option) => (
                 <li className="flex items-center gap-2" key={option.value}>
@@ -523,16 +591,16 @@ function CheckboxListField({
                       field.onChange([...next]);
                     }}
                   />
-                  <label
-                    className="min-w-0 truncate text-xs"
+                  <FieldLabel
+                    className="min-w-0 truncate font-normal"
                     htmlFor={`${controlId}-${option.value}`}
                   >
                     <Bdi>{option.label}</Bdi>
-                  </label>
+                  </FieldLabel>
                 </li>
               ))}
             </ul>
-          </fieldset>
+          </>
         );
       }}
     </FormField>
@@ -542,10 +610,12 @@ function CheckboxListField({
 function SourceSubsetField({
   control,
   disabled,
+  onSourceIdsChange,
   onToggleTelegramOnly,
   resolveError,
   selectable,
 }: FieldProps & {
+  onSourceIdsChange: (sourceIds: readonly string[]) => void;
   onToggleTelegramOnly: (
     checked: boolean,
     commit: (value: boolean) => void,
@@ -555,7 +625,6 @@ function SourceSubsetField({
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const { field: sourceIds } = useController({
     control,
-    disabled,
     name: "sourceIds",
   });
   const includesTelegram = selectable.some(
@@ -575,10 +644,14 @@ function SourceSubsetField({
           const selected = new Set(field.value);
 
           return (
-            <fieldset className="grid gap-3">
-              <legend className="ticket-label" id={controlId}>
+            <>
+              <FieldLegend
+                className="ticket-label mb-0"
+                id={controlId}
+                variant="label"
+              >
                 {t("run.sources.label")}
-              </legend>
+              </FieldLegend>
               {SOURCE_KINDS.map((origin) => {
                 const entries = selectable.filter(
                   (entry) => entry.origin === origin,
@@ -623,7 +696,9 @@ function SourceSubsetField({
                             if (allSelected) next.delete(id);
                             else next.add(id);
                           }
-                          field.onChange([...next]);
+                          const nextIds = [...next];
+                          field.onChange(nextIds);
+                          onSourceIdsChange(nextIds);
                         }}
                         size="xs"
                         type="button"
@@ -650,22 +725,24 @@ function SourceSubsetField({
                               const next = new Set(selected);
                               if (checked === true) next.add(entry.id);
                               else next.delete(entry.id);
-                              field.onChange([...next]);
+                              const nextIds = [...next];
+                              field.onChange(nextIds);
+                              onSourceIdsChange(nextIds);
                             }}
                           />
-                          <label
-                            className="min-w-0 truncate text-xs"
+                          <FieldLabel
+                            className="min-w-0 truncate font-normal"
                             htmlFor={`${controlId}-${entry.id}`}
                           >
                             <Bdi>{entry.name}</Bdi>
-                          </label>
+                          </FieldLabel>
                         </li>
                       ))}
                     </ul>
                   </section>
                 );
               })}
-            </fieldset>
+            </>
           );
         }}
       </FormField>
@@ -704,8 +781,10 @@ function RecencyField({
       resolveError={resolveError}
     >
       {({ field }) => (
-        <fieldset className="grid gap-1">
-          <legend className="ticket-label">{t("run.recency.label")}</legend>
+        <>
+          <FieldLegend className="ticket-label mb-0" variant="label">
+            {t("run.recency.label")}
+          </FieldLegend>
           <div className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap">
             {windowHours.map((hours) => (
               <Button
@@ -723,7 +802,7 @@ function RecencyField({
               </Button>
             ))}
           </div>
-        </fieldset>
+        </>
       )}
     </FormField>
   );
@@ -733,29 +812,13 @@ function EnrichmentField({ control, disabled, resolveError }: FieldProps) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
 
   return (
-    <FormField
+    <FormCheckboxField
       control={control}
       disabled={disabled}
+      label={t("run.enrichment")}
       name="enrichmentEnabled"
-      orientation="horizontal"
       resolveError={resolveError}
-    >
-      {({ controlId, controlProps, field }) => (
-        <>
-          <Checkbox
-            {...controlProps}
-            checked={field.value === true}
-            name={field.name}
-            onBlur={field.onBlur}
-            onCheckedChange={(checked) => field.onChange(checked === true)}
-            ref={field.ref}
-          />
-          <label className="text-xs" htmlFor={controlId}>
-            {t("run.enrichment")}
-          </label>
-        </>
-      )}
-    </FormField>
+    />
   );
 }
 
@@ -789,9 +852,9 @@ function TelegramOnlyField({
             }
             ref={field.ref}
           />
-          <label className="text-xs" htmlFor={controlId}>
+          <FieldCaption htmlFor={controlId}>
             {t("run.telegram.only")}
-          </label>
+          </FieldCaption>
         </>
       )}
     </FormField>
@@ -802,40 +865,17 @@ function OrderingField({ control, disabled, resolveError }: FieldProps) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
 
   return (
-    <FormField
+    <FormSelectField
       control={control}
       disabled={disabled}
+      label={t("run.telegram.ordering.label")}
       name="orderingMode"
+      options={TELEGRAM_ORDERING_MODES.map((mode) => ({
+        label: t(`run.telegram.ordering.${mode}`),
+        value: mode,
+      }))}
       resolveError={resolveError}
-    >
-      {({ controlId, controlProps, field }) => (
-        <>
-          <label className="ticket-label" htmlFor={controlId}>
-            {t("run.telegram.ordering.label")}
-          </label>
-          <select
-            {...controlProps}
-            className="h-8 rounded-none border border-input bg-background px-2 text-xs"
-            name={field.name}
-            onBlur={field.onBlur}
-            onChange={(event) => {
-              const selected = TELEGRAM_ORDERING_MODES.find(
-                (mode) => mode === event.target.value,
-              );
-              if (selected) field.onChange(selected);
-            }}
-            ref={field.ref}
-            value={field.value}
-          >
-            {TELEGRAM_ORDERING_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {t(`run.telegram.ordering.${mode}`)}
-              </option>
-            ))}
-          </select>
-        </>
-      )}
-    </FormField>
+    />
   );
 }
 
@@ -857,9 +897,7 @@ function TopNField({
     >
       {({ controlId, controlProps, descriptionId, field }) => (
         <>
-          <label className="ticket-label" htmlFor={controlId}>
-            {t("run.topN")}
-          </label>
+          <FieldCaption htmlFor={controlId}>{t("run.topN")}</FieldCaption>
           <Input
             {...controlProps}
             className="w-24"
@@ -875,9 +913,9 @@ function TopNField({
             type="number"
             value={Number.isNaN(field.value) ? "" : field.value}
           />
-          <span className="text-muted-foreground text-xs" id={descriptionId}>
+          <FieldDescription id={descriptionId}>
             {t("run.topNHint", { max })}
-          </span>
+          </FieldDescription>
         </>
       )}
     </FormField>
@@ -893,29 +931,14 @@ function PromptField({
   const t = useTranslations(EDITORIAL_NAMESPACE);
 
   return (
-    <FormField
+    <FormTextareaField
       control={control}
       disabled={disabled}
+      label={t("run.promo.prompt", { brand: brand.name })}
       name={`promo.prompts.${brand.key}`}
       resolveError={(code) => resolveError(code, brand.name)}
-    >
-      {({ controlId, controlProps, field }) => (
-        <>
-          <label className="ticket-label" htmlFor={controlId}>
-            {t("run.promo.prompt", { brand: brand.name })}
-          </label>
-          <Textarea
-            {...controlProps}
-            name={field.name}
-            onBlur={field.onBlur}
-            onChange={(event) => field.onChange(event.currentTarget.value)}
-            ref={field.ref}
-            rows={3}
-            value={field.value ?? ""}
-          />
-        </>
-      )}
-    </FormField>
+      rows={3}
+    />
   );
 }
 
@@ -959,9 +982,9 @@ function TopicsField({
 
         return (
           <>
-            <label className="ticket-label" htmlFor={controlId}>
+            <FieldCaption htmlFor={controlId}>
               {t("run.topics.label")}
-            </label>
+            </FieldCaption>
             {topics.length === 0 ? (
               <p className="text-muted-foreground text-xs">
                 {t("run.topics.none")}
@@ -997,28 +1020,28 @@ function TopicsField({
               </ul>
             )}
             <div className="flex flex-wrap items-center gap-2">
-              <Input
-                {...controlProps}
-                className="max-w-64 flex-1"
-                onBlur={field.onBlur}
-                onChange={(event) => setDraft(event.currentTarget.value)}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter") return;
-                  event.preventDefault();
-                  commitDraft();
-                }}
-                ref={field.ref}
-                value={draft}
-              />
-              <Button
-                disabled={disabled || draft.trim() === ""}
-                onClick={commitDraft}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                {t("run.topics.add")}
-              </Button>
+              <InputGroup className="max-w-64 flex-1">
+                <InputGroupInput
+                  {...controlProps}
+                  onBlur={field.onBlur}
+                  onChange={(event) => setDraft(event.currentTarget.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    commitDraft();
+                  }}
+                  ref={field.ref}
+                  value={draft}
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    disabled={disabled || draft.trim() === ""}
+                    onClick={commitDraft}
+                  >
+                    {t("run.topics.add")}
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
               {topics.length > 0 ? (
                 <Button
                   disabled={disabled}
@@ -1034,14 +1057,14 @@ function TopicsField({
                 </Button>
               ) : null}
             </div>
-            <span className="text-muted-foreground text-xs" id={descriptionId}>
+            <FieldDescription id={descriptionId}>
               {t("run.topics.hint")}
-            </span>
+            </FieldDescription>
             {recentTopics.length > 0 ? (
-              <fieldset className="mt-1 grid gap-1">
-                <legend className="ticket-label">
+              <FieldSet className="mt-1 grid gap-1">
+                <FieldLegend className="ticket-label mb-0" variant="label">
                   {t("run.topics.recent")}
-                </legend>
+                </FieldLegend>
                 <div className="flex flex-wrap gap-1">
                   {recentTopics.map((topic) => (
                     <Button
@@ -1056,10 +1079,10 @@ function TopicsField({
                     </Button>
                   ))}
                 </div>
-                <span className="text-muted-foreground text-xs">
+                <FieldDescription>
                   {t("run.topics.recentHint")}
-                </span>
-              </fieldset>
+                </FieldDescription>
+              </FieldSet>
             ) : null}
           </>
         );
@@ -1096,7 +1119,10 @@ function initialValues(
 
 // The one owner of the branch projection: the resolver and the submitted
 // payload are the same strict object.
-function toConfiguration(values: RunFormValues): RunSubmission {
+function toConfiguration(
+  values: RunFormValues,
+  telegramSourceIds: readonly string[],
+): RunSubmission {
   if (values.kind === "promo") {
     return {
       kind: "promo",
@@ -1110,7 +1136,14 @@ function toConfiguration(values: RunFormValues): RunSubmission {
 
   const { promo, ...news } = values;
 
-  return { ...news, kind: "news" };
+  return {
+    ...news,
+    kind: "news",
+    sourceIds: effectiveNewsSourceIds(
+      { ...news, kind: "news" },
+      telegramSourceIds,
+    ),
+  };
 }
 
 function toFormValues(

@@ -19,6 +19,7 @@
       "pending": "در حال شروع…",
       "startHint": "یک برگه در پنل عملیات باز می‌کند.",
       "startDisabled": "حداقل یک منبع را انتخاب کنید.",
+      "noSources": "حداقل یک منبع را انتخاب کنید.",
       "started": "دریافت آغاز شد",
       "sources": "منابع",
       "sourcesHint": "{n, number} از {m, number} انتخاب شده",

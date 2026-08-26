@@ -1,6 +1,6 @@
 {
   "template": {
-    "schemaVersion": 3,
+    "schemaVersion": 5,
     "customer": {
       "key": "demo-sports",
       "productName": "Demo Sports Desk",
@@ -38,6 +38,22 @@
         "promo-ideas:standard": {
           "backend": "remote",
           "model": "openai/gpt-4o-mini"
+        },
+        "copy-generation:standard": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        },
+        "image-template-selection": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        },
+        "image-creative-brief": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        },
+        "image-generation:fixture-image": {
+          "backend": "remote",
+          "model": "openai/gpt-5.4-image-2"
         }
       }
     },
@@ -62,6 +78,7 @@
         ]
       },
       "shortlistCap": 20,
+      "topicAliases": [],
       "selectionCap": 20,
       "importReuseMinutes": 30,
       "fanOut": {
@@ -71,6 +88,78 @@
       "promo": {
         "ideaCount": 3,
         "promptMaxChars": 800
+      },
+      "drafting": {
+        "copy": {
+          "fetchMinimumChars": 1000,
+          "modelMaxChars": 4000,
+          "platforms": [
+            {
+              "platform": "telegram",
+              "variants": [
+                {
+                  "key": "fixture",
+                  "instruction": "Write a verified fixture draft."
+                }
+              ],
+              "assembledCharacters": {
+                "min": 200,
+                "max": 600
+              },
+              "hashtags": {
+                "min": 1,
+                "max": 4
+              },
+              "emojiGraphemeCap": 3
+            },
+            {
+              "platform": "x",
+              "variants": [
+                {
+                  "key": "fixture",
+                  "instruction": "Write a concise verified fixture draft."
+                }
+              ],
+              "assembledCharacters": {
+                "min": 100,
+                "max": 260
+              },
+              "hashtags": {
+                "min": 1,
+                "max": 2
+              },
+              "emojiGraphemeCap": 1
+            },
+            {
+              "platform": "instagram",
+              "variants": [
+                {
+                  "key": "fixture",
+                  "instruction": "Write a verified fixture story."
+                }
+              ],
+              "assembledCharacters": {
+                "min": 300,
+                "max": 900
+              },
+              "hashtags": {
+                "min": 2,
+                "max": 5
+              },
+              "emojiGraphemeCap": 5
+            }
+          ]
+        },
+        "image": {
+          "models": [
+            {
+              "key": "fixture-image",
+              "name": "Fixture Image",
+              "enabled": true
+            }
+          ],
+          "defaultModelKey": "fixture-image"
+        }
       },
       "semantic": {
         "maxCandidates": 200,
@@ -102,7 +191,8 @@
           }
         },
         "thresholds": {
-          "policyScore": 18
+          "policyScore": 18,
+          "lexicalTopicScore": 40
         },
         "freshnessLadder": [
           {
@@ -202,7 +292,6 @@
       {
         "key": "match-day",
         "name": "Match Day",
-        "imageProfile": "image-profiles/match-day.json",
         "editorial": {
           "mediaFitThreshold": 22,
           "strongTerms": [
@@ -306,7 +395,11 @@
             "derby day",
             "stoppage-time winner"
           ],
-          "promoEnabled": true
+          "promoEnabled": true,
+          "canonicalHashtags": {
+            "en": "#MatchDay",
+            "fa": "#روز_مسابقه"
+          }
         }
       },
       {
@@ -399,7 +492,11 @@
             "deadline day signing",
             "contract extension"
           ],
-          "promoEnabled": true
+          "promoEnabled": true,
+          "canonicalHashtags": {
+            "en": "#TransferDesk",
+            "fa": "#میز_نقل_و_انتقال"
+          }
         }
       },
       {
@@ -484,7 +581,11 @@
             "training camp schedule",
             "squad rotation plan"
           ],
-          "promoEnabled": false
+          "promoEnabled": false,
+          "canonicalHashtags": {
+            "en": "#TrainingGround",
+            "fa": "#زمین_تمرین"
+          }
         }
       }
     ],
@@ -588,6 +689,7 @@
   },
   "runStartedAt": "2026-08-20T12:00:00.000Z",
   "topics": [],
+  "telegramLaneCap": 1,
   "brands": [
     {
       "key": "match-day",
@@ -766,6 +868,9 @@
         "valueSignalCount": null,
         "rankPosition": null
       }
-    ]
+    ],
+    "topicRelevanceRejected": [],
+    "boundedSummaryRejected": [],
+    "originCaps": []
   }
 }

@@ -7,7 +7,12 @@ import type { useFormatter, useTranslations } from "next-intl";
 import type { keysetDataTableFeatures } from "@/components/data-table/use-keyset-data-table";
 
 import type { EDITORIAL_NAMESPACE } from "../constants";
-import type { ReportRow, ReportThresholds } from "../schemas/report";
+import {
+  type ReportRow,
+  type ReportThresholds,
+  reportLaneCap,
+  reportLowScoreFailures,
+} from "../schemas/report";
 import type { RunHead } from "../schemas/workspace";
 import { ChannelPlate } from "./channel-plate";
 import { MutedTag } from "./provenance-line";
@@ -35,6 +40,8 @@ export function reportColumns({
   thresholds: ReportThresholds;
 }): TableOptions<typeof keysetDataTableFeatures, ReportRow>["columns"] {
   const degraded = head.provenance.semanticStatus === "degraded";
+  const hasTopics =
+    head.configuration.kind === "news" && head.configuration.topics.length > 0;
 
   return [
     {
@@ -53,7 +60,15 @@ export function reportColumns({
       id: "item",
       cell: ({ row, table }) => {
         const previous = table.getRowModel().rows[row.index - 1]?.original;
-        const caption = rowCaption(row.original, t, thresholds);
+        const caption = rowCaption(
+          row.original,
+          t,
+          thresholds,
+          hasTopics,
+          head.configuration.kind === "news"
+            ? head.configuration.topN
+            : thresholds.shortlistCap,
+        );
 
         return (
           <ScoreDrawer head={head} row={row.original} thresholds={thresholds}>
@@ -174,6 +189,8 @@ function rowCaption(
   row: ReportRow,
   t: Translate,
   thresholds: ReportThresholds,
+  hasTopics: boolean,
+  telegramLaneCap: number,
 ) {
   if (row.duplicateMethod && row.disposition === "duplicate") {
     const method = t(`duplicateMethod.${row.duplicateMethod}`);
@@ -188,9 +205,20 @@ function rowCaption(
 
   if (row.disposition === "cap_exceeded" && row.rankPosition !== null) {
     return t("score.capReached", {
-      n: thresholds.shortlistCap,
+      n: reportLaneCap(row, thresholds, telegramLaneCap),
       r: row.rankPosition,
     });
+  }
+
+  const lowScoreFailures = reportLowScoreFailures(row, thresholds, hasTopics);
+  if (lowScoreFailures.length === 2) {
+    return t("score.lowScore.policyAndTopic");
+  }
+  if (lowScoreFailures[0] === "policy") {
+    return t("score.lowScore.policy");
+  }
+  if (lowScoreFailures[0] === "lexical_topic") {
+    return t("score.lowScore.topicLexical");
   }
 
   return null;

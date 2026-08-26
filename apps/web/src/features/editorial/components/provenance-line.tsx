@@ -8,10 +8,10 @@ export function ProvenanceLine({
   segments: readonly string[];
 }) {
   return (
-    <p className="wrap-anywhere line-clamp-3 font-mono text-muted-foreground text-xs tabular-nums">
+    <span className="wrap-anywhere line-clamp-3 block font-mono text-muted-foreground text-xs tabular-nums">
       {segments.join(" · ")}
       {children}
-    </p>
+    </span>
   );
 }
 

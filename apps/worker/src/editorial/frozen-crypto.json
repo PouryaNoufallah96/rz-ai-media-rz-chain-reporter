@@ -1,6 +1,6 @@
 {
   "template": {
-    "schemaVersion": 3,
+    "schemaVersion": 5,
     "customer": {
       "key": "crypto",
       "productName": "RZ ChainReporter",
@@ -62,6 +62,34 @@
         "promo-ideas:deepseek": {
           "backend": "remote",
           "model": "deepseek/deepseek-chat"
+        },
+        "copy-generation:gpt": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        },
+        "copy-generation:gemini": {
+          "backend": "remote",
+          "model": "google/gemini-2.5-flash"
+        },
+        "copy-generation:claude": {
+          "backend": "remote",
+          "model": "anthropic/claude-sonnet-4.5"
+        },
+        "copy-generation:deepseek": {
+          "backend": "remote",
+          "model": "deepseek/deepseek-chat"
+        },
+        "image-template-selection": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        },
+        "image-creative-brief": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        },
+        "image-generation:fixture-image": {
+          "backend": "remote",
+          "model": "openai/gpt-5.4-image-2"
         }
       }
     },
@@ -98,6 +126,20 @@
         "enrichment": true
       },
       "shortlistCap": 20,
+      "topicAliases": [
+        {
+          "canonical": "btc",
+          "surfaces": ["bitcoin"]
+        },
+        {
+          "canonical": "eth",
+          "surfaces": ["ethereum"]
+        },
+        {
+          "canonical": "wallet security",
+          "surfaces": ["wallet safety", "secure wallet", "wallet protection"]
+        }
+      ],
       "selectionCap": 20,
       "importReuseMinutes": 30,
       "fanOut": {
@@ -107,6 +149,60 @@
       "promo": {
         "ideaCount": 4,
         "promptMaxChars": 1200
+      },
+      "drafting": {
+        "copy": {
+          "fetchMinimumChars": 1000,
+          "modelMaxChars": 4000,
+          "platforms": [
+            {
+              "platform": "telegram",
+              "variants": [
+                {
+                  "key": "fixture",
+                  "instruction": "Write a verified fixture draft."
+                }
+              ],
+              "assembledCharacters": {
+                "min": 200,
+                "max": 600
+              },
+              "hashtags": {
+                "min": 1,
+                "max": 4
+              },
+              "emojiGraphemeCap": 3
+            },
+            {
+              "platform": "x",
+              "variants": [
+                {
+                  "key": "fixture",
+                  "instruction": "Write a concise verified fixture draft."
+                }
+              ],
+              "assembledCharacters": {
+                "min": 100,
+                "max": 260
+              },
+              "hashtags": {
+                "min": 1,
+                "max": 2
+              },
+              "emojiGraphemeCap": 1
+            }
+          ]
+        },
+        "image": {
+          "models": [
+            {
+              "key": "fixture-image",
+              "name": "Fixture Image",
+              "enabled": true
+            }
+          ],
+          "defaultModelKey": "fixture-image"
+        }
       },
       "semantic": {
         "maxCandidates": 350,
@@ -138,7 +234,8 @@
           }
         },
         "thresholds": {
-          "policyScore": 18
+          "policyScore": 18,
+          "lexicalTopicScore": 40
         },
         "freshnessLadder": [
           {
@@ -410,7 +507,6 @@
         "key": "rz-prime",
         "name": "RZ Prime",
         "brandBible": "brand-bibles/rz-prime.md",
-        "imageProfile": "image-profiles/rz-prime.json",
         "editorial": {
           "mediaFitThreshold": 22,
           "strongTerms": [
@@ -664,14 +760,17 @@
             "launchpad",
             "smart contract audit"
           ],
-          "promoEnabled": true
+          "promoEnabled": true,
+          "canonicalHashtags": {
+            "en": "#RZPrime",
+            "fa": "#آر_زد_پرایم"
+          }
         }
       },
       {
         "key": "coin-hall",
         "name": "Coin Hall",
         "brandBible": "brand-bibles/coin-hall.md",
-        "imageProfile": "image-profiles/coin-hall.json",
         "editorial": {
           "mediaFitThreshold": 22,
           "strongTerms": [
@@ -734,6 +833,10 @@
             {
               "term": "betting odds",
               "weight": 18
+            },
+            {
+              "term": "odds",
+              "weight": 22
             },
             {
               "term": "probability",
@@ -966,7 +1069,48 @@
               "weight": -10
             }
           ],
-          "aliases": [],
+          "aliases": [
+            {
+              "canonical": "btc",
+              "surfaces": ["bitcoin"]
+            },
+            {
+              "canonical": "eth",
+              "surfaces": ["ethereum"]
+            },
+            {
+              "canonical": "wallet security",
+              "surfaces": [
+                "wallet safety",
+                "secure wallet",
+                "wallet protection"
+              ]
+            },
+            {
+              "canonical": "forecast",
+              "surfaces": ["forecasts", "forecasted", "forecasting"]
+            },
+            {
+              "canonical": "predict",
+              "surfaces": ["predicts", "predicted", "predicting"]
+            },
+            {
+              "canonical": "analyst",
+              "surfaces": ["analysts", "analysis", "analyses"]
+            },
+            {
+              "canonical": "rally",
+              "surfaces": ["rallies", "rallied", "rallying"]
+            },
+            {
+              "canonical": "surge",
+              "surfaces": ["surges", "surged", "surging"]
+            },
+            {
+              "canonical": "settlement",
+              "surfaces": ["settles", "settled", "settling"]
+            }
+          ],
           "phrases": [],
           "preferredSourceKeys": [
             "decrypt-rss",
@@ -986,12 +1130,20 @@
             "Ferrari"
           ],
           "promoEnabled": true,
+          "canonicalHashtags": {
+            "en": "#CoinHall",
+            "fa": "#کوین_هال"
+          },
           "valueGate": {
             "signalKinds": ["number", "percentage", "currency_amount"],
             "forecastTerms": [
               "price",
               "forecast",
               "predict",
+              "prediction",
+              "prediction market",
+              "probability",
+              "odds",
               "target",
               "value",
               "cost",
@@ -1007,7 +1159,6 @@
       {
         "key": "chain-reporter",
         "name": "ChainReporter",
-        "imageProfile": "image-profiles/chain-reporter.json",
         "editorial": {
           "mediaFitThreshold": 18,
           "strongTerms": [
@@ -1321,14 +1472,17 @@
             "crypto regulation policy",
             "altcoin market"
           ],
-          "promoEnabled": true
+          "promoEnabled": true,
+          "canonicalHashtags": {
+            "en": "#ChainReporter",
+            "fa": "#چین_ریپورتر"
+          }
         }
       },
       {
         "key": "meta-coin-guard",
         "name": "Meta Coin Guard",
         "brandBible": "brand-bibles/meta-coin-guard.md",
-        "imageProfile": "image-profiles/meta-coin-guard.json",
         "editorial": {
           "mediaFitThreshold": 22,
           "strongTerms": [
@@ -1597,7 +1751,11 @@
             "phishing attack",
             "flash loan attack"
           ],
-          "promoEnabled": true
+          "promoEnabled": true,
+          "canonicalHashtags": {
+            "en": "#MetaCoinGuard",
+            "fa": "#متا_کوین_گارد"
+          }
         }
       }
     ],
@@ -2039,6 +2197,7 @@
   },
   "runStartedAt": "2026-08-20T12:00:00.000Z",
   "topics": ["bitcoin etf", "stablecoin"],
+  "telegramLaneCap": 1,
   "brands": [
     {
       "key": "rz-prime",
@@ -2066,7 +2225,7 @@
       "publishedAt": "2026-08-20T11:30:00.000Z",
       "eligibility": "candidate",
       "title": "Bitcoin ETF approval clears final SEC hurdle",
-      "summary": "Spot bitcoin funds from BlackRock and Fidelity list next week, with inflows expected above $2.4 billion.",
+      "summary": "Desk forecasts bitcoin ETF inflows above $2.4 billion after approval.",
       "canonicalUrl": "https://theblock.example.test/posts/etf-approval?utm_source=newsletter",
       "vector": [
         0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0,
@@ -2114,7 +2273,7 @@
       "publishedAt": "2026-08-20T11:00:00.000Z",
       "eligibility": "candidate",
       "title": "Desk notes: bitcoin etf flows and stablecoin liquidity after the decision",
-      "summary": "Channel commentary on what the approval means for desks holding inventory.",
+      "summary": "Odds are 71.5% for stronger bitcoin ETF flows after the decision.",
       "canonicalUrl": "https://t.me/cointelegraph/91745",
       "vector": [
         0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.3,
@@ -2337,8 +2496,8 @@
       "origin": "rss",
       "publishedAt": "2026-08-20T09:00:00.000Z",
       "eligibility": "candidate",
-      "title": "Prediction market volume hits a record as oracle settlement clears",
-      "summary": "Operators reported the largest settled book of the quarter.",
+      "title": "Analysts see XRP at $4 after breakout",
+      "summary": "The note compares liquidity with one bitcoin ETF benchmark.",
       "canonicalUrl": "https://theblock.example.test/posts/prediction-market",
       "vector": [
         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0,
@@ -2376,6 +2535,38 @@
         0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         0.0, 0.0, 0.0, 0.0, 0.0, 1.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000021",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000021",
+      "sourceKey": "coindesk-global-telegram",
+      "origin": "telegram_public",
+      "publishedAt": "2026-08-20T11:15:00.000Z",
+      "eligibility": "candidate",
+      "title": "Bitcoin ETF forecast puts approval inflows above $3.1 billion",
+      "summary": "Analysts assign 68% odds to stronger bitcoin ETF demand after the decision.",
+      "canonicalUrl": "https://t.me/coindesk/91821",
+      "vector": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 1.0, 0.0
+      ]
+    },
+    {
+      "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000022",
+      "sourceItemRevisionId": "bbbbbbbb-0000-4000-8000-000000000022",
+      "sourceKey": "coindesk-rss",
+      "origin": "rss",
+      "publishedAt": "2026-08-20T11:10:00.000Z",
+      "eligibility": "candidate",
+      "title": "Community calendar and general market housekeeping",
+      "summary": "Editors listed routine calendar reminders and community housekeeping notes. The bulletin repeated neutral scheduling details for regional desks and contributor meetings. Editors listed routine calendar reminders and community housekeeping notes. The bulletin repeated neutral scheduling details for regional desks and contributor meetings. Editors listed routine calendar reminders and community housekeeping notes. The bulletin repeated neutral scheduling details for regional desks and contributor meetings. Editors listed routine calendar reminders and community housekeeping notes. The bulletin repeated neutral scheduling details for regional desks and contributor meetings. Related reading: bitcoin ETF forecast predicts $4.2 billion of approval inflows.",
+      "canonicalUrl": "https://coindesk.example.test/posts/community-calendar",
+      "vector": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 1.0, 0.0, 0.0
       ]
     }
   ],
@@ -2563,8 +2754,8 @@
   },
   "expected": {
     "digests": {
-      "succeeded": "85d7cbe25717cfc4523bf5ef64befdc32021c1550a50eaaa18fd01662518660b",
-      "degraded": "c45dc8fe7b4494bd1a504fdd76a089ea52e6af036cf80cb56e43d6b6389da98a"
+      "succeeded": "850a0725c6337c1bcd6ebe815ad9f93a1a9c06964966d9123103deb5d4d1d822",
+      "degraded": "e6c831958bbef0498dd07a65ab437b6d8e6214e6371113c336ab28e030c2bd30"
     },
     "items": [
       {
@@ -2651,34 +2842,34 @@
       {
         "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000014",
         "brandKey": "chain-reporter",
-        "disposition": "shortlisted",
+        "disposition": "low_score",
         "reason": null,
         "valueSignalCount": null,
-        "rankPosition": 9
+        "rankPosition": null
       },
       {
         "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000010",
         "brandKey": "chain-reporter",
-        "disposition": "shortlisted",
+        "disposition": "low_score",
         "reason": null,
         "valueSignalCount": null,
-        "rankPosition": 10
+        "rankPosition": null
       },
       {
         "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000015",
         "brandKey": "chain-reporter",
-        "disposition": "shortlisted",
+        "disposition": "low_score",
         "reason": null,
         "valueSignalCount": null,
-        "rankPosition": 11
+        "rankPosition": null
       },
       {
         "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000016",
         "brandKey": "chain-reporter",
-        "disposition": "shortlisted",
+        "disposition": "low_score",
         "reason": null,
         "valueSignalCount": null,
-        "rankPosition": 12
+        "rankPosition": null
       },
       {
         "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000017",
@@ -2699,18 +2890,20 @@
       {
         "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000001",
         "brandKey": "coin-hall",
-        "disposition": "no_media_fit",
-        "reason": "below_media_fit_threshold",
+        "disposition": "shortlisted",
+        "reason": null,
         "valueSignalCount": 1,
-        "rankPosition": null
+        "mediaFitScore": 22,
+        "rankPosition": 2
       },
       {
         "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000004",
         "brandKey": "coin-hall",
-        "disposition": "no_media_fit",
-        "reason": "missing_required_value_signal",
-        "valueSignalCount": 0,
-        "rankPosition": null
+        "disposition": "cap_exceeded",
+        "reason": null,
+        "valueSignalCount": 2,
+        "mediaFitScore": 22,
+        "rankPosition": 3
       },
       {
         "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000012",
@@ -2726,7 +2919,77 @@
         "disposition": "shortlisted",
         "reason": null,
         "valueSignalCount": 1,
+        "mediaFitScore": 62,
+        "rankPosition": 4
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000022",
+        "brandKey": "chain-reporter",
+        "disposition": "no_media_fit",
+        "reason": "below_media_fit_threshold",
+        "valueSignalCount": null,
+        "mediaFitScore": 0,
+        "rankPosition": null
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000022",
+        "brandKey": "coin-hall",
+        "disposition": "no_media_fit",
+        "reason": "missing_required_value_signal",
+        "valueSignalCount": 0,
+        "mediaFitScore": null,
+        "rankPosition": null
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000021",
+        "brandKey": "chain-reporter",
+        "disposition": "cap_exceeded",
+        "reason": null,
+        "valueSignalCount": null,
+        "mediaFitScore": 100,
+        "rankPosition": 5
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000021",
+        "brandKey": "coin-hall",
+        "disposition": "telegram_lane",
+        "reason": null,
+        "valueSignalCount": 4,
+        "mediaFitScore": 81,
         "rankPosition": 1
+      }
+    ],
+    "topicRelevanceRejected": [
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000014",
+        "brandKey": "chain-reporter",
+        "lexicalTopicScore": 0
+      }
+    ],
+    "boundedSummaryRejected": [
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000022",
+        "brandKey": "chain-reporter"
+      },
+      {
+        "sourceItemId": "aaaaaaaa-0000-4000-8000-000000000022",
+        "brandKey": "coin-hall"
+      }
+    ],
+    "originCaps": [
+      {
+        "brandKey": "chain-reporter",
+        "rssShortlisted": 4,
+        "telegramLane": 1,
+        "rssCapExceeded": 0,
+        "telegramCapExceeded": 1
+      },
+      {
+        "brandKey": "coin-hall",
+        "rssShortlisted": 2,
+        "telegramLane": 1,
+        "rssCapExceeded": 0,
+        "telegramCapExceeded": 1
       }
     ]
   }

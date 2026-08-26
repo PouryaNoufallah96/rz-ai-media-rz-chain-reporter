@@ -1,6 +1,7 @@
 import {
   ANALYSIS_RUN_COMMAND_PREFIX,
   type AnalysisRunKind,
+  type AttemptOutcome,
   DURABLE_EVENT_SCHEMA_VERSION,
   type DuplicateMethod,
   type ErrorCode,
@@ -32,12 +33,18 @@ import { analysisRunItem } from "../schema/analysis-run-item";
 import { editorialSelection } from "../schema/editorial-selection";
 import { filterResult } from "../schema/filter-result";
 import { operation } from "../schema/operation";
+import { operationAttempt } from "../schema/operation-attempt";
 import { outboxEvent } from "../schema/outbox-event";
 import { promoIdea } from "../schema/promo-idea";
 import { sourceImportItem } from "../schema/source-import-item";
 import { sourceItem } from "../schema/source-item";
 import { sourceItemRevision } from "../schema/source-item-revision";
+import { matchesAppliedCustomerTemplate } from "./customer-template-identity";
 import { createOperation, transitionOperation } from "./operation";
+import {
+  allocateOperationAttemptInTransaction,
+  settleOperationAttempt,
+} from "./operation-attempt";
 
 export const ANALYSIS_RUN_COMMAND_TYPE = `${ANALYSIS_RUN_COMMAND_PREFIX}start`;
 
@@ -57,7 +64,8 @@ type StartAnalysisRunInput = {
 type StartAnalysisRunResult =
   | { status: "created"; operationId: string; analysisRunId: string }
   | { status: "replayed"; operationId: string }
-  | { status: "mismatch" };
+  | { status: "mismatch" }
+  | { status: "template_drift" };
 
 export async function startAnalysisRun(
   executor: Executor,
@@ -66,6 +74,16 @@ export async function startAnalysisRun(
 ): Promise<StartAnalysisRunResult> {
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
+
+    if (
+      !(await matchesAppliedCustomerTemplate(
+        tx,
+        workspaceId,
+        input.templateFingerprint,
+      ))
+    ) {
+      return { status: "template_drift" };
+    }
 
     const created = await createOperation(tx, workspaceId, {
       operationId: input.operationId,
@@ -209,6 +227,7 @@ export async function loadAnalysisRunCandidates(
       join ${sourceItemRevision} on ${sourceItemRevision.id} = ${sourceImportItem.sourceItemRevisionId}
       where ${sourceImportItem.workspaceId} = ${workspaceId}::uuid
         and ${sourceImportItem.sourceImportId} = ${input.sourceImportId}::uuid
+        and ${sourceImportItem.admission} = 'admitted'
       on conflict (workspace_id, analysis_run_id, source_item_id) do nothing
     `);
 
@@ -229,12 +248,13 @@ export async function loadAnalysisRunCandidates(
         and(
           inWorkspace(sourceImportItem, workspaceId),
           eq(sourceImportItem.sourceImportId, input.sourceImportId),
+          eq(sourceImportItem.admission, "admitted"),
         ),
       );
 
     if (!loaded || !expected || loaded.items !== expected.items) {
       throw new Error(
-        `analysis run candidate load covered ${loaded?.items ?? 0} of ${expected?.items ?? 0} source import items`,
+        `analysis run candidate load covered ${loaded?.items ?? 0} of ${expected?.items ?? 0} admitted source import items`,
       );
     }
 
@@ -495,24 +515,115 @@ export async function findAnalysisModelUnit(
 export async function startAnalysisModelUnit(
   executor: Executor,
   workspaceId: string,
-  analysisModelUnitId: string,
+  input: { analysisModelUnitId: string; operationAttemptId: string },
 ) {
   await executor
     .update(analysisModelUnit)
-    .set({ status: "running" })
+    .set({
+      operationAttemptId: input.operationAttemptId,
+      status: "running",
+    })
     .where(
       and(
         inWorkspace(analysisModelUnit, workspaceId),
-        eq(analysisModelUnit.id, analysisModelUnitId),
+        eq(analysisModelUnit.id, input.analysisModelUnitId),
         inArray(analysisModelUnit.status, NON_TERMINAL_UNIT_STATUSES),
       ),
     );
+}
+
+export type EnsureAnalysisModelUnitAttemptResult =
+  | {
+      status: "ready";
+      attemptId: string;
+      attemptStartedAt: Date;
+    }
+  | { status: "settled"; unitStatus: ModelUnitStatus }
+  | { status: "not_found" };
+
+export async function ensureAnalysisModelUnitAttempt(
+  executor: Executor,
+  workspaceId: string,
+  input: { analysisModelUnitId: string; operationId: string },
+): Promise<EnsureAnalysisModelUnitAttemptResult> {
+  return executor.transaction(async (tx) => {
+    await withWorkspaceContext(tx, workspaceId);
+    const [parent] = await tx
+      .select({ id: operation.id })
+      .from(operation)
+      .where(
+        and(
+          inWorkspace(operation, workspaceId),
+          eq(operation.id, input.operationId),
+        ),
+      )
+      .for("update");
+    if (!parent) return { status: "not_found" };
+
+    const [unit] = await tx
+      .select({
+        operationAttemptId: analysisModelUnit.operationAttemptId,
+        status: analysisModelUnit.status,
+      })
+      .from(analysisModelUnit)
+      .where(
+        and(
+          inWorkspace(analysisModelUnit, workspaceId),
+          eq(analysisModelUnit.id, input.analysisModelUnitId),
+        ),
+      )
+      .for("update");
+
+    if (!unit) return { status: "not_found" };
+    if (unit.status !== "pending" && unit.status !== "running") {
+      return { status: "settled", unitStatus: unit.status };
+    }
+
+    let attemptId = unit.operationAttemptId;
+    let attemptStartedAt: Date;
+    if (attemptId === null) {
+      const allocated = await allocateOperationAttemptInTransaction(
+        tx,
+        workspaceId,
+        input.operationId,
+      );
+      if (!allocated) return { status: "not_found" };
+      attemptId = allocated.id;
+      attemptStartedAt = allocated.createdAt;
+      await tx
+        .update(analysisModelUnit)
+        .set({ operationAttemptId: attemptId, status: "running" })
+        .where(
+          and(
+            inWorkspace(analysisModelUnit, workspaceId),
+            eq(analysisModelUnit.id, input.analysisModelUnitId),
+            inArray(analysisModelUnit.status, NON_TERMINAL_UNIT_STATUSES),
+          ),
+        );
+    } else {
+      const [attempt] = await tx
+        .select({ createdAt: operationAttempt.createdAt })
+        .from(operationAttempt)
+        .where(
+          and(
+            inWorkspace(operationAttempt, workspaceId),
+            eq(operationAttempt.id, attemptId),
+            eq(operationAttempt.operationId, input.operationId),
+          ),
+        );
+      if (!attempt) return { status: "not_found" };
+      attemptStartedAt = attempt.createdAt;
+    }
+
+    return { status: "ready", attemptId, attemptStartedAt };
+  });
 }
 
 type SettleAnalysisModelUnitInput = {
   analysisModelUnitId: string;
   status: Extract<ModelUnitStatus, "failed" | "cancelled">;
   failureCode: ErrorCode | null;
+  operationAttemptId?: string;
 };
 
 // Conditional by construction: a child that committed its finalize transaction
@@ -524,7 +635,11 @@ export async function settleAnalysisModelUnit(
 ): Promise<boolean> {
   const settled = await executor
     .update(analysisModelUnit)
-    .set({ status: input.status, failureCode: input.failureCode })
+    .set({
+      failureCode: input.failureCode,
+      operationAttemptId: input.operationAttemptId,
+      status: input.status,
+    })
     .where(
       and(
         inWorkspace(analysisModelUnit, workspaceId),
@@ -562,7 +677,9 @@ export type AnalysisModelUnitOutput =
 
 type PersistAnalysisModelUnitResultInput = {
   analysisModelUnitId: string;
+  failureCode: ErrorCode | null;
   operationAttemptId: string;
+  outcome: AttemptOutcome;
   output: AnalysisModelUnitOutput;
 };
 
@@ -574,6 +691,25 @@ export async function persistAnalysisModelUnitResult(
   input: PersistAnalysisModelUnitResultInput,
 ) {
   await withWorkspaceContext(tx, workspaceId);
+
+  const [settledUnit] = await tx
+    .update(analysisModelUnit)
+    .set({
+      failureCode: input.failureCode,
+      operationAttemptId: input.operationAttemptId,
+      status: input.output.kind === "discarded" ? "cancelled" : "succeeded",
+    })
+    .where(
+      and(
+        inWorkspace(analysisModelUnit, workspaceId),
+        eq(analysisModelUnit.id, input.analysisModelUnitId),
+        inArray(analysisModelUnit.status, NON_TERMINAL_UNIT_STATUSES),
+      ),
+    )
+    .returning({ id: analysisModelUnit.id });
+  if (!settledUnit) {
+    throw new Error("analysis model unit was already settled");
+  }
 
   if (input.output.kind === "selection" && input.output.rows.length > 0) {
     await tx.insert(editorialSelection).values(
@@ -595,18 +731,14 @@ export async function persistAnalysisModelUnitResult(
     );
   }
 
-  await tx
-    .update(analysisModelUnit)
-    .set({
-      status: input.output.kind === "discarded" ? "cancelled" : "succeeded",
-      operationAttemptId: input.operationAttemptId,
-    })
-    .where(
-      and(
-        inWorkspace(analysisModelUnit, workspaceId),
-        eq(analysisModelUnit.id, input.analysisModelUnitId),
-      ),
-    );
+  const settledAttempt = await settleOperationAttempt(tx, workspaceId, {
+    failureCode: input.failureCode,
+    id: input.operationAttemptId,
+    outcome: input.outcome,
+  });
+  if (!settledAttempt) {
+    throw new Error("analysis model attempt was already settled");
+  }
 }
 
 type RequestAnalysisRunCancellationResult =

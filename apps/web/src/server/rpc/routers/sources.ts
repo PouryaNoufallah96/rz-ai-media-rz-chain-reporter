@@ -24,6 +24,7 @@ export const startImport = installationProcedure
     UNAUTHORIZED: { status: 401 },
     VALIDATION_FAILED: { status: 400 },
     SOURCE_IMPORT_IN_PROGRESS: { status: 409 },
+    TEMPLATE_DRIFT: { status: 409 },
     TRANSIENT_CONFLICT: { status: 409 },
     IDEMPOTENCY_KEY_REUSED: { status: 409 },
   })
@@ -77,6 +78,9 @@ export const startImport = installationProcedure
     }
     if (result.status === "mismatch") {
       throw errors.IDEMPOTENCY_KEY_REUSED();
+    }
+    if (result.status === "template_drift") {
+      throw errors.TEMPLATE_DRIFT();
     }
 
     return { operationId: result.operationId };

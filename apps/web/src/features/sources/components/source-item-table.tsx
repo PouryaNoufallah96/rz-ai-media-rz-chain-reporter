@@ -17,6 +17,7 @@ import { useId } from "react";
 import { CoreDataTable } from "@/components/data-table/data-table";
 import { KeysetPagination } from "@/components/data-table/keyset-pagination";
 import { useKeysetDataTable } from "@/components/data-table/use-keyset-data-table";
+import { LabeledSelect } from "@/components/form/form-field";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 
 import { SHORT_ID_LENGTH, SOURCES_NAMESPACE } from "../constants";
@@ -62,33 +63,42 @@ export function SourceItemTable({ stream }: { stream: SourceItemStream }) {
         aria-label={t("stream.filters.label")}
         className="mt-3 flex flex-wrap items-end gap-2"
       >
-        <FilterSelect
+        <LabeledSelect
+          className="w-fit"
+          emptyLabel={t("stream.filters.all")}
           label={t("stream.filters.source")}
-          onChange={(value) => setFilters({ source: value })}
+          onValueChange={(value) => setFilters({ source: value })}
           options={stream.sourceOptions.map((option) => ({
             label: option.name,
             value: option.id,
           }))}
+          triggerClassName="max-w-52"
           value={query.source}
         />
-        <FilterSelect
+        <LabeledSelect
+          className="w-fit"
+          emptyLabel={t("stream.filters.all")}
           label={t("stream.filters.admission")}
-          onChange={(value) => setFilters({ admission: value })}
+          onValueChange={(value) => setFilters({ admission: value })}
           options={ADMISSION_OUTCOMES.map((value) => ({
             label: t(`admission.${value}`),
             value,
           }))}
+          triggerClassName="max-w-52"
           value={query.admission}
         />
-        <FilterSelect
+        <LabeledSelect
+          className="w-fit"
+          emptyLabel={t("stream.filters.all")}
           label={t("stream.filters.import")}
-          onChange={(value) => setFilters({ import: value })}
+          onValueChange={(value) => setFilters({ import: value })}
           options={stream.importOptions.map((option) => ({
             label: t("stream.importGroup", {
               id: option.id.slice(0, SHORT_ID_LENGTH),
             }),
             value: option.id,
           }))}
+          triggerClassName="max-w-52"
           value={query.import}
         />
       </form>
@@ -135,47 +145,6 @@ export function SourceItemTable({ stream }: { stream: SourceItemStream }) {
         </>
       )}
     </section>
-  );
-}
-
-function FilterSelect<TValue extends string>({
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  label: string;
-  onChange: (value: TValue | null) => void;
-  options: readonly { label: string; value: TValue }[];
-  value: string | null;
-}) {
-  const t = useTranslations(SOURCES_NAMESPACE);
-  const id = useId();
-
-  return (
-    <div className="grid gap-1 text-xs">
-      <label className="ticket-label" htmlFor={id}>
-        {label}
-      </label>
-      <select
-        className="h-8 max-w-52 rounded-none border border-input bg-background px-2 text-xs"
-        id={id}
-        onChange={(event) => {
-          const selected = options.find(
-            (option) => option.value === event.target.value,
-          );
-          onChange(selected?.value ?? null);
-        }}
-        value={value ?? ""}
-      >
-        <option value="">{t("stream.filters.all")}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
   );
 }
 

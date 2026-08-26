@@ -17,6 +17,7 @@ import { type ReactNode, useId } from "react";
 import { CoreDataTable } from "@/components/data-table/data-table";
 import { KeysetPagination } from "@/components/data-table/keyset-pagination";
 import { useKeysetDataTable } from "@/components/data-table/use-keyset-data-table";
+import { LabeledSelect } from "@/components/form/form-field";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 import { Link } from "@/i18n/navigation";
 
@@ -74,31 +75,40 @@ export function ReportTable({
         aria-label={t("filters.label")}
         className="mt-3 flex flex-wrap items-end gap-2"
       >
-        <FilterSelect
+        <LabeledSelect
+          className="w-fit"
+          emptyLabel={t("filters.all")}
           label={t("filters.brand")}
-          onChange={(brand) => setFilters({ brand })}
+          onValueChange={(brand) => setFilters({ brand })}
           options={brands.map((brand) => ({
             label: brand.name,
             value: brand.id,
           }))}
+          triggerClassName="max-w-52"
           value={query.brand}
         />
-        <FilterSelect
+        <LabeledSelect
+          className="w-fit"
+          emptyLabel={t("filters.all")}
           label={t("filters.disposition")}
-          onChange={(disposition) => setFilters({ disposition })}
+          onValueChange={(disposition) => setFilters({ disposition })}
           options={REPORT_DISPOSITIONS.map((value) => ({
             label: t(`disposition.${value}`),
             value,
           }))}
+          triggerClassName="max-w-52"
           value={query.disposition}
         />
-        <FilterSelect
+        <LabeledSelect
+          className="w-fit"
+          emptyLabel={t("filters.all")}
           label={t("filters.semantic")}
-          onChange={(semantic) => setFilters({ semantic })}
+          onValueChange={(semantic) => setFilters({ semantic })}
           options={SEMANTIC_PARTICIPATIONS.map((value) => ({
             label: t(`semantic.participation.${value}`),
             value,
           }))}
+          triggerClassName="max-w-52"
           value={query.semantic}
         />
         <Button
@@ -176,47 +186,6 @@ export function ReportTable({
         />
       )}
     </section>
-  );
-}
-
-function FilterSelect<TValue extends string>({
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  label: string;
-  onChange: (value: TValue | null) => void;
-  options: readonly { label: string; value: TValue }[];
-  value: string | null;
-}) {
-  const t = useTranslations(EDITORIAL_NAMESPACE);
-  const id = useId();
-
-  return (
-    <div className="grid gap-1 text-xs">
-      <label className="ticket-label" htmlFor={id}>
-        {label}
-      </label>
-      <select
-        className="h-8 max-w-52 rounded-none border border-input bg-background px-2 text-xs"
-        id={id}
-        onChange={(event) => {
-          const selected = options.find(
-            (option) => option.value === event.target.value,
-          );
-          onChange(selected?.value ?? null);
-        }}
-        value={value ?? ""}
-      >
-        <option value="">{t("filters.all")}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
   );
 }
 

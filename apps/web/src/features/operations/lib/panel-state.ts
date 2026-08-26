@@ -14,6 +14,7 @@ export const OPERATION_ERROR_KEYS = {
   FORBIDDEN: "errors.forbidden",
   IDEMPOTENCY_KEY_REUSED: "errors.idempotencyKeyReused",
   INTERNAL_SERVER_ERROR: "errors.internalServerError",
+  IMAGE_SOURCE_EXTRACT_REQUIRED: "errors.imageSourceExtractRequired",
   MEDIA_REJECTED: "errors.mediaRejected",
   MODEL_INVOCATION_FAILED: "errors.modelInvocationFailed",
   NOT_FOUND: "errors.notFound",

@@ -39,12 +39,13 @@ function matchesTerm(
   }
 
   for (const alias of aliases) {
-    if (normalizeText(alias.canonical) !== term) {
+    const group = [alias.canonical, ...alias.surfaces].map(normalizeText);
+    if (!group.includes(term)) {
       continue;
     }
 
-    for (const surface of alias.surfaces) {
-      if (containsTerm(normalized, normalizeText(surface))) {
+    for (const surface of group) {
+      if (containsTerm(normalized, surface)) {
         return true;
       }
     }
