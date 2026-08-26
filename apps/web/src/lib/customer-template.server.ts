@@ -2,6 +2,7 @@ import "server-only";
 
 import { resolve } from "node:path";
 import type { RunConfigurationBounds } from "@rz-chain-reporter/contracts";
+import { computeBrandPolicyFingerprint } from "@rz-chain-reporter/customer-template/fingerprint";
 import { loadCustomerTemplate } from "@rz-chain-reporter/customer-template/load";
 import { env } from "@rz-chain-reporter/env/server";
 
@@ -32,7 +33,15 @@ export const customerBrandPolicy = template.mediaBrands.map((brand) => ({
   name: brand.name,
   brandBible: referenceOf(brand.brandBible),
   imageProfile: referenceOf(brand.imageProfile),
+  brandLogo: referenceOf(brand.brandLogo?.path),
 }));
+
+export const customerBrandPolicyFingerprints = new Map(
+  template.mediaBrands.map((brand) => [
+    brand.key,
+    computeBrandPolicyFingerprint(brand.editorial),
+  ]),
+);
 
 export const customerAcquisition = {
   defaultWindowHours: template.acquisition.defaultWindowHours,
@@ -50,6 +59,7 @@ export const customerEditorial = {
     promoEnabled: brand.editorial.promoEnabled,
   })),
   platforms: template.editorial.platforms,
+  drafting: template.editorial.drafting,
   defaults: template.editorial.defaults,
   bounds: {
     brandKeys: template.mediaBrands.map((brand) => brand.key),
@@ -63,6 +73,7 @@ export const customerEditorial = {
     fanOutMaxUnits: template.editorial.fanOut.maxUnits,
   } satisfies RunConfigurationBounds,
   thresholds: {
+    lexicalTopicScore: template.editorial.policy.thresholds.lexicalTopicScore,
     policyScore: template.editorial.policy.thresholds.policyScore,
     semanticDedup: template.editorial.semantic.dedupThreshold,
     shortlistCap: template.editorial.shortlistCap,

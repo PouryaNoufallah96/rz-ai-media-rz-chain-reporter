@@ -30,6 +30,23 @@ const axisClauseSchema = z.strictObject({
   environments: z.array(profileKeySchema).min(1).optional(),
 });
 
+const fallbackBriefSchema = z.strictObject({
+  selection: z.strictObject({
+    family: profileKeySchema,
+    axes: z.record(profileKeySchema, profileKeySchema.nullable()),
+  }),
+  brief: z.strictObject({
+    headline: prose,
+    subjectScene: prose,
+    dataElements: z.array(
+      z.strictObject({
+        value: prose,
+        label: prose,
+      }),
+    ),
+  }),
+});
+
 export const imageProfileSchema = z
   .strictObject({
     families: z.record(profileKeySchema, familySchema),
@@ -66,10 +83,17 @@ export const imageProfileSchema = z
       noTextMode: profileKeySchema.optional(),
       noTextLine: prose.optional(),
     }),
-    fallbackBrief: z.record(
-      profileKeySchema,
-      z.union([z.string(), z.array(z.string())]),
-    ),
+    output: z.strictObject({
+      width: z.int().positive(),
+      height: z.int().positive(),
+      format: z.literal("png"),
+    }),
+    logo: z.strictObject({
+      anchor: z.enum(["top-left", "top-right", "bottom-left", "bottom-right"]),
+      widthShortSideRatio: z.number().positive().max(1),
+      insetShortSideRatio: z.number().nonnegative().max(0.5),
+    }),
+    fallbackBrief: fallbackBriefSchema,
     briefExamples: prose.optional(),
   })
   .superRefine((profile, ctx) => {
@@ -136,32 +160,72 @@ export const imageProfileSchema = z
       }
     }
 
-    const fallbackFamily = profile.fallbackBrief.family;
+    const fallbackFamily = profile.fallbackBrief.selection.family;
 
-    if (typeof fallbackFamily !== "string" || !familyKeys.has(fallbackFamily)) {
+    if (!familyKeys.has(fallbackFamily)) {
       ctx.addIssue({
         code: "custom",
-        path: ["fallbackBrief", "family"],
+        path: ["fallbackBrief", "selection", "family"],
         message: "Expected a declared layout family",
       });
     }
 
     const optionalAxes = new Set(profile.restrictions.optionalAxes ?? []);
+    const fallbackAxes = profile.fallbackBrief.selection.axes;
 
-    for (const [key, value] of Object.entries(profile.fallbackBrief)) {
-      const axis = profile.axes[key];
+    for (const [axisName, axis] of Object.entries(profile.axes)) {
+      const selected = fallbackAxes[axisName];
 
-      if (!axis || typeof value !== "string" || optionalAxes.has(key)) {
+      if (selected === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["fallbackBrief", "selection", "axes", axisName],
+          message: "Expected a normalized fallback axis",
+        });
         continue;
       }
 
-      if (!(value in axis)) {
+      if (selected === null) {
+        if (!optionalAxes.has(axisName)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["fallbackBrief", "selection", "axes", axisName],
+            message: "Expected an allowed value for a required axis",
+          });
+        }
+        continue;
+      }
+
+      if (!(selected in axis)) {
         ctx.addIssue({
           code: "custom",
-          path: ["fallbackBrief", key],
-          message: `Unknown value "${value}" on axis "${key}"`,
+          path: ["fallbackBrief", "selection", "axes", axisName],
+          message: `Unknown value "${selected}" on axis "${axisName}"`,
         });
       }
+    }
+
+    for (const axisName of Object.keys(fallbackAxes)) {
+      if (!(axisName in profile.axes)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["fallbackBrief", "selection", "axes", axisName],
+          message: `Unknown fallback axis "${axisName}"`,
+        });
+      }
+    }
+
+    const family = profile.families[fallbackFamily];
+
+    if (
+      family !== undefined &&
+      profile.fallbackBrief.brief.dataElements.length > family.dataBudget
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["fallbackBrief", "brief", "dataElements"],
+        message: "Fallback data elements exceed the selected family budget",
+      });
     }
   });
 

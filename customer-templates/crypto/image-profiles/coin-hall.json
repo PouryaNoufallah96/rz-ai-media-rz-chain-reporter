@@ -167,17 +167,32 @@
     "dataElementLabelTemplate": " next to the label \"{label}\"",
     "headlineUppercase": false
   },
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.096,
+    "insetShortSideRatio": 0.045
+  },
   "fallbackBrief": {
-    "family": "artifact",
-    "headline": "A Quiet Moment, Recorded",
-    "layout": "art_only",
-    "data_elements": [],
-    "environment": "marble_table",
-    "camera": "close_up_macro",
-    "energy": "quiet_prestige",
-    "mood_accent": "gold",
-    "hall_theme": "none",
-    "subject_scene": "An antique gold pocket watch lies open on black marble veined with gold, its face catching warm candlelight, with the dim glow of a grand hall blurred softly behind it."
+    "selection": {
+      "family": "artifact",
+      "axes": {
+        "environment": "marble_table",
+        "camera": "close_up_macro",
+        "energy": "quiet_prestige",
+        "mood_accent": "gold",
+        "hall_theme": null
+      }
+    },
+    "brief": {
+      "headline": "A Quiet Moment, Recorded",
+      "subjectScene": "An antique gold pocket watch lies open on black marble veined with gold, its face catching warm candlelight, with the dim glow of a grand hall blurred softly behind it.",
+      "dataElements": []
+    }
   },
   "briefExamples": "Worked examples (for guidance only -- do not copy headlines or scenes verbatim):\n\nA. Article: \"Patek Philippe watch sells for record $12.4M at auction\"\n{\"family\": \"registry\", \"headline\": \"A Record Falls Under the Hammer\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"$12.4M\", \"label\": \"HAMMER\"}, {\"value\": \"x3\", \"label\": \"ESTIMATE\"}], \"environment\": \"grand_hall\", \"camera\": \"low_angle_pedestal\", \"energy\": \"quiet_prestige\", \"mood_accent\": \"gold_teal\", \"hall_theme\": \"jewelry\", \"subject_scene\": \"A teal holographic registry board hovers above a black marble pedestal in a candlelit Art Deco hall, two glowing ledger rows displaying the record figures with the top row haloed in gold; below, a diamond necklace rests on dark velvet catching candlelight, while blurred evening-dress silhouettes watch from the shadows.\"}\n\nB. Article: \"Chainlink launches new low-latency price feeds\"\n{\"family\": \"hologram\", \"headline\": \"The Oracle Just Got Faster\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"VERIFIED\", \"label\": \"\"}], \"environment\": \"study_library\", \"camera\": \"eye_level_wide\", \"energy\": \"quiet_prestige\", \"mood_accent\": \"gold_teal\", \"hall_theme\": \"none\", \"subject_scene\": \"A teal stream of luminous data pours through a tall window onto an open ledger on a wood-paneled desk, while a brass scale beside it tips gently into balance, one holographic tag glowing above the ledger.\"}\n\nC. Article: \"Global luxury car market hits new high\"\n{\"family\": \"artifact\", \"headline\": \"Motion Has Never Been Worth More\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"CAR HALL\", \"label\": \"\"}], \"environment\": \"marble_table\", \"camera\": \"close_up_macro\", \"energy\": \"quiet_prestige\", \"mood_accent\": \"gold_teal\", \"hall_theme\": \"car\", \"subject_scene\": \"A sculptural brass automobile model rests on black marble, candlelight catching its curves, with faint teal constellation lines tracing its silhouette and a small engraved plaque beside it.\"}\n\nD. Article: \"Survey: users abandoning casino dApps for skill-based games\"\n{\"family\": \"contrast\", \"headline\": \"Luck Fades. Skill Compounds.\", \"layout\": \"art_only\", \"data_elements\": [], \"environment\": \"grand_hall\", \"camera\": \"eye_level_wide\", \"energy\": \"dramatic_tension\", \"mood_accent\": \"gold_vs_mono\", \"hall_theme\": \"none\", \"subject_scene\": \"On the left, monochrome motion-blurred slot machines and frantic figures dissolve into noise; on the right, a still golden Art Deco hall where composed guests in evening wear study a glowing registry board, a clean marble seam dividing the two worlds.\"}\n\nE. Article: \"Car Hall winner announced\"\n{\"family\": \"society\", \"headline\": \"The Pot Found Its Owner\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"CAR HALL\", \"label\": \"\"}], \"environment\": \"grand_hall\", \"camera\": \"eye_level_wide\", \"energy\": \"ceremonial_awe\", \"mood_accent\": \"gold_teal\", \"hall_theme\": \"car\", \"subject_scene\": \"A spotlight falls on an applauded winner in evening dress beside a veiled sculptural automobile in a grand Art Deco hall, golden confetti light drifting down, with one holographic plaque glowing softly nearby.\"}\n\nF. Article: \"What happens at the final reveal?\"\n{\"family\": \"doors\", \"headline\": \"Every Pot Finds Its Owner\", \"layout\": \"art_with_data\", \"data_elements\": [{\"value\": \"EXACT\", \"label\": \"\"}, {\"value\": \"FIRST\", \"label\": \"\"}, {\"value\": \"CLOSEST\", \"label\": \"\"}], \"environment\": \"door_corridor\", \"camera\": \"one_point_symmetry\", \"energy\": \"quiet_prestige\", \"mood_accent\": \"gold\", \"hall_theme\": \"none\", \"subject_scene\": \"Three arched marble doors recede down a candlelit corridor, each engraved with a single word above its frame, a golden light-path splitting across the floor toward them with the leftmost door glowing warmly open.\"}"
 }

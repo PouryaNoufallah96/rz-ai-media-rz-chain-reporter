@@ -9,6 +9,9 @@ export type CustomerTemplateFingerprintInput = {
   references: readonly CustomerTemplateReference[];
 };
 
+export type BrandEditorialPolicy =
+  CustomerTemplate["mediaBrands"][number]["editorial"];
+
 // Object keys sorted, authored array order preserved; reformatting the JSON does not move the hash.
 function canonicalize(value: unknown): string {
   if (Array.isArray(value)) {
@@ -35,4 +38,12 @@ export function computeCustomerTemplateFingerprint(
   input: CustomerTemplateFingerprintInput,
 ): string {
   return createHash("sha256").update(canonicalize(input), "utf8").digest("hex");
+}
+
+export function computeBrandPolicyFingerprint(
+  policy: BrandEditorialPolicy,
+): string {
+  return createHash("sha256")
+    .update(canonicalize(policy), "utf8")
+    .digest("hex");
 }
