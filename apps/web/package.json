@@ -17,6 +17,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "@dnd-kit/dom": "catalog:",
+    "@dnd-kit/react": "catalog:",
     "@hookform/resolvers": "catalog:",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
