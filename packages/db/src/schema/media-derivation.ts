@@ -1,6 +1,15 @@
-import { foreignKey, pgTable, text, unique, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  foreignKey,
+  pgTable,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 
-import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
+import { mediaDerivationPurpose } from "./enums";
+import { uuidPrimaryKey, workspaceScope } from "./helpers";
 import { mediaAsset } from "./media-asset";
 import { workspace } from "./workspace";
 
@@ -9,10 +18,12 @@ export const mediaDerivation = pgTable(
   {
     ...uuidPrimaryKey,
     ...workspaceScope,
-    mediaAssetId: uuid("media_asset_id").notNull(),
-    purpose: text("purpose").notNull(),
-    objectKey: text("object_key").notNull(),
-    ...timestamps,
+    sourceMediaAssetId: uuid("source_media_asset_id").notNull(),
+    derivedMediaAssetId: uuid("derived_media_asset_id").notNull(),
+    purpose: mediaDerivationPurpose("purpose").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (t) => [
     foreignKey({
@@ -21,13 +32,22 @@ export const mediaDerivation = pgTable(
       foreignColumns: [workspace.id],
     }).onDelete("restrict"),
     foreignKey({
-      name: "fk_media_derivation_media_asset_id",
-      columns: [t.mediaAssetId],
+      name: "fk_media_derivation_source_media_asset_id",
+      columns: [t.sourceMediaAssetId],
       foreignColumns: [mediaAsset.id],
-    }).onDelete("cascade"),
-    unique("uq_media_derivation_workspace_id_object_key").on(
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "fk_media_derivation_derived_media_asset_id",
+      columns: [t.derivedMediaAssetId],
+      foreignColumns: [mediaAsset.id],
+    }).onDelete("restrict"),
+    unique("uq_media_derivation_workspace_derived_media_asset_id").on(
       t.workspaceId,
-      t.objectKey,
+      t.derivedMediaAssetId,
+    ),
+    check(
+      "ck_media_derivation_distinct_assets",
+      sql`${t.sourceMediaAssetId} <> ${t.derivedMediaAssetId}`,
     ),
   ],
 );

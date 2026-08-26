@@ -50,6 +50,62 @@ export type InvocationKey = (typeof INVOCATION_KEYS)[number];
 
 export const invocationKeySchema = z.enum(INVOCATION_KEYS);
 
+const UNSAFE_OPERATOR_DIRECTION_CODE_POINTS = new Set([
+  0x061c, 0x200e, 0x200f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066,
+  0x2067, 0x2068, 0x2069,
+]);
+
+function hasUnsafeOperatorDirectionCodePoint(value: string) {
+  return [...value].some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return (
+      codePoint <= 0x08 ||
+      (codePoint >= 0x0b && codePoint <= 0x1f) ||
+      (codePoint >= 0x7f && codePoint <= 0x9f) ||
+      UNSAFE_OPERATOR_DIRECTION_CODE_POINTS.has(codePoint)
+    );
+  });
+}
+
+export function normalizeOperatorImageDirection(value: string) {
+  return value
+    .replaceAll("\r\n", "\n")
+    .replaceAll("\r", "\n")
+    .trim()
+    .normalize("NFC");
+}
+
+export const operatorImageDirectionSchema = z
+  .string()
+  .transform(normalizeOperatorImageDirection)
+  .superRefine((value, context) => {
+    const codePoints = Array.from(value);
+    const utf8Bytes = codePoints.reduce((total, character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return (
+        total +
+        (codePoint <= 0x7f
+          ? 1
+          : codePoint <= 0x7ff
+            ? 2
+            : codePoint <= 0xffff
+              ? 3
+              : 4)
+      );
+    }, 0);
+    if (
+      codePoints.length > 1_000 ||
+      utf8Bytes > 4_000 ||
+      hasUnsafeOperatorDirectionCodePoint(value)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "OPERATOR_DIRECTION_INVALID",
+      });
+    }
+  })
+  .transform((value) => value || undefined);
+
 export const MODEL_BACKENDS = ["remote", "local"] as const;
 
 export type ModelBackend = (typeof MODEL_BACKENDS)[number];

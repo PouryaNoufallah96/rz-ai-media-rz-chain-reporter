@@ -6,7 +6,7 @@ import type {
   UsageProviderGateway,
   UsageStatus,
 } from "@rz-chain-reporter/contracts";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 
 import {
   type Executor,
@@ -18,6 +18,7 @@ import {
   type AiUsageRawMetadata,
   aiUsageEvent,
 } from "../schema/ai-usage-event";
+import { operation } from "../schema/operation";
 import { operationAttempt } from "../schema/operation-attempt";
 
 type AiUsageEventRow = typeof aiUsageEvent.$inferSelect;
@@ -32,6 +33,11 @@ export type InsertPendingUsageInput = {
   backend: ModelBackend;
   providerGateway: UsageProviderGateway;
   requestedModel: string;
+  claimFence?: {
+    claimedBy: string;
+    expectedVersion: number;
+    now: Date;
+  };
   occurredAt?: Date;
 };
 
@@ -47,6 +53,23 @@ export async function insertPendingUsage(
 ): Promise<InsertPendingUsageResult> {
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
+    if (input.claimFence) {
+      const [owner] = await tx
+        .select({ id: operation.id })
+        .from(operation)
+        .where(
+          and(
+            inWorkspace(operation, workspaceId),
+            eq(operation.id, input.operationId),
+            eq(operation.claimedBy, input.claimFence.claimedBy),
+            eq(operation.version, input.claimFence.expectedVersion),
+            eq(operation.lifecycle, "running"),
+            gt(operation.leaseExpiresAt, input.claimFence.now),
+          ),
+        )
+        .for("update");
+      if (!owner) throw new Error("usage invocation claim fence lost");
+    }
     const [attempt] = await tx
       .select({ id: operationAttempt.id })
       .from(operationAttempt)
@@ -134,6 +157,12 @@ export type FinalizeUsageInput = {
   costAuthority: UsageCostAuthority;
   rawUsage?: AiUsageRawMetadata | null;
   finalizedAt?: Date;
+  claimFence?: {
+    operationId: string;
+    claimedBy: string;
+    expectedVersion: number;
+    now?: Date;
+  };
 };
 
 export type FinalizeUsageResult =
@@ -150,6 +179,7 @@ export async function finalizeUsage(
 
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
+    await assertUsageClaimFence(tx, workspaceId, input.claimFence);
     const [updated] = await tx
       .update(aiUsageEvent)
       .set({
@@ -200,6 +230,30 @@ export async function finalizeUsage(
   });
 }
 
+export async function markPendingAttemptUsageUnknown(
+  executor: Executor,
+  workspaceId: string,
+  operationAttemptId: string,
+): Promise<number> {
+  const rows = await executor
+    .update(aiUsageEvent)
+    .set({
+      costAuthority: "unknown",
+      status: "unknown",
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        inWorkspace(aiUsageEvent, workspaceId),
+        eq(aiUsageEvent.operationAttemptId, operationAttemptId),
+        eq(aiUsageEvent.status, "pending"),
+      ),
+    )
+    .returning({ id: aiUsageEvent.id });
+
+  return rows.length;
+}
+
 export type FinalizeUsageWithResultResult<TResult> =
   | { status: "updated"; event: AiUsageEventRow; result: TResult }
   | { status: "unchanged"; event: AiUsageEventRow }
@@ -213,6 +267,7 @@ export async function finalizeUsageWithResult<TResult>(
 ): Promise<FinalizeUsageWithResultResult<TResult>> {
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
+    await assertUsageClaimFence(tx, workspaceId, input.claimFence);
 
     const [existing] = await tx
       .select()
@@ -271,6 +326,29 @@ export async function finalizeUsageWithResult<TResult>(
 
     return { status: "updated", event: updated, result };
   });
+}
+
+async function assertUsageClaimFence(
+  tx: Transaction,
+  workspaceId: string,
+  fence: FinalizeUsageInput["claimFence"],
+) {
+  if (!fence) return;
+  const [owner] = await tx
+    .select({ id: operation.id })
+    .from(operation)
+    .where(
+      and(
+        inWorkspace(operation, workspaceId),
+        eq(operation.id, fence.operationId),
+        eq(operation.claimedBy, fence.claimedBy),
+        eq(operation.version, fence.expectedVersion),
+        eq(operation.lifecycle, "running"),
+        gt(operation.leaseExpiresAt, fence.now ?? new Date()),
+      ),
+    )
+    .for("update");
+  if (!owner) throw new Error("usage finalization claim fence lost");
 }
 
 export type EnrichUsageInput = {

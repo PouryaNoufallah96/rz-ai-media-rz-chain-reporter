@@ -25,7 +25,7 @@ export function validateWorkerEnv(
         .number()
         .int()
         .positive()
-        .default(2),
+        .default(12),
       INNGEST_DEV: inngestDev,
       INNGEST_EVENT_KEY: z.string().min(1).optional(),
       INNGEST_SIGNING_KEY: z.string().min(1).optional(),

@@ -14,8 +14,6 @@ import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
 import { sourceItem } from "./source-item";
 import { workspace } from "./workspace";
 
-// Unit ownership supplies run/brand/model/task provenance without duplication.
-// Phase 7 owns rendering suggested_platform and the suitability scores.
 export const editorialSelection = pgTable(
   "editorial_selection",
   {

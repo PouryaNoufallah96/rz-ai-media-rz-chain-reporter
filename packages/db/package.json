@@ -21,7 +21,9 @@
     "db:studio": "drizzle-kit studio",
     "db:migrate": "tsx src/migrate.ts",
     "db:seed": "tsx src/seed/dev.ts",
+    "probe:source-import": "tsx src/probes/source-import.ts",
     "template:reconcile": "tsx src/reconcile/cli.ts",
+    "probe:platform-draft": "tsx src/probes/platform-draft.ts",
     "fix": "biome check --write ."
   },
   "dependencies": {

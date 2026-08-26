@@ -11,15 +11,29 @@ import {
   withWorkspaceContext,
 } from "../executor";
 import { inWorkspace } from "../filters";
+import { imageGeneration } from "../schema/image-generation";
 import { mediaAsset } from "../schema/media-asset";
 import { operation } from "../schema/operation";
 import { outboxEvent } from "../schema/outbox-event";
 
 type MediaAssetRow = typeof mediaAsset.$inferSelect;
 type MediaAssetChanges = Partial<typeof mediaAsset.$inferInsert>;
+type MediaCleanupLifecycle = Extract<
+  MediaAssetLifecycle,
+  "rejected" | "expired"
+>;
 
 export type MediaAssetCasResult =
   | { status: "updated"; asset: MediaAssetRow }
+  | { status: "not_found" }
+  | { status: "conflict" };
+
+export type MediaCleanupClaimResult =
+  | {
+      status: "claimed";
+      asset: MediaAssetRow & { lifecycle: MediaCleanupLifecycle };
+    }
+  | { status: "attached" }
   | { status: "not_found" }
   | { status: "conflict" };
 
@@ -65,7 +79,7 @@ export async function getMediaAssetByObjectKey(
   objectKey: string,
 ) {
   const [row] = await executor
-    .select({ id: mediaAsset.id })
+    .select()
     .from(mediaAsset)
     .where(
       and(
@@ -74,6 +88,25 @@ export async function getMediaAssetByObjectKey(
       ),
     );
   return row ?? null;
+}
+
+export async function resolveMediaAssetObjectOwnership(
+  executor: Executor,
+  workspaceId: string,
+  objectKey: string,
+) {
+  try {
+    const asset = await getMediaAssetByObjectKey(
+      executor,
+      workspaceId,
+      objectKey,
+    );
+    return asset
+      ? ({ status: "committed", asset } as const)
+      : ({ status: "absent" } as const);
+  } catch {
+    return { status: "uncertain", objectKey } as const;
+  }
 }
 
 export async function confirmMediaUpload(
@@ -160,6 +193,15 @@ export async function listMediaReconciliationCandidates(
     and(
       inArray(mediaAsset.lifecycle, ["rejected", "expired"]),
       isNull(mediaAsset.objectRemovedAt),
+      or(
+        isNull(mediaAsset.cleanupAfter),
+        lte(mediaAsset.cleanupAfter, input.now),
+      ),
+    ),
+    and(
+      eq(mediaAsset.lifecycle, "verified"),
+      isNull(mediaAsset.objectRemovedAt),
+      lte(mediaAsset.cleanupAfter, input.now),
     ),
   );
   return executor
@@ -285,6 +327,7 @@ export function markMediaVerified(
     checksum: string;
     width: number;
     height: number;
+    cleanupAfter?: Date | null;
     verifiedAt?: Date;
   },
 ) {
@@ -300,10 +343,90 @@ export function markMediaVerified(
       checksum: input.checksum,
       width: input.width,
       height: input.height,
+      cleanupAfter: input.cleanupAfter,
       rejectionReason: null,
       verifiedAt,
     },
     changedAt: verifiedAt,
+  });
+}
+
+export async function claimMediaCleanup(
+  executor: Executor,
+  workspaceId: string,
+  input: {
+    id: string;
+    version: number;
+    lifecycle: Extract<
+      MediaAssetLifecycle,
+      "verified" | "rejected" | "expired"
+    >;
+    claimedAt?: Date;
+    claimUntil: Date;
+  },
+): Promise<MediaCleanupClaimResult> {
+  const claimedAt = input.claimedAt ?? new Date();
+  return executor.transaction(async (tx) => {
+    await withWorkspaceContext(tx, workspaceId);
+    const [current] = await tx
+      .select()
+      .from(mediaAsset)
+      .where(
+        and(inWorkspace(mediaAsset, workspaceId), eq(mediaAsset.id, input.id)),
+      )
+      .for("update");
+    if (!current) return { status: "not_found" };
+
+    const [reference] = await tx
+      .select({ operationId: imageGeneration.operationId })
+      .from(imageGeneration)
+      .where(
+        and(
+          eq(imageGeneration.workspaceId, workspaceId),
+          eq(imageGeneration.referenceMediaAssetId, current.id),
+        ),
+      )
+      .limit(1);
+    if (reference) return { status: "attached" };
+
+    if (
+      current.version !== input.version ||
+      current.lifecycle !== input.lifecycle ||
+      current.objectRemovedAt ||
+      (current.cleanupAfter && current.cleanupAfter > claimedAt)
+    ) {
+      return { status: "conflict" };
+    }
+    if (
+      current.lifecycle !== "verified" &&
+      current.lifecycle !== "rejected" &&
+      current.lifecycle !== "expired"
+    ) {
+      return { status: "conflict" };
+    }
+
+    const lifecycle: MediaCleanupLifecycle =
+      current.lifecycle === "verified" ? "expired" : current.lifecycle;
+    const [claimed] = await tx
+      .update(mediaAsset)
+      .set({
+        cleanupAfter: input.claimUntil,
+        lifecycle,
+        updatedAt: claimedAt,
+        version: current.version + 1,
+      })
+      .where(
+        and(
+          inWorkspace(mediaAsset, workspaceId),
+          eq(mediaAsset.id, current.id),
+          eq(mediaAsset.lifecycle, current.lifecycle),
+          eq(mediaAsset.version, current.version),
+        ),
+      )
+      .returning();
+    return claimed
+      ? { status: "claimed", asset: { ...claimed, lifecycle } }
+      : { status: "conflict" };
   });
 }
 
@@ -370,7 +493,11 @@ export function markMediaObjectRemoved(
     id: input.id,
     version: input.version,
     from: input.lifecycle,
-    changes: { objectRemovedAt: removedAt, deleteFailedAt: null },
+    changes: {
+      cleanupAfter: null,
+      objectRemovedAt: removedAt,
+      deleteFailedAt: null,
+    },
     changedAt: removedAt,
   });
 }
@@ -390,7 +517,7 @@ export function markMediaDeleteFailed(
     id: input.id,
     version: input.version,
     from: input.lifecycle,
-    changes: { deleteFailedAt: failedAt },
+    changes: { cleanupAfter: null, deleteFailedAt: failedAt },
     changedAt: failedAt,
   });
 }
