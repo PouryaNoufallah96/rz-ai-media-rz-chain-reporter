@@ -1,7 +1,10 @@
 "use client";
 
 import type { OperationLifecycle } from "@rz-chain-reporter/contracts";
-import { editorialChangedRealtimeMessageSchema } from "@rz-chain-reporter/contracts";
+import {
+  draftsChangedRealtimeMessageSchema,
+  editorialChangedRealtimeMessageSchema,
+} from "@rz-chain-reporter/contracts";
 import { useRealtime } from "inngest/react";
 import { useRouter } from "next/navigation";
 import {
@@ -12,7 +15,7 @@ import {
   useTransition,
 } from "react";
 
-import { getEditorialRealtimeToken } from "../actions/get-realtime-token";
+import { getEditorialRealtimeTokens } from "../actions/get-realtime-token";
 import { refreshEditorialReadsAction } from "../actions/refresh-editorial-reads";
 
 type EditorialTransport = "live" | "reconnecting" | "stale" | "unavailable";
@@ -33,18 +36,9 @@ export function useEditorialFreshness(
   const [subscriptionUnavailable, setSubscriptionUnavailable] = useState(false);
   const hasConnected = useRef(false);
 
-  // Keep a socket through the selected run's final ping; selecting a settled
-  // run closes it.
-  const [selectedRunId, setSelectedRunId] = useState(analysisRunId);
-  const [settledWhenSelected, setSettledWhenSelected] = useState(() =>
+  const [settledWhenSelected] = useState(() =>
     SETTLED_LIFECYCLES.includes(lifecycle),
   );
-
-  if (selectedRunId !== analysisRunId) {
-    setSelectedRunId(analysisRunId);
-    setSettledWhenSelected(SETTLED_LIFECYCLES.includes(lifecycle));
-    setSubscriptionUnavailable(false);
-  }
 
   const rerenderNow = () => {
     startRefresh(() => {
@@ -52,13 +46,13 @@ export function useEditorialFreshness(
     });
   };
 
-  const requestToken = () =>
-    getEditorialRealtimeToken(analysisRunId)
+  const requestTokens = () =>
+    getEditorialRealtimeTokens(analysisRunId)
       .then((result) => {
         if (result.status === "unavailable") {
           throw new Error("Editorial realtime subscription is unavailable");
         }
-        return result.token;
+        return result;
       })
       .catch((error: unknown) => {
         if (!hasConnected.current) {
@@ -67,14 +61,27 @@ export function useEditorialFreshness(
         throw error;
       });
 
-  const realtimeEnabled = !subscriptionUnavailable && !settledWhenSelected;
-  const realtime = useRealtime({
+  const realtimeEnabled = !subscriptionUnavailable;
+  const editorialEnabled = realtimeEnabled && !settledWhenSelected;
+  const editorialRealtime = useRealtime({
+    autoCloseOnTerminal: false,
+    enabled: editorialEnabled,
+    historyLimit: 1,
+    key: `editorial:${analysisRunId}`,
+    pauseOnHidden: true,
+    ...(editorialEnabled
+      ? { token: () => requestTokens().then((result) => result.editorial) }
+      : {}),
+  });
+  const draftsRealtime = useRealtime({
     autoCloseOnTerminal: false,
     enabled: realtimeEnabled,
     historyLimit: 1,
-    key: analysisRunId,
+    key: `drafts:${analysisRunId}`,
     pauseOnHidden: true,
-    ...(realtimeEnabled ? { token: requestToken } : {}),
+    ...(realtimeEnabled
+      ? { token: () => requestTokens().then((result) => result.drafts) }
+      : {}),
   });
 
   const rerenderLatest = useEffectEvent(() => {
@@ -83,20 +90,32 @@ export function useEditorialFreshness(
 
   // Ignore late pings from the previously selected run.
   useEffect(() => {
-    const changed = realtime.messages.delta.some((message) => {
-      const parsed = editorialChangedRealtimeMessageSchema.safeParse(
-        message.data,
-      );
+    const editorialChanged = editorialRealtime.messages.delta.some(
+      (message) => {
+        const parsed = editorialChangedRealtimeMessageSchema.safeParse(
+          message.data,
+        );
+        return parsed.success && parsed.data.analysisRunId === analysisRunId;
+      },
+    );
+    const draftChanged = draftsRealtime.messages.delta.some((message) => {
+      const parsed = draftsChangedRealtimeMessageSchema.safeParse(message.data);
       return parsed.success && parsed.data.analysisRunId === analysisRunId;
     });
 
-    if (changed) {
+    if (editorialChanged || draftChanged) {
       rerenderLatest();
     }
-  }, [analysisRunId, realtime.messages.delta]);
+  }, [
+    analysisRunId,
+    draftsRealtime.messages.delta,
+    editorialRealtime.messages.delta,
+  ]);
 
   useEffect(() => {
-    if (realtime.connectionStatus !== "open") {
+    const editorialConnected =
+      !editorialEnabled || editorialRealtime.connectionStatus === "open";
+    if (!editorialConnected || draftsRealtime.connectionStatus !== "open") {
       return;
     }
     if (hasConnected.current) {
@@ -104,7 +123,11 @@ export function useEditorialFreshness(
       return;
     }
     hasConnected.current = true;
-  }, [realtime.connectionStatus]);
+  }, [
+    draftsRealtime.connectionStatus,
+    editorialEnabled,
+    editorialRealtime.connectionStatus,
+  ]);
 
   const rerenderWhenVisible = useEffectEvent(() => {
     if (document.visibilityState === "visible") {
@@ -124,27 +147,27 @@ export function useEditorialFreshness(
       setSubscriptionUnavailable(false);
       startRefresh(refreshEditorialReadsAction);
     },
-    transport: transportOf(realtimeEnabled, realtime.connectionStatus),
+    transport: transportOf(
+      realtimeEnabled,
+      draftsRealtime.connectionStatus,
+      editorialEnabled ? editorialRealtime.connectionStatus : "open",
+    ),
   };
 }
 
 function transportOf(
   available: boolean,
-  connectionStatus:
-    | "idle"
-    | "connecting"
-    | "open"
-    | "paused"
-    | "closed"
-    | "error",
+  ...statuses: Array<
+    "idle" | "connecting" | "open" | "paused" | "closed" | "error"
+  >
 ): EditorialTransport {
   if (!available) {
     return "unavailable";
   }
-  if (connectionStatus === "open") {
+  if (statuses.every((status) => status === "open")) {
     return "live";
   }
-  if (connectionStatus === "connecting" || connectionStatus === "idle") {
+  if (statuses.some((status) => status === "connecting" || status === "idle")) {
     return "reconnecting";
   }
   return "stale";

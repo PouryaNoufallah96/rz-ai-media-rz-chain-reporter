@@ -79,8 +79,10 @@ export const startAnalysisRunInputSchema = z.discriminatedUnion("kind", [
   startAnalysisRunPromoSchema,
 ]);
 
+export const analysisRunIdSchema = z.uuid();
+
 export const cancelAnalysisRunInputSchema = z.object({
-  analysisRunId: z.uuid(),
+  analysisRunId: analysisRunIdSchema,
 });
 
 export const startAnalysisRunResultSchema = z.object({
@@ -197,6 +199,7 @@ export type ModelLane = {
 };
 
 export type TelegramCard = {
+  telegramFilterResultId: string;
   sourceItemId: string;
   rankPosition: number | null;
   disposition: FilterDisposition;

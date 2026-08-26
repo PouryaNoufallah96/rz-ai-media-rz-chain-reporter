@@ -4,6 +4,153 @@
     "caption": {
       "latestRun": "Latest run {time}"
     },
+    "route": {
+      "localeEn": "English",
+      "localeFa": "Persian",
+      "queued": "Draft {id} queued",
+      "existing": "Existing draft {id} focused",
+      "error": {
+        "invalid": "Review the card and try again.",
+        "notFound": "This card is no longer available.",
+        "reused": "This routing request was already used with different values.",
+        "stale": "This card belongs to an outdated configuration.",
+        "transient": "The route changed concurrently. Try again.",
+        "unknown": "The draft could not be routed. Try again."
+      }
+    },
+    "platformDraft": {
+      "zone": "Platform lanes",
+      "lane": "{brand} · {platform}",
+      "count": "{n, number} draft(s)",
+      "empty": "No draft routed to this lane",
+      "position": "position {n, number}",
+      "units": "{completed, number} of {total, number} copy units complete",
+      "drag": "Reorder {title}",
+      "dragOrigin": "Drag {title} to a platform lane",
+      "sendTo": "Send to {platform}",
+      "alreadyRouted": "Already on {platform}",
+      "lifecycle": {
+        "queued": "queued",
+        "running": "running",
+        "settling": "settling",
+        "succeeded": "complete",
+        "failed": "failed",
+        "cancelled": "cancelled",
+        "unknown": "outcome unknown"
+      },
+      "a11y": {
+        "instructions": "Press Space or Enter to pick up this draft. Use arrow keys to choose a position and press Space or Enter to drop. Press Escape to cancel.",
+        "pickedUp": "Picked up {title}.",
+        "dropped": "Draft dropped.",
+        "cancelled": "Reorder cancelled.",
+        "moved": "{title} moved to position {position, number}.",
+        "conflict": "The lane changed concurrently. The authoritative order was restored.",
+        "alreadyRouted": "This draft is already routed to {platform}."
+      }
+    },
+    "cardSheet": {
+      "close": "Close draft",
+      "title": "Card sheet",
+      "description": "{brand} · {platform}. Inspect candidates, append immutable revisions, and start copy work.",
+      "candidates": "Generated candidates",
+      "candidatesEmpty": "No successful candidates yet.",
+      "candidateMeta": "{locale} · {model}",
+      "history": "Revision history",
+      "historyEmpty": "No revision yet. Use a generated candidate first.",
+      "revision": "Revision {n, number}",
+      "revisionMeta": "{locale} · {author}",
+      "preview": "Candidate inspection",
+      "previewEmpty": "Select a successful candidate when one becomes available.",
+      "useVariant": "Apply variant",
+      "applying": "Applying variant",
+      "saving": "Saving revision",
+      "saveRevision": "Create revision",
+      "copyActions": "Copy operations",
+      "regenerate": "Regenerate",
+      "refreshArticle": "Refresh article and regenerate",
+      "retryFailed": "Retry {n, number} failed variant(s)",
+      "image": "Image",
+      "imageReady": "Image work can use this exact revision in the next step.",
+      "imageNeedsRevision": "Use a candidate before starting image work.",
+      "imageSourceExtractRequired": "This RSS copy only has feed text. Refresh the article and regenerate the copy, then apply the new variant before generating an image.",
+      "imageModel": "Image model",
+      "imageStatus": "Image operation: {status}",
+      "imageStatusIdle": "No image operation has started.",
+      "imageGenerate": "Generate image",
+      "imageDirection": "Creative direction (optional)",
+      "imageDirectionHint": "Up to 1,000 characters. Brand and layout rules still apply.",
+      "imageRetry": "Retry image",
+      "imageFailed": "Image generation failed. Retry when you are ready.",
+      "imageDownload": "Download image",
+      "imagePending": "Starting image work",
+      "editor": {
+        "headline": "Headline",
+        "body": "Body",
+        "hashtags": "Ordered hashtags",
+        "hashtagHint": "Type a tag, then press Enter or comma. The brand tag stays first.",
+        "hashtagAdd": "Add",
+        "hashtagRemove": "Remove {hashtag}",
+        "locale": "Content language",
+        "localeRegenerate": "Content language changed. Use Regenerate under Copy operations to rewrite this draft in that language; you cannot create a revision until the stored copy matches.",
+        "noRevision": "Candidate inspection is read-only until you use a variant.",
+        "copyBudget": "{used, number} of {limit, number} characters used for {platform}",
+        "inlineHashtag": "Keep hashtags out of the headline and body — add them as chips.",
+        "hashtagPlaceholder": "#tag"
+      },
+      "stale": {
+        "title": "Newer revision available",
+        "description": "Your local values are preserved. Rebase to keep them on top of the newer revision, or discard them.",
+        "reload": "Discard my changes",
+        "arrived": "Revision {n, number} was created by {author} at {time} while you were editing.",
+        "rebase": "Rebase onto latest",
+        "blocked": "Rebase onto the newer revision or discard your changes before saving."
+      },
+      "discard": {
+        "title": "Discard local draft changes?",
+        "description": "Your unsaved headline, body, hashtags, and content-language choice will be lost.",
+        "confirm": "Discard changes",
+        "cancel": "Keep editing",
+        "pending": "Discarding"
+      },
+      "error": {
+        "headline": "Add a headline.",
+        "body": "Add the draft body.",
+        "hashtags": "Add the required ordered hashtags.",
+        "conflict": "A newer revision exists. Your local values were preserved.",
+        "operationInProgress": "Copy work is already in progress for this draft.",
+        "templateDrift": "The customer template changed. Reload the app, then use Regenerate to create copy under the current policy.",
+        "unknown": "The draft could not be updated. Review the fields and try again.",
+        "validation": "This copy does not fit the platform rules. Trim it to the character budget and keep hashtags out of the headline and body.",
+        "imageDirection": "Creative direction is too long or uses unsupported characters. Keep it under 1,000 characters.",
+        "imageSourceExtractRequired": "This RSS copy needs a full article extract. Refresh the article and regenerate the copy, then apply the new variant.",
+        "mediaContentMismatch": "The copy changed after this image was generated. Generate a new image for the current copy.",
+        "mediaInvalid": "That image is not available for this draft.",
+        "referenceConflict": "That reference image is already used by another draft."
+      },
+      "imageAttached": "This image is attached to the current revision.",
+      "imageNotAttached": "This image belongs to an older revision and was not attached.",
+      "imageAlt": "{brand} generated image: {headline}",
+      "imageRemove": "Remove image",
+      "imageReference": "Reference image (optional)",
+      "imageReferenceHint": "JPEG, PNG or WebP up to {kb, number} KB. It guides the generated image.",
+      "imageReferenceUploading": "Uploading reference",
+      "imageReferenceState": {
+        "uploading": "Uploading {file}",
+        "verifying": "Checking {file}",
+        "verified": "{file} is ready to guide the image.",
+        "rejected": "{file} was rejected. Choose another image.",
+        "failed": "{file} could not be uploaded. Use a JPEG, PNG or WebP image."
+      },
+      "rebase": {
+        "title": "You and the newer revision changed these fields. Choose one value for each.",
+        "mine": "Keep my value",
+        "theirs": "Use revision {n, number}",
+        "apply": "Apply rebase"
+      },
+      "imageReferenceClear": "Remove",
+      "imageReferenceRemove": "Remove reference image {file}",
+      "imageRemoveBlocked": "Save or discard your draft edits before removing the image from this revision."
+    },
     "run": {
       "title": "Run",
       "head": {
@@ -56,8 +203,8 @@
       "telegram": {
         "ordering": {
           "label": "Telegram ordering",
-          "views": "Most viewed",
-          "latest": "Newest first",
+          "views": "Most viewed overall",
+          "latest": "Newest overall",
           "views_per_source": "Most viewed per channel",
           "latest_per_source": "Newest per channel",
           "keywords": "Keyword match"
@@ -111,8 +258,7 @@
         "finished": "Run finished.",
         "finishedPartial": "Run finished. {n, number} unit(s) failed.",
         "failed": "Run failed.",
-        "cancelled": "Run cancelled.",
-        "cancelRequested": "Cancellation requested."
+        "cancelled": "Run cancelled."
       },
       "progress": {
         "elapsed": "elapsed {duration}",
@@ -138,7 +284,6 @@
       "preparing": "preparing",
       "acquiring": "acquiring sources",
       "filtering": "filtering",
-      "semanticStage": "semantic stage",
       "modelsRunning": "Models running {done, number} of {total, number}",
       "settling": "settling results",
       "cancelling": "cancelling",
@@ -184,9 +329,13 @@
     },
     "errors": {
       "fanOutExceedsMaxUnits": "This selection would start more model units than the template allows.",
+      "keywordTopicRequired": "Add at least one topic for keyword-match ordering.",
       "noPromoBrand": "Select at least one promo brand.",
+      "noSources": "Select at least one source.",
       "promoPromptRequired": "A prompt is required for {brand}.",
       "promoPromptTooLong": "This prompt is longer than the template allows.",
+      "telegramSourceRequired": "Select at least one Telegram source for Telegram-only mode.",
+      "templateDrift": "The customer template changed. Reload the app before starting new work.",
       "tooManyTopics": "Too many topics for one run.",
       "topicTooLong": "This topic is longer than the template allows.",
       "topNExceedsCap": "Top-N is higher than this template allows."
@@ -248,6 +397,9 @@
         "detail": "{brand} has no Brand Bible. Supplied: name, keywords, anchors, prompt.",
         "tag": "limited guidance"
       },
+      "board": {
+        "zone": "Board"
+      },
       "model": {
         "title": "{model} · {brand}",
         "zone": "Model lanes"
@@ -266,6 +418,7 @@
         "failed": "failed",
         "invalidOutput": "Output could not be validated",
         "pending": "queued",
+        "recovered": "recovered output — review before routing",
         "running": "running",
         "succeeded": "succeeded"
       }
@@ -307,7 +460,6 @@
       },
       "channel": "Channel",
       "empty": "No Telegram candidate passed the filter",
-      "emptyLink": "See what the filter rejected",
       "duplicateRss": "{n, plural, one {duplicate of # RSS item} other {duplicate of # RSS items}}",
       "messageLink": "Message",
       "none": "No Telegram candidates.",
@@ -324,7 +476,7 @@
         "global": "source rank {n, number}",
         "label": "Source order rank",
         "perSource": "source rank {n, number} within {channel}",
-        "report": "Phase 5 import · source order rank {n, number}"
+        "report": "Imported source · source order rank {n, number}"
       },
       "topics": "Topics"
     },
@@ -428,6 +580,8 @@
       },
       "policy": {
         "topicLexical": "Topic fit (lexical): {topic}",
+        "topicLexicalNoMatch": "Topic fit (lexical): no configured topic matched",
+        "topicLexicalScore": "Lexical topic score {value, number} / threshold {threshold, number}",
         "virality": "Policy virality score {value, number}",
         "freshness": {
           "value": "Freshness {value, number}",
@@ -446,8 +600,14 @@
         },
         "mediaFit": "Media-fit gate",
         "policy": "Policy gate",
+        "topicLexical": "Lexical topic gate",
         "passed": "passed",
         "failed": "failed"
+      },
+      "lowScore": {
+        "policy": "Rejected by policy score",
+        "topicLexical": "Rejected by lexical topic score",
+        "policyAndTopic": "Rejected by policy and lexical topic scores"
       },
       "notEvaluated": "Not evaluated",
       "capReached": "Brand cap {n, number} reached at rank {r, number}",
