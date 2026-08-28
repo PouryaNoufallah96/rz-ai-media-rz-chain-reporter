@@ -11,6 +11,7 @@ const buildEnv = validateBuildEnv(process.env);
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  deploymentId: process.env.APP_VERSION,
   cacheComponents: true,
   partialPrefetching: true,
   typedRoutes: true,
