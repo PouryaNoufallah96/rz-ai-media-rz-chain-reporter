@@ -10,9 +10,9 @@
       "createdAt": "Operator since"
     },
     "metrics": {
-      "title": "Workspace facts",
-      "generated": "Workspace generated drafts",
-      "scheduled": "Workspace scheduled",
+      "title": "Your facts",
+      "generated": "Your generated drafts",
+      "scheduled": "Your scheduled",
       "saved": "Your saved"
     },
     "brands": {
@@ -65,6 +65,32 @@
         }
       }
     },
+    "audit": {
+      "title": "Activity history",
+      "description": "Your recorded actions, newest first. Metadata only: which record changed.",
+      "caption": "Your activity history",
+      "columns": {
+        "time": "Time",
+        "actor": "Actor",
+        "event": "Event",
+        "record": "Record"
+      },
+      "records": {
+        "draft": "Draft",
+        "savedCard": "Saved card",
+        "approval": "Approval",
+        "schedule": "Schedule",
+        "publication": "Publication",
+        "operation": "Operation",
+        "installation": "Installation"
+      },
+      "system": "System",
+      "empty": "No activity has been recorded for you yet.",
+      "updating": "Updating activity history",
+      "latest": "Back to latest",
+      "newer": "Newer",
+      "older": "Older"
+    },
     "topics": {
       "title": "Recent topics",
       "empty": "No recent operator topics."
@@ -96,8 +122,7 @@
       "discarded": "Discarded",
       "latest": "Back to latest",
       "newer": "Newer",
-      "older": "Older",
-      "updating": "Updating saved cards"
+      "older": "Older"
     },
     "card": {
       "noHeadline": "No revision headline",
