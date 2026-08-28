@@ -31,8 +31,10 @@ export function AccountScreen({
       fallback={<AccountHeadingSkeleton />}
     >
       {(t) => (
-        <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <h1 className="font-semibold text-2xl">{t("title")}</h1>
+        <div className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-6 lg:px-8">
+          <h1 className="font-semibold text-2xl tracking-display">
+            {t("title")}
+          </h1>
           <p className="mt-1 max-w-3xl text-muted-foreground text-sm">
             {t("subtitle")}
           </p>
@@ -101,7 +103,7 @@ async function readAccountDesk(searchParams: AccountSearchParams) {
 
 function AccountHeadingSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-6 lg:px-8">
       <Skeleton className="h-8 w-40" />
       <Skeleton className="mt-1 h-5 w-full max-w-xl" />
     </div>
@@ -112,12 +114,12 @@ function AccountDeskSkeleton({ loadingLabel }: { loadingLabel: string }) {
   return (
     <div aria-busy="true" className="mt-5" role="status">
       <span className="sr-only">{loadingLabel}</span>
-      <div className="grid gap-5 border-border border-y py-5 md:grid-cols-2 md:gap-8">
+      <div className="grid gap-4 rounded-xl border bg-card p-4 md:grid-cols-2 md:gap-6">
         <Skeleton className="h-28 w-full" />
         <Skeleton className="h-28 w-full" />
       </div>
-      <div className="mt-7 grid items-start gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div className="grid min-w-0 gap-8">
+      <div className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-stretch">
+        <div className="grid min-w-0 gap-4 lg:grid-rows-[auto_1fr]">
           <Skeleton className="h-48 w-full" />
           <div className="grid gap-4">
             <Skeleton className="h-20 w-full" />
@@ -127,10 +129,10 @@ function AccountDeskSkeleton({ loadingLabel }: { loadingLabel: string }) {
             <Skeleton className="h-36 w-full" />
           </div>
         </div>
-        <div className="grid min-w-0 gap-7">
+        <div className="grid min-w-0 gap-4 lg:grid-rows-[auto_auto_1fr]">
           <Skeleton className="h-48 w-full" />
           <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-96 w-full" />
+          <Skeleton className="min-h-96 w-full" />
         </div>
       </div>
     </div>

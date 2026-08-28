@@ -44,6 +44,9 @@
       "title": "Page not found",
       "body": "The page you requested does not exist in this workspace.",
       "home": "Back to home"
+    },
+    "footer": {
+      "description": "Your editorial workspace."
     }
   }
 }

@@ -3,11 +3,18 @@
 import type { OperationLifecycle } from "@rz-chain-reporter/contracts";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@rz-chain-reporter/ui/components/collapsible";
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
 } from "@rz-chain-reporter/ui/components/empty";
+import { cn } from "@rz-chain-reporter/ui/lib/utils";
+import { ChevronDownIcon, HistoryIcon } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
@@ -16,6 +23,7 @@ import { StateMark, type StateMarkState } from "@/components/common/state-mark";
 import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
 import { OPERATION_ERROR_KEYS } from "@/features/operations/lib/panel-state";
 import { useAction } from "@/hooks/use-action";
+import { Link } from "@/i18n/navigation";
 
 import { cancelAnalysisRunAction } from "../actions/cancel-analysis-run";
 import { EDITORIAL_NAMESPACE } from "../constants";
@@ -58,8 +66,11 @@ export function RunHead({
   const titleId = useId();
 
   return (
-    <section aria-labelledby={titleId} className="border border-border p-4">
-      <h2 className="ticket-label border-b border-dashed pb-2" id={titleId}>
+    <section
+      aria-labelledby={titleId}
+      className="rounded-lg border border-border bg-card p-3"
+    >
+      <h2 className="ticket-label border-b pb-2" id={titleId}>
         {t("run.head.title")}
       </h2>
       {head ? (
@@ -71,11 +82,26 @@ export function RunHead({
         />
       ) : null}
       <div className="mt-3 grid gap-3">
-        <details className="border border-border border-dashed p-2">
-          <summary className="min-h-8 cursor-pointer content-center text-muted-foreground text-xs max-sm:min-h-11">
+        <Collapsible className="rounded-lg border border-border">
+          <CollapsibleTrigger
+            render={
+              <Button
+                className="group w-full justify-start max-sm:min-h-11"
+                variant="ghost"
+              />
+            }
+          >
+            <HistoryIcon aria-hidden="true" />
             {t("run.selector.recent")}
-          </summary>
-          <div className="pt-2">
+            <ChevronDownIcon
+              className="ms-auto transition-transform group-data-panel-open:rotate-180"
+              aria-hidden="true"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent
+            className="p-3 pt-1 data-closed:hidden"
+            keepMounted
+          >
             <RunSelector
               runs={runs}
               selected={
@@ -92,8 +118,8 @@ export function RunHead({
                     })
               }
             />
-          </div>
-        </details>
+          </CollapsibleContent>
+        </Collapsible>
         {head ? (
           <RunState
             head={head}
@@ -154,7 +180,7 @@ function RunState({
         <div className="min-w-0 flex-1">
           <p className={stateTone(mark)}>{stateLabel(head, t)}</p>
           {head.progress.partial ? (
-            <p className="font-mono text-muted-foreground text-xs tabular-nums">
+            <p className="text-muted-foreground text-xs tabular-nums">
               {t("state.partial", {
                 n: head.progress.units.failed + head.progress.units.cancelled,
               })}
@@ -175,7 +201,7 @@ function RunState({
           ) : null}
         </div>
       </div>
-      <p className="font-mono text-muted-foreground text-xs tabular-nums">
+      <p className="text-muted-foreground text-xs tabular-nums">
         {t("run.progress.elapsed", { duration: elapsed })}
         {" · "}
         {t("run.progress.last", {
@@ -200,11 +226,24 @@ function RunState({
           {t("state.telegramOnlyComplete")}
         </p>
       ) : null}
-      <p aria-atomic="true" className="text-sm" role="status">
+      <p
+        aria-atomic="true"
+        className={cn("text-sm", selectedRunId !== null && "sr-only")}
+        role="status"
+      >
         {announcement(head, selectedRunId, t)}
       </p>
+      <Button
+        className="w-full max-sm:min-h-11"
+        nativeButton={false}
+        render={<Link href={`/dashboard/runs/${head.id}/report`} />}
+        size="sm"
+        variant="outline"
+      >
+        {t("report.link")}
+      </Button>
       {terminal ? null : head.cancelRequestedAt ? (
-        <p className="font-mono text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-xs">
           {t("state.cancelRequested")}
         </p>
       ) : (
@@ -227,7 +266,7 @@ function CancelRun({ analysisRunId }: { analysisRunId: string }) {
         onClick={() => setOpen(true)}
         size="sm"
         type="button"
-        variant="link"
+        variant="ghost"
       >
         {t("run.cancel")}
       </Button>
@@ -296,14 +335,14 @@ function RunProgress({ head }: { head: RunHeadView }) {
   ] as const;
 
   return (
-    <dl className="grid grid-cols-3 border border-border text-center">
+    <dl className="grid grid-cols-3 overflow-hidden rounded-lg border border-border bg-muted/40 text-center">
       {facts.map(([label, value]) => (
         <div
           className="grid gap-1 border-border border-e p-2 last:border-e-0"
           key={label}
         >
           <dt className="text-muted-foreground text-xs">{t(label)}</dt>
-          <dd className="font-mono tabular-nums">{format.number(value)}</dd>
+          <dd className="tabular-nums">{format.number(value)}</dd>
         </div>
       ))}
     </dl>

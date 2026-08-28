@@ -2,8 +2,15 @@
 
 import type { Platform } from "@rz-chain-reporter/contracts";
 import { Button } from "@rz-chain-reporter/ui/components/button";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarTrigger,
+} from "@rz-chain-reporter/ui/components/sidebar";
+import { PlusIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import type { SourceCatalogEntry } from "@/features/sources/schemas/catalog";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
@@ -17,7 +24,11 @@ import type {
 } from "../schemas/workspace";
 import { workspaceSearchParsers } from "../schemas/workspace";
 import { CardSheet } from "./card-sheet";
-import { type BoardPresentation, LaneBoard } from "./lane-board";
+import {
+  type BoardPresentation,
+  LaneBoard,
+  LaneBoardHeader,
+} from "./lane-board";
 import { RunConfigurationForm } from "./run-configuration-form";
 import { RunHead as RunHeadPanel } from "./run-head";
 
@@ -39,10 +50,14 @@ export function EditorialCoordinator({
   workspace: EditorialWorkspace;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
+  const boardHeadingId = useId();
   const [presentation, setPresentation] = useState<BoardPresentation>(() =>
     initialPresentation(workspace.head, options, templatePlatforms),
   );
   const [finalFocus, setFinalFocus] = useState<HTMLElement | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const sidebarPanel = useRef<HTMLDivElement>(null);
+  const sidebarTrigger = useRef<HTMLButtonElement>(null);
   const { setValues, values } = useTransitionUrlState(workspaceSearchParsers);
   const selectedDraft = platformDraftLanes
     .flatMap((lane) => lane.drafts)
@@ -50,16 +65,49 @@ export function EditorialCoordinator({
 
   return (
     <>
-      <div className="grid min-w-0 gap-4 min-[900px]:grid-cols-[minmax(280px,22rem)_minmax(0,1fr)]">
-        <aside className="grid content-start gap-3 min-[900px]:sticky min-[900px]:top-4 min-[900px]:max-h-[calc(100dvh-2rem)] min-[900px]:overflow-y-auto">
-          <Button
-            className="w-full max-sm:min-h-11"
-            nativeButton={false}
-            render={<Link href="/dashboard" />}
-            variant="outline"
-          >
-            {t("run.newWorkspace")}
-          </Button>
+      <Sidebar
+        onKeyDown={(event) => {
+          if (
+            event.key === "Escape" &&
+            !event.defaultPrevented &&
+            sidebarOpen
+          ) {
+            event.preventDefault();
+            sidebarTrigger.current?.focus();
+            setSidebarOpen(false);
+          }
+        }}
+        onOpenChange={(open) => {
+          if (!open && sidebarPanel.current?.contains(document.activeElement)) {
+            sidebarTrigger.current?.focus();
+          }
+          setSidebarOpen(open);
+        }}
+        open={sidebarOpen}
+      >
+        <SidebarHeader className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 min-[900px]:group-data-open/sidebar:grid-cols-subgrid">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger ref={sidebarTrigger}>
+              {t("run.title")}
+            </SidebarTrigger>
+            <Button
+              aria-label={t("run.newWorkspace")}
+              className="max-sm:size-11"
+              nativeButton={false}
+              render={<Link href="/dashboard" />}
+              size="icon"
+              variant="outline"
+            >
+              <PlusIcon aria-hidden="true" />
+            </Button>
+          </div>
+          <LaneBoardHeader head={workspace.head} id={boardHeadingId} />
+        </SidebarHeader>
+        <SidebarContent
+          aria-label={t("run.title")}
+          inert={!sidebarOpen}
+          ref={sidebarPanel}
+        >
           <RunConfigurationForm
             initialConfiguration={workspace.head?.configuration ?? null}
             onPresentationChange={setPresentation}
@@ -72,8 +120,11 @@ export function EditorialCoordinator({
             runs={options.runs}
             selectedRunId={workspace.query.run}
           />
-        </aside>
-        <div className="min-w-0">
+        </SidebarContent>
+        <section
+          aria-labelledby={boardHeadingId}
+          className="col-start-2 row-start-2 min-w-0"
+        >
           <LaneBoard
             brands={options.brands}
             defaultModelOptionKey={defaultModelOptionKey}
@@ -90,8 +141,8 @@ export function EditorialCoordinator({
             templatePlatforms={templatePlatforms}
             telegramLanes={workspace.telegramLanes}
           />
-        </div>
-      </div>
+        </section>
+      </Sidebar>
       <CardSheet
         card={selectedDraft ?? null}
         finalFocus={finalFocus}

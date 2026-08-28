@@ -13,7 +13,7 @@ export function UsageFreshness() {
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
       <span
-        className="wrap-break-word min-w-0 font-mono text-muted-foreground text-xs tabular-nums"
+        className="wrap-break-word min-w-0 text-muted-foreground text-xs tabular-nums"
         role="status"
       >
         {t(`transport.${transport}`)}
@@ -24,7 +24,7 @@ export function UsageFreshness() {
         onClick={refresh}
         size="xs"
         type="button"
-        variant="outline"
+        variant="ghost"
       >
         {t("transport.refresh")}
       </Button>

@@ -1,9 +1,10 @@
+import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 
 export function ChannelPlate({ handle }: { handle: string }) {
   return (
-    <span className="inline-flex shrink-0 border border-foreground px-1 font-mono text-[11px] leading-5">
+    <Badge className="shrink-0 font-normal" variant="secondary">
       <Bdi dir="ltr" translate="no">{`@${handle}`}</Bdi>
-    </span>
+    </Badge>
   );
 }

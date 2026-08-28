@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { FieldGroup } from "@rz-chain-reporter/ui/components/field";
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
+import { LockKeyholeIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -57,11 +58,23 @@ export default function SignInForm() {
   });
 
   return (
-    <div className="mx-auto mt-10 w-full max-w-md p-6">
-      <h1 className="mb-6 text-center font-bold text-3xl">
+    <div className="w-full max-w-sm">
+      <LockKeyholeIcon
+        aria-hidden="true"
+        className="mb-6 size-7 text-primary"
+      />
+      <h1 className="font-semibold text-3xl tracking-display">
         {t("signIn.title")}
       </h1>
-      <form aria-busy={isPending} onSubmit={onSubmit} noValidate>
+      <p className="mt-3 mb-8 text-muted-foreground text-sm leading-6">
+        {t("signIn.description")}
+      </p>
+      <form
+        aria-busy={isPending}
+        className="[&_[data-slot=input]]:h-11"
+        onSubmit={onSubmit}
+        noValidate
+      >
         <FieldGroup>
           <FormInputField
             autoComplete="email"
@@ -95,12 +108,15 @@ export default function SignInForm() {
                 : undefined
             }
           />
-          <Button className="w-full" disabled={isPending} type="submit">
+          <Button className="h-11 w-full" disabled={isPending} type="submit">
             {isPending ? <Spinner data-icon="inline-start" /> : null}
             {isPending ? t("signIn.submitting") : t("signIn.submit")}
           </Button>
         </FieldGroup>
       </form>
+      <p className="mt-6 border-t pt-5 text-muted-foreground text-xs leading-5">
+        {t("signIn.provisioned")}
+      </p>
     </div>
   );
 }

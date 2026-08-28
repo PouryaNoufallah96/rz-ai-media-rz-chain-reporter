@@ -72,7 +72,7 @@ export function OperationsPanel({
       ) : (
         <ul
           aria-busy={isFetching}
-          className="flex flex-col transition-opacity aria-busy:opacity-70 motion-reduce:transition-none"
+          className="flex flex-col gap-2"
           data-pending={isFetching || undefined}
         >
           {operations.map((operation) => (
@@ -112,13 +112,13 @@ function OperationRow({
   }, [focused]);
 
   return (
-    <li className="border-border border-b py-2 last:border-b-0">
+    <li className="rounded-lg border bg-card p-3">
       <div className="flex items-start gap-1">
         <Button
           aria-controls={recordId}
           aria-expanded={revealed}
           aria-label={t("panel.toggleTimeline", { id: operation.id, kind })}
-          className="h-auto min-w-0 flex-1 items-start justify-start gap-3 whitespace-normal rounded-none px-0 font-normal aria-expanded:bg-transparent"
+          className="h-auto min-w-0 flex-1 items-start justify-start gap-3 whitespace-normal px-0 font-normal"
           onClick={() => setExpanded((value) => !value)}
           ref={triggerRef}
           type="button"
@@ -142,7 +142,7 @@ function OperationRow({
             ) : null}
           </span>
           <time
-            className="shrink-0 font-mono text-muted-foreground text-xs tabular-nums"
+            className="shrink-0 text-muted-foreground text-xs tabular-nums"
             dateTime={operation.createdAt.toISOString()}
           >
             {format.dateTime(operation.createdAt, { timeStyle: "short" })}
@@ -223,13 +223,13 @@ function TravelRecord({
   return (
     <section
       aria-label={t("panel.timelineLabel", { id: operation.id, kind })}
-      className="ms-6 mt-2 border-border border-s border-dashed ps-2"
+      className="ms-6 mt-3 border-border border-s ps-3"
       id={id}
     >
       <ol>
         {operation.timeline.map((entry) => (
           <li
-            className="flex items-center gap-2 border-border border-b border-dashed py-1.5 last:border-b-0"
+            className="flex items-center gap-2 border-border border-b py-2 last:border-b-0"
             key={`${entry.sourceId}:${entry.kind}`}
           >
             <StateMark state={timelineStateOf(entry, state)} />
@@ -237,7 +237,7 @@ function TravelRecord({
               <TimelineLabel entry={entry} operation={operation} />
             </span>
             <time
-              className="font-mono text-muted-foreground text-xs tabular-nums"
+              className="text-muted-foreground text-xs tabular-nums"
               dateTime={entry.at.toISOString()}
             >
               {format.dateTime(entry.at, { timeStyle: "short" })}

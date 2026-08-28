@@ -391,7 +391,7 @@ export function PlatformLanes({
       >
         {reorderConflict ? (
           <p
-            className="mb-3 border border-working p-2 text-working text-xs"
+            className="mb-3 rounded-lg border border-working/40 bg-working/10 p-3 text-working text-xs"
             role="status"
           >
             {reorderConflict}
@@ -438,10 +438,10 @@ export function PlatformLaneGroup({
           brand: brandName,
           platform: t(`run.platform.${platform}`),
         })}
-        className="flex min-h-48 w-[clamp(260px,30vw,320px)] shrink-0 snap-start flex-col border border-border border-dashed bg-card/40 max-[599px]:w-[min(300px,calc(100vw-32px))]"
+        className="flex min-h-48 w-[clamp(260px,30vw,320px)] shrink-0 snap-start flex-col rounded-lg bg-muted/60 max-[599px]:w-[min(300px,calc(100vw-32px))]"
         key={platform}
       >
-        <header className="border-border border-b border-dashed px-3 py-2">
+        <header className="px-3 py-3">
           <h3 className="ticket-label">{t(`run.platform.${platform}`)}</h3>
         </header>
         <p className="m-auto p-4 text-center text-muted-foreground text-sm">
@@ -490,12 +490,12 @@ function PlatformLane({
         brand: lane.brandName,
         platform: t(`run.platform.${lane.platform}`),
       })}
-      className="min-w-[18rem] max-w-88 shrink-0 snap-start border border-border bg-card data-drop-target:bg-accent/40 data-drop-target:ring-2 data-drop-target:ring-ring"
+      className="w-[clamp(260px,30vw,320px)] shrink-0 snap-start rounded-lg bg-muted/60 pb-2 data-drop-target:inset-ring-2 data-drop-target:inset-ring-ring data-drop-target:bg-accent/40 max-[599px]:w-[min(300px,calc(100vw-32px))]"
       data-drop-target={isDropTarget || undefined}
       data-platform-lane={laneKey}
       ref={ref}
     >
-      <header className="border-border border-b px-3 py-2">
+      <header className="px-3 py-3">
         <h3 className="font-medium text-sm">
           {t("platformDraft.lane", {
             brand: lane.brandName,
@@ -575,7 +575,7 @@ function SortablePlatformDraft({
 
   return (
     <div
-      className="bg-card outline-none focus-visible:ring-1 focus-visible:ring-ring data-dragging:opacity-70 data-dragging:shadow-lg data-dragging:ring-2 data-dragging:ring-ring"
+      className="mx-2 mb-2 rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-ring data-dragging:opacity-70 data-dragging:shadow-lg data-dragging:ring-2 data-dragging:ring-ring"
       data-dragging={isDragging || undefined}
       data-route-draft-id={card.id}
       id={`route-result-${card.id}`}

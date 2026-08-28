@@ -29,11 +29,13 @@ export function SourcesScreen({
     >
       {([t, format]) => (
         <>
-          <h1 className="mt-2 font-semibold text-3xl">{t("title")}</h1>
+          <h1 className="font-semibold text-2xl tracking-display">
+            {t("title")}
+          </h1>
           <Suspended data={getSourceCatalog} fallback={<CatalogSkeleton />}>
             {(catalog) => (
               <>
-                <p className="mt-3 text-muted-foreground">
+                <p className="mt-2 text-muted-foreground text-sm/relaxed">
                   {catalog.lastImportAt
                     ? t("caption.sourceCount", {
                         rss: countOf(catalog.entries, "rss"),
@@ -60,7 +62,7 @@ export function SourcesScreen({
                         OPERATIONS_NAMESPACE,
                       ]}
                     >
-                      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                      <div className="mt-6 grid items-start gap-4 lg:grid-cols-2 lg:items-stretch">
                         <SourceImportForm catalog={catalog} imports={imports} />
                         <SourceImportRuns imports={imports} />
                       </div>
@@ -76,7 +78,7 @@ export function SourcesScreen({
           <Suspended
             data={() => getSourceItemStream(searchParams)}
             fallback={
-              <div className="mt-10">
+              <div className="mt-8">
                 <DataTableSkeleton
                   columnCount={6}
                   labels={{ loading: t("stream.loading") }}
@@ -106,8 +108,8 @@ function countOf(
 function SourcesHeadingSkeleton() {
   return (
     <>
-      <Skeleton className="mt-2 h-9 w-40" />
-      <Skeleton className="mt-3 h-6 w-full max-w-md" />
+      <Skeleton className="h-8 w-40" />
+      <Skeleton className="mt-2 h-5 w-full max-w-md" />
     </>
   );
 }
@@ -115,21 +117,24 @@ function SourcesHeadingSkeleton() {
 function CatalogSkeleton() {
   return (
     <div aria-busy="true">
-      <Skeleton className="mt-3 h-6 w-full max-w-md" />
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Skeleton className="h-80 w-full" />
-        <Skeleton className="h-80 w-full" />
-      </div>
-      <Skeleton className="mt-10 h-96 w-full" />
+      <Skeleton className="mt-2 h-5 w-full max-w-md" />
+      <ImportBlockSkeleton />
+      <Skeleton className="mt-8 h-96 w-full" />
     </div>
   );
 }
 
 function ImportBlockSkeleton() {
   return (
-    <div aria-busy="true" className="mt-6 grid gap-6 lg:grid-cols-2">
-      <Skeleton className="h-80 w-full" />
-      <Skeleton className="h-80 w-full" />
+    <div
+      aria-busy="true"
+      className="mt-6 grid items-start gap-4 lg:grid-cols-2"
+    >
+      <Skeleton className="h-128 w-full" />
+      <div className="grid h-128 grid-rows-[auto_1fr] gap-4">
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="w-full" />
+      </div>
     </div>
   );
 }

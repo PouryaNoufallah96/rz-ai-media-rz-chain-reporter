@@ -13,6 +13,19 @@ import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { Checkbox } from "@rz-chain-reporter/ui/components/checkbox";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@rz-chain-reporter/ui/components/collapsible";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@rz-chain-reporter/ui/components/combobox";
+import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
@@ -29,16 +42,17 @@ import {
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
 import { XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useRef, useState } from "react";
+import { type Ref, useId, useRef, useState } from "react";
 import { type Control, useController, useForm } from "react-hook-form";
 import { z } from "zod";
 
 import {
   FieldCaption,
-  FormCheckboxField,
   FormField,
+  type FormFieldRenderProps,
   FormRootError,
   FormSelectField,
+  FormSwitchField,
   FormTextareaField,
 } from "@/components/form/form-field";
 import type { SourceCatalogEntry } from "@/features/sources/schemas/catalog";
@@ -253,13 +267,13 @@ export function RunConfigurationForm({
   };
 
   return (
-    <section aria-labelledby={titleId} className="border border-border p-4">
-      <h2 className="ticket-label border-b border-dashed pb-2" id={titleId}>
+    <section aria-labelledby={titleId} className="min-w-0">
+      <h2 className="sr-only" id={titleId}>
         {t("run.title")}
       </h2>
       <form
         aria-busy={isPending}
-        className="mt-3 max-sm:[&_[data-slot=checkbox]]:after:-inset-[15px] max-sm:[&_[data-slot=input-group-control]]:min-h-11 max-sm:[&_[data-slot=input-group]]:min-h-11 max-sm:[&_[data-slot=input]]:min-h-11 max-sm:[&_[data-slot=select-trigger]]:min-h-11 max-sm:[&_button]:min-h-11 max-sm:[&_button]:min-w-11 max-sm:[&_li]:min-h-11 max-sm:[&_summary]:min-h-11"
+        className="max-sm:**:data-[slot=input-group-control]:min-h-11 max-sm:**:data-[slot=input-group]:min-h-11 max-sm:**:data-[slot=input]:min-h-11 max-sm:**:data-[slot=select-trigger]:min-h-11 max-sm:**:data-[slot=checkbox]:after:-inset-3.75 max-sm:[&_button]:min-h-11 max-sm:[&_button]:min-w-11 max-sm:[&_li]:min-h-11 max-sm:[&_summary]:min-h-11"
         noValidate
         onChange={publishPresentationSoon}
         onSubmit={onSubmit}
@@ -301,47 +315,33 @@ export function RunConfigurationForm({
           <p className="sr-only" role="status">
             {announcement}
           </p>
-          <div className="mt-1 flex flex-col gap-2 border-border border-t border-dashed pt-3 sm:flex-row sm:items-center sm:justify-between">
-            <StartRunControl
-              control={control}
-              isPending={isPending}
-              promoBrands={promoBrands}
-            />
-            <span className="flex flex-wrap items-center gap-2">
-              <Button
-                disabled={isPending || options.previousRun === null}
-                onClick={loadPreviousRun}
-                size="sm"
-                type="button"
-                variant="link"
-              >
-                {t("run.usePrevious.label")}
-              </Button>
-              {options.previousRun === null ? (
-                <span className="text-muted-foreground text-xs">
-                  {t("run.usePrevious.none")}
-                </span>
-              ) : null}
-              {fromRunId ? (
-                <span className="font-mono text-muted-foreground text-xs">
-                  {t("run.usePrevious.from")}
-                </span>
-              ) : null}
-            </span>
-          </div>
+          <RunFooter
+            control={control}
+            fromPreviousRun={Boolean(fromRunId)}
+            hasPreviousRun={options.previousRun !== null}
+            isPending={isPending}
+            onUsePreviousRun={loadPreviousRun}
+            promoBrands={promoBrands}
+          />
         </FieldGroup>
       </form>
     </section>
   );
 }
 
-function StartRunControl({
+function RunFooter({
   control,
+  fromPreviousRun,
+  hasPreviousRun,
   isPending,
+  onUsePreviousRun,
   promoBrands,
 }: {
   control: RunFormControl;
+  fromPreviousRun: boolean;
+  hasPreviousRun: boolean;
   isPending: boolean;
+  onUsePreviousRun: () => void;
   promoBrands: RunOptions["brands"];
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
@@ -349,20 +349,41 @@ function StartRunControl({
   const noPromoBrand = field.value === "promo" && promoBrands.length === 0;
 
   return (
-    <div className="grid w-full gap-2 sm:w-auto">
+    <div className="mt-1 grid gap-2 border-border border-t pt-3">
+      <div className="grid gap-2">
+        <Button
+          className="h-auto min-h-8 w-full whitespace-normal py-1.5"
+          disabled={isPending || noPromoBrand}
+          type="submit"
+        >
+          {isPending ? <Spinner data-icon="inline-start" /> : null}
+          {isPending ? t("run.starting") : t("run.start")}
+        </Button>
+        <Button
+          className="h-auto min-h-8 w-full whitespace-normal py-1.5"
+          disabled={isPending || !hasPreviousRun}
+          onClick={onUsePreviousRun}
+          type="button"
+          variant="link"
+        >
+          {t("run.usePrevious.label")}
+        </Button>
+      </div>
       {noPromoBrand ? (
         <p className="text-muted-foreground text-xs">
           {t("run.promo.noEligibleBrand")}
         </p>
       ) : null}
-      <Button
-        className="w-full sm:w-auto"
-        disabled={isPending || noPromoBrand}
-        type="submit"
-      >
-        {isPending ? <Spinner data-icon="inline-start" /> : null}
-        {isPending ? t("run.starting") : t("run.start")}
-      </Button>
+      {!hasPreviousRun ? (
+        <p className="text-muted-foreground text-xs">
+          {t("run.usePrevious.none")}
+        </p>
+      ) : null}
+      {fromPreviousRun ? (
+        <p className="text-muted-foreground text-xs">
+          {t("run.usePrevious.from")}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -544,14 +565,14 @@ function KindField({
     >
       {({ field }) => (
         <>
-          <FieldLegend className="ticket-label mb-0" variant="label">
+          <FieldLegend className="ticket-label" variant="label">
             {t("run.kind.label")}
           </FieldLegend>
           <div className="flex flex-wrap gap-1">
             {(["news", "promo"] as const).map((value) => (
               <Button
                 aria-pressed={field.value === value}
-                className="border border-input bg-background aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary"
+                className="flex-1"
                 disabled={disabled}
                 key={value}
                 onBlur={field.onBlur}
@@ -561,7 +582,7 @@ function KindField({
                 }}
                 size="xs"
                 type="button"
-                variant="ghost"
+                variant={field.value === value ? "default" : "outline"}
               >
                 {t(`run.kind.${value}`)}
               </Button>
@@ -585,6 +606,8 @@ function CheckboxListField({
   name: "brands" | "models" | "platforms" | "promo.brands";
   options: readonly { label: string; value: string }[];
 }) {
+  const searchable = name === "models" && options.length > 5;
+
   return (
     <FormField
       control={control}
@@ -592,41 +615,60 @@ function CheckboxListField({
       name={name}
       resolveError={resolveError}
     >
-      {({ controlId, field }) => {
+      {({ controlId, controlProps, field }) => {
         const selected = new Set(field.value);
 
         return (
           <>
-            <FieldLegend
-              className="ticket-label mb-0"
-              id={controlId}
-              variant="label"
-            >
-              {legend}
-            </FieldLegend>
-            <ul className="grid gap-0.5 sm:grid-cols-2">
-              {options.map((option) => (
-                <li className="flex items-center gap-2" key={option.value}>
-                  <Checkbox
-                    checked={selected.has(option.value)}
-                    disabled={disabled}
-                    id={`${controlId}-${option.value}`}
-                    onCheckedChange={(checked) => {
-                      const next = new Set(selected);
-                      if (checked === true) next.add(option.value);
-                      else next.delete(option.value);
-                      field.onChange([...next]);
-                    }}
-                  />
-                  <FieldLabel
-                    className="min-w-0 truncate font-normal"
-                    htmlFor={`${controlId}-${option.value}`}
+            {searchable ? (
+              <FieldCaption htmlFor={controlId}>{legend}</FieldCaption>
+            ) : (
+              <FieldLegend
+                className="ticket-label"
+                id={controlId}
+                variant="label"
+              >
+                {legend}
+              </FieldLegend>
+            )}
+            {searchable ? (
+              <SearchableOptions
+                controlProps={controlProps}
+                inputRef={field.ref}
+                label={legend}
+                onBlur={field.onBlur}
+                onValueChange={field.onChange}
+                options={options}
+                value={field.value}
+              />
+            ) : (
+              <ul className="grid gap-0.5 min-[1100px]:grid-cols-2">
+                {options.map((option) => (
+                  <li
+                    className="flex min-w-0 items-center gap-2 rounded-md py-1"
+                    key={option.value}
                   >
-                    <Bdi>{option.label}</Bdi>
-                  </FieldLabel>
-                </li>
-              ))}
-            </ul>
+                    <Checkbox
+                      checked={selected.has(option.value)}
+                      disabled={disabled}
+                      id={`${controlId}-${option.value}`}
+                      onCheckedChange={(checked) => {
+                        const next = new Set(selected);
+                        if (checked === true) next.add(option.value);
+                        else next.delete(option.value);
+                        field.onChange([...next]);
+                      }}
+                    />
+                    <FieldLabel
+                      className="min-w-0 truncate font-normal"
+                      htmlFor={`${controlId}-${option.value}`}
+                    >
+                      <Bdi>{option.label}</Bdi>
+                    </FieldLabel>
+                  </li>
+                ))}
+              </ul>
+            )}
           </>
         );
       }}
@@ -667,13 +709,13 @@ function SourceSubsetField({
         name="sourceIds"
         resolveError={resolveError}
       >
-        {({ controlId, field }) => {
+        {({ controlId, controlProps, field }) => {
           const selected = new Set(field.value);
 
           return (
             <>
               <FieldLegend
-                className="ticket-label mb-0"
+                className="ticket-label"
                 id={controlId}
                 variant="label"
               >
@@ -686,30 +728,34 @@ function SourceSubsetField({
                 if (entries.length === 0) return null;
 
                 const kindIds = entries.map((entry) => entry.id);
+                const kindIdSet = new Set(kindIds);
                 const selectedCount = kindIds.filter((id) =>
                   selected.has(id),
                 ).length;
                 const allSelected = selectedCount === kindIds.length;
                 return (
-                  <details
-                    className="group border border-border border-dashed px-2 py-1"
+                  <Collapsible
+                    className="group rounded-lg border border-border bg-card p-3"
                     key={origin}
                   >
-                    <summary className="flex min-h-8 cursor-pointer list-none items-center justify-between gap-2 marker:hidden">
-                      <span className="ticket-label">
-                        {t(`run.sources.kind.${origin}`)}
-                      </span>
-                      <span className="font-mono text-muted-foreground text-xs tabular-nums">
-                        {t("run.sources.selected", {
-                          m: kindIds.length,
-                          n: selectedCount,
-                        })}
-                      </span>
-                    </summary>
-                    <div className="mt-1 flex justify-end border-border border-t border-dashed pt-1">
+                    <div className="flex items-center gap-2">
+                      <CollapsibleTrigger
+                        className="h-auto min-w-0 flex-1 flex-wrap justify-start gap-x-2 gap-y-0.5 px-0"
+                        render={<Button variant="ghost" />}
+                      >
+                        <span className="ticket-label">
+                          {t(`run.sources.kind.${origin}`)}
+                        </span>
+                        <span className="text-muted-foreground text-xs tabular-nums">
+                          {t("run.sources.selected", {
+                            m: kindIds.length,
+                            n: selectedCount,
+                          })}
+                        </span>
+                      </CollapsibleTrigger>
+
                       <Button
-                        aria-pressed={allSelected}
-                        className="shrink-0 border border-input bg-background aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary"
+                        className="shrink-0"
                         disabled={disabled}
                         onClick={() => {
                           const next = new Set(selected);
@@ -732,35 +778,66 @@ function SourceSubsetField({
                         )}
                       </Button>
                     </div>
-                    <ul className="max-h-40 overflow-y-auto border border-border border-dashed px-2 py-1">
-                      {entries.map((entry) => (
-                        <li
-                          className="flex items-center gap-2 py-0.5"
-                          key={entry.id}
-                        >
-                          <Checkbox
-                            checked={selected.has(entry.id)}
-                            disabled={disabled}
-                            id={`${controlId}-${entry.id}`}
-                            onCheckedChange={(checked) => {
-                              const next = new Set(selected);
-                              if (checked === true) next.add(entry.id);
-                              else next.delete(entry.id);
-                              const nextIds = [...next];
-                              field.onChange(nextIds);
-                              onSourceIdsChange(nextIds);
-                            }}
-                          />
-                          <FieldLabel
-                            className="min-w-0 truncate font-normal"
-                            htmlFor={`${controlId}-${entry.id}`}
-                          >
-                            <Bdi>{entry.name}</Bdi>
-                          </FieldLabel>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
+                    <CollapsibleContent
+                      className="data-closed:hidden"
+                      keepMounted
+                    >
+                      {entries.length > 5 ? (
+                        <SearchableOptions
+                          controlProps={{
+                            ...controlProps,
+                            id: `${controlId}-${origin}`,
+                          }}
+                          inputRef={field.ref}
+                          showSummary={false}
+                          label={t(`run.sources.kind.${origin}`)}
+                          onBlur={field.onBlur}
+                          onValueChange={(values) => {
+                            const nextIds = [
+                              ...field.value.filter((id) => !kindIdSet.has(id)),
+                              ...values,
+                            ];
+                            field.onChange(nextIds);
+                            onSourceIdsChange(nextIds);
+                          }}
+                          options={entries.map((entry) => ({
+                            label: entry.name,
+                            value: entry.id,
+                          }))}
+                          value={field.value.filter((id) => kindIdSet.has(id))}
+                        />
+                      ) : (
+                        <ul className="max-h-40 overflow-y-auto px-1 py-2">
+                          {entries.map((entry) => (
+                            <li
+                              className="flex items-center gap-2 py-0.5"
+                              key={entry.id}
+                            >
+                              <Checkbox
+                                checked={selected.has(entry.id)}
+                                disabled={disabled}
+                                id={`${controlId}-${entry.id}`}
+                                onCheckedChange={(checked) => {
+                                  const next = new Set(selected);
+                                  if (checked === true) next.add(entry.id);
+                                  else next.delete(entry.id);
+                                  const nextIds = [...next];
+                                  field.onChange(nextIds);
+                                  onSourceIdsChange(nextIds);
+                                }}
+                              />
+                              <FieldLabel
+                                className="min-w-0 truncate font-normal"
+                                htmlFor={`${controlId}-${entry.id}`}
+                              >
+                                <Bdi>{entry.name}</Bdi>
+                              </FieldLabel>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
                 );
               })}
             </>
@@ -786,6 +863,69 @@ function SourceSubsetField({
   );
 }
 
+function SearchableOptions({
+  showSummary = true,
+  controlProps,
+  inputRef,
+  label,
+  onBlur,
+  onValueChange,
+  options,
+  value,
+}: {
+  showSummary?: boolean;
+  controlProps: FormFieldRenderProps<
+    RunFormValues,
+    "sourceIds"
+  >["controlProps"];
+  inputRef: Ref<HTMLInputElement>;
+  label: string;
+  onBlur: () => void;
+  onValueChange: (values: string[]) => void;
+  options: readonly { label: string; value: string }[];
+  value: string[];
+}) {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+  const labelFor = (key: string) =>
+    options.find((option) => option.value === key)?.label ?? key;
+  return (
+    <div className="mt-2 grid gap-2">
+      <Combobox
+        disabled={controlProps.disabled}
+        items={options.map((option) => option.value)}
+        itemToStringLabel={labelFor}
+        multiple
+        onValueChange={onValueChange}
+        value={value}
+      >
+        <ComboboxInput
+          {...controlProps}
+          aria-label={label}
+          onBlur={onBlur}
+          placeholder={t("run.search.placeholder")}
+          ref={inputRef}
+          toggleLabel={t("run.search.toggle")}
+        />
+        <ComboboxContent>
+          <ComboboxEmpty>{t("run.search.empty")}</ComboboxEmpty>
+          <ComboboxList>
+            {(option: string) => (
+              <ComboboxItem key={option} value={option}>
+                <Bdi>{labelFor(option)}</Bdi>
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+      {showSummary ? (
+        <p className="text-muted-foreground text-xs">
+          {t("run.sources.selected", { m: options.length, n: value.length })}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function RecencyField({
   control,
   disabled,
@@ -803,21 +943,21 @@ function RecencyField({
     >
       {({ field }) => (
         <>
-          <FieldLegend className="ticket-label mb-0" variant="label">
+          <FieldLegend className="ticket-label" variant="label">
             {t("run.recency.label")}
           </FieldLegend>
           <div className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap">
             {windowHours.map((hours) => (
               <Button
                 aria-pressed={field.value === hours}
-                className="border border-input bg-background font-mono tabular-nums aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary"
+                className="tabular-nums"
                 disabled={disabled}
                 key={hours}
                 onBlur={field.onBlur}
                 onClick={() => field.onChange(hours)}
                 size="xs"
                 type="button"
-                variant="ghost"
+                variant={field.value === hours ? "default" : "outline"}
               >
                 {t(`run.recency.${hours}`)}
               </Button>
@@ -833,7 +973,7 @@ function EnrichmentField({ control, disabled, resolveError }: FieldProps) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
 
   return (
-    <FormCheckboxField
+    <FormSwitchField
       control={control}
       disabled={disabled}
       label={t("run.enrichment")}
@@ -854,31 +994,14 @@ function TelegramOnlyField({
   const t = useTranslations(EDITORIAL_NAMESPACE);
 
   return (
-    <FormField
+    <FormSwitchField
       control={control}
       disabled={disabled}
+      label={t("run.telegram.only")}
       name="telegramOnly"
-      orientation="horizontal"
+      onCheckedChange={onToggle}
       resolveError={resolveError}
-    >
-      {({ controlId, controlProps, field }) => (
-        <>
-          <Checkbox
-            {...controlProps}
-            checked={field.value === true}
-            name={field.name}
-            onBlur={field.onBlur}
-            onCheckedChange={(checked) =>
-              onToggle(checked === true, field.onChange)
-            }
-            ref={field.ref}
-          />
-          <FieldCaption htmlFor={controlId}>
-            {t("run.telegram.only")}
-          </FieldCaption>
-        </>
-      )}
-    </FormField>
+    />
   );
 }
 
@@ -1014,7 +1137,7 @@ function TopicsField({
               <ul className="flex flex-wrap items-start gap-1">
                 {topics.map((topic, index) => (
                   <li className="grid gap-0.5" key={topic}>
-                    <span className="flex items-center gap-1 border border-input bg-accent ps-2 text-accent-foreground text-xs">
+                    <span className="flex items-center gap-1 rounded-md border border-input bg-accent ps-2 text-accent-foreground text-xs">
                       <Bdi className="max-w-48 truncate">{topic}</Bdi>
                       <Button
                         aria-label={t("run.topics.remove", { topic })}
@@ -1083,7 +1206,7 @@ function TopicsField({
             </FieldDescription>
             {recentTopics.length > 0 ? (
               <FieldSet className="mt-1 grid gap-1">
-                <FieldLegend className="ticket-label mb-0" variant="label">
+                <FieldLegend className="ticket-label" variant="label">
                   {t("run.topics.recent")}
                 </FieldLegend>
                 <div className="flex flex-wrap gap-1">

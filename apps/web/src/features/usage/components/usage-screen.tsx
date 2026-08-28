@@ -22,8 +22,10 @@ export function UsageScreen({
     >
       {(t) => (
         <>
-          <h1 className="mt-2 font-semibold text-3xl">{t("title")}</h1>
-          <p className="mt-3 max-w-3xl text-muted-foreground">
+          <h1 className="font-semibold text-2xl tracking-display">
+            {t("title")}
+          </h1>
+          <p className="mt-2 max-w-3xl text-muted-foreground text-sm/relaxed">
             {t("subtitle")}
           </p>
           <Suspended
@@ -52,8 +54,8 @@ export function UsageScreen({
 function UsageHeadingSkeleton() {
   return (
     <>
-      <Skeleton className="mt-2 h-9 w-48" />
-      <Skeleton className="mt-3 h-6 w-full max-w-3xl" />
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="mt-2 h-5 w-full max-w-3xl" />
     </>
   );
 }

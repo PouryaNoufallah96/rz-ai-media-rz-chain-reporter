@@ -35,7 +35,7 @@ export function sourceItemColumns({
       id: "time",
       cell: ({ row }) => (
         <time
-          className="whitespace-nowrap font-mono text-xs tabular-nums"
+          className="whitespace-nowrap text-xs tabular-nums"
           dateTime={row.original.createdAt.toISOString()}
         >
           {format.dateTime(row.original.createdAt, {
@@ -51,9 +51,11 @@ export function sourceItemColumns({
       id: "source",
       cell: ({ row }) => (
         <span className="flex min-w-0 flex-col">
-          <Bdi className="truncate text-xs">{row.original.sourceName}</Bdi>
+          <span className="truncate text-xs">
+            <Bdi>{row.original.sourceName}</Bdi>
+          </span>
           <time
-            className="font-mono text-[11px] text-muted-foreground tabular-nums sm:hidden"
+            className="text-muted-foreground text-xs tabular-nums sm:hidden"
             dateTime={row.original.createdAt.toISOString()}
           >
             {format.dateTime(row.original.createdAt, { timeStyle: "short" })}
@@ -67,7 +69,7 @@ export function sourceItemColumns({
       id: "title",
       cell: ({ row }) => (
         <a
-          className="text-sm underline-offset-4 hover:underline"
+          className="wrap-anywhere rounded-sm text-sm underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           href={row.original.canonicalUrl}
           rel="noreferrer noopener"
           target="_blank"
@@ -81,7 +83,7 @@ export function sourceItemColumns({
       header: t("stream.columns.revisions"),
       id: "revisions",
       cell: ({ row }) => (
-        <span className="font-mono text-xs tabular-nums">
+        <span className="text-xs tabular-nums">
           {format.number(row.original.revisionCount)}
         </span>
       ),
@@ -93,7 +95,7 @@ export function sourceItemColumns({
         const mark = pathMark(row.original);
 
         return (
-          <span className="flex items-center gap-1 text-xs">
+          <span className="flex min-w-32 items-center gap-2 text-xs/relaxed">
             {mark ? <StateMark state={mark} /> : null}
             {itemPath(row.original, t)}
           </span>
@@ -107,7 +109,7 @@ export function sourceItemColumns({
             header: t("stream.columns.rank"),
             id: "rank",
             cell: ({ row }: { row: { original: SourceItemRow } }) => (
-              <span className="font-mono text-xs tabular-nums">
+              <span className="text-xs tabular-nums">
                 {row.original.rank === null
                   ? "—"
                   : format.number(row.original.rank)}
@@ -119,7 +121,7 @@ export function sourceItemColumns({
             header: t("stream.columns.score"),
             id: "score",
             cell: ({ row }: { row: { original: SourceItemRow } }) => (
-              <span className="font-mono text-xs tabular-nums">
+              <span className="text-xs tabular-nums">
                 {row.original.keywordScore === null
                   ? "—"
                   : format.number(row.original.keywordScore, {

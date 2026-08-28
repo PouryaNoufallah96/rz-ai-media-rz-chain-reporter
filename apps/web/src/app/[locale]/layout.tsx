@@ -6,11 +6,12 @@ import {
   UI_FONT,
 } from "@rz-chain-reporter/i18n";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Vazirmatn } from "next/font/google";
+import { Geist_Mono, Vazirmatn } from "next/font/google";
 import { notFound } from "next/navigation";
 import { locale as localeRootParam } from "next/root-params";
 
 import "@/index.css";
+import { Footer } from "@/components/layout/footer";
 import Header from "@/components/layout/header";
 import Providers from "@/components/providers";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
@@ -20,11 +21,7 @@ import {
   customerProductName,
   customerTimeZone,
 } from "@/lib/customer-template.server";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import { geistSans } from "@/lib/fonts";
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -77,9 +74,10 @@ export default async function RootLayout({
     >
       <body className="min-w-0 antialiased">
         <Providers locale={locale} timeZone={customerTimeZone}>
-          <div className="grid min-h-svh min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)]">
+          <div className="grid min-h-svh min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
             <Header />
             <Localized namespaces={[SHARED_NAMESPACE]}>{children}</Localized>
+            <Footer />
           </div>
         </Providers>
       </body>

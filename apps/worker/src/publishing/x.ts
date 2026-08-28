@@ -14,6 +14,7 @@ import {
   type ReconciliationReference,
   unknownFailure,
 } from "./port";
+import { publishRasterForUpload } from "./publish-raster";
 
 const xIdentifierSchema = z.string().trim().min(1).max(512);
 
@@ -124,10 +125,24 @@ export function createXPublisher(input: XDependencies): Publisher {
               ),
             };
           }
+          const raster = await publishRasterForUpload(
+            media,
+            material.media.mimeType,
+          );
+          if (!raster) {
+            return {
+              failure: definiteFailure(
+                "MEDIA_NOT_PUBLISHABLE",
+                "invalid",
+                "preparation",
+                "none",
+              ),
+            };
+          }
           const form = new FormData();
           form.set(
             "media",
-            new Blob([media], { type: material.media?.mimeType }),
+            new Blob([raster.bytes], { type: raster.mimeType }),
           );
           try {
             const response = await input.fetch(X_MEDIA_UPLOAD_URL, {

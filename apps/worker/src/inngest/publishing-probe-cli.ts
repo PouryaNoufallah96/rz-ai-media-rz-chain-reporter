@@ -49,6 +49,7 @@ import {
   resolveDestinationCredential,
 } from "@rz-chain-reporter/env/destination-bindings";
 import { and, asc, desc, eq, inArray, isNull, max, sql } from "drizzle-orm";
+import sharp from "sharp";
 import { workerLogger } from "../logging/logger";
 import {
   scrubWorkerErrorEvent,
@@ -58,6 +59,8 @@ import {
 import { createPublisher } from "../publishing/factory";
 import { createInstagramPublisher } from "../publishing/instagram";
 import {
+  PROVIDER_MEDIA_UPLOAD_TIMEOUT_MS,
+  PROVIDER_REQUEST_TIMEOUT_MS,
   PROVIDER_RESPONSE_MAX_BYTES,
   type ProviderFailure,
   type PublisherRuntime,
@@ -65,9 +68,11 @@ import {
   type PublishRequest,
   providerCheckpointSchema,
   providerFailureSchema,
+  providerRequestTimeoutMs,
   publishMaterialSchema,
   publishRequestSchema,
 } from "../publishing/port";
+import { publishRasterForUpload } from "../publishing/publish-raster";
 import { createTelegramPublisher } from "../publishing/telegram";
 import {
   classifyXFailure,
@@ -140,16 +145,41 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-function fakeFetch(responses: readonly (Response | Error)[], calls: string[]) {
+function fakeFetch(
+  responses: readonly (Response | Error)[],
+  calls: string[],
+  inits?: RequestInit[],
+) {
   let index = 0;
-  return (async (resource: string | URL | Request) => {
+  return (async (resource: string | URL | Request, init?: RequestInit) => {
     calls.push(String(resource));
+    inits?.push(init ?? {});
     const response = responses[index];
     index += 1;
     if (!response) throw new Error("UNEXPECTED_PROVIDER_CALL");
     if (response instanceof Error) throw response;
     return response;
   }) as typeof fetch;
+}
+
+async function fixturePng() {
+  const buffer = await sharp({
+    create: {
+      background: { r: 16, g: 16, b: 16 },
+      channels: 3,
+      height: 2,
+      width: 2,
+    },
+  })
+    .png()
+    .toBuffer();
+  return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+}
+
+function formFieldType(body: RequestInit["body"], field: string) {
+  if (!(body instanceof FormData)) return null;
+  const part = body.get(field);
+  return part instanceof Blob ? part.type : null;
 }
 
 function fakeRuntime(
@@ -179,7 +209,7 @@ function fakeRuntime(
       const id = checkpoints[kind];
       return id ? { kind, providerReferenceId: id } : null;
     },
-    readMedia: async () => Uint8Array.from([137, 80, 78, 71]),
+    readMedia: async () => fixturePng(),
     renewLease: async () => {
       effects.push("renew");
     },
@@ -245,9 +275,7 @@ function replayRuntime(material: PublishMaterial, initialNow: number) {
     existingCheckpoint: (_request, kind) =>
       replayStep(`existing-checkpoint:${kind}`, async () => null),
     readMedia: (objectKey) =>
-      replayStep(`read-media:${objectKey}`, async () =>
-        Uint8Array.from([137, 80, 78, 71]),
-      ),
+      replayStep(`read-media:${objectKey}`, async () => fixturePng()),
     renewLease: async () => {
       renewalOccurrence += 1;
       await replayStep(`renew-lease:${renewalOccurrence}`, async () => null);
@@ -1526,6 +1554,43 @@ async function runZeroKey() {
     false,
   );
 
+  assert.equal(
+    providerRequestTimeoutMs({
+      body: JSON.stringify({ text: "ok" }),
+      method: "POST",
+    }),
+    PROVIDER_REQUEST_TIMEOUT_MS,
+  );
+  assert.equal(
+    providerRequestTimeoutMs({ body: new FormData(), method: "POST" }),
+    PROVIDER_MEDIA_UPLOAD_TIMEOUT_MS,
+  );
+  assert.equal(providerRequestTimeoutMs(), PROVIDER_REQUEST_TIMEOUT_MS);
+
+  const png = await fixturePng();
+  const jpeg = await publishRasterForUpload(png, "image/png");
+  assert.equal(jpeg?.mimeType, "image/jpeg");
+  if (!jpeg) throw new Error("JPEG_DERIVATIVE_MISSING");
+  assert.ok(jpeg.bytes.byteLength > 0);
+  const passedThrough = await publishRasterForUpload(jpeg.bytes, "image/jpeg");
+  assert.equal(passedThrough?.bytes, jpeg.bytes);
+  assert.equal(await publishRasterForUpload(png, "image/gif"), null);
+  const webp = await sharp(png).webp().toBuffer();
+  const fromWebp = await publishRasterForUpload(
+    new Uint8Array(webp.buffer, webp.byteOffset, webp.byteLength),
+    "image/webp",
+  );
+  assert.equal(fromWebp?.mimeType, "image/jpeg");
+
+  const photoMaterial: PublishMaterial = {
+    ...baseMaterial,
+    media: {
+      actualBytes: png.byteLength,
+      mimeType: "image/png",
+      objectKey: "fixture.png",
+    },
+  };
+
   const textCalls: string[] = [];
   const textRuntime = fakeRuntime(baseMaterial);
   const telegramText = createTelegramPublisher({
@@ -1545,6 +1610,7 @@ async function runZeroKey() {
   assert.equal(textCalls.length, 1);
 
   const deadlineSignals: (AbortSignal | null)[] = [];
+  const deadlineTimeouts: number[] = [];
   const redirectPolicies: (RequestInit["redirect"] | undefined)[] = [];
   const deadlineRuntime = fakeRuntime(baseMaterial);
   const deadlinePublisher = createPublisher({
@@ -1557,6 +1623,7 @@ async function runZeroKey() {
     },
     fetch: (async (_resource, init) => {
       deadlineSignals.push(init?.signal ?? null);
+      deadlineTimeouts.push(providerRequestTimeoutMs(init));
       redirectPolicies.push(init?.redirect);
       return jsonResponse({ ok: true, result: { message_id: 43 } });
     }) as typeof fetch,
@@ -1572,7 +1639,87 @@ async function runZeroKey() {
   await deadlinePublisher.publish(deadlinePrepared.prepared);
   assert.equal(deadlineSignals.length, 1);
   assert.equal(deadlineSignals[0]?.aborted, false);
+  assert.deepEqual(deadlineTimeouts, [PROVIDER_REQUEST_TIMEOUT_MS]);
   assert.deepEqual(redirectPolicies, ["error"]);
+
+  const photoDeadlineTimeouts: number[] = [];
+  const photoDeadlineTypes: (string | null)[] = [];
+  const photoDeadlineRuntime = fakeRuntime(photoMaterial);
+  const photoDeadlinePublisher = createPublisher({
+    acceptInstagramGrant: async () => undefined,
+    destination: {
+      enabled: true,
+      key: "deadline-photo",
+      metadata: { channel: "@fixture", label: "Deadline photo" },
+      platform: "telegram",
+    },
+    fetch: (async (_resource, init) => {
+      photoDeadlineTimeouts.push(providerRequestTimeoutMs(init));
+      photoDeadlineTypes.push(formFieldType(init?.body, "photo"));
+      return jsonResponse({ ok: true, result: { message_id: 46 } });
+    }) as typeof fetch,
+    issueInstagramGrant: async () => ({ id: "forbidden" }),
+    request,
+    runtime: photoDeadlineRuntime.runtime,
+    runtimeEnv: { DEST_DEADLINE_PHOTO_BOT_TOKEN: "local-fixture" },
+  });
+  const photoDeadlinePrepared = await photoDeadlinePublisher.prepare(request);
+  if (photoDeadlinePrepared.status !== "prepared") {
+    throw new Error("PHOTO_DEADLINE_PREPARE_FAILED");
+  }
+  assert.equal(
+    (await photoDeadlinePublisher.publish(photoDeadlinePrepared.prepared))
+      .status,
+    "confirmed",
+  );
+  assert.deepEqual(photoDeadlineTimeouts, [PROVIDER_MEDIA_UPLOAD_TIMEOUT_MS]);
+  assert.deepEqual(photoDeadlineTypes, ["image/jpeg"]);
+
+  const xDeadlineTimeouts: number[] = [];
+  const xDeadlineTypes: (string | null)[] = [];
+  const xDeadlineRuntime = fakeRuntime({
+    ...photoMaterial,
+    platform: "x",
+    source: null,
+  });
+  const xDeadlinePublisher = createPublisher({
+    acceptInstagramGrant: async () => undefined,
+    destination: {
+      enabled: true,
+      key: "deadline-x",
+      metadata: { label: "Deadline X" },
+      platform: "x",
+    },
+    fetch: (async (resource, init) => {
+      xDeadlineTimeouts.push(providerRequestTimeoutMs(init));
+      xDeadlineTypes.push(formFieldType(init?.body, "media"));
+      return String(resource).includes("/1.1/media/upload.json")
+        ? jsonResponse({ media_id_string: "media-deadline" })
+        : jsonResponse({ data: { id: "post-deadline" } });
+    }) as typeof fetch,
+    issueInstagramGrant: async () => ({ id: "forbidden" }),
+    request,
+    runtime: xDeadlineRuntime.runtime,
+    runtimeEnv: {
+      DEST_DEADLINE_X_ACCESS_TOKEN: "token",
+      DEST_DEADLINE_X_ACCESS_TOKEN_SECRET: "token-secret",
+      X_API_KEY: "key",
+      X_API_SECRET: "secret",
+    },
+  });
+  const xDeadlinePrepared = await xDeadlinePublisher.prepare(request);
+  if (xDeadlinePrepared.status !== "prepared") {
+    throw new Error("X_DEADLINE_PREPARE_FAILED");
+  }
+  assert.equal(
+    (await xDeadlinePublisher.publish(xDeadlinePrepared.prepared)).status,
+    "confirmed",
+  );
+  assert.deepEqual(xDeadlineTimeouts, [
+    PROVIDER_MEDIA_UPLOAD_TIMEOUT_MS,
+    PROVIDER_REQUEST_TIMEOUT_MS,
+  ]);
+  assert.deepEqual(xDeadlineTypes, ["image/jpeg", null]);
 
   const oversizedRuntime = fakeRuntime(baseMaterial);
   const oversizedPublisher = createPublisher({
@@ -1670,19 +1817,14 @@ async function runZeroKey() {
   assert.equal(lostStepOutputClaims, 2);
 
   const photoCalls: string[] = [];
-  const photoRuntime = fakeRuntime({
-    ...baseMaterial,
-    media: {
-      actualBytes: 4,
-      mimeType: "image/png",
-      objectKey: "fixture.png",
-    },
-  });
+  const photoInits: RequestInit[] = [];
+  const photoRuntime = fakeRuntime(photoMaterial);
   const telegramPhoto = createTelegramPublisher({
     credential: { botToken: "local-fixture", channel: "@fixture" },
     fetch: fakeFetch(
       [jsonResponse({ ok: true, result: { message_id: 42 } })],
       photoCalls,
+      photoInits,
     ),
     runtime: photoRuntime.runtime,
   });
@@ -1698,6 +1840,7 @@ async function runZeroKey() {
     (await telegramPhoto.publish(photoPrepared.prepared)).status,
     "confirmed",
   );
+  assert.equal(formFieldType(photoInits[0]?.body, "photo"), "image/jpeg");
 
   const overflowRuntime = fakeRuntime({
     ...baseMaterial,
@@ -1726,6 +1869,45 @@ async function runZeroKey() {
   assert.equal(lostResult.failure.certainty, "delivery_unknown");
   assert.equal(lostResult.failure.next, "reconcile_first");
   assert.equal(lostRuntime.attempts, 1);
+
+  const timeoutAfterClaimCalls: string[] = [];
+  let timeoutAfterClaimClaims = 0;
+  const timeoutAfterClaimBase = fakeRuntime(photoMaterial);
+  const timeoutAfterClaim = createTelegramPublisher({
+    credential: { botToken: "local-fixture", channel: "@fixture" },
+    fetch: fakeFetch(
+      [
+        new DOMException(
+          "The operation was aborted due to timeout",
+          "TimeoutError",
+        ),
+      ],
+      timeoutAfterClaimCalls,
+    ),
+    runtime: {
+      ...timeoutAfterClaimBase.runtime,
+      claimFinalEffect: async () => {
+        timeoutAfterClaimClaims += 1;
+        return true;
+      },
+    },
+  });
+  const timeoutAfterClaimPrepared = await timeoutAfterClaim.prepare(request);
+  if (timeoutAfterClaimPrepared.status !== "prepared") {
+    throw new Error("TIMEOUT_AFTER_CLAIM_PREPARE_FAILED");
+  }
+  const timeoutAfterClaimResult = await timeoutAfterClaim.publish(
+    timeoutAfterClaimPrepared.prepared,
+  );
+  assert.equal(timeoutAfterClaimResult.status, "failed");
+  if (timeoutAfterClaimResult.status !== "failed") {
+    throw new Error("TIMEOUT_AFTER_CLAIM_RESULT_INVALID");
+  }
+  assert.equal(timeoutAfterClaimResult.failure.certainty, "delivery_unknown");
+  assert.equal(timeoutAfterClaimResult.failure.class, "timeout");
+  assert.equal(timeoutAfterClaimResult.failure.next, "reconcile_first");
+  assert.equal(timeoutAfterClaimCalls.length, 1);
+  assert.equal(timeoutAfterClaimClaims, 1);
 
   assert.equal(classifyXFailure(401, "publication").class, "auth");
   assert.equal(classifyXFailure(402, "publication").certainty, "definite");
@@ -1759,13 +1941,9 @@ async function runZeroKey() {
   );
 
   const xCalls: string[] = [];
+  const xInits: RequestInit[] = [];
   const xRuntime = fakeRuntime({
-    ...baseMaterial,
-    media: {
-      actualBytes: 4,
-      mimeType: "image/png",
-      objectKey: "fixture.png",
-    },
+    ...photoMaterial,
     platform: "x",
     source: null,
   });
@@ -1782,6 +1960,7 @@ async function runZeroKey() {
         jsonResponse({ data: { id: "post-1" } }),
       ],
       xCalls,
+      xInits,
     ),
     nonce: () => "nonce",
     nowSeconds: () => 1_700_000_000,
@@ -1796,6 +1975,8 @@ async function runZeroKey() {
   const xResult = await xPublisher.publish(xPrepared.prepared);
   assert.equal(xResult.status, "confirmed");
   assert.equal(xCalls.length, 2);
+  assert.equal(formFieldType(xInits[0]?.body, "media"), "image/jpeg");
+  assert.equal(formFieldType(xInits[1]?.body, "media"), null);
   const resumedXCalls: string[] = [];
   const resumedXRuntime = fakeRuntime(
     { ...baseMaterial, platform: "x", source: null },
@@ -2482,6 +2663,8 @@ async function runZeroKey() {
   assert.ok(effectSource.includes("recordPublicationSettlementActivity("));
   assert.equal(effectSource.includes("appendActivityEvent("), false);
   assert.equal(effectSource.includes("markSettlementActivityRecorded("), false);
+  assert.ok(effectSource.includes("const PUBLISH_EFFECT_RETRIES = 0 as const"));
+  assert.ok(effectSource.includes("retries: PUBLISH_EFFECT_RETRIES"));
   assert.ok(
     effectSource.indexOf("settle-publication-confirmed") <
       effectSource.indexOf(
@@ -2506,6 +2689,21 @@ async function runZeroKey() {
     ),
   );
   assert.ok(publishingSource.includes("publicationFailureCodeSchema"));
+  const telegramSource = readFileSync(
+    fileURLToPath(new URL("../publishing/telegram.ts", import.meta.url)),
+    "utf8",
+  );
+  assert.ok(
+    telegramSource.includes(
+      'async reconcile() {\n      return { status: "still_unknown" };',
+    ),
+  );
+  const factorySource = readFileSync(
+    fileURLToPath(new URL("../publishing/factory.ts", import.meta.url)),
+    "utf8",
+  );
+  assert.ok(factorySource.includes("providerRequestTimeoutMs(init)"));
+  assert.equal(factorySource.includes("PROVIDER_REQUEST_TIMEOUT_MS"), false);
   const reconciliationSource = readFileSync(
     fileURLToPath(new URL("../publishing/reconcile.ts", import.meta.url)),
     "utf8",
@@ -2574,7 +2772,7 @@ async function runZeroKey() {
   );
 
   console.log(
-    "publishing zero-key probe passed scenarios=57 providers=telegram,x,instagram external_calls=0 privacy_sentinels=passed",
+    "publishing zero-key probe passed scenarios=62 providers=telegram,x,instagram external_calls=0 privacy_sentinels=passed",
   );
 }
 

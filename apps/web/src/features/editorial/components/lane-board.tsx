@@ -46,6 +46,40 @@ export type BoardPresentation = {
   telegramOnly: boolean;
 };
 
+export function LaneBoardHeader({
+  head,
+  id,
+}: {
+  head: RunHead | null;
+  id: string;
+}) {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+  const acquisition = head?.telegramAcquisition;
+
+  return (
+    <div className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-2">
+      <h2 className="ticket-label" id={id}>
+        {t("lane.board.zone")}
+      </h2>
+      {acquisition &&
+      acquisition.acquiredChannels > 0 &&
+      acquisition.acquiredChannels < acquisition.totalChannels ? (
+        <p className="ms-auto text-end">
+          <Link
+            className="text-muted-foreground text-xs underline underline-offset-4"
+            href="/sources"
+          >
+            {t("telegram.acquisition.partial", {
+              acquired: acquisition.acquiredChannels,
+              total: acquisition.totalChannels,
+            })}
+          </Link>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function LaneBoard({
   brands,
   defaultModelOptionKey,
@@ -122,11 +156,10 @@ export function LaneBoard({
         platforms={board.platforms}
       >
         <PlatformLanes lanes={platformDraftLanes} onOpenCard={onOpenCard}>
-          <div className="border-border border-t border-dashed pt-4">
-            <h2 className="ticket-label">{t("lane.board.zone")}</h2>
+          <div className="grid min-w-0 gap-3">
             {head ? <TelegramAcquisitionNotice head={head} /> : null}
             {selectedBrands.length === 0 ? (
-              <Empty className="mt-3 border border-border border-dashed p-4">
+              <Empty className="rounded-xl border border-border bg-card p-8">
                 <EmptyHeader>
                   <EmptyTitle className="text-sm">
                     {t("lane.board.noBrands")}
@@ -134,7 +167,7 @@ export function LaneBoard({
                 </EmptyHeader>
               </Empty>
             ) : (
-              <div className="mt-3 grid gap-4">
+              <div className="grid gap-4">
                 {selectedBrands.map((brand) => {
                   const telegramLane = telegramLanes.find(
                     (lane) => lane.brandKey === brand.key,
@@ -150,13 +183,13 @@ export function LaneBoard({
                   return (
                     <section
                       aria-labelledby={`brand-rail-${brand.key}`}
-                      className="min-w-0 border border-border bg-background p-3"
+                      className="min-w-0 rounded-xl border border-border bg-card/40 p-3"
                       key={brand.key}
                     >
-                      <header className="flex items-center gap-2 border-border border-b border-dashed pb-2">
+                      <header className="flex items-center gap-2 pb-1">
                         <span
                           aria-hidden="true"
-                          className="grid size-7 place-items-center border border-border bg-accent font-semibold text-xs"
+                          className="grid size-7 place-items-center rounded-md bg-accent font-semibold text-accent-foreground text-xs"
                         >
                           {brand.name.slice(0, 1)}
                         </span>
@@ -169,7 +202,7 @@ export function LaneBoard({
                       </header>
                       <section
                         aria-label={t("lane.board.rail", { brand: brand.name })}
-                        className="mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2"
+                        className="mt-3 flex snap-x snap-proximity gap-3 overflow-x-auto rounded-lg pb-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                         // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable brand rail must be keyboard reachable.
                         tabIndex={0}
                       >
@@ -213,16 +246,6 @@ export function LaneBoard({
           </div>
         </PlatformLanes>
       </RouteProvider>
-      {head ? (
-        <p className="mt-4 text-end">
-          <Link
-            className="text-sm underline underline-offset-4"
-            href={`/dashboard/runs/${head.id}/report`}
-          >
-            {t("report.link")}
-          </Link>
-        </p>
-      ) : null}
     </>
   );
 }
@@ -251,9 +274,6 @@ function presentationOfHead(
 function TelegramAcquisitionNotice({ head }: { head: RunHead }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const { telegramAcquisition } = head;
-  const partial =
-    telegramAcquisition.acquiredChannels > 0 &&
-    telegramAcquisition.acquiredChannels < telegramAcquisition.totalChannels;
   const allFailed =
     head.completedAt !== null &&
     telegramAcquisition.totalChannels > 0 &&
@@ -262,7 +282,7 @@ function TelegramAcquisitionNotice({ head }: { head: RunHead }) {
 
   if (allFailed) {
     return (
-      <Empty className="mt-3 w-full border border-border border-dashed p-4">
+      <Empty className="w-full border border-border p-4">
         <EmptyHeader>
           <EmptyTitle className="text-sm">
             {t("telegram.acquisition.failed")}
@@ -297,19 +317,7 @@ function TelegramAcquisitionNotice({ head }: { head: RunHead }) {
     );
   }
 
-  return partial ? (
-    <p className="mt-3 text-end">
-      <Link
-        className="font-mono text-muted-foreground text-xs underline underline-offset-4"
-        href="/sources"
-      >
-        {t("telegram.acquisition.partial", {
-          acquired: telegramAcquisition.acquiredChannels,
-          total: telegramAcquisition.totalChannels,
-        })}
-      </Link>
-    </p>
-  ) : null;
+  return null;
 }
 
 function modelSlots(

@@ -8,10 +8,7 @@ import type {
   PublishRequest,
   ReconciliationReference,
 } from "./port";
-import {
-  PROVIDER_REQUEST_TIMEOUT_MS,
-  PROVIDER_RESPONSE_MAX_BYTES,
-} from "./port";
+import { PROVIDER_RESPONSE_MAX_BYTES, providerRequestTimeoutMs } from "./port";
 import { createTelegramPublisher } from "./telegram";
 import { createXPublisher } from "./x";
 
@@ -40,7 +37,7 @@ export function createPublisher(input: PublisherFactoryInput): Publisher {
   );
   const baseFetch = input.fetch ?? fetch;
   const providerFetch: typeof fetch = async (resource, init) => {
-    const timeout = AbortSignal.timeout(PROVIDER_REQUEST_TIMEOUT_MS);
+    const timeout = AbortSignal.timeout(providerRequestTimeoutMs(init));
     const controller = new AbortController();
     const signal = AbortSignal.any(
       [init?.signal, timeout, controller.signal].filter(

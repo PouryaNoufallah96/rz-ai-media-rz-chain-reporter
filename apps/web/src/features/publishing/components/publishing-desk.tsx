@@ -1,8 +1,12 @@
 "use client";
 
+import {
+  Alert,
+  AlertDescription,
+} from "@rz-chain-reporter/ui/components/alert";
+import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
-import { Input } from "@rz-chain-reporter/ui/components/input";
 import { useQueryClient } from "@tanstack/react-query";
 import type { TableOptions } from "@tanstack/react-table";
 import { useFormatter, useTranslations } from "next-intl";
@@ -43,6 +47,7 @@ import {
   type PublishingQuery,
   publishingSearchParsers,
 } from "../schemas/history";
+import { PublishingDateTimePicker } from "./publishing-date-time-picker";
 import { PublishingFreshness } from "./publishing-freshness";
 import { ScheduledPublicationActions } from "./scheduled-publication-actions";
 
@@ -88,6 +93,8 @@ export function PublishingDesk({
   const reconcile = useAction(reconcilePublicationAction);
   const attest = useAction(attestTelegramPublicationAction);
   const [intent, setIntent] = useState<DeskIntent | null>(null);
+  const reconciliationOperationId =
+    reconcile.status === "success" ? reconcile.data?.operationId : undefined;
   const paused = environmentForcedPause || control.paused;
   const columns: TableOptions<
     typeof keysetDataTableFeatures,
@@ -107,7 +114,7 @@ export function PublishingDesk({
         const occurredAt = new Date(row.original.occurredAt.valueOf());
         return (
           <time
-            className="whitespace-nowrap font-mono text-xs"
+            className="whitespace-nowrap text-xs tabular-nums"
             dateTime={occurredAt.toISOString()}
           >
             {format.dateTime(occurredAt, {
@@ -124,10 +131,12 @@ export function PublishingDesk({
       header: t("desk.columns.destination"),
       cell: ({ row }) => (
         <span className="grid">
-          <strong>{row.original.destinationLabel}</strong>
-          <Bdi className="font-mono text-muted-foreground text-xs">
-            {row.original.destinationKey}
-          </Bdi>
+          <strong>
+            <Bdi>{row.original.destinationLabel}</Bdi>
+          </strong>
+          <span className="wrap-anywhere font-mono text-muted-foreground text-xs">
+            <Bdi>{row.original.destinationKey}</Bdi>
+          </span>
         </span>
       ),
     },
@@ -223,14 +232,21 @@ export function PublishingDesk({
       );
     }
     if (intent.kind === "reconcile" && row.unresolvedAttemptId) {
-      return confirmCommand(
-        reconcile.execute({
-          publicationId: row.publicationId,
-          expectedVersion: row.publicationVersion,
-          ambiguousAttemptId: row.unresolvedAttemptId,
-          idempotencyKey: crypto.randomUUID(),
-        }),
-      );
+      const result = await reconcile.execute({
+        publicationId: row.publicationId,
+        expectedVersion: row.publicationVersion,
+        ambiguousAttemptId: row.unresolvedAttemptId,
+        idempotencyKey: crypto.randomUUID(),
+      });
+      if (result.status !== "success" || !result.data) {
+        return { error: t("error.command") };
+      }
+      void queryClient.invalidateQueries({
+        queryKey: operationsListQueriesKey,
+      });
+      setIntent(null);
+      focusOperation(result.data.operationId);
+      return undefined;
     }
     if (
       (intent.kind === "attestDelivered" ||
@@ -289,13 +305,32 @@ export function PublishingDesk({
         paused={paused}
         view={query.view}
       />
-      <h2
-        className="ticket-label border-b border-dashed pb-2"
-        id="dispatch-ledger-title"
-      >
+      <h2 className="sr-only" id="dispatch-ledger-title">
         {t("desk.ledger")}
       </h2>
+      {reconciliationOperationId ? (
+        <Alert className="mt-3 flex flex-wrap items-center gap-2" role="none">
+          <AlertDescription role="status">
+            {t("reconciliation.accepted")}
+          </AlertDescription>
+          <Button
+            onClick={() => focusOperation(reconciliationOperationId)}
+            size="xs"
+            variant="ghost"
+          >
+            {t("handoff.openOperation")}
+          </Button>
+        </Alert>
+      ) : null}
       <CoreDataTable
+        columnClassNames={{
+          occurredAt: "align-top",
+          destination: "align-top",
+          platform: "align-top",
+          revisionNumber: "align-top",
+          state: "align-top",
+          action: "align-top",
+        }}
         isPending={isPending}
         labels={{
           caption: t("desk.caption"),
@@ -348,11 +383,11 @@ function PublishingDeskToolbar({
   const t = useTranslations(PUBLISHING_NAMESPACE);
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 border-y border-dashed py-3">
-        <span className="flex items-center gap-1 font-medium">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3 sm:p-4">
+        <Badge className="h-auto gap-2 py-1" variant="outline">
           <StateMark state={paused ? "failed" : "succeeded"} />
           {paused ? t("pause.paused") : t("pause.active")}
-        </span>
+        </Badge>
         {environmentForcedPause ? (
           <span className="text-destructive text-xs">
             {t("pause.environment")}
@@ -370,10 +405,14 @@ function PublishingDeskToolbar({
         </Button>
         <PublishingFreshness />
       </div>
-      <nav aria-label={t("desk.views")} className="my-4 flex flex-wrap gap-1">
+      <nav
+        aria-label={t("desk.views")}
+        className="my-4 flex w-fit max-w-full flex-wrap gap-1 rounded-lg border bg-muted/30 p-1"
+      >
         {PUBLISHING_VIEWS.map((candidate) => (
           <Button
             aria-current={view === candidate ? "page" : undefined}
+            className="aria-[current=page]:bg-card aria-[current=page]:shadow-xs"
             key={candidate}
             onClick={() => onViewChange(candidate)}
             size="sm"
@@ -421,12 +460,16 @@ function RowActions({
     );
   if (row.lifecycle === "missed_requires_confirmation")
     return (
-      <div className="grid min-w-52 gap-1">
-        <Input
-          aria-label={t("schedule.rescheduleTime")}
+      <div className="grid min-w-52 gap-2 rounded-lg border bg-muted/20 p-3">
+        <PublishingDateTimePicker
+          label={t("schedule.rescheduleTime")}
           min={minimumLocalTime(installationTimeZone)}
-          onChange={(event) => setLocalTime(event.currentTarget.value)}
-          type="datetime-local"
+          invalid={
+            Boolean(localTime) &&
+            !validFutureLocalTime(localTime, installationTimeZone)
+          }
+          onValueChange={setLocalTime}
+          timeZone={installationTimeZone}
           value={localTime}
         />
         <div className="flex flex-wrap gap-1">
@@ -451,7 +494,7 @@ function RowActions({
     );
   if (row.lifecycle === "failed")
     return (
-      <div className="grid min-w-52 gap-1">
+      <div className="grid min-w-52 gap-2 rounded-lg border bg-muted/20 p-3">
         <LabeledSelect
           disabled={row.eligibleDestinations.length === 0}
           label={t("destination.retryLabel")}
@@ -523,7 +566,7 @@ function HistoryState({ row }: { row: PublishingHistoryRow }) {
       : t(`reconciliation.reconciled_${row.reconciliationDecision}`)
     : null;
   return (
-    <span className="grid gap-1">
+    <span className="grid min-w-44 gap-2">
       <span className="flex items-center gap-1">
         <StateMark state={stateOf(row.lifecycle)} />
         {t(`lifecycle.${row.lifecycle}`)}
@@ -532,7 +575,7 @@ function HistoryState({ row }: { row: PublishingHistoryRow }) {
         <span className="text-proof-text text-xs">{resolved}</span>
       ) : null}
       {row.lifecycle === "delivery_unknown" ? (
-        <span className="text-working text-xs">
+        <span className="rounded-md border border-working/25 bg-working/10 p-2 text-working text-xs/relaxed">
           {t("reconciliation.explanation")}
         </span>
       ) : null}
@@ -560,15 +603,15 @@ function HistoryState({ row }: { row: PublishingHistoryRow }) {
         </Button>
       ) : null}
       {row.providerResultId ? (
-        <span className="font-mono text-muted-foreground text-xs">
+        <span className="wrap-anywhere text-muted-foreground text-xs">
           {t("reconciliation.providerResult")} ·{" "}
-          <Bdi>{row.providerResultId}</Bdi>
+          <Bdi className="font-mono">{row.providerResultId}</Bdi>
         </span>
       ) : null}
       {row.evidenceCheckpointId && row.evidenceCheckpointKind ? (
-        <span className="font-mono text-muted-foreground text-xs">
+        <span className="wrap-anywhere text-muted-foreground text-xs">
           {t("reconciliation.checkpoint")} ·{" "}
-          <Bdi>
+          <Bdi className="font-mono">
             {row.evidenceCheckpointKind} ·{" "}
             {row.evidenceCheckpointId.slice(0, 8)}
           </Bdi>

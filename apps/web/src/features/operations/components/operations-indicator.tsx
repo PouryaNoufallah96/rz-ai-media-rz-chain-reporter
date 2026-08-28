@@ -140,7 +140,7 @@ function TransportReadout({
 
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
-      <span className="wrap-break-word min-w-0 font-mono text-muted-foreground text-xs tabular-nums">
+      <span className="wrap-break-word min-w-0 text-muted-foreground text-xs tabular-nums">
         {readout}
       </span>
       {transport === "live" ? null : (

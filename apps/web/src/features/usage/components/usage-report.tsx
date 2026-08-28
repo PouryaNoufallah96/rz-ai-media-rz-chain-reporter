@@ -2,8 +2,19 @@
 
 import { MODEL_BACKENDS, USAGE_STATUSES } from "@rz-chain-reporter/contracts";
 import { DIRECTION } from "@rz-chain-reporter/i18n";
+import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "@rz-chain-reporter/ui/components/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@rz-chain-reporter/ui/components/collapsible";
 import {
   Empty,
   EmptyContent,
@@ -23,7 +34,7 @@ import {
   TableRow,
 } from "@rz-chain-reporter/ui/components/table";
 import type { TableOptions } from "@tanstack/react-table";
-import { FileTextIcon } from "lucide-react";
+import { ChevronDownIcon, FileTextIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import type { FormEvent } from "react";
 import { StateMark } from "@/components/common/state-mark";
@@ -37,6 +48,9 @@ import { FieldCaption, LabeledSelect } from "@/components/form/form-field";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 
 import { USAGE_NAMESPACE, USAGE_PERIODS, USAGE_PROVIDERS } from "../constants";
+
+const FILTER_SELECT_CONTENT = { alignItemWithTrigger: false } as const;
+
 import {
   type UsagePage,
   type UsageQuery,
@@ -90,7 +104,7 @@ export function UsageReport({ page, query, summary }: UsageReportProps) {
       header: t("columns.time"),
       cell: ({ row }) => (
         <time
-          className="whitespace-nowrap font-mono text-xs tabular-nums"
+          className="whitespace-nowrap text-xs tabular-nums"
           dateTime={row.original.occurredAt.toISOString()}
         >
           {format.dateTime(row.original.occurredAt, {
@@ -189,7 +203,7 @@ export function UsageReport({ page, query, summary }: UsageReportProps) {
 
   return (
     <>
-      <div className="mt-6 flex flex-wrap items-end gap-3">
+      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3 sm:p-4">
         <UsageFilters
           onSubmit={handleTextFilters}
           onValueChange={setFilters}
@@ -209,10 +223,7 @@ export function UsageReport({ page, query, summary }: UsageReportProps) {
       </div>
       <UsageSummaryBlock summary={summary} />
       <section className="mt-6" aria-labelledby="usage-ledger-title">
-        <h2
-          className="ticket-label border-b border-dashed pb-2"
-          id="usage-ledger-title"
-        >
+        <h2 className="mb-3 font-medium text-sm" id="usage-ledger-title">
           {t("ledger.title")}
         </h2>
         {summary.installationInvocations === 0 ? (
@@ -272,12 +283,13 @@ function UsageFilters({
   return (
     <form
       aria-label={t("filters.label")}
-      className="flex flex-wrap items-end gap-2"
+      className="flex min-w-0 flex-1 flex-wrap items-end gap-3"
       id="usage-filters"
       onSubmit={onSubmit}
     >
       <LabeledSelect
-        className="w-fit"
+        className="min-w-0 flex-1 sm:w-fit sm:flex-none"
+        contentProps={FILTER_SELECT_CONTENT}
         label={t("filters.period")}
         onValueChange={(value) => {
           if (value) onValueChange({ period: value });
@@ -295,7 +307,8 @@ function UsageFilters({
         placeholder={t("filters.modelPlaceholder")}
       />
       <LabeledSelect
-        className="w-fit"
+        className="min-w-0 flex-1 sm:w-fit sm:flex-none"
+        contentProps={FILTER_SELECT_CONTENT}
         emptyLabel={t("filters.all")}
         label={t("filters.backend")}
         onValueChange={(value) => onValueChange({ backend: value })}
@@ -306,7 +319,8 @@ function UsageFilters({
         value={query.backend}
       />
       <LabeledSelect
-        className="w-fit"
+        className="min-w-0 flex-1 sm:w-fit sm:flex-none"
+        contentProps={FILTER_SELECT_CONTENT}
         emptyLabel={t("filters.all")}
         label={t("filters.provider")}
         onValueChange={(value) => onValueChange({ provider: value })}
@@ -323,7 +337,8 @@ function UsageFilters({
         placeholder={t("filters.taskPlaceholder")}
       />
       <LabeledSelect
-        className="w-fit"
+        className="min-w-0 flex-1 sm:w-fit sm:flex-none"
+        contentProps={FILTER_SELECT_CONTENT}
         emptyLabel={t("filters.all")}
         label={t("filters.status")}
         onValueChange={(value) => onValueChange({ status: value })}
@@ -350,10 +365,10 @@ function FilterText({
 }) {
   const id = `usage-filter-${name}`;
   return (
-    <Field className="w-fit">
+    <Field className="min-w-0 flex-1 sm:w-fit sm:flex-none">
       <FieldCaption htmlFor={id}>{label}</FieldCaption>
       <Input
-        className="h-8 w-40"
+        className="w-full sm:w-40"
         defaultValue={defaultValue}
         id={id}
         key={defaultValue}
@@ -369,70 +384,70 @@ function UsageSummaryBlock({ summary }: { summary: UsageSummary }) {
   const t = useTranslations(USAGE_NAMESPACE);
   const format = useFormatter();
   return (
-    <section
-      aria-labelledby="usage-summary-title"
-      className="mt-6 border border-border bg-card"
-    >
-      <h2
-        className="ticket-label border-b border-dashed p-3"
-        id="usage-summary-title"
-      >
-        {t("summary.title")}
-      </h2>
-      <dl className="grid grid-cols-2 gap-3 p-3 font-mono text-xs sm:grid-cols-5">
-        <SummaryFact
-          label={t("summary.invocations")}
-          value={format.number(summary.invocations)}
-        />
-        <SummaryFact
-          label={t("summary.tokens")}
-          value={format.number(summary.totalTokens)}
-        />
-        <SummaryFact
-          label={t("summary.recordedCost")}
-          value={format.number(Number(summary.recordedCost), COST_FORMAT)}
-        />
-        <SummaryFact
-          label={t("summary.pending")}
-          value={format.number(summary.pendingCount)}
-        />
-        <SummaryFact
-          label={t("summary.unknown")}
-          value={format.number(summary.unknownCount)}
-        />
-      </dl>
-      {summary.models.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("columns.model")}</TableHead>
-              <TableHead>{t("columns.backend")}</TableHead>
-              <TableHead>{t("summary.invocations")}</TableHead>
-              <TableHead>{t("summary.tokens")}</TableHead>
-              <TableHead>{t("summary.recordedCost")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {summary.models.map((model) => (
-              <TableRow key={`${model.backend}:${model.model}`}>
-                <TableCell>
-                  <Bdi className="font-mono">{model.model}</Bdi>
-                </TableCell>
-                <TableCell>{t(`backend.${model.backend}`)}</TableCell>
-                <TableCell className="font-mono tabular-nums">
-                  {format.number(model.invocations)}
-                </TableCell>
-                <TableCell className="font-mono tabular-nums">
-                  {format.number(model.totalTokens)}
-                </TableCell>
-                <TableCell className="font-mono tabular-nums">
-                  {format.number(Number(model.recordedCost), COST_FORMAT)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      ) : null}
+    <section aria-labelledby="usage-summary-title" className="mt-6">
+      <Card className="gap-0 border ring-0">
+        <CardHeader className="border-b bg-muted/30 py-4">
+          <h2 className="font-medium text-sm" id="usage-summary-title">
+            {t("summary.title")}
+          </h2>
+        </CardHeader>
+        <CardContent className="px-0">
+          <dl className="grid grid-cols-2 gap-4 border-b p-4 text-xs sm:grid-cols-3 sm:p-5 lg:grid-cols-5">
+            <SummaryFact
+              label={t("summary.invocations")}
+              value={format.number(summary.invocations)}
+            />
+            <SummaryFact
+              label={t("summary.tokens")}
+              value={format.number(summary.totalTokens)}
+            />
+            <SummaryFact
+              label={t("summary.recordedCost")}
+              value={format.number(Number(summary.recordedCost), COST_FORMAT)}
+            />
+            <SummaryFact
+              label={t("summary.pending")}
+              value={format.number(summary.pendingCount)}
+            />
+            <SummaryFact
+              label={t("summary.unknown")}
+              value={format.number(summary.unknownCount)}
+            />
+          </dl>
+          {summary.models.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("columns.model")}</TableHead>
+                  <TableHead>{t("columns.backend")}</TableHead>
+                  <TableHead>{t("summary.invocations")}</TableHead>
+                  <TableHead>{t("summary.tokens")}</TableHead>
+                  <TableHead>{t("summary.recordedCost")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {summary.models.map((model) => (
+                  <TableRow key={`${model.backend}:${model.model}`}>
+                    <TableCell>
+                      <Bdi className="font-mono">{model.model}</Bdi>
+                    </TableCell>
+                    <TableCell>{t(`backend.${model.backend}`)}</TableCell>
+                    <TableCell className="tabular-nums">
+                      {format.number(model.invocations)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {format.number(model.totalTokens)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {format.number(Number(model.recordedCost), COST_FORMAT)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : null}
+        </CardContent>
+      </Card>
     </section>
   );
 }
@@ -441,7 +456,9 @@ function SummaryFact({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="mt-1 tabular-nums">{value}</dd>
+      <dd className="wrap-anywhere mt-2 font-medium text-lg tabular-nums">
+        {value}
+      </dd>
     </div>
   );
 }
@@ -473,18 +490,18 @@ function ModelValue({ row }: { row: UsageRow }) {
   const locale = useLocale();
   const changed = row.resolvedModel && row.resolvedModel !== row.requestedModel;
   return (
-    <span className="flex max-w-56 flex-wrap items-center gap-1 font-mono text-xs">
-      <Bdi>{row.requestedModel}</Bdi>
+    <span className="flex max-w-56 flex-wrap items-center gap-1 text-xs">
+      <Bdi className="font-mono">{row.requestedModel}</Bdi>
       {changed ? (
         <>
           <span aria-hidden="true">
             {DIRECTION[locale] === "rtl" ? "←" : "→"}
           </span>
-          <Bdi>{row.resolvedModel}</Bdi>
+          <Bdi className="font-mono">{row.resolvedModel}</Bdi>
         </>
       ) : null}
       {row.invocationKey === "fallback" ? (
-        <span className="border border-dashed px-1">{t("slot.fallback")}</span>
+        <Badge variant="outline">{t("slot.fallback")}</Badge>
       ) : null}
     </span>
   );
@@ -496,7 +513,7 @@ function TokenValue({ row }: { row: UsageRow }) {
   if (row.promptTokens === null && row.completionTokens === null)
     return <span>—</span>;
   return (
-    <span className="whitespace-nowrap font-mono text-xs tabular-nums">
+    <span className="whitespace-nowrap text-xs tabular-nums">
       {row.promptTokens === null ? "—" : format.number(row.promptTokens)}{" "}
       {t("tokens.input")} ·{" "}
       {row.completionTokens === null
@@ -514,7 +531,7 @@ function CostValue({ row }: { row: UsageRow }) {
     return <span className="text-muted-foreground">{t("cost.local")}</span>;
   if (row.cost !== null)
     return (
-      <span className="whitespace-nowrap font-mono tabular-nums">
+      <span className="whitespace-nowrap tabular-nums">
         {format.number(Number(row.cost), COST_FORMAT)}
       </span>
     );
@@ -532,25 +549,30 @@ function CostValue({ row }: { row: UsageRow }) {
 function UsageDetails({ row }: { row: UsageRow }) {
   const t = useTranslations(USAGE_NAMESPACE);
   return (
-    <details>
-      <summary className="cursor-pointer select-none text-xs">
+    <Collapsible>
+      <CollapsibleTrigger
+        render={<Button className="group" size="xs" variant="ghost" />}
+      >
+        <ChevronDownIcon className="transition-transform group-data-panel-open:rotate-180" />
         {t("details.open")}
-      </summary>
-      <dl className="mt-2 grid gap-1 text-xs">
-        <Detail label={t("columns.task")}>
-          <Bdi>{row.taskKey}</Bdi>
-        </Detail>
-        <Detail label={t("columns.backend")}>
-          {t(`backend.${row.backend}`)}
-        </Detail>
-        <Detail label={t("columns.provider")}>
-          {t(`provider.${row.provider}`)}
-        </Detail>
-        <Detail label={t("columns.tokens")}>
-          <TokenValue row={row} />
-        </Detail>
-      </dl>
-    </details>
+      </CollapsibleTrigger>
+      <CollapsibleContent keepMounted className="data-closed:hidden">
+        <dl className="mt-2 grid min-w-56 gap-3 rounded-lg border bg-muted/30 p-3 text-xs">
+          <Detail label={t("columns.task")}>
+            <Bdi>{row.taskKey}</Bdi>
+          </Detail>
+          <Detail label={t("columns.backend")}>
+            {t(`backend.${row.backend}`)}
+          </Detail>
+          <Detail label={t("columns.provider")}>
+            {t(`provider.${row.provider}`)}
+          </Detail>
+          <Detail label={t("columns.tokens")}>
+            <TokenValue row={row} />
+          </Detail>
+        </dl>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -564,7 +586,7 @@ function Detail({
   return (
     <div className="grid grid-cols-[auto_1fr] gap-2">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd>{children}</dd>
+      <dd className="wrap-anywhere min-w-0">{children}</dd>
     </div>
   );
 }

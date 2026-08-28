@@ -159,8 +159,8 @@ export function AccountDesk({
   return (
     <>
       <Overview profile={profile} summary={summary} />
-      <div className="mt-7 grid items-start gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div className="grid min-w-0 content-start gap-8">
+      <div className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-stretch">
+        <div className="grid min-w-0 content-start gap-4 lg:grid-rows-[auto_1fr]">
           <SavedCards
             isPending={isPending}
             onFallbackFocus={setFallbackFocus}
@@ -175,7 +175,7 @@ export function AccountDesk({
             rows={scheduled.page.rows}
           />
         </div>
-        <div className="grid min-w-0 content-start gap-7">
+        <div className="grid min-w-0 content-start gap-4 lg:grid-rows-[auto_auto_1fr]">
           <BrandList brands={summary.brands} />
           <TopicList topics={topics} />
           <ActivityList activities={activities} />
@@ -185,12 +185,6 @@ export function AccountDesk({
         aria-label={t("links.title")}
         className="mt-8 flex flex-wrap gap-x-5 gap-y-1 border-border border-t pt-2 text-muted-foreground text-xs"
       >
-        <Link
-          className="inline-flex min-h-11 items-center py-3 hover:text-foreground"
-          href="/usage"
-        >
-          {t("links.usage")}
-        </Link>
         <Link
           className="inline-flex min-h-11 items-center py-3 hover:text-foreground"
           href="/sources"
@@ -236,47 +230,49 @@ function Overview({
   const format = useFormatter();
   const createdAt = new Date(profile.createdAt.valueOf());
   return (
-    <section className="mt-5 grid min-w-0 gap-5 border-border border-y py-5 md:grid-cols-2 md:gap-8">
-      <div className="min-w-0">
-        <h2 className="ticket-label text-muted-foreground">
-          {t("profile.title")}
-        </h2>
-        <dl className="mt-2 grid gap-1">
-          <div>
-            <dt className="sr-only">{t("profile.name")}</dt>
-            <dd className="wrap-anywhere font-medium text-lg">
-              <Bdi>{profile.name}</Bdi>
-            </dd>
-          </div>
-          <div>
-            <dt className="sr-only">{t("profile.email")}</dt>
-            <dd className="wrap-anywhere text-muted-foreground text-sm">
-              <Bdi>{profile.email}</Bdi>
-            </dd>
-          </div>
-          <div className="mt-1 flex flex-wrap gap-x-2 text-muted-foreground text-xs">
-            <dt>{t("profile.createdAt")}</dt>
-            <dd>
-              <time dateTime={createdAt.toISOString()}>
-                {format.dateTime(createdAt, { dateStyle: "long" })}
-              </time>
-            </dd>
-          </div>
-        </dl>
-      </div>
-      <div className="min-w-0">
-        <h2 className="ticket-label text-muted-foreground">
-          {t("metrics.title")}
-        </h2>
-        <dl className="mt-3 grid grid-cols-3 gap-4">
-          <Metric
-            label={t("metrics.generated")}
-            value={summary.generatedDrafts}
-          />
-          <Metric label={t("metrics.scheduled")} value={summary.scheduled} />
-          <Metric label={t("metrics.saved")} value={summary.saved} />
-        </dl>
-      </div>
+    <section className="min-w-0">
+      <Card className="mt-5 grid min-w-0 gap-5 border p-4 ring-0 sm:p-5 md:grid-cols-2 md:gap-6">
+        <div className="min-w-0">
+          <h2 className="ticket-label text-muted-foreground">
+            {t("profile.title")}
+          </h2>
+          <dl className="mt-2 grid gap-1">
+            <div>
+              <dt className="sr-only">{t("profile.name")}</dt>
+              <dd className="wrap-anywhere font-medium text-lg">
+                <Bdi>{profile.name}</Bdi>
+              </dd>
+            </div>
+            <div>
+              <dt className="sr-only">{t("profile.email")}</dt>
+              <dd className="wrap-anywhere text-muted-foreground text-sm">
+                <Bdi>{profile.email}</Bdi>
+              </dd>
+            </div>
+            <div className="mt-1 flex flex-wrap gap-x-2 text-muted-foreground text-xs">
+              <dt>{t("profile.createdAt")}</dt>
+              <dd>
+                <time dateTime={createdAt.toISOString()}>
+                  {format.dateTime(createdAt, { dateStyle: "long" })}
+                </time>
+              </dd>
+            </div>
+          </dl>
+        </div>
+        <div className="min-w-0">
+          <h2 className="ticket-label text-muted-foreground">
+            {t("metrics.title")}
+          </h2>
+          <dl className="mt-3 grid grid-cols-3 gap-3">
+            <Metric
+              label={t("metrics.generated")}
+              value={summary.generatedDrafts}
+            />
+            <Metric label={t("metrics.scheduled")} value={summary.scheduled} />
+            <Metric label={t("metrics.saved")} value={summary.saved} />
+          </dl>
+        </div>
+      </Card>
     </section>
   );
 }
@@ -285,29 +281,34 @@ function BrandList({ brands }: { brands: AccountSummary["brands"] }) {
   const t = useTranslations(ACCOUNT_NAMESPACE);
   return (
     <section aria-labelledby="account-brands-title" className="min-w-0">
-      <h2 className="font-medium text-sm" id="account-brands-title">
-        {t("brands.title")}
-      </h2>
-      <dl className="mt-3 grid grid-cols-1 gap-px bg-border sm:grid-cols-2">
-        {brands.map((brand) => (
-          <div className="grid min-w-0 gap-3 bg-background p-3" key={brand.key}>
-            <dt className="wrap-anywhere font-medium text-xs">
-              <Bdi>{brand.name}</Bdi>
-            </dt>
-            <dd className="grid grid-cols-3 gap-2 text-muted-foreground">
-              <BrandFact
-                label={t("brands.generated")}
-                value={brand.generatedDrafts}
-              />
-              <BrandFact
-                label={t("brands.scheduled")}
-                value={brand.scheduled}
-              />
-              <BrandFact label={t("brands.saved")} value={brand.saved} />
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <Card className="min-w-0 gap-0 border p-4 ring-0 sm:p-5">
+        <h2 className="font-medium text-sm" id="account-brands-title">
+          {t("brands.title")}
+        </h2>
+        <dl className="mt-3 grid grid-cols-1 gap-2">
+          {brands.map((brand) => (
+            <div
+              className="grid min-w-0 gap-3 rounded-lg border bg-muted/30 p-3"
+              key={brand.key}
+            >
+              <dt className="wrap-anywhere font-medium text-xs">
+                <Bdi>{brand.name}</Bdi>
+              </dt>
+              <dd className="grid grid-cols-3 gap-2 text-muted-foreground">
+                <BrandFact
+                  label={t("brands.generated")}
+                  value={brand.generatedDrafts}
+                />
+                <BrandFact
+                  label={t("brands.scheduled")}
+                  value={brand.scheduled}
+                />
+                <BrandFact label={t("brands.saved")} value={brand.saved} />
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </Card>
     </section>
   );
 }
@@ -328,7 +329,7 @@ function Metric({ label, value }: { label: string; value: number }) {
       <dt className="row-start-2 text-muted-foreground text-xs/relaxed">
         {label}
       </dt>
-      <dd className="row-start-1 font-mono text-2xl tabular-nums">
+      <dd className="row-start-1 text-2xl tabular-nums">
         {format.number(value)}
       </dd>
     </div>
@@ -339,10 +340,10 @@ function BrandFact({ label, value }: { label: string; value: number }) {
   const format = useFormatter();
   return (
     <span className="grid min-w-0 gap-0.5">
-      <strong className="font-mono text-foreground tabular-nums">
+      <strong className="text-foreground tabular-nums">
         {format.number(value)}
       </strong>
-      <span className="wrap-anywhere text-[0.65rem]">{label}</span>
+      <span className="text-xs/relaxed">{label}</span>
     </span>
   );
 }
@@ -354,53 +355,55 @@ function ActivityList({ activities }: { activities: ActivityHistoryRow[] }) {
   const Icon = expanded ? ChevronUpIcon : ChevronDownIcon;
   return (
     <section aria-labelledby="account-activity-title" className="min-w-0">
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-border border-b pb-3">
-        <h2 className="font-medium text-sm" id="account-activity-title">
-          {t("activity.title")}
-        </h2>
-        {activities.length > 0 ? (
-          <p className="text-muted-foreground text-xs">
-            {t("activity.latest", {
-              n: expanded ? activities.length : visibleCount,
-            })}
-          </p>
-        ) : null}
-      </div>
-      {activities.length === 0 ? (
-        <CompactEmpty description={t("activity.empty")} />
-      ) : (
-        <Collapsible onOpenChange={setExpanded} open={expanded}>
-          {!expanded ? (
-            <ul className="divide-y divide-border">
-              <ActivityRows activities={activities.slice(0, visibleCount)} />
-            </ul>
+      <Card className="min-w-0 gap-0 border p-4 ring-0 sm:p-5 lg:h-full">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 border-border border-b pb-3">
+          <h2 className="font-medium text-sm" id="account-activity-title">
+            {t("activity.title")}
+          </h2>
+          {activities.length > 0 ? (
+            <p className="text-muted-foreground text-xs">
+              {t("activity.latest", {
+                n: expanded ? activities.length : visibleCount,
+              })}
+            </p>
           ) : null}
-          <CollapsibleContent
-            aria-label={t("activity.snapshot")}
-            render={<section />}
-          >
-            <ul className="divide-y divide-border">
-              <ActivityRows activities={activities} />
-            </ul>
-          </CollapsibleContent>
-          {activities.length > visibleCount ? (
-            <CollapsibleTrigger
-              render={
-                <Button
-                  className="mt-2 min-h-11"
-                  type="button"
-                  variant="ghost"
-                />
-              }
+        </div>
+        {activities.length === 0 ? (
+          <CompactEmpty description={t("activity.empty")} />
+        ) : (
+          <Collapsible onOpenChange={setExpanded} open={expanded}>
+            {!expanded ? (
+              <ul className="divide-y divide-border">
+                <ActivityRows activities={activities.slice(0, visibleCount)} />
+              </ul>
+            ) : null}
+            <CollapsibleContent
+              aria-label={t("activity.snapshot")}
+              render={<section />}
             >
-              {expanded
-                ? t("activity.showLess")
-                : t("activity.showAll", { n: activities.length })}
-              <Icon aria-hidden="true" data-icon="inline-end" />
-            </CollapsibleTrigger>
-          ) : null}
-        </Collapsible>
-      )}
+              <ul className="divide-y divide-border">
+                <ActivityRows activities={activities} />
+              </ul>
+            </CollapsibleContent>
+            {activities.length > visibleCount ? (
+              <CollapsibleTrigger
+                render={
+                  <Button
+                    className="mt-2 min-h-11"
+                    type="button"
+                    variant="ghost"
+                  />
+                }
+              >
+                {expanded
+                  ? t("activity.showLess")
+                  : t("activity.showAll", { n: activities.length })}
+                <Icon aria-hidden="true" data-icon="inline-end" />
+              </CollapsibleTrigger>
+            ) : null}
+          </Collapsible>
+        )}
+      </Card>
     </section>
   );
 }
@@ -447,25 +450,30 @@ function TopicList({ topics }: { topics: string[] }) {
   const t = useTranslations(ACCOUNT_NAMESPACE);
   return (
     <section aria-labelledby="account-topics-title" className="min-w-0">
-      <h2 className="font-medium text-sm" id="account-topics-title">
-        {t("topics.title")}
-      </h2>
-      {topics.length === 0 ? (
-        <CompactEmpty description={t("topics.empty")} />
-      ) : (
-        <ul className="mt-3 flex flex-wrap gap-2">
-          {topics.map((topic) => (
-            <li className="min-w-0 max-w-full" key={topic.toLocaleLowerCase()}>
-              <Badge
-                className="h-auto max-w-full whitespace-normal py-1"
-                variant="outline"
+      <Card className="min-w-0 gap-0 border p-4 ring-0 sm:p-5">
+        <h2 className="font-medium text-sm" id="account-topics-title">
+          {t("topics.title")}
+        </h2>
+        {topics.length === 0 ? (
+          <CompactEmpty description={t("topics.empty")} />
+        ) : (
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {topics.map((topic) => (
+              <li
+                className="min-w-0 max-w-full"
+                key={topic.toLocaleLowerCase()}
               >
-                <Bdi className="wrap-anywhere">{topic}</Bdi>
-              </Badge>
-            </li>
-          ))}
-        </ul>
-      )}
+                <Badge
+                  className="h-auto max-w-full whitespace-normal py-1"
+                  variant="outline"
+                >
+                  <Bdi className="wrap-anywhere">{topic}</Bdi>
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </section>
   );
 }
@@ -485,70 +493,74 @@ function ScheduledCards({
   const Icon = expanded ? ChevronUpIcon : ChevronDownIcon;
   return (
     <section aria-labelledby="account-scheduled-title" className="min-w-0">
-      <div className="border-border border-b pb-3">
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-          <h2 className="font-medium text-sm" id="account-scheduled-title">
-            {t("scheduled.title")}
-          </h2>
-          <Link
-            className="inline-flex min-h-11 items-center text-xs underline-offset-4 hover:underline"
-            href="/schedule?view=scheduled"
-          >
-            {t("scheduled.viewAll")}
-          </Link>
+      <Card className="min-w-0 gap-0 border p-4 ring-0 sm:p-5 lg:h-full">
+        <div className="border-border border-b pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <h2 className="font-medium text-sm" id="account-scheduled-title">
+              {t("scheduled.title")}
+            </h2>
+            <Link
+              className="inline-flex min-h-11 items-center text-xs underline-offset-4 hover:underline"
+              href="/schedule?view=scheduled"
+            >
+              {t("scheduled.viewAll")}
+            </Link>
+          </div>
+          <p className="text-muted-foreground text-xs">
+            {t("scheduled.description")}
+          </p>
+          <div className="mt-2 [&_button]:min-h-11 sm:[&_button]:min-h-0">
+            <PublishingFreshness />
+          </div>
         </div>
-        <p className="text-muted-foreground text-xs">
-          {t("scheduled.description")}
-        </p>
-        <div className="mt-2 [&_button]:min-h-11 sm:[&_button]:min-h-0">
-          <PublishingFreshness />
-        </div>
-      </div>
-      {rows.length === 0 ? (
-        <CompactEmpty description={t("scheduled.empty")} />
-      ) : (
-        <Collapsible onOpenChange={setExpanded} open={expanded}>
-          <ul className="divide-y divide-border">
-            <ScheduledRows
-              installationTimeZone={installationTimeZone}
-              onOpenDraft={onOpenDraft}
-              rows={rows.slice(0, visibleCount)}
-            />
-          </ul>
-          {rows.length > visibleCount ? (
-            <>
-              <CollapsibleContent
-                aria-label={t("scheduled.more")}
-                className="max-h-128 overflow-y-auto overscroll-contain border-border border-t outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                render={<section />}
-                tabIndex={0}
-              >
-                <ul className="divide-y divide-border">
-                  <ScheduledRows
-                    installationTimeZone={installationTimeZone}
-                    onOpenDraft={onOpenDraft}
-                    rows={rows.slice(visibleCount)}
-                  />
-                </ul>
-              </CollapsibleContent>
-              <CollapsibleTrigger
-                render={
-                  <Button
-                    className="mt-2 min-h-11"
-                    type="button"
-                    variant="ghost"
-                  />
-                }
-              >
-                {expanded
-                  ? t("scheduled.showLess")
-                  : t("scheduled.showMore", { n: rows.length - visibleCount })}
-                <Icon aria-hidden="true" data-icon="inline-end" />
-              </CollapsibleTrigger>
-            </>
-          ) : null}
-        </Collapsible>
-      )}
+        {rows.length === 0 ? (
+          <CompactEmpty description={t("scheduled.empty")} />
+        ) : (
+          <Collapsible onOpenChange={setExpanded} open={expanded}>
+            <ul className="divide-y divide-border">
+              <ScheduledRows
+                installationTimeZone={installationTimeZone}
+                onOpenDraft={onOpenDraft}
+                rows={rows.slice(0, visibleCount)}
+              />
+            </ul>
+            {rows.length > visibleCount ? (
+              <>
+                <CollapsibleContent
+                  aria-label={t("scheduled.more")}
+                  className="max-h-128 overflow-y-auto overscroll-contain border-border border-t outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  render={<section />}
+                  tabIndex={0}
+                >
+                  <ul className="divide-y divide-border">
+                    <ScheduledRows
+                      installationTimeZone={installationTimeZone}
+                      onOpenDraft={onOpenDraft}
+                      rows={rows.slice(visibleCount)}
+                    />
+                  </ul>
+                </CollapsibleContent>
+                <CollapsibleTrigger
+                  render={
+                    <Button
+                      className="mt-2 min-h-11"
+                      type="button"
+                      variant="ghost"
+                    />
+                  }
+                >
+                  {expanded
+                    ? t("scheduled.showLess")
+                    : t("scheduled.showMore", {
+                        n: rows.length - visibleCount,
+                      })}
+                  <Icon aria-hidden="true" data-icon="inline-end" />
+                </CollapsibleTrigger>
+              </>
+            ) : null}
+          </Collapsible>
+        )}
+      </Card>
     </section>
   );
 }
@@ -584,7 +596,7 @@ function ScheduledRows({
         <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
           <Button
             aria-label={`${t("scheduled.open")}: ${row.headline}`}
-            className="grid h-auto min-h-11 w-full min-w-0 content-start justify-start whitespace-normal p-2 text-start"
+            className="grid h-auto min-h-11 w-full min-w-0 content-start justify-start whitespace-normal rounded-lg border bg-muted/20 p-3 text-start"
             onClick={(event) => onOpenDraft(event, row.platformDraftId)}
             type="button"
             variant="ghost"
@@ -655,123 +667,129 @@ function SavedCards({
     <section
       aria-busy={isPending || undefined}
       aria-labelledby="account-saved-title"
-      className="min-w-0 border-transparent border-s-2 ps-3 data-pending:border-working"
+      className="min-w-0"
       data-pending={isPending || undefined}
     >
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="grid gap-1">
-          <h2
-            className="font-medium text-sm"
-            id="account-saved-title"
-            ref={onFallbackFocus}
-            tabIndex={-1}
-          >
-            {t("saved.title")}
-          </h2>
-          {isPending ? (
-            <span className="font-mono text-working text-xs" role="status">
-              {t("saved.updating")}
-            </span>
-          ) : null}
+      <Card
+        data-pending={isPending || undefined}
+        className="min-w-0 gap-0 border bg-muted/20 p-3 ring-0 data-pending:border-working sm:p-4"
+      >
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="grid gap-1">
+            <h2
+              className="font-medium text-sm"
+              id="account-saved-title"
+              ref={onFallbackFocus}
+              tabIndex={-1}
+            >
+              {t("saved.title")}
+            </h2>
+            {isPending ? (
+              <span className="text-working text-xs" role="status">
+                {t("saved.updating")}
+              </span>
+            ) : null}
+          </div>
+          <LabeledSelect
+            busy={isPending}
+            className="ms-auto w-auto max-w-full flex-row items-center gap-2 *:w-auto"
+            label={t("saved.filter")}
+            onValueChange={(savedState) =>
+              void setValues({
+                savedState: savedState ?? "active",
+                savedCursor: null,
+              })
+            }
+            options={ACCOUNT_SAVED_STATES.map((value) => ({
+              label: t(`saved.filterState.${value}`),
+              value,
+            }))}
+            triggerClassName="min-h-11 min-w-28"
+            value={query.savedState}
+          />
         </div>
-        <LabeledSelect
-          busy={isPending}
-          className="ms-auto w-auto max-w-full flex-row items-center gap-2 *:w-auto"
-          label={t("saved.filter")}
-          onValueChange={(savedState) =>
-            void setValues({
-              savedState: savedState ?? "active",
-              savedCursor: null,
-            })
-          }
-          options={ACCOUNT_SAVED_STATES.map((value) => ({
-            label: t(`saved.filterState.${value}`),
-            value,
-          }))}
-          triggerClassName="min-h-11 min-w-28"
-          value={query.savedState}
-        />
-      </div>
-      {page.rows.length === 0 ? (
-        <CompactEmpty description={t("saved.empty")} />
-      ) : (
-        <section
-          aria-label={t("saved.list")}
-          className="max-h-144 overflow-y-auto overscroll-contain p-px outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <ul className="grid gap-3">
-            {page.rows.map((row) => {
-              const savedAt = new Date(row.savedAt.valueOf());
-              return (
-                <li key={row.id}>
-                  <Card size="sm">
-                    <CardHeader className="flex flex-wrap items-center justify-between gap-2">
-                      <CardTitle className="flex items-center gap-2">
-                        <StateMark
-                          state={row.discardedAt ? "cancelled" : "succeeded"}
-                        />
-                        {row.discardedAt
-                          ? t("saved.discarded")
-                          : t("saved.active")}
-                      </CardTitle>
-                      <p className="wrap-anywhere text-muted-foreground text-xs">
-                        <Bdi>{row.brandName}</Bdi> ·{" "}
-                        <Bdi>{t(`platform.${row.platform}`)}</Bdi>
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      <Button
-                        aria-label={`${t("saved.open")}: ${row.headline ?? row.originTitle}`}
-                        className="grid h-auto min-h-11 w-full min-w-0 justify-start gap-1 whitespace-normal p-2 text-start"
-                        onClick={(event) =>
-                          onOpenDraft(event, row.platformDraftId)
-                        }
-                        type="button"
-                        variant="ghost"
-                      >
-                        <ContentPreview
-                          contentLocale={row.contentLocale}
-                          headline={row.headline}
-                          body={row.body}
-                        />
-                      </Button>
-                    </CardContent>
-                    <CardFooter className="flex flex-wrap justify-between gap-2 text-muted-foreground text-xs">
-                      <time dateTime={savedAt.toISOString()}>
-                        {format.dateTime(savedAt, {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })}
-                      </time>
-                      <span>
-                        {row.revisionNumber
-                          ? t("card.revision", { n: row.revisionNumber })
-                          : t("card.noHeadline")}{" "}
-                        · {row.hasImage ? t("card.image") : t("card.textOnly")}
-                      </span>
-                    </CardFooter>
-                  </Card>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-      <div className="[&_button]:min-h-11">
-        <KeysetPagination
-          backToLatestLabel={t("saved.latest")}
-          newerLabel={t("saved.newer")}
-          olderLabel={t("saved.older")}
-          offLatest={page.offLatest}
-          onBackToLatest={() => void setValues({ savedCursor: null })}
-          onNewer={() => void setValues({ savedCursor: page.newerCursor })}
-          onOlder={
-            page.olderCursor
-              ? () => void setValues({ savedCursor: page.olderCursor })
-              : null
-          }
-        />
-      </div>
+        {page.rows.length === 0 ? (
+          <CompactEmpty description={t("saved.empty")} />
+        ) : (
+          <section
+            aria-label={t("saved.list")}
+            className="max-h-144 overflow-y-auto overscroll-contain rounded-lg p-px outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <ul className="grid gap-3">
+              {page.rows.map((row) => {
+                const savedAt = new Date(row.savedAt.valueOf());
+                return (
+                  <li key={row.id}>
+                    <Card className="gap-3 border ring-0" size="sm">
+                      <CardHeader className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 py-3">
+                        <CardTitle className="flex items-center gap-2">
+                          <StateMark
+                            state={row.discardedAt ? "cancelled" : "succeeded"}
+                          />
+                          {row.discardedAt
+                            ? t("saved.discarded")
+                            : t("saved.active")}
+                        </CardTitle>
+                        <p className="wrap-anywhere text-muted-foreground text-xs">
+                          <Bdi>{row.brandName}</Bdi> ·{" "}
+                          <Bdi>{t(`platform.${row.platform}`)}</Bdi>
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <Button
+                          aria-label={`${t("saved.open")}: ${row.headline ?? row.originTitle}`}
+                          className="grid h-auto min-h-11 w-full min-w-0 justify-start gap-1 whitespace-normal px-2 py-3 text-start"
+                          onClick={(event) =>
+                            onOpenDraft(event, row.platformDraftId)
+                          }
+                          type="button"
+                          variant="ghost"
+                        >
+                          <ContentPreview
+                            contentLocale={row.contentLocale}
+                            headline={row.headline}
+                            body={row.body}
+                          />
+                        </Button>
+                      </CardContent>
+                      <CardFooter className="flex flex-wrap justify-between gap-2 border-t bg-muted/20 py-3 text-muted-foreground text-xs">
+                        <time dateTime={savedAt.toISOString()}>
+                          {format.dateTime(savedAt, {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}
+                        </time>
+                        <span>
+                          {row.revisionNumber
+                            ? t("card.revision", { n: row.revisionNumber })
+                            : t("card.noHeadline")}{" "}
+                          ·{" "}
+                          {row.hasImage ? t("card.image") : t("card.textOnly")}
+                        </span>
+                      </CardFooter>
+                    </Card>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+        <div className="[&_button]:min-h-11">
+          <KeysetPagination
+            backToLatestLabel={t("saved.latest")}
+            newerLabel={t("saved.newer")}
+            olderLabel={t("saved.older")}
+            offLatest={page.offLatest}
+            onBackToLatest={() => void setValues({ savedCursor: null })}
+            onNewer={() => void setValues({ savedCursor: page.newerCursor })}
+            onOlder={
+              page.olderCursor
+                ? () => void setValues({ savedCursor: page.olderCursor })
+                : null
+            }
+          />
+        </div>
+      </Card>
     </section>
   );
 }
@@ -806,7 +824,7 @@ function ContentPreview({
 
 function CompactEmpty({ description }: { description: string }) {
   return (
-    <Empty className="items-start border-0 px-0 py-5 text-start md:px-0 md:py-5">
+    <Empty className="items-start rounded-lg border bg-muted/20 px-4 py-5 text-start md:px-4 md:py-5">
       <EmptyHeader className="items-start">
         <EmptyDescription>{description}</EmptyDescription>
       </EmptyHeader>

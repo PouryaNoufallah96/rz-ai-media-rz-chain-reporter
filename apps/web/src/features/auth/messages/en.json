@@ -10,7 +10,9 @@
       "rememberMe": "Keep me signed in",
       "submit": "Sign in",
       "submitting": "Signing in…",
-      "success": "Signed in"
+      "success": "Signed in",
+      "description": "Sign in to your editorial workspace.",
+      "provisioned": "Accounts are created by your installation operator. Contact them if you need access."
     },
     "errors": {
       "emailInvalid": "Enter a valid email address",

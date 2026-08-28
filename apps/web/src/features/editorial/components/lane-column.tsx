@@ -1,12 +1,14 @@
 "use client";
 
 import type { ModelUnitStatus } from "@rz-chain-reporter/contracts";
+import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import {
   Empty,
   EmptyHeader,
   EmptyTitle,
 } from "@rz-chain-reporter/ui/components/empty";
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
+import { cn } from "@rz-chain-reporter/ui/lib/utils";
 import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -75,7 +77,11 @@ export function ModelLaneColumn({
       }
       status={
         <>
-          {lane?.status ? <span>{t(`lane.unit.${lane.status}`)}</span> : null}
+          {lane?.status ? (
+            <span className={cn(lane.status === "succeeded" && "sr-only")}>
+              {t(`lane.unit.${lane.status}`)}
+            </span>
+          ) : null}
           {lane === null && unitsPlanned ? (
             <Tag>{t("lane.noShortlist.tag")}</Tag>
           ) : null}
@@ -209,24 +215,24 @@ function LaneColumn({
   return (
     <section
       aria-label={title}
-      className="flex w-[clamp(260px,30vw,320px)] shrink-0 snap-start flex-col border border-border max-[599px]:w-[min(300px,calc(100vw-32px))]"
+      className="flex w-[clamp(260px,30vw,320px)] shrink-0 snap-start flex-col rounded-lg bg-muted/60 max-[599px]:w-[min(300px,calc(100vw-32px))]"
     >
-      <header className="border-border border-b border-dashed p-2">
+      <header className="px-3 py-3">
         <div className="flex items-start gap-2">
           {mark}
           <h3 className="ticket-label wrap-anywhere min-w-0 flex-1">{title}</h3>
-          <span className="font-mono text-muted-foreground text-xs tabular-nums">
+          <span className="rounded-md bg-background px-1.5 text-muted-foreground text-xs tabular-nums">
             {format.number(count)}
           </span>
         </div>
-        <p className="mt-1 flex flex-wrap gap-1 font-mono text-muted-foreground text-xs">
+        <p className="mt-1 flex flex-wrap gap-1 text-muted-foreground text-xs">
           {status}
           <span className="min-[600px]:hidden">
             {t("lane.position", { i: index + 1, n: total })}
           </span>
         </p>
       </header>
-      <div className="flex-1">{children}</div>
+      <div className="grid flex-1 content-start gap-2 p-2 pt-0">{children}</div>
     </section>
   );
 }
@@ -263,13 +269,19 @@ function LaneEmpty({
 
 function Tag({ children }: { children: ReactNode }) {
   return (
-    <span className="border border-border border-dashed px-1">{children}</span>
+    <Badge className="whitespace-normal font-normal" variant="secondary">
+      {children}
+    </Badge>
   );
 }
 
 function LaneSkeleton() {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
   return (
     <div aria-busy="true" className="grid gap-2 p-2">
+      <span className="sr-only" role="status">
+        {t("table.loading")}
+      </span>
       {SKELETON_BARS.map((bar) => (
         <Skeleton className="h-12 w-full" key={bar} />
       ))}

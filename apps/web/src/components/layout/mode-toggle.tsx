@@ -4,6 +4,7 @@ import { Button } from "@rz-chain-reporter/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@rz-chain-reporter/ui/components/dropdown-menu";
@@ -21,7 +22,11 @@ export function ModeToggle() {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button className="max-sm:size-11" variant="outline" size="icon" />
+          <Button
+            className="relative max-sm:size-11"
+            variant="ghost"
+            size="icon"
+          />
         }
       >
         <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 opacity-100 transition-[opacity,transform] motion-reduce:transition-none dark:-rotate-90 dark:scale-95 dark:opacity-0" />
@@ -29,15 +34,17 @@ export function ModeToggle() {
         <span className="sr-only">{t("theme.toggle")}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
-          {t("theme.light")}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
-          {t("theme.dark")}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
-          {t("theme.system")}
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => setTheme("light")}>
+            {t("theme.light")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setTheme("dark")}>
+            {t("theme.dark")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setTheme("system")}>
+            {t("theme.system")}
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

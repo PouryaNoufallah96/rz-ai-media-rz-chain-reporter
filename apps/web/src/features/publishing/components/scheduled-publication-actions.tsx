@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@rz-chain-reporter/ui/components/button";
-import { Input } from "@rz-chain-reporter/ui/components/input";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
@@ -21,6 +20,7 @@ import {
   zonedLocalDate,
 } from "../lib/installation-time";
 import type { PublishingHistoryRow } from "../schemas/history";
+import { PublishingDateTimePicker } from "./publishing-date-time-picker";
 
 type ScheduledIntent = "cancel" | "reschedule";
 
@@ -86,17 +86,20 @@ export function ScheduledPublicationActions({
       : t("desk.confirmRecordDescription", facts);
 
   return (
-    <div className="grid min-w-52 gap-1">
-      <Input
-        aria-label={t("schedule.rescheduleTime")}
-        className="min-h-11 sm:min-h-8"
+    <div className="grid min-w-52 gap-2 rounded-lg border bg-muted/20 p-3">
+      <PublishingDateTimePicker
+        label={t("schedule.rescheduleTime")}
         min={minimumLocalTime(installationTimeZone)}
-        onChange={(event) => setLocalTime(event.currentTarget.value)}
-        type="datetime-local"
+        invalid={
+          Boolean(localTime) &&
+          !validFutureLocalTime(localTime, installationTimeZone)
+        }
+        onValueChange={setLocalTime}
+        timeZone={installationTimeZone}
         value={localTime}
       />
       {scheduledAt ? (
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-xs/relaxed">
           {format.dateTime(scheduledAt, {
             dateStyle: "full",
             timeStyle: "long",
@@ -105,7 +108,7 @@ export function ScheduledPublicationActions({
           · {installationTimeZone}
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap gap-2">
         <Button
           className="min-h-11 sm:min-h-6"
           onClick={() => setIntent("cancel")}

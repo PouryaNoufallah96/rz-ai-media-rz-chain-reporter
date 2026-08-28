@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@rz-chain-reporter/ui/components/select";
+import { Switch } from "@rz-chain-reporter/ui/components/switch";
 import { Textarea } from "@rz-chain-reporter/ui/components/textarea";
 import { type ComponentProps, type ReactNode, type Ref, useId } from "react";
 import type {
@@ -205,6 +206,49 @@ export function FormField<
       })}
       <FieldError id={errorId}>{message}</FieldError>
     </Field>
+  );
+}
+
+export function FormSwitchField<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+>({
+  label,
+  onCheckedChange,
+  ...props
+}: FormAdapterProps<TFieldValues, TName> & {
+  onCheckedChange?: (
+    checked: boolean,
+    commit: (value: boolean) => void,
+  ) => void;
+}) {
+  return (
+    <FormField {...props} orientation="horizontal">
+      {({ controlId, controlProps, descriptionId, field }) => (
+        <>
+          <FieldContent>
+            <FieldCaption htmlFor={controlId}>{label}</FieldCaption>
+            {props.description ? (
+              <FieldDescription id={descriptionId}>
+                {props.description}
+              </FieldDescription>
+            ) : null}
+          </FieldContent>
+          <Switch
+            {...controlProps}
+            checked={field.value === true}
+            name={field.name}
+            onBlur={field.onBlur}
+            onCheckedChange={(checked) =>
+              onCheckedChange
+                ? onCheckedChange(checked, field.onChange)
+                : field.onChange(checked)
+            }
+            inputRef={field.ref}
+          />
+        </>
+      )}
+    </FormField>
   );
 }
 
@@ -446,8 +490,14 @@ export type SelectOption<T extends string = string> = {
 
 const EMPTY_SELECT_VALUE = "__empty__";
 
+type SelectContentProps = Pick<
+  ComponentProps<typeof SelectContent>,
+  "alignItemWithTrigger" | "className"
+>;
+
 function SelectControl<T extends string>({
   className,
+  contentProps,
   disabled,
   id,
   inputRef,
@@ -461,6 +511,7 @@ function SelectControl<T extends string>({
   ...controlProps
 }: {
   className?: string;
+  contentProps?: SelectContentProps;
   disabled?: boolean;
   id?: string;
   inputRef?: ComponentProps<typeof Select>["inputRef"];
@@ -492,7 +543,7 @@ function SelectControl<T extends string>({
       >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent {...contentProps}>
         {options.map((option) => (
           <SelectItem
             disabled={option.disabled}
@@ -587,28 +638,33 @@ export function FormSelectField<
 export function LabeledSelect<T extends string>({
   busy,
   className,
+  contentProps,
   disabled,
   emptyLabel,
   id,
   label,
+  onBlur,
   onValueChange,
   options,
   placeholder,
   triggerClassName,
   value,
+  ...controlProps
 }: {
   busy?: boolean;
   className?: string;
+  contentProps?: SelectContentProps;
   disabled?: boolean;
   emptyLabel?: string;
   id?: string;
   label: ReactNode;
+  onBlur?: ComponentProps<typeof SelectTrigger>["onBlur"];
   onValueChange: (value: T | null) => void;
   options: readonly SelectOption<T>[];
   placeholder?: string;
   triggerClassName?: string;
   value: T | null;
-}) {
+} & Pick<ControlProps, "aria-describedby" | "aria-invalid">) {
   const generatedId = useId();
   const controlId = id ?? generatedId;
   const selectOptions: SelectOption<string>[] = emptyLabel
@@ -620,13 +676,17 @@ export function LabeledSelect<T extends string>({
       aria-busy={busy || undefined}
       className={className}
       data-disabled={disabled || undefined}
+      data-invalid={controlProps["aria-invalid"] || undefined}
       disabled={disabled}
     >
       <FieldCaption htmlFor={controlId}>{label}</FieldCaption>
       <SelectControl
+        {...controlProps}
         className={triggerClassName}
+        contentProps={contentProps}
         disabled={disabled}
         id={controlId}
+        onBlur={onBlur}
         onValueChange={(next) => {
           if (next == null || next === EMPTY_SELECT_VALUE) {
             onValueChange(null);

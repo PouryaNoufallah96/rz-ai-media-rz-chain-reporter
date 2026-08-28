@@ -18,16 +18,21 @@ export function InstallationScreen() {
     >
       {(t) => (
         <>
-          <h1 className="mt-2 font-semibold text-3xl">{t("title")}</h1>
-          <p className="mt-3 max-w-2xl text-muted-foreground">{t("intro")}</p>
+          <h1 className="font-semibold text-2xl tracking-display">
+            {t("title")}
+          </h1>
+          <p className="mt-2 max-w-2xl text-muted-foreground text-sm/relaxed">
+            {t("intro")}
+          </p>
           <Suspended
             data={getInstallationOverview}
             fallback={
               <InstallationSectionsSkeleton
                 loadingLabel={t("loading")}
-                sectionTitles={INSTALLATION_SECTIONS.map((section) =>
-                  t(`${section}.title`),
-                )}
+                sections={INSTALLATION_SECTIONS.map((key) => ({
+                  key,
+                  title: t(`${key}.title`),
+                }))}
               />
             }
           >
@@ -44,8 +49,8 @@ export function InstallationScreen() {
 function InstallationHeadingSkeleton() {
   return (
     <>
-      <Skeleton className="mt-2 h-9 w-64" />
-      <Skeleton className="mt-3 h-6 w-full max-w-2xl" />
+      <Skeleton className="h-8 w-64" />
+      <Skeleton className="mt-2 h-5 w-full max-w-2xl" />
     </>
   );
 }

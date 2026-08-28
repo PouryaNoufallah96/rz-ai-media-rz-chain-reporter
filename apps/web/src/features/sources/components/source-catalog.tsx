@@ -4,10 +4,19 @@ import {
   ARTICLE_FETCH_MODES,
   type SourceOrigin,
 } from "@rz-chain-reporter/contracts";
+import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
+import { Card } from "@rz-chain-reporter/ui/components/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@rz-chain-reporter/ui/components/collapsible";
+import { cn } from "@rz-chain-reporter/ui/lib/utils";
+import { ChevronDownIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId } from "react";
 
 import { StateMark, type StateMarkState } from "@/components/common/state-mark";
 
@@ -39,26 +48,30 @@ export function SourceCatalog({ catalog }: { catalog: SourceCatalogView }) {
   const titleId = useId();
 
   return (
-    <section aria-labelledby={titleId} className="mt-10">
-      <h2 className="ticket-label border-b border-dashed pb-2" id={titleId}>
-        {t("catalog.title")}
-      </h2>
-      <p className="mt-2 text-muted-foreground text-xs">{t("catalog.hint")}</p>
-      {catalog.entries.length === 0 ? (
-        <p className="mt-4 text-muted-foreground text-sm">
-          {t("catalog.empty")}
+    <section aria-labelledby={titleId} className="min-w-0">
+      <Card className="mt-8 gap-0 border p-4 ring-0 sm:p-5">
+        <h2 className="font-medium text-sm" id={titleId}>
+          {t("catalog.title")}
+        </h2>
+        <p className="mt-2 text-muted-foreground text-xs">
+          {t("catalog.hint")}
         </p>
-      ) : (
-        GROUPS.map((origin) => {
-          const entries = catalog.entries.filter(
-            (entry) => entry.origin === origin,
-          );
+        {catalog.entries.length === 0 ? (
+          <p className="mt-4 text-muted-foreground text-sm">
+            {t("catalog.empty")}
+          </p>
+        ) : (
+          GROUPS.map((origin) => {
+            const entries = catalog.entries.filter(
+              (entry) => entry.origin === origin,
+            );
 
-          return entries.length === 0 ? null : (
-            <SourceGroup entries={entries} key={origin} origin={origin} />
-          );
-        })
-      )}
+            return entries.length === 0 ? null : (
+              <SourceGroup entries={entries} key={origin} origin={origin} />
+            );
+          })
+        )}
+      </Card>
     </section>
   );
 }
@@ -83,11 +96,11 @@ function SourceGroup({
     <section aria-labelledby={labelId} className="mt-6">
       <h3 className="flex items-baseline gap-2" id={labelId}>
         <span className="ticket-label">{t(`catalog.kind.${origin}`)}</span>
-        <span className="font-mono text-muted-foreground text-xs tabular-nums">
+        <span className="text-muted-foreground text-xs tabular-nums">
           {groupMeta(origin, ordered, format, t)}
         </span>
       </h3>
-      <ul className="mt-2 border-border border-t">
+      <ul className="mt-3 divide-y overflow-hidden rounded-lg border bg-muted/20">
         {ordered.map((entry) => (
           <SourceRow entry={entry} key={entry.id} />
         ))}
@@ -98,31 +111,28 @@ function SourceGroup({
 
 function SourceRow({ entry }: { entry: SourceCatalogEntry }) {
   const t = useTranslations(SOURCES_NAMESPACE);
-  const [expanded, setExpanded] = useState(false);
-  const detailId = useId();
   const retired = entry.lifecycle === "retired";
 
   return (
-    <li className="border-border border-b border-dashed">
-      <Button
-        aria-controls={detailId}
-        aria-expanded={expanded}
+    <Collapsible render={<li />}>
+      <CollapsibleTrigger
+        render={<Button variant="ghost" />}
         aria-label={t("catalog.expand", { name: entry.name })}
-        className={`h-auto w-full min-w-0 flex-col items-start justify-start gap-1 whitespace-normal rounded-none px-0 py-2 font-normal aria-expanded:bg-transparent sm:flex-row sm:items-center sm:gap-3 ${
-          entry.lifecycle === "disabled" ? "text-muted-foreground" : ""
-        }`}
-        onClick={() => setExpanded((value) => !value)}
+        className={cn(
+          "group h-auto w-full min-w-0 flex-col items-start justify-start gap-2 whitespace-normal rounded-none px-3 py-3 text-start font-normal sm:flex-row sm:items-center sm:gap-3",
+          entry.lifecycle === "disabled" && "text-muted-foreground",
+        )}
         type="button"
-        variant="ghost"
       >
         <span className="flex min-w-0 flex-1 items-center gap-3">
+          <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-180" />
           <span className="min-w-0 flex-1 truncate text-sm">
             <Bdi>{entry.name}</Bdi>
           </span>
           {entry.lifecycle === "enabled" ? null : (
-            <span className="ticket-label border border-dashed px-1 text-muted-foreground">
+            <Badge className="text-muted-foreground" variant="outline">
               {t(`lifecycle.${entry.lifecycle}`)}
-            </span>
+            </Badge>
           )}
         </span>
         {retired ? null : (
@@ -130,9 +140,9 @@ function SourceRow({ entry }: { entry: SourceCatalogEntry }) {
             <ObservationCaption observation={entry.observation} />
           </span>
         )}
-      </Button>
-      {expanded ? (
-        <dl className="grid gap-1 pb-3 text-xs" id={detailId}>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <dl className="grid gap-3 border-t bg-muted/20 p-3 text-xs">
           <Detail label={t("catalog.endpoint")}>
             <Bdi dir="ltr" className="font-mono">
               {entry.endpoint}
@@ -149,8 +159,8 @@ function SourceRow({ entry }: { entry: SourceCatalogEntry }) {
             <ObservationDetail observation={entry.observation} />
           )}
         </dl>
-      ) : null}
-    </li>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -239,7 +249,7 @@ function Detail({
   return (
     <div className="grid grid-cols-[auto_1fr] gap-2">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0">{children}</dd>
+      <dd className="wrap-anywhere min-w-0">{children}</dd>
     </div>
   );
 }

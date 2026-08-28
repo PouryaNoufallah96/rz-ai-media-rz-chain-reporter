@@ -1,3 +1,4 @@
+import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { getFormatter, getT } from "@/i18n/server";
 import {
@@ -26,15 +27,15 @@ export async function BrandPolicyBlock({
   return (
     <>
       <p className="text-muted-foreground text-sm">{t("brandPolicy.hint")}</p>
-      <ul className="flex flex-col divide-y divide-border border-border border-y">
-        <li className="hidden grid-cols-[1fr_auto_auto] gap-x-6 py-2 sm:grid">
+      <ul className="flex flex-col divide-y divide-border">
+        <li className="hidden grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-x-6 py-2 sm:grid">
           <span className="ticket-label">{t("brandPolicy.brand")}</span>
           <span className="ticket-label">{t("brandPolicy.bible")}</span>
           <span className="ticket-label">{t("brandPolicy.profile")}</span>
         </li>
         {customerBrandPolicy.map((brand) => (
           <li
-            className="grid items-baseline gap-1.5 py-2 sm:grid-cols-[1fr_auto_auto] sm:gap-x-6"
+            className="grid items-baseline gap-1.5 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] sm:gap-x-6"
             key={brand.key}
           >
             <span className="min-w-0 text-sm">
@@ -93,9 +94,12 @@ function ReferenceCell({
           </Identifier>
         </>
       ) : (
-        <span className="ticket-label border border-dashed px-1 text-muted-foreground">
+        <Badge
+          className="h-auto whitespace-normal text-muted-foreground"
+          variant="outline"
+        >
           {noneLabel}
-        </span>
+        </Badge>
       )}
     </span>
   );

@@ -48,25 +48,32 @@ export function ScoreDrawer({
 
   return (
     <Drawer side="inline-end">
-      <DrawerTrigger className="grid w-full gap-1 text-start">
+      <DrawerTrigger
+        render={
+          <Button
+            className="grid h-auto min-h-11 w-full min-w-0 justify-normal gap-1 whitespace-normal px-0 py-1 text-start font-normal"
+            variant="ghost"
+          />
+        }
+      >
         {children}
       </DrawerTrigger>
       <DrawerPortal>
         <DrawerOverlay />
         <DrawerViewport className="max-[599px]:items-end max-[599px]:justify-stretch">
           <DrawerPopup
-            className="w-[min(480px,95vw)] max-[599px]:h-auto max-[599px]:max-h-[88dvh] max-[599px]:w-full"
+            className="w-[min(520px,95vw)] max-[599px]:h-auto max-[599px]:max-h-[88dvh] max-[599px]:w-full max-[599px]:rounded-t-xl"
             showHandle={false}
           >
             <DrawerClose
-              className="absolute inset-e-4 top-4"
+              className="absolute inset-e-4 top-4 max-sm:size-11"
               render={<Button size="icon-sm" variant="ghost" />}
             >
               <XIcon />
               <span className="sr-only">{t("card.close")}</span>
             </DrawerClose>
             <DrawerHeader className="pe-10">
-              <DrawerTitle className="text-sm">
+              <DrawerTitle className="text-base/relaxed">
                 <Bdi>{row.title}</Bdi>
               </DrawerTitle>
               <DrawerDescription className="sr-only">
@@ -228,7 +235,7 @@ function GateBand({
         </p>
       ) : null}
       <p>
-        <span className="font-mono">{t(`disposition.${row.disposition}`)}</span>
+        <span>{t(`disposition.${row.disposition}`)}</span>
         {row.reason ? ` · ${t(`reason.${row.reason}`)}` : null}
       </p>
       {row.disposition === "cap_exceeded" && row.rankPosition !== null ? (
@@ -253,11 +260,11 @@ function TelegramBlock({ row, t }: { row: ReportRow; t: Translate }) {
   const format = useFormatter();
 
   return (
-    <div className="grid gap-1 border-border border-b border-dashed ps-3 pb-3">
+    <div className="grid gap-2 rounded-lg border border-border bg-muted/40 p-3">
       <p className="flex flex-wrap items-center gap-2">
         <ChannelPlate handle={row.sourceEndpoint} />
         <a
-          className="wrap-anywhere font-mono underline underline-offset-2"
+          className="wrap-anywhere underline underline-offset-2"
           href={row.canonicalUrl}
           rel="noreferrer"
           target="_blank"
@@ -379,9 +386,9 @@ function DuplicateBand({
 
   return (
     <Band title={t("score.band.duplicate")}>
-      <p className="font-mono">{t(`duplicateMethod.${row.duplicateMethod}`)}</p>
+      <p>{t(`duplicateMethod.${row.duplicateMethod}`)}</p>
       {row.duplicateOfSourceItemId ? (
-        <p className="font-mono text-muted-foreground">
+        <p className="text-muted-foreground">
           {t("score.duplicate.cluster", {
             id: row.duplicateOfSourceItemId.slice(0, SHORT_ID_LENGTH),
           })}
@@ -420,7 +427,7 @@ function Footer({
   t: Translate;
 }) {
   return (
-    <div className="sticky bottom-0 grid gap-1 bg-popover pt-3">
+    <div className="sticky bottom-0 grid gap-2 border-border border-t bg-popover py-3">
       {head.configuration.kind === "news" ? (
         <p className="text-muted-foreground tabular-nums">
           {t("provenance.topN", { n: head.configuration.topN })}
@@ -443,7 +450,7 @@ function Footer({
 
 function Band({ children, title }: { children: ReactNode; title: string }) {
   return (
-    <section className="grid gap-1 border-border border-b border-dashed pb-3">
+    <section className="grid gap-2 border-border border-b pb-4">
       <h3 className="ticket-label">{title}</h3>
       {children}
     </section>

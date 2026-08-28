@@ -55,16 +55,16 @@ export function SourceItemTable({ stream }: { stream: SourceItemStream }) {
     setValues({ admission: null, cursor: null, import: null, source: null });
 
   return (
-    <section aria-labelledby={titleId} className="mt-10">
-      <h2 className="ticket-label border-b border-dashed pb-2" id={titleId}>
+    <section aria-labelledby={titleId} className="mt-8">
+      <h2 className="font-medium text-sm" id={titleId}>
         {t("stream.title")}
       </h2>
       <form
         aria-label={t("stream.filters.label")}
-        className="mt-3 flex flex-wrap items-end gap-2"
+        className="mt-3 mb-4 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3 sm:p-4"
       >
         <LabeledSelect
-          className="w-fit"
+          className="min-w-0 flex-1 sm:w-fit sm:flex-none"
           emptyLabel={t("stream.filters.all")}
           label={t("stream.filters.source")}
           onValueChange={(value) => setFilters({ source: value })}
@@ -72,11 +72,11 @@ export function SourceItemTable({ stream }: { stream: SourceItemStream }) {
             label: option.name,
             value: option.id,
           }))}
-          triggerClassName="max-w-52"
+          triggerClassName="w-full sm:max-w-52"
           value={query.source}
         />
         <LabeledSelect
-          className="w-fit"
+          className="min-w-0 flex-1 sm:w-fit sm:flex-none"
           emptyLabel={t("stream.filters.all")}
           label={t("stream.filters.admission")}
           onValueChange={(value) => setFilters({ admission: value })}
@@ -84,11 +84,11 @@ export function SourceItemTable({ stream }: { stream: SourceItemStream }) {
             label: t(`admission.${value}`),
             value,
           }))}
-          triggerClassName="max-w-52"
+          triggerClassName="w-full sm:max-w-52"
           value={query.admission}
         />
         <LabeledSelect
-          className="w-fit"
+          className="min-w-0 flex-1 sm:w-fit sm:flex-none"
           emptyLabel={t("stream.filters.all")}
           label={t("stream.filters.import")}
           onValueChange={(value) => setFilters({ import: value })}
@@ -98,7 +98,7 @@ export function SourceItemTable({ stream }: { stream: SourceItemStream }) {
             }),
             value: option.id,
           }))}
-          triggerClassName="max-w-52"
+          triggerClassName="w-full sm:max-w-52"
           value={query.import}
         />
       </form>

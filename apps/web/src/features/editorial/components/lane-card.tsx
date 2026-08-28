@@ -7,6 +7,7 @@ import type {
 } from "@rz-chain-reporter/contracts";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
+import { Card } from "@rz-chain-reporter/ui/components/card";
 import { Sheet, SheetTrigger } from "@rz-chain-reporter/ui/components/sheet";
 import { GripVerticalIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
@@ -37,7 +38,7 @@ import { FallbackTag, MutedTag, ProvenanceLine } from "./provenance-line";
 type Translate = ReturnType<typeof useTranslations<typeof EDITORIAL_NAMESPACE>>;
 
 const CARD_CLASS =
-  "fade-in zoom-in-95 grid animate-in gap-2 border-border border-b border-dashed bg-card px-2 py-3 data-[dragging]:opacity-70 data-[dragging]:shadow-lg data-[dragging]:ring-2 data-[dragging]:ring-ring motion-reduce:animate-none";
+  "gap-2 rounded-lg border border-border bg-card p-3 ring-0 transition-colors hover:border-ring/40 data-[dragging]:opacity-70 data-[dragging]:shadow-lg data-[dragging]:ring-2 data-[dragging]:ring-ring motion-reduce:transition-none";
 
 function LaneCard({
   children,
@@ -61,16 +62,17 @@ function LaneCard({
   });
 
   return (
-    <article
+    <Card
       className={CARD_CLASS}
       data-dragging={isDragging || undefined}
       ref={ref}
+      role="article"
     >
       <Sheet>
         <SheetTrigger
           render={
             <Button
-              className="grid h-auto min-h-11 w-full min-w-0 justify-normal gap-1 whitespace-normal px-0 py-1 text-start font-normal sm:min-h-0"
+              className="grid h-auto min-h-11 w-full min-w-0 justify-normal gap-2 whitespace-normal p-1 text-start font-normal sm:min-h-0"
               type="button"
               variant="ghost"
             />
@@ -94,7 +96,7 @@ function LaneCard({
         </Button>
         {route}
       </div>
-    </article>
+    </Card>
   );
 }
 
@@ -116,15 +118,18 @@ export function PlatformDraftLaneCard({
   const total = card.generation?.units.length ?? 0;
 
   return (
-    <article className="grid gap-2 border-border border-b border-dashed px-2 py-3">
+    <Card
+      className="gap-2 rounded-lg border border-border p-3 ring-0 transition-colors hover:border-ring/40"
+      role="article"
+    >
       <div className="flex min-w-0 items-start gap-2">
         <Button
-          className="grid h-auto min-h-11 w-full min-w-0 flex-1 justify-normal gap-1 whitespace-normal p-2 text-start"
+          className="grid h-auto min-h-11 w-full min-w-0 flex-1 justify-normal gap-2 whitespace-normal p-1 text-start"
           onClick={(event) => onOpen(event.currentTarget)}
           type="button"
           variant="ghost"
         >
-          <span className="line-clamp-2 text-sm">
+          <span className="line-clamp-2 font-medium text-sm/relaxed">
             <Bdi>{card.originTitle}</Bdi>
           </span>
           <ProvenanceLine
@@ -140,7 +145,7 @@ export function PlatformDraftLaneCard({
         {dragHandle}
       </div>
       <div className="flex flex-wrap items-start gap-2">{siblingRoutes}</div>
-    </article>
+    </Card>
   );
 }
 
@@ -183,7 +188,7 @@ export function SelectionLaneCard({
       }
       title={card.title}
     >
-      <span className="line-clamp-2 text-sm">
+      <span className="line-clamp-2 font-medium text-sm/relaxed">
         <Bdi>{card.title}</Bdi>
       </span>
       <span className="line-clamp-1 text-muted-foreground text-xs">
@@ -245,7 +250,7 @@ export function PromoLaneCard({
         />
       }
     >
-      <span className="line-clamp-2 text-sm">
+      <span className="line-clamp-2 font-medium text-sm/relaxed">
         <Bdi>{card.title}</Bdi>
       </span>
       <span className="line-clamp-2 text-muted-foreground text-xs">
@@ -306,7 +311,7 @@ export function TelegramLaneCard({
       title={card.title}
     >
       <ChannelPlate handle={card.channelHandle} />
-      <span className="line-clamp-2 text-sm">
+      <span className="line-clamp-2 font-medium text-sm/relaxed">
         <Bdi>{card.title}</Bdi>
       </span>
       <ProvenanceLine

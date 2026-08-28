@@ -49,7 +49,7 @@ export function reportColumns({
       header: t("table.columns.rank"),
       id: "rank",
       cell: ({ row }) => (
-        <span className="font-mono text-xs tabular-nums">
+        <span className="text-xs tabular-nums">
           {score(row.original.rankPosition, format)}
         </span>
       ),
@@ -81,7 +81,7 @@ export function reportColumns({
               ) : (
                 <Bdi className="truncate">{row.original.sourceName}</Bdi>
               )}
-              <span className="font-mono tabular-nums min-[900px]:hidden">
+              <span className="tabular-nums min-[900px]:hidden">
                 {`${t("table.folded.mediaFit")} ${score(row.original.mediaFitScore, format)} · ${t("table.folded.policy")} ${score(row.original.policyScore, format)}`}
                 <span className="min-[600px]:hidden">
                   {` · ${t("table.folded.rank")} ${score(row.original.rankScore, format)}`}
@@ -89,12 +89,12 @@ export function reportColumns({
               </span>
             </span>
             {caption ? (
-              <span className="block font-mono text-muted-foreground text-xs">
+              <span className="block text-muted-foreground text-xs">
                 <Bdi>{caption}</Bdi>
               </span>
             ) : null}
             {tiedWith(previous, row.original) ? (
-              <span className="block font-mono text-muted-foreground text-xs">
+              <span className="block text-muted-foreground text-xs">
                 {t("table.tieBreak")}
               </span>
             ) : null}
@@ -121,7 +121,7 @@ export function reportColumns({
       header: t("table.columns.disposition"),
       id: "disposition",
       cell: ({ row }) => (
-        <span className="whitespace-nowrap font-mono text-xs">
+        <span className="whitespace-nowrap text-xs">
           {t(`disposition.${row.original.disposition}`)}
         </span>
       ),
@@ -131,7 +131,7 @@ export function reportColumns({
       header: t("table.columns.mediaFit"),
       id: "mediaFit",
       cell: ({ row }) => (
-        <span className="font-mono text-xs tabular-nums">
+        <span className="text-xs tabular-nums">
           {score(row.original.mediaFitScore, format)}
         </span>
       ),
@@ -141,7 +141,7 @@ export function reportColumns({
       header: t("table.columns.policy"),
       id: "policy",
       cell: ({ row }) => (
-        <span className="font-mono text-xs tabular-nums">
+        <span className="text-xs tabular-nums">
           {score(row.original.policyScore, format)}
         </span>
       ),
@@ -151,7 +151,7 @@ export function reportColumns({
       header: t("table.columns.rankScore"),
       id: "rankScore",
       cell: ({ row }) => (
-        <span className="font-mono text-xs tabular-nums">
+        <span className="text-xs tabular-nums">
           {score(row.original.rankScore, format)}
         </span>
       ),
@@ -170,7 +170,7 @@ export function reportColumns({
         }
 
         return (
-          <span className="font-mono text-xs tabular-nums">
+          <span className="text-xs tabular-nums">
             {score(row.original.semanticBrandScore, format)}
           </span>
         );

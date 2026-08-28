@@ -1,5 +1,16 @@
 {
   "publishing": {
+    "dateTime": {
+      "choose": "Choose a date",
+      "date": "Publication date",
+      "time": "Time (24-hour)",
+      "hour": "Hour",
+      "minute": "Minute",
+      "clear": "Clear",
+      "close": "Done",
+      "invalid": "Choose a valid future time in the installation timezone. Times skipped or repeated by daylight saving are not accepted.",
+      "gregorian": "Gregorian"
+    },
     "table": {
       "loading": "Loading publishing records",
       "updating": "Updating…"
@@ -101,6 +112,7 @@
       "recorded": "Activity recorded"
     },
     "reconciliation": {
+      "accepted": "Reconciliation requested. Follow the operation for progress; delivery is not yet confirmed.",
       "explanation": "The external effect may have happened. Reconcile before any retry.",
       "ticket": "Reconciliation ticket",
       "facts": "Revision {n, number} · {platform} · {account}",
