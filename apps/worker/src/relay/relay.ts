@@ -3,9 +3,12 @@ import {
   OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME,
   OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
   OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME,
+  OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME,
+  OPERATION_PUBLICATION_REQUESTED_EVENT_NAME,
   OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
 } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
+import { recordPublicationSettlementActivity } from "@rz-chain-reporter/db/repositories/activity-event";
 import { findAnalysisRunByOperationId } from "@rz-chain-reporter/db/repositories/analysis-run";
 import { findCopyExecutionContext } from "@rz-chain-reporter/db/repositories/copy-generation";
 import { findImageExecutionContext } from "@rz-chain-reporter/db/repositories/image-generation";
@@ -14,6 +17,14 @@ import {
   markOutboxDispatched,
   markOutboxFailed,
 } from "@rz-chain-reporter/db/repositories/outbox-relay";
+import {
+  deferPublicationCacheNotification,
+  enqueueStrandedPublicationRecoveries,
+  markPublicationCacheNotificationCompleted,
+  markSettlementActivityFailed,
+  readPendingPublicationFollowUps,
+  rearmSettlementActivity,
+} from "@rz-chain-reporter/db/repositories/publication";
 
 import type { WorkerInngestClient } from "../inngest/client";
 import {
@@ -24,18 +35,23 @@ import { workerLogger } from "../logging/logger";
 import { abortableDelay } from "../runtime/delay";
 import { notifyDraftsChangedNow } from "../web-cache/drafts";
 import { notifyEditorialChangedNow } from "../web-cache/editorial";
+import { notifyPublishingChangedNow } from "../web-cache/publishing";
 import {
   notifySourcesCacheChanged,
   notifySourcesChangedNow,
 } from "../web-cache/sources";
 
 type ClaimedOutboxEvent = Awaited<ReturnType<typeof claimOutboxEvents>>[number];
+type PublicationFollowUp = Awaited<
+  ReturnType<typeof readPendingPublicationFollowUps>
+>[number];
 
 const BATCH_SIZE = 5;
 const LEASE_DURATION_MS = 120_000;
 const MAX_ATTEMPTS = 8;
 const MAX_BACKOFF_MS = 60_000;
 const POLL_INTERVAL_MS = 500;
+const PUBLICATION_FOLLOW_UP_RETRY_MS = 30_000;
 
 function nextBackoffMs(attempt: number, maximum: number) {
   return Math.min(1_000 * 2 ** Math.max(0, attempt - 1), maximum);
@@ -84,6 +100,19 @@ export class OutboxRelay {
   private async run() {
     while (this.accepting) {
       try {
+        const recoveries = await enqueueStrandedPublicationRecoveries(
+          this.executor,
+          this.workspaceId,
+          new Date(),
+          BATCH_SIZE,
+        );
+        if (recoveries.length > 0) {
+          workerLogger.info("worker.publishing.recovery-enqueued", {
+            attempt: recoveries.length,
+            workspaceId: this.workspaceId,
+          });
+        }
+        await this.repairPublicationFollowUps();
         const events = await claimOutboxEvents(
           this.executor,
           this.workspaceId,
@@ -145,6 +174,118 @@ export class OutboxRelay {
     }
   }
 
+  private async repairPublicationFollowUps() {
+    const now = new Date();
+    const followUps = await readPendingPublicationFollowUps(
+      this.executor,
+      this.workspaceId,
+      new Date(now.getTime() - PUBLICATION_FOLLOW_UP_RETRY_MS),
+      BATCH_SIZE,
+    );
+    const repairs = await Promise.allSettled(
+      followUps.map((followUp) =>
+        this.repairPublicationFollowUp(followUp, now),
+      ),
+    );
+    if (repairs.some((repair) => repair.status === "rejected")) {
+      workerLogger.warn("worker.publishing.follow-up-unavailable", {
+        attempt: followUps.length,
+        workspaceId: this.workspaceId,
+      });
+    }
+  }
+
+  private async repairPublicationFollowUp(
+    followUp: PublicationFollowUp,
+    attemptedAt: Date,
+  ) {
+    const repairs: Promise<void>[] = [];
+    if (
+      followUp.settlementActivityStatus === "pending" ||
+      followUp.settlementActivityStatus === "failed"
+    ) {
+      repairs.push(this.repairSettlementActivity(followUp, attemptedAt));
+    }
+    if (followUp.cacheNotificationDue) {
+      repairs.push(this.repairPublishingNotification(followUp, attemptedAt));
+    }
+    const results = await Promise.allSettled(repairs);
+    if (results.some((result) => result.status === "rejected")) {
+      throw new Error("PUBLICATION_FOLLOW_UP_UNAVAILABLE");
+    }
+  }
+
+  private async repairSettlementActivity(
+    followUp: PublicationFollowUp,
+    occurredAt: Date,
+  ) {
+    try {
+      if (followUp.settlementActivityStatus === "failed") {
+        await rearmSettlementActivity(
+          this.executor,
+          this.workspaceId,
+          followUp.operationId,
+        );
+      }
+      await recordPublicationSettlementActivity(
+        this.executor,
+        this.workspaceId,
+        {
+          actorId: followUp.actorId,
+          eventType: followUp.activityEventType,
+          idempotencyKey: `publication-settlement:${followUp.operationId}:${followUp.activityEventType}`,
+          operationId: followUp.operationId,
+          publicationId: followUp.publicationId,
+          requestHash: `${followUp.publicationId}:${followUp.operationId}:${followUp.activityEventType}`,
+          scheduleId: followUp.scheduleId,
+          occurredAt,
+        },
+      );
+    } catch {
+      await markSettlementActivityFailed(
+        this.executor,
+        this.workspaceId,
+        followUp.operationId,
+        "INTERNAL_SERVER_ERROR",
+      ).catch(() => undefined);
+      throw new Error("PUBLICATION_ACTIVITY_UNAVAILABLE");
+    }
+  }
+
+  private async repairPublishingNotification(
+    followUp: PublicationFollowUp,
+    attemptedAt: Date,
+  ) {
+    const notification = await notifyPublishingChangedNow(
+      this.client,
+      this.workspaceId,
+      {
+        operationId: followUp.operationId,
+        publicationId: followUp.publicationId,
+        scheduleId: followUp.scheduleId,
+      },
+    );
+    const completed =
+      notification.cacheInvalidation === "disabled" ||
+      (notification.cacheInvalidation === "accepted" &&
+        notification.publishingRealtimePublished);
+    if (completed) {
+      await markPublicationCacheNotificationCompleted(
+        this.executor,
+        this.workspaceId,
+        followUp.operationId,
+        attemptedAt,
+      );
+      return;
+    }
+    await deferPublicationCacheNotification(
+      this.executor,
+      this.workspaceId,
+      followUp.operationId,
+      attemptedAt,
+    );
+  }
+
   private async dispatch(event: ClaimedOutboxEvent) {
     try {
       await this.client.send(createInngestEvent(event));
@@ -175,6 +316,7 @@ export class OutboxRelay {
       await this.notifySourceImportDispatchChanged(event);
       await this.notifyCopyDispatchChanged(event, "queued");
       await this.notifyImageDispatchChanged(event, "queued");
+      await this.notifyPublishingDispatchChanged(event);
       return true;
     } catch (error) {
       const failure = failureCode(error);
@@ -221,6 +363,7 @@ export class OutboxRelay {
         event,
         exhausted ? "dispatch_exhausted" : "queued",
       );
+      await this.notifyPublishingDispatchChanged(event);
       return true;
     }
   }
@@ -318,6 +461,49 @@ export class OutboxRelay {
         workspaceId: event.workspaceId,
       });
     }
+  }
+
+  private async notifyPublishingDispatchChanged(event: ClaimedOutboxEvent) {
+    if (!this.isPublishingEvent(event)) return;
+    const payload = event.payload as {
+      publicationId?: unknown;
+      scheduleId?: unknown;
+    };
+    if (typeof payload.publicationId !== "string") return;
+    try {
+      const notification = await notifyPublishingChangedNow(
+        this.client,
+        event.workspaceId,
+        {
+          operationId: event.operationId,
+          publicationId: payload.publicationId,
+          scheduleId:
+            typeof payload.scheduleId === "string" ? payload.scheduleId : null,
+        },
+      );
+      if (
+        notification.cacheInvalidation === "failed" ||
+        notification.cacheInvalidation === "rejected"
+      ) {
+        workerLogger.warn("worker.publishing.cache-notification-unavailable", {
+          operationId: event.operationId,
+          workspaceId: event.workspaceId,
+        });
+      }
+    } catch {
+      workerLogger.warn("worker.publishing.cache-notification-unavailable", {
+        operationId: event.operationId,
+        workspaceId: event.workspaceId,
+      });
+    }
+  }
+
+  private isPublishingEvent(event: ClaimedOutboxEvent) {
+    return (
+      event.eventType === OPERATION_PUBLICATION_REQUESTED_EVENT_NAME ||
+      event.eventType ===
+        OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME
+    );
   }
 
   private isAnalysisRunEvent(event: ClaimedOutboxEvent) {

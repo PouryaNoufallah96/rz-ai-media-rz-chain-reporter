@@ -13,6 +13,8 @@ async function main() {
   const {
     OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
     OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME,
+    OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME,
+    OPERATION_PUBLICATION_REQUESTED_EVENT_NAME,
     OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
     workspaceCacheTag,
   } = await import("@rz-chain-reporter/contracts");
@@ -29,6 +31,9 @@ async function main() {
     "../inngest/runtime"
   );
   const { notifyDraftsCacheChanged } = await import("../web-cache/drafts");
+  const { notifyPublishingCacheChanged } = await import(
+    "../web-cache/publishing"
+  );
   const { notifyCacheInvalidation } = await import("../web-cache/notify");
   const { database, identity } = openWorkerRuntime();
 
@@ -75,6 +80,13 @@ async function main() {
           event.eventType === OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME
         ) {
           return await notifyCopy(targetOperationId);
+        }
+        if (
+          event.eventType === OPERATION_PUBLICATION_REQUESTED_EVENT_NAME ||
+          event.eventType ===
+            OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME
+        ) {
+          return await notifyPublishingCacheChanged(installation.workspaceId);
         }
         if (
           event.eventType !== OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME

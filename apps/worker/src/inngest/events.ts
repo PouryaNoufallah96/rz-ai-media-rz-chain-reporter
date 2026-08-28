@@ -11,6 +11,8 @@ import {
   OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
   OPERATION_GENERATION_REQUESTED_EVENT_NAME,
   OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME,
+  OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME,
+  OPERATION_PUBLICATION_REQUESTED_EVENT_NAME,
   OPERATION_SCHEDULED_EFFECT_REQUESTED_EVENT_NAME,
   OPERATION_SOURCE_IMPORT_READY_EVENT_NAME,
   OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
@@ -18,6 +20,8 @@ import {
   operationScheduledEffectRequestedPayloadSchema,
   operationSourceImportReadyPayloadSchema,
   operationSourceImportRequestedPayloadSchema,
+  publicationReconciliationRequestedPayloadSchema,
+  publicationRequestedPayloadSchema,
   SOURCE_IMPORT_ENRICHMENT_REQUESTED_EVENT_NAME,
   STORAGE_RECONCILIATION_REQUESTED_EVENT_NAME,
   sourceImportEnrichmentRequestedPayloadSchema,
@@ -57,6 +61,20 @@ export const durableEvents = {
     OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME,
     {
       schema: imageGenerationRequestedPayloadSchema,
+      version: eventVersion,
+    },
+  ),
+  operationPublicationRequested: eventType(
+    OPERATION_PUBLICATION_REQUESTED_EVENT_NAME,
+    {
+      schema: publicationRequestedPayloadSchema,
+      version: eventVersion,
+    },
+  ),
+  operationPublicationReconciliationRequested: eventType(
+    OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME,
+    {
+      schema: publicationReconciliationRequestedPayloadSchema,
       version: eventVersion,
     },
   ),
@@ -179,6 +197,29 @@ export function createInngestEvent(outbox: OutboxEvent) {
         {
           id: eventId,
         },
+      );
+    }
+    case OPERATION_PUBLICATION_REQUESTED_EVENT_NAME: {
+      const payload = publicationRequestedPayloadSchema.safeParse(
+        outbox.payload,
+      );
+      if (!payload.success) {
+        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+      }
+      return durableEvents.operationPublicationRequested.create(payload.data, {
+        id: eventId,
+      });
+    }
+    case OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME: {
+      const payload = publicationReconciliationRequestedPayloadSchema.safeParse(
+        outbox.payload,
+      );
+      if (!payload.success) {
+        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+      }
+      return durableEvents.operationPublicationReconciliationRequested.create(
+        payload.data,
+        { id: eventId },
       );
     }
     case MEDIA_UPLOAD_CONFIRMED_EVENT_NAME: {
