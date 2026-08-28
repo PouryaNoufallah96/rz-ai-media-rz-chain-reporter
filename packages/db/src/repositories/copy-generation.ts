@@ -99,6 +99,8 @@ export type FailCopyPageFetchInput = {
 export type BoundCopySourceInput =
   | {
       kind: "rss";
+      attribution: string;
+      canonicalUrl: string;
       content: string;
       limited: boolean;
       pageContentHash: string | null;
@@ -107,6 +109,8 @@ export type BoundCopySourceInput =
     }
   | {
       kind: "telegram";
+      attribution: string;
+      canonicalUrl: string;
       content: string;
       contentHash: string;
       sourceItemRevisionId: string;
@@ -743,6 +747,8 @@ export async function loadBoundCopyGenerationSourceInput(
   if (origin.kind === "telegram") {
     return {
       kind: "telegram",
+      attribution: origin.attribution,
+      canonicalUrl: origin.canonicalUrl,
       content: sourceText(origin),
       contentHash: origin.contentHash,
       sourceItemRevisionId: origin.revisionId,
@@ -769,6 +775,8 @@ export async function loadBoundCopyGenerationSourceInput(
     if (!enrichment) return null;
     return {
       kind: "rss",
+      attribution: origin.attribution,
+      canonicalUrl: origin.canonicalUrl,
       content: enrichment.extract,
       limited: false,
       pageContentHash: enrichment.pageContentHash,
@@ -779,6 +787,8 @@ export async function loadBoundCopyGenerationSourceInput(
   if (!generation.limited) return null;
   return {
     kind: "rss",
+    attribution: origin.attribution,
+    canonicalUrl: origin.canonicalUrl,
     content: sourceText(origin),
     limited: true,
     pageContentHash: null,
@@ -809,6 +819,7 @@ type SourceOrigin =
   | {
       kind: "rss";
       articleFetchMode: ArticleFetchMode;
+      attribution: string;
       canonicalUrl: string;
       contentHash: string;
       endpoint: string;
@@ -818,6 +829,8 @@ type SourceOrigin =
     }
   | {
       kind: "telegram";
+      attribution: string;
+      canonicalUrl: string;
       contentHash: string;
       revisionId: string;
       summary: string | null;
@@ -890,6 +903,8 @@ async function loadCopyOrigin(
     return authority.fromTelegramLane
       ? {
           kind: "telegram",
+          attribution: authority.attribution,
+          canonicalUrl: authority.canonicalUrl,
           contentHash: authority.contentHash,
           revisionId: authority.revisionId,
           summary: authority.summary,
@@ -903,6 +918,7 @@ async function loadCopyOrigin(
   return {
     kind: "rss",
     articleFetchMode: authority.articleFetchMode,
+    attribution: authority.attribution,
     canonicalUrl: authority.canonicalUrl,
     contentHash: authority.contentHash,
     endpoint: authority.endpoint,
@@ -919,6 +935,7 @@ async function loadEditorialSource(
 ) {
   const [row] = await executor
     .select({
+      attribution: sourceItem.attribution,
       origin: sourceItem.origin,
       revisionId: sourceItemRevision.id,
       title: sourceItemRevision.title,
@@ -966,6 +983,7 @@ async function loadTelegramSource(
 ) {
   const [row] = await executor
     .select({
+      attribution: sourceItem.attribution,
       origin: sourceItem.origin,
       revisionId: sourceItemRevision.id,
       title: sourceItemRevision.title,

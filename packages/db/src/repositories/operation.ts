@@ -1,7 +1,6 @@
 import type {
   ErrorCode,
   OperationLifecycle,
-  Platform,
 } from "@rz-chain-reporter/contracts";
 import { and, eq, gt, inArray, isNull, lt, or } from "drizzle-orm";
 
@@ -14,7 +13,6 @@ import {
 import { inWorkspace } from "../filters";
 import { operation } from "../schema/operation";
 import { outboxEvent } from "../schema/outbox-event";
-import { publishOperation } from "../schema/publish-operation";
 
 type OperationRow = typeof operation.$inferSelect;
 
@@ -29,7 +27,6 @@ export type OperationIdentityInput = {
 };
 
 export type CreateOperationInput = OperationIdentityInput & {
-  publish?: { platform: Platform; draftRevisionId: string };
   event: {
     type: string;
     schemaVersion: number;
@@ -58,15 +55,6 @@ export async function createOperation(
         throw error;
       }
       return resolveOperationIdentityConflict(tx, workspaceId, input, error);
-    }
-
-    if (input.publish) {
-      await tx.insert(publishOperation).values({
-        operationId: created.id,
-        workspaceId,
-        platform: input.publish.platform,
-        draftRevisionId: input.publish.draftRevisionId,
-      });
     }
 
     await tx.insert(outboxEvent).values({

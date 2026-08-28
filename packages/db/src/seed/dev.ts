@@ -4,7 +4,7 @@ import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
 import { loadCustomerTemplate } from "@rz-chain-reporter/customer-template/load";
 import { validateMigrationEnv } from "@rz-chain-reporter/env/migration";
 import dotenv from "dotenv";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { notDeleted } from "../filters";
 import { createDb } from "../index";
@@ -223,6 +223,20 @@ try {
         authoredBy: actor.id,
       })
       .onConflictDoNothing({ target: draftRevision.id });
+    await tx
+      .update(platformDraft)
+      .set({
+        activeRevisionId: DEV_DRAFT_REVISION_ID,
+        revisionVersion: 1,
+      })
+      .where(
+        and(
+          eq(platformDraft.workspaceId, brand.workspaceId),
+          eq(platformDraft.id, DEV_PLATFORM_DRAFT_ID),
+          isNull(platformDraft.activeRevisionId),
+          eq(platformDraft.revisionVersion, 0),
+        ),
+      );
   });
 
   if (report.workspaceId && report.appliedAt) {

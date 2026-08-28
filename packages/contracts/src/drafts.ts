@@ -37,6 +37,7 @@ export const DRAFT_REVISION_COMMAND_KINDS = [
   "submit_content",
   "adopt_image",
   "remove_image",
+  "select_revision",
 ] as const;
 
 export type DraftRevisionCommandKind =

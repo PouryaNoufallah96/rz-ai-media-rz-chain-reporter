@@ -3,6 +3,7 @@ import {
   check,
   foreignKey,
   integer,
+  type PgTableExtraConfigValue,
   pgTable,
   text,
   timestamp,
@@ -36,7 +37,7 @@ export const draftRevision = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (t) => [
+  (t): PgTableExtraConfigValue[] => [
     foreignKey({
       name: "fk_draft_revision_workspace_id",
       columns: [t.workspaceId],
@@ -66,6 +67,11 @@ export const draftRevision = pgTable(
       t.workspaceId,
       t.platformDraftId,
       t.revisionNumber,
+    ),
+    unique("uq_draft_revision_workspace_platform_draft_id").on(
+      t.workspaceId,
+      t.platformDraftId,
+      t.id,
     ),
     check(
       "ck_draft_revision_revision_number_positive",

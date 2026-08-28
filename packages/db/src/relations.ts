@@ -29,7 +29,11 @@ import { operationAttempt } from "./schema/operation-attempt";
 import { outboxEvent } from "./schema/outbox-event";
 import { platformDraft } from "./schema/platform-draft";
 import { promoIdea } from "./schema/promo-idea";
+import { publication } from "./schema/publication";
+import { publicationReconciliation } from "./schema/publication-reconciliation";
+import { publishCheckpoint } from "./schema/publish-checkpoint";
 import { publishOperation } from "./schema/publish-operation";
+import { publishingMediaGrant } from "./schema/publishing-media-grant";
 import { savedCard } from "./schema/saved-card";
 import { schedule } from "./schema/schedule";
 import { sourceImport } from "./schema/source-import";
@@ -183,7 +187,20 @@ export const platformDraftRelations = relations(
       references: [promoIdea.id],
     }),
     copyGenerations: many(copyGeneration),
-    revisions: many(draftRevision),
+    revisions: many(draftRevision, { relationName: "draftHistory" }),
+    activeRevision: one(draftRevision, {
+      fields: [
+        platformDraft.workspaceId,
+        platformDraft.id,
+        platformDraft.activeRevisionId,
+      ],
+      references: [
+        draftRevision.workspaceId,
+        draftRevision.platformDraftId,
+        draftRevision.id,
+      ],
+      relationName: "activeDraftRevision",
+    }),
   }),
 );
 
@@ -193,6 +210,7 @@ export const draftRevisionRelations = relations(
     platformDraft: one(platformDraft, {
       fields: [draftRevision.platformDraftId],
       references: [platformDraft.id],
+      relationName: "draftHistory",
     }),
     originatingCopyVariant: one(copyVariant, {
       fields: [draftRevision.originatingCopyVariantId],
@@ -285,10 +303,6 @@ export const savedCardRelations = relations(savedCard, ({ one }) => ({
     fields: [savedCard.platformDraftId],
     references: [platformDraft.id],
   }),
-  contentCard: one(platformDraft, {
-    fields: [savedCard.contentCardId],
-    references: [platformDraft.id],
-  }),
   savedBy: one(user, {
     fields: [savedCard.savedBy],
     references: [user.id],
@@ -300,10 +314,34 @@ export const approvalRelations = relations(approval, ({ one }) => ({
     fields: [approval.draftRevisionId],
     references: [draftRevision.id],
   }),
-  decidedBy: one(user, {
-    fields: [approval.decidedBy],
+  approvedBy: one(user, {
+    fields: [approval.approvedBy],
     references: [user.id],
   }),
+  selectedFinalMediaAsset: one(mediaAsset, {
+    fields: [approval.selectedFinalMediaAssetId],
+    references: [mediaAsset.id],
+  }),
+}));
+
+export const publicationRelations = relations(publication, ({ one, many }) => ({
+  approval: one(approval, {
+    fields: [publication.approvalId],
+    references: [approval.id],
+  }),
+  draftRevision: one(draftRevision, {
+    fields: [publication.draftRevisionId],
+    references: [draftRevision.id],
+  }),
+  selectedFinalMediaAsset: one(mediaAsset, {
+    fields: [publication.selectedFinalMediaAssetId],
+    references: [mediaAsset.id],
+  }),
+  operations: many(publishOperation),
+  schedules: many(schedule),
+  checkpoints: many(publishCheckpoint),
+  reconciliations: many(publicationReconciliation),
+  mediaGrants: many(publishingMediaGrant),
 }));
 
 export const mediaAssetRelations = relations(mediaAsset, ({ many }) => ({
@@ -501,7 +539,7 @@ export const outboxEventRelations = relations(outboxEvent, ({ one }) => ({
 
 export const activityEventRelations = relations(activityEvent, ({ one }) => ({
   actor: one(user, {
-    fields: [activityEvent.actor],
+    fields: [activityEvent.actorId],
     references: [user.id],
   }),
   platformDraft: one(platformDraft, {

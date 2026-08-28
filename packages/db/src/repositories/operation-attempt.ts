@@ -1,5 +1,9 @@
-import type { AttemptOutcome, ErrorCode } from "@rz-chain-reporter/contracts";
-import { and, eq, gt, sql } from "drizzle-orm";
+import type {
+  AttemptOutcome,
+  ErrorCode,
+  PublicationFailureCode,
+} from "@rz-chain-reporter/contracts";
+import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import {
   type Executor,
@@ -203,4 +207,199 @@ export async function settleOperationAttempt(
     .returning();
 
   return settled ?? null;
+}
+
+export async function settleReconciliationOperationSuccess(
+  executor: Executor,
+  workspaceId: string,
+  input: {
+    attemptId: string;
+    claimedBy: string;
+    expectedVersion: number;
+    operationId: string;
+    providerResultId?: string;
+  },
+) {
+  return executor.transaction(async (tx) => {
+    await withWorkspaceContext(tx, workspaceId);
+    const now = new Date();
+    const [current] = await tx
+      .select()
+      .from(operation)
+      .where(
+        and(
+          inWorkspace(operation, workspaceId),
+          eq(operation.id, input.operationId),
+          eq(operation.commandType, "publishing:reconciliation"),
+        ),
+      )
+      .for("update");
+    if (!current) return null;
+    if (current.lifecycle === "succeeded") {
+      const [attempt] = await tx
+        .select()
+        .from(operationAttempt)
+        .where(
+          and(
+            inWorkspace(operationAttempt, workspaceId),
+            eq(operationAttempt.id, input.attemptId),
+            eq(operationAttempt.operationId, input.operationId),
+            eq(operationAttempt.outcome, "succeeded"),
+          ),
+        );
+      return attempt ? { attempt, operation: current } : null;
+    }
+    if (
+      current.claimedBy !== input.claimedBy ||
+      current.version !== input.expectedVersion ||
+      current.lifecycle !== "running" ||
+      !current.leaseExpiresAt ||
+      current.leaseExpiresAt <= now
+    ) {
+      return null;
+    }
+
+    const [attempt] = await tx
+      .update(operationAttempt)
+      .set({
+        failureCode: null,
+        outcome: "succeeded",
+        providerResultId: input.providerResultId,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          inWorkspace(operationAttempt, workspaceId),
+          eq(operationAttempt.id, input.attemptId),
+          eq(operationAttempt.operationId, input.operationId),
+          isNull(operationAttempt.outcome),
+        ),
+      )
+      .returning();
+    if (!attempt) throw new Error("RECONCILIATION_ATTEMPT_SETTLEMENT_LOST");
+
+    const [settled] = await tx
+      .update(operation)
+      .set({
+        claimedAt: null,
+        claimedBy: null,
+        leaseExpiresAt: null,
+        lifecycle: "succeeded",
+        updatedAt: now,
+        version: current.version + 1,
+      })
+      .where(
+        and(
+          inWorkspace(operation, workspaceId),
+          eq(operation.id, input.operationId),
+          eq(operation.claimedBy, input.claimedBy),
+          eq(operation.version, current.version),
+          eq(operation.lifecycle, "running"),
+        ),
+      )
+      .returning();
+    if (!settled) throw new Error("RECONCILIATION_OPERATION_SETTLEMENT_LOST");
+    return { attempt, operation: settled };
+  });
+}
+
+export async function settleReconciliationOperationFailure(
+  executor: Executor,
+  workspaceId: string,
+  input: {
+    claimedBy: string;
+    failureCode: ErrorCode;
+    operationId: string;
+    now?: Date;
+    providerFailureCode?: PublicationFailureCode;
+  },
+) {
+  return executor.transaction(async (tx) => {
+    await withWorkspaceContext(tx, workspaceId);
+    const now = input.now ?? new Date();
+    const [current] = await tx
+      .select()
+      .from(operation)
+      .where(
+        and(
+          inWorkspace(operation, workspaceId),
+          eq(operation.id, input.operationId),
+          eq(operation.commandType, "publishing:reconciliation"),
+        ),
+      )
+      .for("update");
+    if (!current) return null;
+
+    if (
+      current.lifecycle === "running" &&
+      current.claimedBy === input.claimedBy
+    ) {
+      await tx
+        .update(operationAttempt)
+        .set({
+          failureCode: input.failureCode,
+          outcome: "failed_terminal",
+          providerFailureCode: input.providerFailureCode,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            inWorkspace(operationAttempt, workspaceId),
+            eq(operationAttempt.operationId, input.operationId),
+            isNull(operationAttempt.outcome),
+          ),
+        );
+      const [failed] = await tx
+        .update(operation)
+        .set({
+          claimedAt: null,
+          claimedBy: null,
+          leaseExpiresAt: null,
+          lifecycle: "failed",
+          updatedAt: now,
+          version: current.version + 1,
+        })
+        .where(
+          and(
+            inWorkspace(operation, workspaceId),
+            eq(operation.id, input.operationId),
+            eq(operation.claimedBy, input.claimedBy),
+            eq(operation.lifecycle, "running"),
+            eq(operation.version, current.version),
+          ),
+        )
+        .returning();
+      if (!failed) return null;
+    } else if (current.lifecycle !== "failed") {
+      return null;
+    }
+
+    const [settledOperation] = await tx
+      .select()
+      .from(operation)
+      .where(
+        and(
+          inWorkspace(operation, workspaceId),
+          eq(operation.id, input.operationId),
+          eq(operation.lifecycle, "failed"),
+        ),
+      );
+    if (!settledOperation) return null;
+    const [latestAttempt] = await tx
+      .select({ outcome: operationAttempt.outcome })
+      .from(operationAttempt)
+      .where(
+        and(
+          inWorkspace(operationAttempt, workspaceId),
+          eq(operationAttempt.operationId, input.operationId),
+        ),
+      )
+      .orderBy(desc(operationAttempt.attemptNumber))
+      .limit(1);
+    return {
+      attemptCount: settledOperation.attemptSeq,
+      latestAttemptOutcome: latestAttempt?.outcome ?? undefined,
+      operation: settledOperation,
+    };
+  });
 }

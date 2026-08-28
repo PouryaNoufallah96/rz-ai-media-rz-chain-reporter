@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   foreignKey,
+  index,
+  integer,
   pgTable,
   text,
   timestamp,
@@ -19,9 +22,9 @@ export const savedCard = pgTable(
     ...uuidPrimaryKey,
     ...workspaceScope,
     platformDraftId: uuid("platform_draft_id").notNull(),
-    contentCardId: uuid("content_card_id").notNull(),
     savedBy: text("saved_by").notNull(),
     discardedAt: timestamp("discarded_at", { withTimezone: true }),
+    version: integer("version").default(1).notNull(),
     ...timestamps,
   },
   (t) => [
@@ -36,11 +39,6 @@ export const savedCard = pgTable(
       foreignColumns: [platformDraft.id],
     }).onDelete("restrict"),
     foreignKey({
-      name: "fk_saved_card_content_card_id",
-      columns: [t.contentCardId],
-      foreignColumns: [platformDraft.id],
-    }).onDelete("restrict"),
-    foreignKey({
       name: "fk_saved_card_saved_by",
       columns: [t.savedBy],
       foreignColumns: [user.id],
@@ -48,5 +46,12 @@ export const savedCard = pgTable(
     uniqueIndex("uq_saved_card_workspace_id_saved_by_platform_draft_id_active")
       .on(t.workspaceId, t.savedBy, t.platformDraftId)
       .where(sql`discarded_at is null`),
+    index("ix_saved_card_workspace_saved_by_created_id").on(
+      t.workspaceId,
+      t.savedBy,
+      t.createdAt,
+      t.id,
+    ),
+    check("ck_saved_card_version_positive", sql`${t.version} > 0`),
   ],
 );

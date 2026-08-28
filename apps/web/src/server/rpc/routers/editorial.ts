@@ -33,9 +33,11 @@ import {
   reorderPlatformDrafts,
   routePlatformDraft,
 } from "@rz-chain-reporter/db/repositories/platform-draft";
+import { env } from "@rz-chain-reporter/env/server";
 import type { z } from "zod";
 
 import {
+  readPlatformDrafts,
   readRunLifecycle,
   selectAnalysisRunSources,
 } from "@/features/editorial/db/queries";
@@ -63,6 +65,7 @@ import {
   customerBrandPolicyFingerprints,
   customerEditorial,
   customerTemplateFingerprint,
+  customerTimeZone,
 } from "@/lib/customer-template.server";
 
 import { rpcDb } from "../db";
@@ -138,7 +141,7 @@ async function executeImageCommand(
     {
       actor: context.session.user.id,
       draftRevisionId: input.draftRevisionId,
-      expectedRevisionNumber: input.expectedRevisionNumber,
+      expectedRevisionVersion: input.expectedRevisionVersion,
       idempotencyKey: input.idempotencyKey,
       modelOptionKey: input.modelOptionKey,
       operatorDirection: input.operatorDirection,
@@ -292,6 +295,7 @@ export const updateDraftRevision = installationProcedure
       rpcDb(),
       context.workspaceId,
       input.platformDraftId,
+      input.expectedActive.id,
     );
     if (!commandContext) throw errors.NOT_FOUND();
 
@@ -318,7 +322,21 @@ export const updateDraftRevision = installationProcedure
       }
       throw errors.IDEMPOTENCY_KEY_REUSED();
     }
-    return result;
+    const [snapshot] = await readPlatformDrafts(
+      rpcDb(),
+      context.workspaceId,
+      { platformDraftId: input.platformDraftId },
+      context.session.user.id,
+      env.PUBLISHING_EMERGENCY_PAUSED,
+      customerTimeZone,
+      customerEditorial.drafting.image.models.filter((model) => model.enabled),
+    );
+    if (!snapshot) throw errors.NOT_FOUND();
+    return {
+      status: result.status,
+      appendedRevision: result.appendedRevision,
+      card: snapshot.card,
+    };
   });
 
 function revisionCommand(
@@ -330,8 +348,14 @@ function revisionCommand(
   const identity = {
     commandKind: input.commandKind,
     platformDraftId: input.platformDraftId,
-    expectedLatest: input.expectedLatest,
+    expectedActive: input.expectedActive,
   };
+  if (input.commandKind === "select_revision") {
+    return {
+      command: input,
+      semanticPayload: { ...identity, draftRevisionId: input.draftRevisionId },
+    };
+  }
   if (input.commandKind === "apply_copy_variant") {
     return {
       command: input,
@@ -353,11 +377,11 @@ function revisionCommand(
 
   const content = normalizeRevisionContent(
     input.content,
-    context.latest?.hashtags[0] ?? null,
+    context.expectedRevision?.hashtags[0] ?? null,
   );
   if (
     !content ||
-    context.latest?.contentLocale !== content.contentLocale ||
+    context.expectedRevision?.contentLocale !== content.contentLocale ||
     !validRevisionContent(context.platform, content)
   ) {
     return null;
@@ -696,7 +720,10 @@ export const startRun = installationProcedure
       throw errors.TEMPLATE_DRIFT();
     }
 
-    return { operationId: result.operationId };
+    return {
+      operationId: result.operationId,
+      analysisRunId: result.analysisRunId,
+    };
   });
 
 export const cancelRun = installationProcedure

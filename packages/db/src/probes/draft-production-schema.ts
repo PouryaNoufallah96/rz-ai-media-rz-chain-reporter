@@ -374,6 +374,12 @@ async function insertFixture() {
       actorId,
     ],
   );
+  await client.query(
+    `update platform_draft
+     set active_revision_id = $1, revision_version = 1, updated_at = now()
+     where id = $2 and workspace_id = $3`,
+    [ids.draftRevision, ids.platformDraft, ids.workspace],
+  );
   for (const [id, key] of [
     [ids.originalAsset, "original"],
     [ids.finalAsset, "final"],

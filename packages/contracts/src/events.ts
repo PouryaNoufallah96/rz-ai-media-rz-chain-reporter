@@ -12,6 +12,8 @@ export const DURABLE_EVENT_NAMES = [
   "operation/analysis-run.cancelled",
   "operation/copy-generation.requested",
   "operation/image-generation.requested",
+  "operation/publication.requested",
+  "operation/publication-reconciliation.requested",
   "source-import/enrichment.requested",
   "operation/source-import.ready",
 ] as const;
@@ -33,8 +35,12 @@ export const OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME =
 export const OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME =
   DURABLE_EVENT_NAMES[8];
 export const SOURCE_IMPORT_ENRICHMENT_REQUESTED_EVENT_NAME =
+  DURABLE_EVENT_NAMES[11];
+export const OPERATION_SOURCE_IMPORT_READY_EVENT_NAME = DURABLE_EVENT_NAMES[12];
+export const OPERATION_PUBLICATION_REQUESTED_EVENT_NAME =
   DURABLE_EVENT_NAMES[9];
-export const OPERATION_SOURCE_IMPORT_READY_EVENT_NAME = DURABLE_EVENT_NAMES[10];
+export const OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME =
+  DURABLE_EVENT_NAMES[10];
 
 export type DurableEventName = (typeof DURABLE_EVENT_NAMES)[number];
 
@@ -100,4 +106,18 @@ export const imageGenerationRequestedPayloadSchema =
   durableEventPayloadSchema.extend({
     imageGenerationId: z.uuid(),
     operationId: z.uuid(),
+  });
+
+export const publicationRequestedPayloadSchema =
+  durableEventPayloadSchema.extend({
+    operationId: z.uuid(),
+    publicationId: z.uuid(),
+    scheduleId: z.uuid().optional(),
+  });
+
+export const publicationReconciliationRequestedPayloadSchema =
+  durableEventPayloadSchema.extend({
+    operationId: z.uuid(),
+    publicationId: z.uuid(),
+    ambiguousAttemptId: z.uuid(),
   });

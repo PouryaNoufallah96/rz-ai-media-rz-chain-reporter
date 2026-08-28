@@ -18,6 +18,22 @@ import {
 import { overview } from "./installation";
 import { confirm, createIntent } from "./media";
 import { list } from "./operations";
+import {
+  approve,
+  attestTelegramPublication,
+  cancelScheduledPublication,
+  directPublish,
+  discardCard,
+  pausePublishing,
+  reconcilePublication,
+  recoverMissedPublication,
+  reschedulePublication,
+  restoreCard,
+  resumePublishing,
+  retryPublication,
+  saveCard,
+  schedulePublication,
+} from "./publishing";
 import { startImport } from "./sources";
 import { detail as usageDetail } from "./usage";
 
@@ -38,6 +54,22 @@ export const appRouter = {
   installation: { overview },
   media: { confirm, createIntent },
   operations: { list },
+  publishing: {
+    approve,
+    attestTelegramPublication,
+    cancelScheduledPublication,
+    directPublish,
+    discardCard,
+    pausePublishing,
+    reconcilePublication,
+    recoverMissedPublication,
+    reschedulePublication,
+    restoreCard,
+    resumePublishing,
+    retryPublication,
+    saveCard,
+    schedulePublication,
+  },
   sources: { startImport },
   usage: { detail: usageDetail },
 };
