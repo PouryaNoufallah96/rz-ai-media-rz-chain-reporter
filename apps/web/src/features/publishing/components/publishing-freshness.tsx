@@ -18,6 +18,7 @@ export function PublishingFreshness() {
         aria-busy={isRefreshing}
         disabled={isRefreshing}
         onClick={refresh}
+        className="max-sm:min-h-11"
         size="xs"
         type="button"
         variant="ghost"

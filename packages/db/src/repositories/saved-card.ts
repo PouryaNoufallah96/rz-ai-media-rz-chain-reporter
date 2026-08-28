@@ -10,6 +10,7 @@ import { activityEvent } from "../schema/activity-event";
 import { platformDraft } from "../schema/platform-draft";
 import { savedCard } from "../schema/saved-card";
 import { appendActivityEvent } from "./activity-event";
+import { ownedDraftExists } from "./draft-origin";
 
 type SavedCardRow = typeof savedCard.$inferSelect;
 
@@ -63,6 +64,7 @@ export async function savePlatformDraft(
           and(
             liveInWorkspace(platformDraft, workspaceId),
             eq(platformDraft.id, input.platformDraftId),
+            ownedDraftExists(workspaceId, input.actorId),
           ),
         );
       if (!draft) throw new Error("saved card target disappeared");

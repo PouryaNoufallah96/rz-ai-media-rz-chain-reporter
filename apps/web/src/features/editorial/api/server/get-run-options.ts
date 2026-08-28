@@ -39,18 +39,14 @@ export async function getRunOptions(): Promise<RunOptions> {
     bounds: customerEditorial.bounds,
     windowHours: ANALYSIS_RUN_WINDOW_HOURS,
     runs: runs.map((run) => ({
-      actorName: run.actorName,
       id: run.id,
       kind: run.kind,
       lifecycle: run.lifecycle,
-      mine: run.actorId === actorId,
       startedAt: run.startedAt,
       templateFingerprint: run.templateFingerprint,
     })),
     recentTopics,
-    previousRun: previousCompatibleRun(
-      runs.filter((run) => run.actorId === actorId),
-    ),
+    previousRun: previousCompatibleRun(runs),
   };
 }
 

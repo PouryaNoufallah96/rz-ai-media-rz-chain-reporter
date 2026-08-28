@@ -37,6 +37,7 @@ import {
 export const PLATFORM_DRAFT_ROUTE_COMMAND_TYPE = `${COPY_GENERATION_COMMAND_PREFIX}route`;
 
 type OriginAuthority = {
+  actorId: string;
   runId: string;
   configuration: RunConfiguration;
   mediaBrandId: string;
@@ -80,6 +81,7 @@ export type RoutePlatformDraftResult =
     };
 
 export type ReorderPlatformDraftsInput = {
+  actorId: string;
   platformDraftId: string;
   expectedVersion: number;
   orderedDraftIds: readonly string[];
@@ -135,9 +137,20 @@ export async function reorderPlatformDrafts(
       left join analysis_model_unit promo_unit
         on promo_unit.id = promo.analysis_model_unit_id
         and promo_unit.workspace_id = draft.workspace_id
+      inner join analysis_run origin_run
+        on origin_run.id = coalesce(
+          selection_unit.analysis_run_id,
+          telegram.analysis_run_id,
+          promo_unit.analysis_run_id
+        )
+        and origin_run.workspace_id = draft.workspace_id
+      inner join operation origin_operation
+        on origin_operation.id = origin_run.operation_id
+        and origin_operation.workspace_id = draft.workspace_id
       where draft.workspace_id = ${workspaceId}::uuid
         and draft.id = ${input.platformDraftId}::uuid
         and draft.deleted_at is null
+        and origin_operation.actor = ${input.actorId}
       limit 1
     `);
     const lane = target.rows[0];
@@ -463,6 +476,7 @@ async function loadOriginAuthority(
   if (origin.kind === "editorial_selection") {
     const [row] = await tx
       .select({
+        actorId: operation.actor,
         runId: analysisModelUnit.analysisRunId,
         configuration: analysisRun.configuration,
         mediaBrandId: analysisModelUnit.mediaBrandId,
@@ -481,6 +495,13 @@ async function loadOriginAuthority(
       .innerJoin(
         analysisRun,
         eq(analysisRun.id, analysisModelUnit.analysisRunId),
+      )
+      .innerJoin(
+        operation,
+        and(
+          inWorkspace(operation, workspaceId),
+          eq(operation.id, analysisRun.operationId),
+        ),
       )
       .innerJoin(
         mediaBrand,
@@ -502,6 +523,7 @@ async function loadOriginAuthority(
   if (origin.kind === "promo_idea") {
     const [row] = await tx
       .select({
+        actorId: operation.actor,
         runId: analysisModelUnit.analysisRunId,
         configuration: analysisRun.configuration,
         mediaBrandId: analysisModelUnit.mediaBrandId,
@@ -519,6 +541,13 @@ async function loadOriginAuthority(
       .innerJoin(
         analysisRun,
         eq(analysisRun.id, analysisModelUnit.analysisRunId),
+      )
+      .innerJoin(
+        operation,
+        and(
+          inWorkspace(operation, workspaceId),
+          eq(operation.id, analysisRun.operationId),
+        ),
       )
       .innerJoin(
         mediaBrand,
@@ -540,6 +569,7 @@ async function loadOriginAuthority(
 
   const [row] = await tx
     .select({
+      actorId: operation.actor,
       runId: filterResult.analysisRunId,
       configuration: analysisRun.configuration,
       mediaBrandId: filterResult.mediaBrandId,
@@ -550,6 +580,13 @@ async function loadOriginAuthority(
     })
     .from(filterResult)
     .innerJoin(analysisRun, eq(analysisRun.id, filterResult.analysisRunId))
+    .innerJoin(
+      operation,
+      and(
+        inWorkspace(operation, workspaceId),
+        eq(operation.id, analysisRun.operationId),
+      ),
+    )
     .innerJoin(
       mediaBrand,
       and(

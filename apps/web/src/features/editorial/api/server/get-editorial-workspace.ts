@@ -37,22 +37,26 @@ export async function getEditorialWorkspace(
   const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
   const { head, ...lanes } = await readPinnedEditorialWorkspace(
     workspaceId,
+    session.user.id,
     query.run,
   );
   const readAt = new Date();
 
   if (!head) {
-    return { ...lanes, head: null, query, readAt };
+    return {
+      head: null,
+      modelLanes: [],
+      telegramLanes: [],
+      query,
+      readAt,
+    };
   }
-
-  const { actorId, ...rest } = head;
 
   return {
     ...lanes,
     head: {
-      ...rest,
-      mine: actorId === session.user.id,
-      templateChanged: rest.templateFingerprint !== customerTemplateFingerprint,
+      ...head,
+      templateChanged: head.templateFingerprint !== customerTemplateFingerprint,
     },
     query,
     readAt,
@@ -61,11 +65,12 @@ export async function getEditorialWorkspace(
 
 async function readPinnedEditorialWorkspace(
   workspaceId: string,
+  userId: string,
   analysisRunId: string,
 ) {
   "use cache";
   cacheTag(editorialTags.reads(workspaceId));
   cacheLife("minutes");
 
-  return readEditorialWorkspace(rpcDb(), workspaceId, analysisRunId);
+  return readEditorialWorkspace(rpcDb(), workspaceId, userId, analysisRunId);
 }

@@ -27,7 +27,6 @@ export function RunSelector({
     listed || selected === null ? runs : [selected, ...runs]
   ).map((run) => ({
     label: t("run.selector.option", {
-      actor: run.mine ? t("run.selector.you") : run.actorName,
       kind: t(`run.kind.${run.kind}`),
       time: format.dateTime(run.startedAt, {
         dateStyle: "short",

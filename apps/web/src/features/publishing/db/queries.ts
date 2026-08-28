@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Executor } from "@rz-chain-reporter/db/executor";
+import { ownedDraftExists } from "@rz-chain-reporter/db/repositories/draft-origin";
 import { type SQL, sql } from "drizzle-orm";
 
 import {
@@ -116,6 +117,7 @@ export async function readSavedHistory(
 export async function readPublishingHistory(
   executor: Executor,
   workspaceId: string,
+  userId: string,
   query: PublishingQuery,
 ) {
   const cursor = decodeKeysetCursor(historyCursorSchema, query.cursor);
@@ -170,7 +172,9 @@ export async function readPublishingHistory(
         ) eligible on true
         left join publish_operation on publish_operation.operation_id = schedule.originating_operation_id and publish_operation.workspace_id = schedule.workspace_id
         left join lateral (select id, kind from publish_checkpoint where workspace_id = schedule.workspace_id and publication_id = schedule.publication_id and operation_id = schedule.originating_operation_id order by observed_at desc limit 1) checkpoint on true
-        where schedule.workspace_id = ${workspaceId}::uuid and schedule.lifecycle in ('scheduled', 'cancelled', 'rescheduled', 'effect_claimed', 'completed', 'delivery_unknown', 'missed_requires_confirmation', 'failed')`
+        where schedule.workspace_id = ${workspaceId}::uuid
+          and schedule.lifecycle in ('scheduled', 'cancelled', 'rescheduled', 'effect_claimed', 'completed', 'delivery_unknown', 'missed_requires_confirmation', 'failed')
+          and ${ownedDraftExists(workspaceId, userId, sql`draft.id`)}`
       : sql`
         select publication.id, draft.id as "platformDraftId",
           ${query.view === "reconciliation" ? sql`coalesce(reconciliation."occurredAt", publication.updated_at)` : sql`publication.updated_at`} as "occurredAt",
@@ -232,17 +236,19 @@ export async function readPublishingHistory(
           where workspace_id = publication.workspace_id and publication_id = publication.id
           order by occurred_at desc, id desc limit 1
         ) reconciliation on true
-        where publication.workspace_id = ${workspaceId}::uuid and ${
-          query.view === "published"
-            ? sql`(
+        where publication.workspace_id = ${workspaceId}::uuid
+          and ${ownedDraftExists(workspaceId, userId, sql`draft.id`)}
+          and ${
+            query.view === "published"
+              ? sql`(
                 publication.lifecycle = 'confirmed'
                 or (publication.lifecycle = 'available' and publish_operation.settlement_activity_status <> 'not_due')
               )`
-            : sql`(
+              : sql`(
                 publication.lifecycle = 'delivery_unknown'
                 or reconciliation."occurredAt" is not null
               )`
-        }`;
+          }`;
   const result = await executor.execute<PublishingHistoryRow & CursorRow>(sql`
     select history.*, to_char(history."occurredAt" at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as "cursorOccurredAt"
     from (${source}) history

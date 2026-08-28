@@ -3,6 +3,7 @@ import "server-only";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import { inWorkspace } from "@rz-chain-reporter/db/filters";
 import { aiUsageEvent } from "@rz-chain-reporter/db/schema/ai-usage-event";
+import { operation } from "@rz-chain-reporter/db/schema/operation";
 import {
   and,
   asc,
@@ -47,46 +48,51 @@ end`;
 export async function readUsageSummary(
   executor: Executor,
   workspaceId: string,
+  userId: string,
   query: UsageQuery,
 ): Promise<UsageSummary> {
-  const where = and(...usageConditions(workspaceId, query));
-  const [aggregateRows, modelRows, installationInvocations] = await Promise.all(
-    [
-      executor
-        .select({
-          invocations: count(),
-          totalTokens: sql<number>`coalesce(sum(${aiUsageEvent.totalTokens}), 0)::double precision`,
-          recordedCost: sql<string>`coalesce(sum(${aiUsageEvent.openrouterCost}), 0)::text`,
-          pendingCount: sql<number>`count(*) filter (where ${aiUsageEvent.status} = 'pending')::integer`,
-          unknownCount: sql<number>`count(*) filter (where ${aiUsageEvent.status} <> 'pending' and ${aiUsageEvent.costAuthority} = 'unknown' and ${aiUsageEvent.openrouterCost} is null)::integer`,
-        })
-        .from(aiUsageEvent)
-        .where(where),
-      executor
-        .select({
-          model: sql<string>`coalesce(${aiUsageEvent.resolvedModel}, ${aiUsageEvent.requestedModel})`,
-          backend: aiUsageEvent.backend,
-          invocations: count(),
-          totalTokens: sql<number>`coalesce(sum(${aiUsageEvent.totalTokens}), 0)::double precision`,
-          recordedCost: sql<string>`coalesce(sum(${aiUsageEvent.openrouterCost}), 0)::text`,
-        })
-        .from(aiUsageEvent)
-        .where(where)
-        .groupBy(
-          sql`coalesce(${aiUsageEvent.resolvedModel}, ${aiUsageEvent.requestedModel})`,
-          aiUsageEvent.backend,
-        )
-        .orderBy(desc(count())),
-      executor.$count(aiUsageEvent, inWorkspace(aiUsageEvent, workspaceId)),
-    ],
-  );
+  const where = and(...usageConditions(workspaceId, userId, query));
+  const [aggregateRows, modelRows, recordedRows] = await Promise.all([
+    executor
+      .select({
+        invocations: count(),
+        totalTokens: sql<number>`coalesce(sum(${aiUsageEvent.totalTokens}), 0)::double precision`,
+        recordedCost: sql<string>`coalesce(sum(${aiUsageEvent.openrouterCost}), 0)::text`,
+        pendingCount: sql<number>`count(*) filter (where ${aiUsageEvent.status} = 'pending')::integer`,
+        unknownCount: sql<number>`count(*) filter (where ${aiUsageEvent.status} <> 'pending' and ${aiUsageEvent.costAuthority} = 'unknown' and ${aiUsageEvent.openrouterCost} is null)::integer`,
+      })
+      .from(aiUsageEvent)
+      .innerJoin(operation, usageOperationJoin(workspaceId, userId))
+      .where(where),
+    executor
+      .select({
+        model: sql<string>`coalesce(${aiUsageEvent.resolvedModel}, ${aiUsageEvent.requestedModel})`,
+        backend: aiUsageEvent.backend,
+        invocations: count(),
+        totalTokens: sql<number>`coalesce(sum(${aiUsageEvent.totalTokens}), 0)::double precision`,
+        recordedCost: sql<string>`coalesce(sum(${aiUsageEvent.openrouterCost}), 0)::text`,
+      })
+      .from(aiUsageEvent)
+      .innerJoin(operation, usageOperationJoin(workspaceId, userId))
+      .where(where)
+      .groupBy(
+        sql`coalesce(${aiUsageEvent.resolvedModel}, ${aiUsageEvent.requestedModel})`,
+        aiUsageEvent.backend,
+      )
+      .orderBy(desc(count())),
+    executor
+      .select({ invocations: count() })
+      .from(aiUsageEvent)
+      .innerJoin(operation, usageOperationJoin(workspaceId, userId))
+      .where(and(...usageConditions(workspaceId, userId))),
+  ]);
 
   const aggregate = aggregateRows[0];
   if (!aggregate) throw new Error("usage summary returned no aggregate row");
 
   return {
     ...aggregate,
-    installationInvocations,
+    recordedInvocations: recordedRows[0]?.invocations ?? 0,
     totalTokens: Math.trunc(aggregate.totalTokens),
     models: modelRows.map((row) => ({
       ...row,
@@ -98,6 +104,7 @@ export async function readUsageSummary(
 export async function readUsagePage(
   executor: Executor,
   workspaceId: string,
+  userId: string,
   query: UsageQuery,
 ): Promise<UsagePage> {
   const cursor = decodeKeysetCursor(usageCursorSchema, query.cursor);
@@ -139,7 +146,8 @@ export async function readUsagePage(
       status: aiUsageEvent.status,
     })
     .from(aiUsageEvent)
-    .where(and(...usageConditions(workspaceId, query), cursorCondition))
+    .innerJoin(operation, usageOperationJoin(workspaceId, userId))
+    .where(and(...usageConditions(workspaceId, userId, query), cursorCondition))
     .orderBy(
       direction === "older"
         ? desc(aiUsageEvent.occurredAt)
@@ -180,8 +188,24 @@ export async function readUsagePage(
   };
 }
 
-function usageConditions(workspaceId: string, query: UsageQuery): SQL[] {
-  const conditions: SQL[] = [inWorkspace(aiUsageEvent, workspaceId)];
+function usageOperationJoin(workspaceId: string, userId: string) {
+  return and(
+    inWorkspace(operation, workspaceId),
+    eq(operation.id, aiUsageEvent.operationId),
+    eq(operation.actor, userId),
+  );
+}
+
+function usageConditions(
+  workspaceId: string,
+  userId: string,
+  query?: UsageQuery,
+): SQL[] {
+  const conditions: SQL[] = [
+    inWorkspace(aiUsageEvent, workspaceId),
+    eq(operation.actor, userId),
+  ];
+  if (!query) return conditions;
   const since = periodStart(query.period);
 
   if (since) conditions.push(gte(aiUsageEvent.occurredAt, since));

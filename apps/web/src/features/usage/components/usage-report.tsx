@@ -226,8 +226,8 @@ export function UsageReport({ page, query, summary }: UsageReportProps) {
         <h2 className="mb-3 font-medium text-sm" id="usage-ledger-title">
           {t("ledger.title")}
         </h2>
-        {summary.installationInvocations === 0 ? (
-          <UsageEmpty description={t("empty.installation")} />
+        {summary.recordedInvocations === 0 ? (
+          <UsageEmpty description={t("empty.recorded")} />
         ) : page.rows.length === 0 ? (
           <UsageEmpty
             action={

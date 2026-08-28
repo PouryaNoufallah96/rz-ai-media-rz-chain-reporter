@@ -16,6 +16,7 @@ export const list = installationProcedure
     listRecentOperations(
       rpcDb(),
       context.workspaceId,
+      context.session.user.id,
       input.focusedOperationId,
     ),
   );

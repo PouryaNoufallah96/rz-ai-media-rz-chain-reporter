@@ -15,5 +15,5 @@ export const detail = installationProcedure
   .output(usagePageSchema)
   .errors({ UNAUTHORIZED: { status: 401 } })
   .handler(({ context, input }) =>
-    readUsagePage(rpcDb(), context.workspaceId, input),
+    readUsagePage(rpcDb(), context.workspaceId, context.session.user.id, input),
   );

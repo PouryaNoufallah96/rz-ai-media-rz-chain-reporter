@@ -311,6 +311,7 @@ export const recoverMissedPublication = installationProcedure
       rpcDb(),
       context.workspaceId,
       input.scheduleId,
+      context.session.user.id,
     );
     if (!missed) throw errors.NOT_FOUND();
     if (missed.lifecycle !== "missed_requires_confirmation") {

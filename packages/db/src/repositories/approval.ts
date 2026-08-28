@@ -14,6 +14,7 @@ import { imageGeneration } from "../schema/image-generation";
 import { mediaAsset } from "../schema/media-asset";
 import { platformDraft } from "../schema/platform-draft";
 import { appendActivityEvent } from "./activity-event";
+import { ownedDraftExists } from "./draft-origin";
 
 type ApprovalRow = typeof approval.$inferSelect;
 
@@ -113,6 +114,7 @@ export async function grantApproval(
         and(
           liveInWorkspace(platformDraft, workspaceId),
           eq(platformDraft.id, snapshot.platformDraftId),
+          ownedDraftExists(workspaceId, input.actorId),
         ),
       )
       .for("update");

@@ -20,13 +20,13 @@ import {
 export async function getPublishingHistory(
   searchParams: PublishingSearchParams,
 ) {
-  await requireSession();
+  const session = await requireSession();
   const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
   const query = normalizePublishingQuery(
     await loadPublishingSearchParams(searchParams),
   );
   return {
-    ...(await readCachedPublishingHistory(workspaceId, query)),
+    ...(await readCachedPublishingHistory(workspaceId, session.user.id, query)),
     query,
     environmentForcedPause: env.PUBLISHING_EMERGENCY_PAUSED,
     installationTimeZone: customerTimeZone,
@@ -35,6 +35,7 @@ export async function getPublishingHistory(
 
 async function readCachedPublishingHistory(
   workspaceId: string,
+  userId: string,
   query: PublishingQuery,
 ) {
   "use cache";
@@ -42,7 +43,7 @@ async function readCachedPublishingHistory(
   cacheLife("minutes");
   const database = rpcDb();
   const [page, control] = await Promise.all([
-    readPublishingHistory(database, workspaceId, query),
+    readPublishingHistory(database, workspaceId, userId, query),
     readPublishingControl(database, workspaceId),
   ]);
   return { page, control };

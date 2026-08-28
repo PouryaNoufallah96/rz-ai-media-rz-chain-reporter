@@ -20,7 +20,7 @@ import {
   type Transaction,
   withWorkspaceContext,
 } from "../executor";
-import { inWorkspace } from "../filters";
+import { inWorkspace, liveInWorkspace } from "../filters";
 import { aiUsageEvent } from "../schema/ai-usage-event";
 import { analysisModelUnit } from "../schema/analysis-model-unit";
 import { analysisRun } from "../schema/analysis-run";
@@ -41,6 +41,7 @@ import { sourceItem } from "../schema/source-item";
 import { sourceItemEnrichment } from "../schema/source-item-enrichment";
 import { sourceItemRevision } from "../schema/source-item-revision";
 import { matchesAppliedCustomerTemplate } from "./customer-template-identity";
+import { ownedDraftExists } from "./draft-origin";
 import {
   claimOperationExecution,
   insertOperationIdentity,
@@ -179,14 +180,23 @@ type CopyGenerationVersionIdentity = Pick<
   | "promptVersion"
 >;
 
+export type CopyCommandPolicy = {
+  fingerprints: Readonly<Record<string, string>>;
+  modelOptionKeys: readonly string[];
+  platforms: readonly {
+    platform: Platform;
+    variantKeys: readonly string[];
+  }[];
+};
+
 export type StartCopyOperationInput = StartCopyOperationBase &
-  CopyGenerationVersionIdentity &
-  (
+  Omit<CopyGenerationVersionIdentity, "brandPolicyFingerprint"> & {
+    copyPolicy: CopyCommandPolicy;
+  } & (
     | {
         mode: "regenerate" | "refresh_article";
         requestedContentLocale: ContentLocale;
         modelOptionKey: string;
-        variantKeys: readonly string[];
       }
     | { mode: "retry_failed" }
   );
@@ -204,38 +214,9 @@ export type StartCopyOperationResult =
         | "operation_in_progress"
         | "no_failed_units"
         | "refresh_not_supported"
-        | "template_drift";
+        | "template_drift"
+        | "validation_failed";
     };
-
-export async function readCopyOperationDraftContext(
-  executor: Executor,
-  workspaceId: string,
-  platformDraftId: string,
-) {
-  const [draft] = await executor
-    .select({
-      brandKey: mediaBrand.key,
-      id: platformDraft.id,
-      mediaBrandId: platformDraft.mediaBrandId,
-      platform: platformDraft.platform,
-    })
-    .from(platformDraft)
-    .innerJoin(
-      mediaBrand,
-      and(
-        inWorkspace(mediaBrand, workspaceId),
-        eq(mediaBrand.id, platformDraft.mediaBrandId),
-      ),
-    )
-    .where(
-      and(
-        inWorkspace(platformDraft, workspaceId),
-        eq(platformDraft.id, platformDraftId),
-        isNull(platformDraft.deletedAt),
-      ),
-    );
-  return draft ?? null;
-}
 
 export async function startCopyOperation(
   executor: Executor,
@@ -270,16 +251,31 @@ export async function startCopyOperation(
     }
 
     const [draft] = await tx
-      .select({ id: platformDraft.id })
+      .select({
+        brandKey: mediaBrand.key,
+        id: platformDraft.id,
+        platform: platformDraft.platform,
+      })
       .from(platformDraft)
+      .innerJoin(
+        mediaBrand,
+        and(
+          liveInWorkspace(mediaBrand, workspaceId),
+          eq(mediaBrand.id, platformDraft.mediaBrandId),
+        ),
+      )
       .where(
         and(
           inWorkspace(platformDraft, workspaceId),
           eq(platformDraft.id, input.platformDraftId),
           isNull(platformDraft.deletedAt),
+          ownedDraftExists(workspaceId, input.actor),
         ),
       );
     if (!draft) return { status: "not_found" };
+
+    const resolved = resolveCopyCommand(draft, input);
+    if (!resolved.ok) return { status: resolved.status };
 
     if (input.mode === "refresh_article") {
       const origin = await loadCopyOrigin(
@@ -321,7 +317,12 @@ export async function startCopyOperation(
         tx,
         workspaceId,
         input.platformDraftId,
-        input,
+        {
+          brandPolicyFingerprint: resolved.fingerprint,
+          configurationVersion: input.configurationVersion,
+          customerTemplateFingerprint: input.customerTemplateFingerprint,
+          promptVersion: input.promptVersion,
+        },
       );
       if (retry.status === "none") {
         return { status: "no_failed_units" };
@@ -331,9 +332,9 @@ export async function startCopyOperation(
       generationInput = {
         requestedContentLocale: input.requestedContentLocale,
         modelOptionKey: input.modelOptionKey,
-        variantKeys: input.variantKeys,
+        variantKeys: resolved.variantKeys,
         customerTemplateFingerprint: input.customerTemplateFingerprint,
-        brandPolicyFingerprint: input.brandPolicyFingerprint,
+        brandPolicyFingerprint: resolved.fingerprint,
         promptVersion: input.promptVersion,
         configurationVersion: input.configurationVersion,
         forceArticleRefresh: input.mode === "refresh_article",
@@ -385,6 +386,37 @@ export async function startCopyOperation(
       lifecycle: created.lifecycle,
     };
   });
+}
+
+function resolveCopyCommand(
+  draft: { brandKey: string; platform: Platform },
+  input: StartCopyOperationInput,
+):
+  | { ok: false; status: "template_drift" | "validation_failed" }
+  | { ok: true; fingerprint: string; variantKeys: readonly string[] } {
+  const fingerprint = input.copyPolicy.fingerprints[draft.brandKey];
+  if (!fingerprint) {
+    return {
+      ok: false,
+      status:
+        input.mode === "retry_failed" ? "template_drift" : "validation_failed",
+    };
+  }
+  if (input.mode === "retry_failed") {
+    return { ok: true, fingerprint, variantKeys: [] };
+  }
+  if (!input.copyPolicy.modelOptionKeys.includes(input.modelOptionKey)) {
+    return { ok: false, status: "validation_failed" };
+  }
+  const platformPolicy = input.copyPolicy.platforms.find(
+    (entry) => entry.platform === draft.platform,
+  );
+  if (!platformPolicy) return { ok: false, status: "validation_failed" };
+  return {
+    ok: true,
+    fingerprint,
+    variantKeys: platformPolicy.variantKeys,
+  };
 }
 
 function operationIdentity(input: StartCopyOperationInput) {

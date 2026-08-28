@@ -16,22 +16,29 @@ import {
 } from "../../schemas/usage";
 
 export async function getUsageView(searchParams: UsageSearchParams) {
-  await requireSession();
+  const session = await requireSession();
   const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
   const query = normalizeUsageQuery(await loadUsageSearchParams(searchParams));
 
-  return { ...(await readCachedUsage(workspaceId, query)), query };
+  return {
+    ...(await readCachedUsage(workspaceId, session.user.id, query)),
+    query,
+  };
 }
 
-async function readCachedUsage(workspaceId: string, query: UsageQuery) {
+async function readCachedUsage(
+  workspaceId: string,
+  userId: string,
+  query: UsageQuery,
+) {
   "use cache";
   cacheTag(usageTags.ledger(workspaceId));
   cacheLife("minutes");
 
   const database = rpcDb();
   const [summary, page] = await Promise.all([
-    readUsageSummary(database, workspaceId, query),
-    readUsagePage(database, workspaceId, query),
+    readUsageSummary(database, workspaceId, userId, query),
+    readUsagePage(database, workspaceId, userId, query),
   ]);
 
   return { page, summary };

@@ -94,9 +94,15 @@ const DUPLICATE_BRAND_ID = "00000000-0000-0000-0000-000000000000";
 export async function readEditorialWorkspace(
   executor: Executor,
   workspaceId: string,
+  userId: string,
   analysisRunId: string,
 ) {
-  const selected = await readRunHead(executor, workspaceId, analysisRunId);
+  const selected = await readRunHead(
+    executor,
+    workspaceId,
+    userId,
+    analysisRunId,
+  );
 
   if (!selected) {
     return { head: null, modelLanes: [], telegramLanes: [] };
@@ -341,6 +347,7 @@ export async function readPlatformDrafts(
     ) latest_image on true
     where draft.workspace_id = ${workspaceId}::uuid
       and draft.deleted_at is null
+      and origin_operation.actor = ${userId}
       and ${selectorSql}
     order by brand.sort_order, draft.platform, draft.lane_position, draft.id
   `);
@@ -716,44 +723,46 @@ async function readPlatformDraftPublishing(
             ),
           )
           .orderBy(desc(approval.approvedAt), desc(approval.id));
-  const destinationRows = await executor
-    .select({
-      mediaBrandId: mediaBrandDestinationAccount.mediaBrandId,
-      id: destinationAccount.id,
-      key: destinationAccount.key,
-      label: sql<string>`coalesce(${destinationAccount.metadata}->>'label', ${destinationAccount.key})`,
-      platform: destinationAccount.platform,
-      enabled: destinationAccount.enabled,
-      bound: sql<boolean>`coalesce(${destinationAccount.bindingPresent}, false)`,
-      bindingCheckedAt: destinationAccount.bindingCheckedAt,
-    })
-    .from(mediaBrandDestinationAccount)
-    .innerJoin(
-      destinationAccount,
-      and(
-        inWorkspace(destinationAccount, workspaceId),
-        eq(
-          destinationAccount.id,
-          mediaBrandDestinationAccount.destinationAccountId,
+  const [destinationRows, controlRows] = await Promise.all([
+    executor
+      .select({
+        mediaBrandId: mediaBrandDestinationAccount.mediaBrandId,
+        id: destinationAccount.id,
+        key: destinationAccount.key,
+        label: sql<string>`coalesce(${destinationAccount.metadata}->>'label', ${destinationAccount.key})`,
+        platform: destinationAccount.platform,
+        enabled: destinationAccount.enabled,
+        bound: sql<boolean>`coalesce(${destinationAccount.bindingPresent}, false)`,
+        bindingCheckedAt: destinationAccount.bindingCheckedAt,
+      })
+      .from(mediaBrandDestinationAccount)
+      .innerJoin(
+        destinationAccount,
+        and(
+          inWorkspace(destinationAccount, workspaceId),
+          eq(
+            destinationAccount.id,
+            mediaBrandDestinationAccount.destinationAccountId,
+          ),
+          isNull(destinationAccount.deletedAt),
         ),
-        isNull(destinationAccount.deletedAt),
-      ),
-    )
-    .where(
-      and(
-        inWorkspace(mediaBrandDestinationAccount, workspaceId),
-        isNull(mediaBrandDestinationAccount.deletedAt),
-        inArray(mediaBrandDestinationAccount.mediaBrandId, brandIds),
-      ),
-    )
-    .orderBy(asc(destinationAccount.key));
-  const controlRows = await executor
-    .select({
-      paused: publishingControl.paused,
-      version: publishingControl.version,
-    })
-    .from(publishingControl)
-    .where(eq(publishingControl.workspaceId, workspaceId));
+      )
+      .where(
+        and(
+          inWorkspace(mediaBrandDestinationAccount, workspaceId),
+          isNull(mediaBrandDestinationAccount.deletedAt),
+          inArray(mediaBrandDestinationAccount.mediaBrandId, brandIds),
+        ),
+      )
+      .orderBy(asc(destinationAccount.key)),
+    executor
+      .select({
+        paused: publishingControl.paused,
+        version: publishingControl.version,
+      })
+      .from(publishingControl)
+      .where(eq(publishingControl.workspaceId, workspaceId)),
+  ]);
   const publicationRows =
     revisionIds.length === 0
       ? []
@@ -983,14 +992,17 @@ export async function readPlatformDraftRunConfiguration(
   executor: Executor,
   workspaceId: string,
   analysisRunId: string,
+  userId: string,
 ): Promise<RunConfiguration | null> {
   const [row] = await executor
     .select({ configuration: analysisRun.configuration })
     .from(analysisRun)
+    .innerJoin(operation, eq(operation.id, analysisRun.operationId))
     .where(
       and(
         inWorkspace(analysisRun, workspaceId),
         eq(analysisRun.id, analysisRunId),
+        eq(operation.actor, userId),
       ),
     );
 
@@ -1046,6 +1058,7 @@ function platformDraftOriginDetails(
 async function readRunHead(
   executor: Executor,
   workspaceId: string,
+  userId: string,
   analysisRunId: string,
 ): Promise<RunHeadRead | null> {
   const latestAttempt = executor
@@ -1150,12 +1163,9 @@ async function readRunHead(
       semanticAnchorCount: analysisRun.semanticAnchorCount,
       semanticModel: semanticUsage.model,
       semanticBackend: semanticUsage.backend,
-      actorId: operation.actor,
-      actorName: user.name,
     })
     .from(analysisRun)
     .innerJoin(operation, eq(operation.id, analysisRun.operationId))
-    .innerJoin(user, eq(user.id, operation.actor))
     .leftJoinLateral(latestAttempt, sql`true`)
     .leftJoinLateral(semanticUsage, sql`true`)
     .leftJoinLateral(requestDispatch, sql`true`)
@@ -1171,6 +1181,7 @@ async function readRunHead(
       and(
         inWorkspace(analysisRun, workspaceId),
         eq(analysisRun.id, analysisRunId),
+        eq(operation.actor, userId),
       ),
     )
     .orderBy(desc(analysisRun.startedAt), desc(analysisRun.id))
@@ -1236,12 +1247,8 @@ async function readRunHead(
 type RunHeadRead = {
   head: Omit<
     RunHead,
-    | "execution"
-    | "mine"
-    | "progress"
-    | "telegramAcquisition"
-    | "templateChanged"
-  > & { actorId: string };
+    "execution" | "progress" | "telegramAcquisition" | "templateChanged"
+  >;
   executionFacts: {
     fanOutPlannedAt: Date | null;
     operationEffectiveAt: Date;
@@ -1704,8 +1711,6 @@ export async function readRunOptions(
   userId: string,
 ): Promise<{
   runs: {
-    actorId: string;
-    actorName: string;
     configuration: RunConfiguration;
     id: string;
     kind: RunOption["kind"];
@@ -1723,14 +1728,13 @@ export async function readRunOptions(
         lifecycle: operation.lifecycle,
         startedAt: analysisRun.startedAt,
         templateFingerprint: analysisRun.templateFingerprint,
-        actorId: operation.actor,
-        actorName: user.name,
         configuration: analysisRun.configuration,
       })
       .from(analysisRun)
       .innerJoin(operation, eq(operation.id, analysisRun.operationId))
-      .innerJoin(user, eq(user.id, operation.actor))
-      .where(inWorkspace(analysisRun, workspaceId))
+      .where(
+        and(inWorkspace(analysisRun, workspaceId), eq(operation.actor, userId)),
+      )
       .orderBy(desc(analysisRun.startedAt), desc(analysisRun.id))
       .limit(RECENT_TOPIC_RUNS),
     readRecentTopics(executor, workspaceId, userId),
@@ -2034,6 +2038,7 @@ function duplicateBranch(
 export async function readRunLifecycle(
   executor: Executor,
   workspaceId: string,
+  userId: string,
   analysisRunId: string,
 ) {
   const [row] = await executor
@@ -2047,6 +2052,7 @@ export async function readRunLifecycle(
       and(
         inWorkspace(analysisRun, workspaceId),
         eq(analysisRun.id, analysisRunId),
+        eq(operation.actor, userId),
       ),
     );
 

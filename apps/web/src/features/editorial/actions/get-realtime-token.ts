@@ -18,7 +18,7 @@ import { readRunLifecycle } from "../db/queries";
 import { analysisRunIdSchema } from "../schemas/workspace";
 
 export async function getEditorialRealtimeTokens(analysisRunId: string) {
-  await requireActionSession();
+  const session = await requireActionSession();
 
   const parsedRunId = analysisRunIdSchema.safeParse(analysisRunId);
   if (!parsedRunId.success) {
@@ -27,8 +27,14 @@ export async function getEditorialRealtimeTokens(analysisRunId: string) {
 
   const database = rpcDb();
   const workspaceId = await resolveInstallationWorkspaceId(database);
+  const run = await readRunLifecycle(
+    database,
+    workspaceId,
+    session.user.id,
+    parsedRunId.data,
+  );
 
-  if (!(await readRunLifecycle(database, workspaceId, parsedRunId.data))) {
+  if (!run) {
     return { status: "unavailable" as const };
   }
 

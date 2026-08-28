@@ -54,7 +54,12 @@ async function readCachedPlatformDrafts(
   cacheLife("minutes");
 
   const [configuration, storedBrands, drafts] = await Promise.all([
-    readPlatformDraftRunConfiguration(rpcDb(), workspaceId, analysisRunId),
+    readPlatformDraftRunConfiguration(
+      rpcDb(),
+      workspaceId,
+      analysisRunId,
+      userId,
+    ),
     readPlatformDraftBrands(rpcDb(), workspaceId),
     readPlatformDrafts(
       rpcDb(),

@@ -17,6 +17,7 @@ import { outboxEvent } from "../schema/outbox-event";
 import { publishOperation } from "../schema/publish-operation";
 import { schedule } from "../schema/schedule";
 import { appendActivityEvent } from "./activity-event";
+import { readLiveDraftRevisionOrigin } from "./draft-origin";
 import { insertOperationIdentity, readOperationIdentity } from "./operation";
 import {
   type PublicationAdmissionFailure,
@@ -101,6 +102,7 @@ export async function createSchedule(
     const scheduleId = randomUUID();
     const operationId = randomUUID();
     const reservation = await reservePublication(tx, workspaceId, {
+      actorId: input.actorId,
       approvalId: input.approvalId,
       destinationAccountId: input.destinationAccountId,
       expectedRevisionVersion: input.expectedRevisionVersion,
@@ -295,6 +297,16 @@ export async function rescheduleSchedule(
       .for("update");
     if (!current) return { status: "version_conflict" };
     if (
+      !(await readLiveDraftRevisionOrigin(
+        tx,
+        workspaceId,
+        input.actorId,
+        current.draftRevisionId,
+      ))
+    ) {
+      return { status: "not_found" };
+    }
+    if (
       current.lifecycle !== "scheduled" &&
       current.lifecycle !== "missed_requires_confirmation"
     ) {
@@ -401,6 +413,7 @@ export async function readMissedSchedule(
   executor: Executor,
   workspaceId: string,
   scheduleId: string,
+  actorId: string,
 ) {
   const [row] = await executor
     .select()
@@ -408,7 +421,15 @@ export async function readMissedSchedule(
     .where(
       and(inWorkspace(schedule, workspaceId), eq(schedule.id, scheduleId)),
     );
-  return row ?? null;
+  if (!row) return null;
+  return (await readLiveDraftRevisionOrigin(
+    executor,
+    workspaceId,
+    actorId,
+    row.draftRevisionId,
+  ))
+    ? row
+    : null;
 }
 
 async function settlePredecessorOperation(
@@ -527,6 +548,19 @@ async function mutateScheduleIdentity(
         .delete(activityEvent)
         .where(eq(activityEvent.id, activity.event.id));
       return { status: "version_conflict" };
+    }
+    if (
+      !(await readLiveDraftRevisionOrigin(
+        tx,
+        workspaceId,
+        input.actorId,
+        current.draftRevisionId,
+      ))
+    ) {
+      await tx
+        .delete(activityEvent)
+        .where(eq(activityEvent.id, activity.event.id));
+      return { status: "not_found" };
     }
     const result = await mutate(tx, current);
     if (result.status === "updated") {

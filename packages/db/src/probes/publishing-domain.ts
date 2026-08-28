@@ -70,6 +70,10 @@ const telegramDraftId = randomUUID();
 const telegramRevisionId = randomUUID();
 const instagramDraftIds = Array.from({ length: 2 }, () => randomUUID());
 const instagramRevisionIds = Array.from({ length: 2 }, () => randomUUID());
+const originOperationId = randomUUID();
+const originRunId = randomUUID();
+const originUnitId = randomUUID();
+const originSelectionId = randomUUID();
 const observed: string[] = [];
 
 await client.connect();
@@ -269,12 +273,11 @@ async function proveActiveRevisionFences() {
     workspaceId,
     otherActorInput,
   );
-  if (
-    !("approval" in otherActorApproval) ||
-    otherActorApproval.approval.id !== approvalId
-  ) {
-    throw new Error("another actor did not reuse the snapshot approval");
-  }
+  assertStatus(
+    otherActorApproval.status,
+    "not_found",
+    "foreign origin approval",
+  );
   const scheduled = await createFutureSchedule(approvalId, "active-fence");
   if (!("schedule" in scheduled) || !scheduled.operationId) {
     throw new Error("active revision schedule missing");
@@ -333,12 +336,11 @@ async function proveActiveRevisionFences() {
     workspaceId,
     otherActorInput,
   );
-  if (
-    otherActorReplay.status !== "replayed" ||
-    otherActorReplay.approval.id !== approvalId
-  ) {
-    throw new Error("another actor's deduplicated approval lost its receipt");
-  }
+  assertStatus(
+    otherActorReplay.status,
+    "not_found",
+    "foreign origin approval replay",
+  );
   const receiptCounts = await client.query<{
     approvals: number;
     receipts: number;
@@ -350,7 +352,7 @@ async function proveActiveRevisionFences() {
   );
   if (
     receiptCounts.rows[0]?.approvals !== 1 ||
-    receiptCounts.rows[0].receipts !== 3
+    receiptCounts.rows[0].receipts !== 2
   ) {
     throw new Error("approval replay or mismatch changed durable receipts");
   }
@@ -477,7 +479,10 @@ async function proveApprovalKeyConcurrency() {
     .map((result) => result.status)
     .sort()
     .join(",");
-  if (statuses !== "created,idempotency_mismatch") {
+  if (
+    statuses !== "created,idempotency_mismatch" &&
+    statuses !== "created,not_found"
+  ) {
     throw new Error(`cross-actor approval key race settled as ${statuses}`);
   }
   const counts = await client.query<{ approvals: number; receipts: number }>(
@@ -1849,6 +1854,43 @@ async function insertFixture() {
     [brandId, workspaceId],
   );
   await client.query(
+    `insert into operation (id, workspace_id, actor, command_type, idempotency_key, request_hash, lifecycle, effective_at, attempt_seq, version, created_at, updated_at)
+     values ($1, $2, $3, 'probe-analysis', 'analysis', 'analysis', 'succeeded', now(), 0, 1, now(), now())`,
+    [originOperationId, workspaceId, actorId],
+  );
+  await client.query(
+    `insert into analysis_run (id, workspace_id, kind, operation_id, configuration, template_fingerprint, semantic_status, started_at, created_at, updated_at)
+     values ($1, $2, 'news', $3, $4::jsonb, 'probe-template', 'skipped', now(), now(), now())`,
+    [
+      originRunId,
+      workspaceId,
+      originOperationId,
+      JSON.stringify({
+        kind: "news",
+        brands: ["probe"],
+        models: ["probe-model"],
+        platforms: ["telegram", "x"],
+        sourceIds: [],
+        windowHours: 24,
+        enrichmentEnabled: true,
+        telegramOnly: false,
+        orderingMode: "views",
+        topN: 10,
+        topics: [],
+      }),
+    ],
+  );
+  await client.query(
+    `insert into analysis_model_unit (id, workspace_id, analysis_run_id, media_brand_id, model_option_key, task_key, status, created_at, updated_at)
+     values ($1, $2, $3, $4, 'probe-model', 'probe', 'succeeded', now(), now())`,
+    [originUnitId, workspaceId, originRunId, brandId],
+  );
+  await client.query(
+    `insert into editorial_selection (id, workspace_id, analysis_model_unit_id, rank, source_item_id, suggested_platform, created_at, updated_at)
+     values ($1, $2, $3, 1, $4, 'x', now(), now())`,
+    [originSelectionId, workspaceId, originUnitId, randomUUID()],
+  );
+  await client.query(
     `insert into destination_account (id, workspace_id, key, platform, enabled, binding_present)
      values ($1, $7, 'x-probe', 'x', true, true),
             ($2, $7, 'x-alternate', 'x', true, true),
@@ -1939,7 +1981,7 @@ async function insertDraft(
     `insert into platform_draft
       (id, workspace_id, media_brand_id, platform, editorial_selection_id, lane_position)
      values ($1, $2, $3, $4, $5, $6)`,
-    [draftId, workspaceId, brandId, platform, randomUUID(), lanePosition],
+    [draftId, workspaceId, brandId, platform, originSelectionId, lanePosition],
   );
   await client.query(
     `insert into draft_revision
@@ -1973,6 +2015,9 @@ async function cleanup() {
     "publishing_control",
     "draft_revision",
     "platform_draft",
+    "editorial_selection",
+    "analysis_model_unit",
+    "analysis_run",
     "media_brand_destination_account",
     "destination_account",
     "media_asset",

@@ -343,8 +343,16 @@ function copyInput(
     requestId: null,
   };
   const versionIdentity = {
-    brandPolicyFingerprint: "probe-brand-policy",
     configurationVersion: "probe-configuration",
+    copyPolicy: {
+      fingerprints: { probe: "probe-brand-policy" },
+      modelOptionKeys: ["probe-model"],
+      platforms: [
+        { platform: "instagram" as const, variantKeys: ["first", "second"] },
+        { platform: "telegram" as const, variantKeys: ["first", "second"] },
+        { platform: "x" as const, variantKeys: ["first", "second"] },
+      ],
+    },
     customerTemplateFingerprint: "probe-template",
     promptVersion: "probe-prompt",
   };
@@ -359,9 +367,8 @@ function copyInput(
     ...base,
     ...versionIdentity,
     mode,
-    requestedContentLocale: "en",
+    requestedContentLocale: "en" as const,
     modelOptionKey: "probe-model",
-    variantKeys: ["first", "second"],
   };
 }
 
@@ -886,6 +893,7 @@ async function proveRevisionSnapshots(input: {
     database.db,
     workspaceId,
     input.draftId,
+    actor,
     input.originalId,
   );
   if (!initial?.active || !initial.expectedRevision) {
@@ -1131,6 +1139,7 @@ async function proveRevisionSnapshots(input: {
     database.db,
     workspaceId,
     input.draftId,
+    actor,
     input.originalId,
   );
   if (
