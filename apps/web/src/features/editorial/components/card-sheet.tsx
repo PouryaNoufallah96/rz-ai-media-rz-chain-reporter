@@ -86,6 +86,7 @@ import {
   FormTextareaField,
   LabeledSelect,
 } from "@/components/form/form-field";
+import { useAssistant } from "@/features/assistant/lib/assistant-context";
 import { createMediaUploadInputSchema } from "@/features/media/schemas/upload";
 import { PublishingTicket } from "@/features/publishing/components/publishing-ticket";
 import publishingEn from "@/features/publishing/messages/en.json";
@@ -136,6 +137,7 @@ export function CardSheet({
   open: boolean;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
+  const assistant = useAssistant();
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [narrow, setNarrow] = useState(false);
   const [pending, setPending] = useState(false);
@@ -165,12 +167,47 @@ export function CardSheet({
     setEditor((current) => acceptRevisionCard(current, incomingCard, dirty));
   }
 
-  // RHF values skips equal seeds; an accepted reload must still discard edits.
+  const publishSheetCard = assistant?.publishSheetCard;
+  const publishLiveCard = () => {
+    if (!publishSheetCard) return;
+    if (!open || !card) {
+      publishSheetCard(null);
+      return;
+    }
+    const current = form.getValues();
+    publishSheetCard({
+      contentLocale: current.contentLocale,
+      copy: current.body,
+      draftId: card.id,
+      headline: current.headline,
+      platform: card.platform,
+    });
+  };
+
   useLayoutEffect(() => {
     if (loadedVersion.current === editor.loadVersion) return;
     form.reset(editor.editorValues, { keepFieldsRef: true });
     loadedVersion.current = editor.loadVersion;
-  }, [editor.editorValues, editor.loadVersion, form]);
+    if (!publishSheetCard) return;
+    if (!open || !card) {
+      publishSheetCard(null);
+      return;
+    }
+    publishSheetCard({
+      contentLocale: editor.editorValues.contentLocale,
+      copy: editor.editorValues.body,
+      draftId: card.id,
+      headline: editor.editorValues.headline,
+      platform: card.platform,
+    });
+  }, [
+    card,
+    editor.editorValues,
+    editor.loadVersion,
+    form,
+    open,
+    publishSheetCard,
+  ]);
 
   const setHashtagDraft = (value: string) => {
     setEditor((current) => ({ ...current, hashtagDraft: value }));
@@ -204,12 +241,18 @@ export function CardSheet({
       setConfirmDiscard(true);
       return;
     }
+    if (!next) publishSheetCard?.(null);
     onOpenChange(next);
   };
 
   return (
     <>
-      <Sheet onOpenChange={requestOpenChange} open={open}>
+      <Sheet
+        disablePointerDismissal
+        modal={false}
+        onOpenChange={requestOpenChange}
+        open={open}
+      >
         <SheetContent
           aria-busy={loading || undefined}
           className="w-full gap-5 max-[599px]:rounded-t-xl sm:w-[min(960px,100vw)] sm:p-5"
@@ -223,6 +266,25 @@ export function CardSheet({
         >
           <SheetHeader className="border-border border-b pe-12 pb-4">
             <SheetTitle>{t("cardSheet.title")}</SheetTitle>
+            {assistant && card ? (
+              <Button
+                className="justify-self-start"
+                onClick={() =>
+                  assistant.askAboutCard({
+                    contentLocale: values.contentLocale,
+                    copy: values.body,
+                    draftId: card.id,
+                    headline: values.headline,
+                    platform: card.platform,
+                  })
+                }
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                {assistant.askAboutCardLabel}
+              </Button>
+            ) : null}
             <SheetDescription aria-live="polite">
               {loading
                 ? t("cardSheet.loading")
@@ -247,6 +309,7 @@ export function CardSheet({
                 form={form}
                 hashtagDraft={hashtagDraft}
                 onAcceptCard={acceptCard}
+                onEditorChange={publishLiveCard}
                 onHashtagDraftChange={setHashtagDraft}
                 onPendingChange={setPending}
                 onResetEditor={resetEditor}
@@ -261,7 +324,10 @@ export function CardSheet({
               </p>
               <Button
                 className="justify-self-start"
-                onClick={() => onOpenChange(false)}
+                onClick={() => {
+                  publishSheetCard?.(null);
+                  onOpenChange(false);
+                }}
                 type="button"
                 variant="outline"
               >
@@ -280,6 +346,7 @@ export function CardSheet({
           setEditor((current) =>
             acceptRevisionCard(current, current.card, false),
           );
+          publishSheetCard?.(null);
           onOpenChange(false);
         }}
         onOpenChange={setConfirmDiscard}
@@ -488,6 +555,7 @@ type CardSheetBodyProps = {
   form: UseFormReturn<DraftEditorInput>;
   hashtagDraft: string;
   onAcceptCard: (card: PlatformDraftCard) => void;
+  onEditorChange: () => void;
   onHashtagDraftChange: (value: string) => void;
   onPendingChange: (pending: boolean) => void;
   onResetEditor: (revisionVersion: number, merged?: DraftEditorInput) => void;
@@ -822,6 +890,7 @@ function CardSheetBody(props: CardSheetBodyProps) {
             form={form}
             hashtagDraft={hashtagDraft}
             isSubmitting={isSubmitting}
+            onEditorChange={props.onEditorChange}
             onHashtagDraftChange={onHashtagDraftChange}
             platform={card.platform}
             onSubmit={submit}
@@ -1974,6 +2043,7 @@ function RevisionEditor({
   form,
   hashtagDraft,
   isSubmitting,
+  onEditorChange,
   onHashtagDraftChange,
   onSubmit,
   platform,
@@ -1987,6 +2057,7 @@ function RevisionEditor({
   disabled: boolean;
   hashtagDraft: string;
   isSubmitting: boolean;
+  onEditorChange: () => void;
   onHashtagDraftChange: (value: string) => void;
   active: Revision | null;
   platform: Platform;
@@ -2023,6 +2094,7 @@ function RevisionEditor({
         <form
           aria-busy={updatePending}
           className="grid gap-4 rounded-xl border border-border bg-card p-4"
+          onChange={onEditorChange}
           onSubmit={onSubmit}
         >
           <fieldset disabled={updatePending || disabled}>
@@ -2054,6 +2126,7 @@ function RevisionEditor({
                 control={form.control}
                 label={t("cardSheet.editor.locale")}
                 name="contentLocale"
+                onValueChange={() => onEditorChange()}
                 options={[
                   { label: t("route.localeEn"), value: "en" },
                   { label: t("route.localeFa"), value: "fa" },

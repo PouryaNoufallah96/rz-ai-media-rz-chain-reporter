@@ -3,6 +3,8 @@ import { cacheLife } from "next/cache";
 
 import accountEn from "@/features/account/messages/en.json";
 import accountFa from "@/features/account/messages/fa.json";
+import assistantEn from "@/features/assistant/messages/en.json";
+import assistantFa from "@/features/assistant/messages/fa.json";
 import authEn from "@/features/auth/messages/en.json";
 import authFa from "@/features/auth/messages/fa.json";
 import editorialEn from "@/features/editorial/messages/en.json";
@@ -25,6 +27,7 @@ import usageFa from "@/features/usage/messages/fa.json";
 const CATALOGS = {
   en: {
     ...accountEn,
+    ...assistantEn,
     ...sharedEn,
     ...authEn,
     ...editorialEn,
@@ -37,6 +40,7 @@ const CATALOGS = {
   },
   fa: {
     ...accountFa,
+    ...assistantFa,
     ...sharedFa,
     ...authFa,
     ...editorialFa,

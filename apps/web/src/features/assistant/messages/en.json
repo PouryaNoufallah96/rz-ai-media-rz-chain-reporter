@@ -1,0 +1,57 @@
+{
+  "assistant": {
+    "fab": {
+      "label": "Open the workspace assistant"
+    },
+    "panel": {
+      "title": "Workspace assistant",
+      "description": "Ask about this workspace, your media brands, or the open card.",
+      "close": "Close the assistant"
+    },
+    "starters": {
+      "run": "What is in the current run?",
+      "brands": "Which media brands are selected?",
+      "publish": "How do I publish to Telegram?"
+    },
+    "card": {
+      "untitled": "Untitled card",
+      "dismiss": "Remove the pinned card",
+      "truncated": "Long text was shortened for the assistant."
+    },
+    "scroller": {
+      "toLatest": "Scroll to the latest message"
+    },
+    "status": {
+      "ready": "The assistant is ready.",
+      "submitted": "The assistant is preparing an answer.",
+      "streaming": "The assistant is answering.",
+      "error": "The assistant could not answer. Try again."
+    },
+    "fallback": "I do not have an answer for that in this workspace. Ask about this run, the open card, or one of your media brands.",
+    "askUser": {
+      "progress": "Question {current} of {total}",
+      "brand": {
+        "title": "Which media brand is this about?",
+        "error": "Pick a brand to continue."
+      },
+      "detail": {
+        "title": "Anything more specific?",
+        "description": "Optional. Add a detail and the assistant will answer that instead.",
+        "placeholder": "For example: its tone on Telegram"
+      },
+      "previous": "Back",
+      "skip": "Skip",
+      "next": "Next",
+      "submit": "Continue"
+    },
+    "composer": {
+      "label": "Your question",
+      "placeholder": "Ask a question",
+      "counter": "{length}/{limit}",
+      "send": "Send",
+      "stop": "Stop",
+      "clear": "Clear"
+    },
+    "askAboutCard": "Ask assistant"
+  }
+}

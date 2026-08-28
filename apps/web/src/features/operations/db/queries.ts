@@ -4,12 +4,15 @@ import {
   type AttemptOutcome,
   type OperationLifecycle,
   operationCommandKind,
+  SOURCE_IMPORT_COMMAND_PREFIX,
   type UsageStatus,
 } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import { inWorkspace } from "@rz-chain-reporter/db/filters";
 import { sourceImportProgress } from "@rz-chain-reporter/db/repositories/source-import";
+import { like } from "drizzle-orm";
 
+import { ASSISTANT_SYNTHESIS_COMMAND_TYPE } from "@/features/assistant/constants";
 import { RECENT_TERMINAL_WINDOW_MS } from "../constants";
 import type { OperationSummary } from "../schemas/operation-summary";
 
@@ -37,6 +40,7 @@ const USAGE_OUTCOME: Record<UsageStatus, AttemptOutcome | null> = {
 export async function listRecentOperations(
   executor: Executor,
   workspaceId: string,
+  actorId: string,
   focusedOperationId?: string,
 ): Promise<OperationSummary[]> {
   const settledSince = new Date(Date.now() - RECENT_TERMINAL_WINDOW_MS);
@@ -70,9 +74,16 @@ export async function listRecentOperations(
         columns: { failureCode: true, id: true },
       },
     },
-    where: (operation, { and, eq, gte, notInArray, or }) =>
+    // Request-bound assistant synthesis reports through Usage, not this panel.
+    // Source import is workspace-shared; every other operation is the actor's.
+    where: (operation, { and, eq, gte, ne, notInArray, or }) =>
       and(
         inWorkspace(operation, workspaceId),
+        ne(operation.commandType, ASSISTANT_SYNTHESIS_COMMAND_TYPE),
+        or(
+          eq(operation.actor, actorId),
+          like(operation.commandType, `${SOURCE_IMPORT_COMMAND_PREFIX}%`),
+        ),
         or(
           notInArray(operation.lifecycle, TERMINAL_LIFECYCLES),
           gte(operation.updatedAt, settledSince),

@@ -17,6 +17,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@ai-sdk/react": "catalog:",
     "@dnd-kit/dom": "catalog:",
     "@dnd-kit/react": "catalog:",
     "@hookform/resolvers": "catalog:",
@@ -33,12 +34,14 @@
     "@rz-chain-reporter/db": "workspace:*",
     "@rz-chain-reporter/env": "workspace:*",
     "@rz-chain-reporter/i18n": "workspace:*",
+    "@rz-chain-reporter/model-gateway": "workspace:*",
     "@rz-chain-reporter/storage": "workspace:*",
     "@rz-chain-reporter/ui": "workspace:*",
     "@sentry/nextjs": "catalog:",
     "@swc/helpers": "0.5.23",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-table": "catalog:",
+    "ai": "catalog:",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "drizzle-orm": "catalog:",

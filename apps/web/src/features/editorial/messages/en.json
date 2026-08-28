@@ -266,9 +266,8 @@
       "selector": {
         "label": "Run",
         "latest": "Choose a run",
-        "option": "{kind} · {actor} · {time}",
+        "option": "{kind} · {time}",
         "viewing": "Viewing a historical run.",
-        "you": "You",
         "recent": "Recent runs"
       },
       "templateChanged": {
@@ -445,7 +444,9 @@
       "board": {
         "zone": "Board",
         "noBrands": "Select a media brand to open its rail.",
-        "rail": "{brand} content rail"
+        "rail": "{brand} content rail",
+        "railPrevious": "Scroll {brand} rail toward the start",
+        "railNext": "Scroll {brand} rail toward the end"
       },
       "model": {
         "title": "{model} · {brand}",
