@@ -5,7 +5,7 @@ import {
   CustomerTemplateError,
   loadCustomerTemplate,
 } from "@rz-chain-reporter/customer-template/load";
-import { validateMigrationEnv } from "@rz-chain-reporter/env/migration";
+import { validateReconcileEnv } from "@rz-chain-reporter/env/migration";
 import dotenv from "dotenv";
 
 import { createDb } from "../index";
@@ -16,7 +16,7 @@ const EXIT_FAILURE = 1;
 const EXIT_DIVERGENT = 2;
 
 dotenv.config({
-  path: "../../.env.migration",
+  path: "../../.env",
 });
 
 const unknownArguments = process.argv
@@ -31,7 +31,7 @@ if (unknownArguments.length > 0) {
 }
 
 const mode = process.argv.includes("--check") ? "check" : "apply";
-const migrationEnv = validateMigrationEnv(process.env);
+const reconcileEnv = validateReconcileEnv(process.env);
 const customerTemplateKey = process.env.CUSTOMER_TEMPLATE_KEY;
 
 if (!customerTemplateKey) {
@@ -42,7 +42,7 @@ if (!customerTemplateKey) {
 }
 
 const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url));
-const database = createDb(migrationEnv.MIGRATION_DATABASE_URL);
+const database = createDb(reconcileEnv.DATABASE_URL);
 let exitCode = 0;
 
 try {
@@ -54,8 +54,8 @@ try {
   if (report.workspaceId && report.appliedAt) {
     console.log(
       `cache invalidation ${await notifyCacheInvalidation({
-        baseUrl: migrationEnv.WEB_INTERNAL_BASE_URL,
-        secret: migrationEnv.CACHE_INVALIDATION_WEBHOOK_SECRET,
+        baseUrl: reconcileEnv.WEB_INTERNAL_BASE_URL,
+        secret: reconcileEnv.CACHE_INVALIDATION_WEBHOOK_SECRET,
         tags: [
           workspaceCacheTag(report.workspaceId, "installation"),
           workspaceCacheTag(report.workspaceId, "sources"),

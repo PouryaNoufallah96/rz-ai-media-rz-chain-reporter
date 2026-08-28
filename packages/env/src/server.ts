@@ -24,6 +24,7 @@ export const env = createEnv({
     APP_URL: httpOrigin,
     INNGEST_DEV: inngestDev,
     INNGEST_SIGNING_KEY: z.string().min(1).optional(),
+    OPENROUTER_API_KEY: z.string().min(1).optional(),
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),

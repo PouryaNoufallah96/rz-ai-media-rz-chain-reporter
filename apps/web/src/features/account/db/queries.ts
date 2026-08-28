@@ -1,9 +1,20 @@
 import "server-only";
 
 import type { Executor } from "@rz-chain-reporter/db/executor";
+import { ownedDraftExists } from "@rz-chain-reporter/db/repositories/draft-origin";
 import { sql } from "drizzle-orm";
+import type {
+  HistoryCursor,
+  KeysetPage,
+} from "@/features/publishing/schemas/history";
+import { encodeKeysetCursor } from "@/features/shared/lib/keyset-cursor";
 
-import type { AccountSummary, ActivityHistoryRow } from "../schemas/account";
+import { ACCOUNT_AUDIT_PAGE_SIZE } from "../constants";
+import type {
+  AccountSummary,
+  ActivityHistoryRow,
+  ActivityLedgerRow,
+} from "../schemas/account";
 
 export async function readAccountSummary(
   executor: Executor,
@@ -16,6 +27,7 @@ export async function readAccountSummary(
       from platform_draft draft
       where draft.workspace_id = ${workspaceId}::uuid
         and draft.deleted_at is null
+        and ${ownedDraftExists(workspaceId, userId, sql`draft.id`)}
       group by draft.media_brand_id
     ), scheduled_by_brand as (
       select draft.media_brand_id as "mediaBrandId", count(*)::integer as count
@@ -28,6 +40,7 @@ export async function readAccountSummary(
         and draft.workspace_id = scheduled.workspace_id
       where scheduled.workspace_id = ${workspaceId}::uuid
         and scheduled.lifecycle = 'scheduled'
+        and ${ownedDraftExists(workspaceId, userId, sql`draft.id`)}
       group by draft.media_brand_id
     ), saved_by_brand as (
       select draft.media_brand_id as "mediaBrandId", count(*)::integer as count
@@ -133,4 +146,77 @@ export async function readActivityHistory(
   `);
 
   return result.rows;
+}
+
+export async function readActivityLedger(
+  executor: Executor,
+  workspaceId: string,
+  userId: string,
+  cursor: HistoryCursor | null,
+): Promise<KeysetPage<ActivityLedgerRow>> {
+  const older = (cursor?.direction ?? "older") === "older";
+  const bound = cursor
+    ? older
+      ? sql`and (event.occurred_at, event.id) < (${cursor.occurredAt}::timestamptz, ${cursor.id}::uuid)`
+      : sql`and (event.occurred_at, event.id) > (${cursor.occurredAt}::timestamptz, ${cursor.id}::uuid)`
+    : sql``;
+  const direction = older ? sql`desc nulls last` : sql`asc nulls first`;
+  const result = await executor.execute<
+    ActivityLedgerRow & { cursorOccurredAt: string }
+  >(sql`
+    select event.id,
+      event.event_type as "eventType",
+      event.occurred_at as "occurredAt",
+      to_char(event.occurred_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as "cursorOccurredAt",
+      actor.name as "actorName",
+      actor.email as "actorEmail",
+      case
+        when event.platform_draft_id is not null then 'draft'
+        when event.saved_card_id is not null then 'savedCard'
+        when event.approval_id is not null then 'approval'
+        when event.schedule_id is not null then 'schedule'
+        when event.publication_id is not null then 'publication'
+        when event.operation_id is not null then 'operation'
+        else 'installation'
+      end as "recordKind",
+      coalesce(
+        event.platform_draft_id,
+        event.saved_card_id,
+        event.approval_id,
+        event.schedule_id,
+        event.publication_id,
+        event.operation_id,
+        event.workspace_id
+      ) as "recordId"
+    from activity_event event
+    left join "user" actor on actor.id = event.actor_id
+    where event.workspace_id = ${workspaceId}::uuid
+      and event.actor_id = ${userId}
+      ${bound}
+    order by event.occurred_at ${direction}, event.id ${direction}
+    limit ${ACCOUNT_AUDIT_PAGE_SIZE + 1}
+  `);
+
+  const hasExtra = result.rows.length > ACCOUNT_AUDIT_PAGE_SIZE;
+  const bounded = result.rows.slice(0, ACCOUNT_AUDIT_PAGE_SIZE);
+  const ordered = older ? bounded : bounded.toReversed();
+  const first = ordered[0];
+  const last = ordered.at(-1);
+  const make = (
+    row: ActivityLedgerRow & { cursorOccurredAt: string },
+    nextDirection: HistoryCursor["direction"],
+  ) =>
+    encodeKeysetCursor({
+      direction: nextDirection,
+      occurredAt: row.cursorOccurredAt,
+      id: row.id,
+    } satisfies HistoryCursor);
+
+  return {
+    rows: ordered.map(({ cursorOccurredAt: _cursor, ...row }) => row),
+    olderCursor: last && (!older || hasExtra) ? make(last, "older") : null,
+    newerCursor:
+      first && cursor && (older || hasExtra) ? make(first, "newer") : null,
+    offLatest: cursor !== null,
+  };
 }

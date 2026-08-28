@@ -1,0 +1,214 @@
+name: chainreporter-platform
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:18
+    env_file:
+      - ${ENV_DIR:?set ENV_DIR}/postgres.env
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 384m
+    logging: *logging
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    env_file:
+      - ${ENV_DIR:?set ENV_DIR}/minio.env
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 384m
+    logging: *logging
+    restart: unless-stopped
+
+  minio-init:
+    profiles: ["bootstrap"]
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file:
+      - ${ENV_DIR:?set ENV_DIR}/minio.env
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        mc alias set platform http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" &&
+        mc mb --ignore-existing "platform/$$S3_BUCKET" &&
+        mc anonymous set none "platform/$$S3_BUCKET"
+    logging: *logging
+    restart: "no"
+
+  migrate:
+    profiles: ["ops"]
+    image: ${IMAGE_PREFIX:?set IMAGE_PREFIX}/db-ops:${APP_VERSION:?set APP_VERSION}
+    build:
+      context: ..
+      dockerfile: packages/db/Dockerfile
+      args:
+        CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY:?set CUSTOMER_TEMPLATE_KEY}
+    command: ["pnpm", "--dir", "packages/db", "run", "db:migrate"]
+    env_file:
+      - ${ENV_DIR:?set ENV_DIR}/migrate.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+    restart: "no"
+
+  reconcile:
+    profiles: ["ops"]
+    image: ${IMAGE_PREFIX:?set IMAGE_PREFIX}/db-ops:${APP_VERSION:?set APP_VERSION}
+    command: ["pnpm", "--dir", "packages/db", "run", "template:reconcile"]
+    env_file:
+      - ${ENV_DIR:?set ENV_DIR}/reconcile.env
+    environment:
+      CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY:?set CUSTOMER_TEMPLATE_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+    restart: "no"
+
+  bindings:
+    profiles: ["ops"]
+    image: ${IMAGE_PREFIX:?set IMAGE_PREFIX}/worker:${APP_VERSION:?set APP_VERSION}
+    entrypoint: ["node"]
+    command: ["dist/bindings-record.js"]
+    env_file:
+      - ${ENV_DIR:?set ENV_DIR}/worker.env
+    environment:
+      WORKER_MODE: health-only
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+    restart: "no"
+
+  admin:
+    profiles: ["ops"]
+    image: ${IMAGE_PREFIX:?set IMAGE_PREFIX}/web-admin:${APP_VERSION:?set APP_VERSION}
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      target: builder
+      args:
+        CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY:?set CUSTOMER_TEMPLATE_KEY}
+      secrets:
+        - web_build
+    stdin_open: true
+    tty: true
+    command: ["pnpm", "--dir", "apps/web", "run", "operator:create", "${OPERATOR_EMAIL:-}", "${OPERATOR_NAME:-Operator}"]
+    env_file:
+      - ${ENV_DIR:?set ENV_DIR}/web.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+    restart: "no"
+
+  web:
+    image: ${IMAGE_PREFIX:?set IMAGE_PREFIX}/web:${APP_VERSION:?set APP_VERSION}
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY:?set CUSTOMER_TEMPLATE_KEY}
+      secrets:
+        - web_build
+    init: true
+    ports:
+      - "127.0.0.1:3100:3001"
+    env_file:
+      - ${ENV_DIR:?set ENV_DIR}/web.env
+    environment:
+      NODE_ENV: production
+      CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY:?set CUSTOMER_TEMPLATE_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3001/api/health/ready').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: 512m
+    logging: *logging
+    restart: unless-stopped
+
+  worker:
+    image: ${IMAGE_PREFIX:?set IMAGE_PREFIX}/worker:${APP_VERSION:?set APP_VERSION}
+    build:
+      context: ..
+      dockerfile: apps/worker/Dockerfile
+      args:
+        CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY:?set CUSTOMER_TEMPLATE_KEY}
+    init: true
+    ports:
+      - "127.0.0.1:3101:3002"
+    env_file:
+      - ${ENV_DIR:?set ENV_DIR}/worker.env
+    environment:
+      NODE_ENV: production
+      CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY:?set CUSTOMER_TEMPLATE_KEY}
+      APP_VERSION: ${APP_VERSION:?set APP_VERSION}
+      WORKER_MODE: durable
+      WORKER_HEALTH_PORT: "3002"
+      INNGEST_CONNECT_MAX_WORKER_CONCURRENCY: "3"
+      WEB_INTERNAL_BASE_URL: http://web:3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3002/health/ready').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: 896m
+    logging: *logging
+    restart: unless-stopped
+
+secrets:
+  web_build:
+    file: ${BUILD_SECRET_FILE:?set BUILD_SECRET_FILE}
+
+volumes:
+  postgres_data:
+  minio_data:

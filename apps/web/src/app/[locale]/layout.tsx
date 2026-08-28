@@ -14,6 +14,7 @@ import "@/index.css";
 import { Footer } from "@/components/layout/footer";
 import Header from "@/components/layout/header";
 import Providers from "@/components/providers";
+import { AssistantScope } from "@/features/assistant/components/assistant-scope";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
 import { Localized } from "@/i18n/client";
 import { getT } from "@/i18n/server";
@@ -74,11 +75,13 @@ export default async function RootLayout({
     >
       <body className="min-w-0 antialiased">
         <Providers locale={locale} timeZone={customerTimeZone}>
-          <div className="grid min-h-svh min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
-            <Header />
-            <Localized namespaces={[SHARED_NAMESPACE]}>{children}</Localized>
-            <Footer />
-          </div>
+          <AssistantScope>
+            <div className="grid min-h-svh min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
+              <Header />
+              <Localized namespaces={[SHARED_NAMESPACE]}>{children}</Localized>
+              <Footer />
+            </div>
+          </AssistantScope>
         </Providers>
       </body>
     </html>

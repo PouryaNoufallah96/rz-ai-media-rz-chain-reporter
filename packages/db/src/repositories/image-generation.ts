@@ -53,6 +53,7 @@ import {
   type BoundCopySourceInput,
   loadBoundCopyGenerationSourceInput,
 } from "./copy-generation";
+import { ownedDraftExists } from "./draft-origin";
 import {
   insertOperationIdentity,
   readOperationIdentity,
@@ -148,6 +149,7 @@ export async function startImageGeneration(
         and(
           liveInWorkspace(platformDraft, workspaceId),
           eq(platformDraft.id, revision.platformDraftId),
+          ownedDraftExists(workspaceId, input.actor),
         ),
       )
       .for("update");

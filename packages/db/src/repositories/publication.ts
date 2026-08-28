@@ -53,6 +53,7 @@ import { sourceItem } from "../schema/source-item";
 import { sourceItemRevision } from "../schema/source-item-revision";
 import { appendActivityEvent } from "./activity-event";
 import { readActionableApproval } from "./approval";
+import { ownedDraftExists, readLiveDraftRevisionOrigin } from "./draft-origin";
 import { insertOperationIdentity, readOperationIdentity } from "./operation";
 import { allocateOperationAttemptInTransaction } from "./operation-attempt";
 
@@ -65,6 +66,7 @@ export type PublicationAdmissionFailure =
   | "destination_not_mapped"
   | "destination_unbound"
   | "idempotency_mismatch"
+  | "not_found"
   | "publication_already_claimed"
   | "publication_already_confirmed"
   | "publication_reconciliation_required"
@@ -149,6 +151,7 @@ export async function admitDirectPublication(
       input.approvalId,
       input.destinationAccountId,
       expectedRevisionVersion,
+      input.actorId,
     );
     if (!admission) return { status: "approval_required" };
     if (admission.status !== "ready") return { status: admission.status };
@@ -258,6 +261,7 @@ export async function reservePublication(
   tx: Transaction,
   workspaceId: string,
   input: {
+    actorId: string;
     approvalId: string;
     destinationAccountId: string;
     expectedRevisionVersion: number;
@@ -270,6 +274,7 @@ export async function reservePublication(
     input.approvalId,
     input.destinationAccountId,
     input.expectedRevisionVersion,
+    input.actorId,
   );
   if (!admission) return { status: "approval_required" } as const;
   if (admission.status !== "ready")
@@ -1618,6 +1623,16 @@ export async function requestPublicationReconciliation(
         : { status: "idempotency_mismatch" };
     }
     if (
+      !(await readLiveDraftRevisionOrigin(
+        tx,
+        workspaceId,
+        input.actorId,
+        current.draftRevisionId,
+      ))
+    ) {
+      return { status: "not_found" };
+    }
+    if (
       current.lifecycle !== "delivery_unknown" ||
       current.unresolvedAttemptId !== input.ambiguousAttemptId
     ) {
@@ -1769,6 +1784,17 @@ export async function recordPublicationReconciliation(
       current.activeOperationId !== target.activeOperationId
     ) {
       return { status: "version_conflict" as const };
+    }
+    if (
+      input.actorId &&
+      !(await readLiveDraftRevisionOrigin(
+        tx,
+        workspaceId,
+        input.actorId,
+        current.draftRevisionId,
+      ))
+    ) {
+      return { status: "not_found" as const };
     }
     if (
       (input.authority === "provider" && current.platform === "telegram") ||
@@ -2396,6 +2422,7 @@ async function loadAdmissionContext(
   approvalId: string,
   destinationAccountId: string,
   expectedRevisionVersion: number | null,
+  actorId: string,
 ) {
   const actionable = await readActionableApproval(tx, workspaceId, approvalId);
   if (!actionable) return null;
@@ -2410,16 +2437,29 @@ async function loadAdmissionContext(
         and(
           liveInWorkspace(platformDraft, workspaceId),
           eq(platformDraft.id, actionable.platformDraftId),
+          ownedDraftExists(workspaceId, actorId),
         ),
       )
       .for("update");
+    if (!draft) return { status: "not_found" as const };
     if (
-      !draft ||
       draft.activeRevisionId !== actionable.approval.draftRevisionId ||
       draft.revisionVersion !== expectedRevisionVersion
     ) {
       return { status: "approval_snapshot_stale" as const };
     }
+  } else {
+    const [owned] = await tx
+      .select({ id: platformDraft.id })
+      .from(platformDraft)
+      .where(
+        and(
+          liveInWorkspace(platformDraft, workspaceId),
+          eq(platformDraft.id, actionable.platformDraftId),
+          ownedDraftExists(workspaceId, actorId),
+        ),
+      );
+    if (!owned) return { status: "not_found" as const };
   }
   const [control] = await tx
     .select({ paused: publishingControl.paused })

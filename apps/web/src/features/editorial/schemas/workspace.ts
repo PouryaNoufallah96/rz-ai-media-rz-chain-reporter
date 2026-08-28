@@ -138,8 +138,6 @@ export type RunHead = {
   configuration: RunConfiguration;
   templateFingerprint: string;
   templateChanged: boolean;
-  actorName: string;
-  mine: boolean;
   sourceImportId: string | null;
   sourceImportBinding: SourceImportBinding | null;
   startedAt: Date;
@@ -158,8 +156,6 @@ export type RunOption = {
   lifecycle: OperationLifecycle;
   startedAt: Date;
   templateFingerprint: string;
-  actorName: string;
-  mine: boolean;
 };
 
 export type SelectionCard = {

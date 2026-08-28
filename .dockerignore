@@ -2,6 +2,7 @@
 .git
 **/.*
 **/*.md
+!customer-templates/**/*.md
 docs
 
 **/dist

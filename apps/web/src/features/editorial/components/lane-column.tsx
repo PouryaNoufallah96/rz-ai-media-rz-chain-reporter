@@ -32,7 +32,11 @@ const UNIT_MARK: Record<ModelUnitStatus, StateMarkState> = {
   cancelled: "cancelled",
 };
 
-const SKELETON_BARS = [0, 1, 2];
+const SKELETON_BARS = [
+  "[animation-delay:0s]",
+  "[animation-delay:-0.8s]",
+  "[animation-delay:-1.6s]",
+];
 
 export type ModelSlot = {
   brandKey: string;
@@ -282,8 +286,8 @@ function LaneSkeleton() {
       <span className="sr-only" role="status">
         {t("table.loading")}
       </span>
-      {SKELETON_BARS.map((bar) => (
-        <Skeleton className="h-12 w-full" key={bar} />
+      {SKELETON_BARS.map((delay) => (
+        <Skeleton className={cn("h-12 w-full", delay)} key={delay} />
       ))}
     </div>
   );

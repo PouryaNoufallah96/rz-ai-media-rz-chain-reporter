@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "customer": {
     "key": "crypto",
     "productName": "RZ ChainReporter",
@@ -92,7 +92,7 @@
       },
       "editorial-selection:deepseek": {
         "backend": "remote",
-        "model": "deepseek/deepseek-chat",
+        "model": "deepseek/deepseek-v4-flash",
         "fallback": {
           "backend": "remote",
           "model": "openai/gpt-4o-mini"
@@ -100,11 +100,11 @@
       },
       "promo-ideas:deepseek": {
         "backend": "remote",
-        "model": "deepseek/deepseek-chat"
+        "model": "deepseek/deepseek-v4-flash"
       },
       "copy-generation:deepseek": {
         "backend": "remote",
-        "model": "deepseek/deepseek-chat",
+        "model": "deepseek/deepseek-v4-flash",
         "fallback": {
           "backend": "remote",
           "model": "openai/gpt-4o-mini"
@@ -157,6 +157,10 @@
           "backend": "remote",
           "model": "openai/gpt-5.4-image-2"
         }
+      },
+      "assistant-synthesis": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini"
       }
     }
   },
@@ -2412,7 +2416,7 @@
   },
   "enrichment": {
     "enabled": true,
-    "maxItemsPerImport": 20,
+    "maxItemsPerImport": 8,
     "freshnessHours": 24
   },
   "destinationAccounts": [
@@ -2467,5 +2471,33 @@
       "brandKey": "meta-coin-guard",
       "destinationKey": "chainreporter-x"
     }
-  ]
+  ],
+  "reviewedKnowledge": {
+    "faq": {
+      "en": "reviewed-knowledge/en/faq.json",
+      "fa": "reviewed-knowledge/fa/faq.json"
+    },
+    "workspaceOverview": {
+      "en": "reviewed-knowledge/en/workspace-overview.md",
+      "fa": "reviewed-knowledge/fa/workspace-overview.md"
+    },
+    "brandChat": {
+      "rz-prime": {
+        "en": "reviewed-knowledge/en/brands/rz-prime.md",
+        "fa": "reviewed-knowledge/fa/brands/rz-prime.md"
+      },
+      "coin-hall": {
+        "en": "reviewed-knowledge/en/brands/coin-hall.md",
+        "fa": "reviewed-knowledge/fa/brands/coin-hall.md"
+      },
+      "chain-reporter": {
+        "en": "reviewed-knowledge/en/brands/chain-reporter.md",
+        "fa": "reviewed-knowledge/fa/brands/chain-reporter.md"
+      },
+      "meta-coin-guard": {
+        "en": "reviewed-knowledge/en/brands/meta-coin-guard.md",
+        "fa": "reviewed-knowledge/fa/brands/meta-coin-guard.md"
+      }
+    }
+  }
 }

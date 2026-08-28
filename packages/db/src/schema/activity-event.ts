@@ -89,5 +89,10 @@ export const activityEvent = pgTable(
       t.occurredAt.desc(),
       t.id.desc(),
     ),
+    index("ix_activity_event_workspace_occurred_id").on(
+      t.workspaceId,
+      t.occurredAt.desc(),
+      t.id.desc(),
+    ),
   ],
 );

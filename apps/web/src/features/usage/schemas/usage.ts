@@ -103,7 +103,7 @@ export const usagePageSchema = z.object({
 export type UsagePage = z.infer<typeof usagePageSchema>;
 
 export const usageSummarySchema = z.object({
-  installationInvocations: z.number().int().nonnegative(),
+  recordedInvocations: z.number().int().nonnegative(),
   invocations: z.number().int().nonnegative(),
   totalTokens: z.number().int().nonnegative(),
   recordedCost: z.string(),

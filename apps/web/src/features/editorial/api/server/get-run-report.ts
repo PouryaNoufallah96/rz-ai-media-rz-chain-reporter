@@ -9,7 +9,11 @@ import { rpcDb } from "@/server/rpc/db";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 
 import { editorialTags } from "../../db/cache/tags";
-import { readRunFilters, readRunReportPage } from "../../db/queries";
+import {
+  readRunFilters,
+  readRunLifecycle,
+  readRunReportPage,
+} from "../../db/queries";
 import {
   loadReportSearchParams,
   normalizeReportQuery,
@@ -22,14 +26,19 @@ export async function getRunReport(
   analysisRunId: string,
   searchParams: ReportSearchParams,
 ): Promise<RunReport> {
-  await requireSession();
+  const session = await requireSession();
   const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
   const query = normalizeReportQuery(
     await loadReportSearchParams(searchParams),
   );
 
   return {
-    ...(await readCachedRunReport(workspaceId, analysisRunId, query)),
+    ...(await readCachedRunReport(
+      workspaceId,
+      session.user.id,
+      analysisRunId,
+      query,
+    )),
     thresholds: customerEditorial.thresholds,
     query,
     readAt: new Date(),
@@ -38,6 +47,7 @@ export async function getRunReport(
 
 async function readCachedRunReport(
   workspaceId: string,
+  userId: string,
   analysisRunId: string,
   query: ReportQuery,
 ) {
@@ -46,6 +56,25 @@ async function readCachedRunReport(
   cacheLife("minutes");
 
   const database = rpcDb();
+  const run = await readRunLifecycle(
+    database,
+    workspaceId,
+    userId,
+    analysisRunId,
+  );
+  if (!run) {
+    return {
+      page: {
+        rows: [],
+        nextCursor: null,
+        previousCursor: null,
+        offFirst: false,
+      },
+      funnels: null,
+      brands: [],
+    };
+  }
+
   const [page, progress, brands] = await Promise.all([
     readRunReportPage(
       database,

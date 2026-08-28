@@ -142,6 +142,7 @@ async function createProbe(workspaceId: string, args: string[]) {
       | undefined;
     for (const candidate of candidates) {
       const reservation = await reservePublication(tx, workspaceId, {
+        actorId: candidate.actorId,
         approvalId: candidate.approvalId,
         expectedRevisionVersion: candidate.revisionVersion,
         destinationAccountId: candidate.destinationAccountId,

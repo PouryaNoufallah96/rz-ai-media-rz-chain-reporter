@@ -1,7 +1,7 @@
 {
   "usage": {
     "title": "Usage",
-    "subtitle": "Recorded model consumption for this installation. Reporting only — nothing here limits or blocks work.",
+    "subtitle": "Your recorded model consumption. Reporting only — nothing here limits or blocks work.",
     "transport": {
       "live": "live",
       "reconnecting": "reconnecting…",
@@ -38,7 +38,7 @@
     },
     "ledger": {
       "title": "Usage ledger",
-      "caption": "Usage ledger: every model invocation with time, task, model, backend, provider, tokens, cost, and status"
+      "caption": "Usage ledger: each of your model invocations with time, task, model, backend, provider, tokens, cost, and status"
     },
     "columns": {
       "time": "Time",
@@ -89,7 +89,7 @@
     },
     "empty": {
       "title": "No usage rows",
-      "installation": "No model usage recorded yet. Every model call this installation makes will be listed here.",
+      "recorded": "No model usage recorded yet. Every model call you make will be listed here.",
       "filtered": "No usage matches these filters",
       "clearFilters": "Clear filters"
     },

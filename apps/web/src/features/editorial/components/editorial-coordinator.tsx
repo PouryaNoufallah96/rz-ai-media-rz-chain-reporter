@@ -10,8 +10,9 @@ import {
 } from "@rz-chain-reporter/ui/components/sidebar";
 import { PlusIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
+import { useAssistant } from "@/features/assistant/lib/assistant-context";
 import type { SourceCatalogEntry } from "@/features/sources/schemas/catalog";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 import { Link } from "@/i18n/navigation";
@@ -55,6 +56,17 @@ export function EditorialCoordinator({
     initialPresentation(workspace.head, options, templatePlatforms),
   );
   const [finalFocus, setFinalFocus] = useState<HTMLElement | null>(null);
+  const assistant = useAssistant();
+  const setAssistantBrandKeys = assistant?.setBrandKeys;
+  const pinCard = assistant?.pinCard;
+  const clearCard = assistant?.clearCard;
+
+  // Only this board supplies brand keys; every other route passes none.
+  useEffect(() => {
+    setAssistantBrandKeys?.(presentation.brandKeys);
+
+    return () => setAssistantBrandKeys?.([]);
+  }, [presentation.brandKeys, setAssistantBrandKeys]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarPanel = useRef<HTMLDivElement>(null);
   const sidebarTrigger = useRef<HTMLButtonElement>(null);
@@ -134,6 +146,19 @@ export function EditorialCoordinator({
             modelLanes={workspace.modelLanes}
             onOpenCard={(card, trigger) => {
               setFinalFocus(trigger);
+              const active =
+                card.revisions.find(
+                  (revision) => revision.id === card.activeRevisionId,
+                ) ?? card.revisions.at(-1);
+              if (active) {
+                pinCard?.({
+                  contentLocale: active.contentLocale,
+                  copy: active.body,
+                  draftId: card.id,
+                  headline: active.headline,
+                  platform: card.platform,
+                });
+              }
               void setValues({ draft: card.id });
             }}
             platformDraftLanes={platformDraftLanes}
@@ -157,7 +182,10 @@ export function EditorialCoordinator({
         }
         key={values.draft ?? "missing-draft"}
         onOpenChange={(open) => {
-          if (!open) void setValues({ draft: null });
+          if (!open) {
+            clearCard?.();
+            void setValues({ draft: null });
+          }
         }}
         open={values.draft !== null}
       />

@@ -9,7 +9,10 @@ services:
     build:
       context: .
       dockerfile: packages/db/Dockerfile
+      args:
+        CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY}
     environment:
+      CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY}
       MIGRATION_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/rz-chain-reporter
     depends_on:
       postgres:

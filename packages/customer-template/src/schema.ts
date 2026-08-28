@@ -16,9 +16,10 @@ import { stableKeySchema } from "./stable-key";
 export type { ImageProfile } from "./image-profile";
 export { imageProfileSchema } from "./image-profile";
 
-// Loader compatibility only. Git owns content versioning, so this bumps solely
-// when a template that loaded before would no longer load.
-export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 6;
+// Loader compatibility only. Git owns content versioning, so this normally bumps
+// solely when a template that loaded before would no longer load; owner lock Q25
+// bumped it to 7 for optional Reviewed Knowledge even though v6 templates still parse.
+export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 7;
 
 const trimmedText = z
   .string()
@@ -120,6 +121,7 @@ const mediaBrandSchema = z.strictObject({
 });
 
 export const MODEL_TASK_KEYS = [
+  "assistant-synthesis",
   "generation-probe",
   "keyword-embedding",
   "enrichment-brief",
@@ -154,6 +156,47 @@ const modelTaskSchema = modelRouteSchema.extend({
 const modelsSchema = z.strictObject({
   tasks: z.partialRecord(modelTaskKeySchema, modelTaskSchema),
 });
+
+// UI locale, not source content locale: Reviewed Knowledge answers follow the
+// operator's interface language and are never mixed or translated.
+export const REVIEWED_KNOWLEDGE_LOCALES = ["en", "fa"] as const;
+
+export type ReviewedKnowledgeLocale =
+  (typeof REVIEWED_KNOWLEDGE_LOCALES)[number];
+
+const reviewedKnowledgeLocaleSchema = z.enum(REVIEWED_KNOWLEDGE_LOCALES);
+
+const localizedReferenceSchema = z.partialRecord(
+  reviewedKnowledgeLocaleSchema,
+  referencePathSchema,
+);
+
+const reviewedKnowledgeSchema = z.strictObject({
+  faq: localizedReferenceSchema.optional(),
+  workspaceOverview: localizedReferenceSchema.optional(),
+  brandChat: z
+    .partialRecord(stableKeySchema, localizedReferenceSchema)
+    .optional(),
+});
+
+export const reviewedKnowledgeFaqSchema = z
+  .array(
+    z.strictObject({
+      key: stableKeySchema.or(z.string().regex(/^[a-z0-9]+(_[a-z0-9]+)*$/)),
+      question: trimmedText.max(400),
+      aliases: z.array(trimmedText.max(400)).max(20),
+      keywords: z.array(trimmedText.max(120)).max(40),
+      answer: trimmedText.max(4_000),
+      priority: z.int().min(0).max(1_000),
+      followUpKeys: z.array(trimmedText.max(120)).max(6).optional(),
+    }),
+  )
+  .min(1)
+  .max(500);
+
+export type ReviewedKnowledgeFaqRow = z.infer<
+  typeof reviewedKnowledgeFaqSchema
+>[number];
 
 // Enabled sources must be English; a Persian source is a schema error, not a silent skip.
 const ACQUISITION_CONTENT_LOCALES = ["en"] as const;
@@ -432,6 +475,7 @@ const customerTemplateShapeSchema = z.strictObject({
   destinationAccounts: z.array(destinationAccountSchema),
   brandDestinations: z.array(brandDestinationSchema),
   models: modelsSchema,
+  reviewedKnowledge: reviewedKnowledgeSchema.optional(),
 });
 
 export const customerTemplateSchema = customerTemplateShapeSchema.superRefine(
@@ -488,6 +532,18 @@ export const customerTemplateSchema = customerTemplateShapeSchema.superRefine(
           code: "custom",
           path: ["mediaBrands", index, "brandLogo"],
           message: "IMAGE_PROFILE_BRAND_LOGO_PAIR_REQUIRED",
+        });
+      }
+    }
+
+    for (const brandKey of Object.keys(
+      template.reviewedKnowledge?.brandChat ?? {},
+    )) {
+      if (!brandKeys.has(brandKey)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["reviewedKnowledge", "brandChat", brandKey],
+          message: `Unknown media brand "${brandKey}"`,
         });
       }
     }

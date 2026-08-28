@@ -12,6 +12,7 @@ import { getT } from "@/i18n/server";
 
 import { getAccountSummary } from "../api/server/get-account-summary";
 import { getActivityHistory } from "../api/server/get-activity-history";
+import { getActivityLedger } from "../api/server/get-activity-ledger";
 import { ACCOUNT_NAMESPACE } from "../constants";
 import {
   type AccountSearchParams,
@@ -71,6 +72,7 @@ async function readAccountDesk(searchParams: AccountSearchParams) {
     session,
     summary,
     activities,
+    ledger,
     topics,
     saved,
     scheduled,
@@ -79,6 +81,7 @@ async function readAccountDesk(searchParams: AccountSearchParams) {
     requireSession(),
     getAccountSummary(),
     getActivityHistory(),
+    getActivityLedger(query.auditCursor),
     getRecentTopics(),
     getSavedHistory(savedSearchParams),
     getPublishingHistory(scheduledSearchParams),
@@ -93,6 +96,7 @@ async function readAccountDesk(searchParams: AccountSearchParams) {
     },
     summary,
     activities,
+    ledger,
     topics,
     saved,
     scheduled,

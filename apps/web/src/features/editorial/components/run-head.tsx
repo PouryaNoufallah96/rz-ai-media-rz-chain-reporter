@@ -108,11 +108,9 @@ export function RunHead({
                 selectedRunId === null || head === null
                   ? null
                   : (runs.find((run) => run.id === head.id) ?? {
-                      actorName: head.actorName,
                       id: head.id,
                       kind: head.kind,
                       lifecycle: head.lifecycle,
-                      mine: head.mine,
                       startedAt: head.startedAt,
                       templateFingerprint: head.templateFingerprint,
                     })

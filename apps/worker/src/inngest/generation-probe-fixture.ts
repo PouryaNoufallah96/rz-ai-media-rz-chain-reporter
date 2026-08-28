@@ -7,10 +7,10 @@ import {
   insertPendingUsage,
 } from "@rz-chain-reporter/db/repositories/ai-usage-event";
 
-import { ModelGatewayInvocationError } from "../model-gateway/errors";
-import type { ModelGateway } from "../model-gateway/gateway";
-import { resolveModelTask } from "../model-gateway/task";
-import type { StructuredModelInvocation } from "../model-gateway/types";
+import { ModelGatewayInvocationError } from "@rz-chain-reporter/model-gateway/errors";
+import type { ModelGateway } from "@rz-chain-reporter/model-gateway/gateway";
+import { resolveModelTask } from "@rz-chain-reporter/model-gateway/task";
+import type { StructuredModelInvocation } from "@rz-chain-reporter/model-gateway/types";
 
 export type GenerationProbeMode = "fallback" | "invalid-output" | "real";
 

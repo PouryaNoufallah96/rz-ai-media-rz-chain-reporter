@@ -50,6 +50,9 @@ import { sourceItem } from "@rz-chain-reporter/db/schema/source-item";
 import { sourceItemEnrichment } from "@rz-chain-reporter/db/schema/source-item-enrichment";
 import { sourceItemRevision } from "@rz-chain-reporter/db/schema/source-item-revision";
 import { workspace } from "@rz-chain-reporter/db/schema/workspace";
+import { ModelGatewayInvocationError } from "@rz-chain-reporter/model-gateway/errors";
+import type { ModelGateway } from "@rz-chain-reporter/model-gateway/gateway";
+import type { StructuredModelInvocation } from "@rz-chain-reporter/model-gateway/types";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { Inngest } from "inngest";
 import { connect } from "inngest/connect";
@@ -58,9 +61,6 @@ import type {
   ArticleFetchRequest,
   ArticleFetchResult,
 } from "../articles/types";
-import { ModelGatewayInvocationError } from "../model-gateway/errors";
-import type { ModelGateway } from "../model-gateway/gateway";
-import type { StructuredModelInvocation } from "../model-gateway/types";
 import { workerEnv } from "../runtime/env";
 import { notifyDraftsChanged } from "../web-cache/drafts";
 import { notifyUsageLedgerChanged } from "../web-cache/usage-ledger";
@@ -703,8 +703,21 @@ class CopySourceFixture {
       this.workspaceId,
       {
         actor: this.actorId,
-        brandPolicyFingerprint: computeBrandPolicyFingerprint(brand.editorial),
         configurationVersion: COPY_CONFIGURATION_VERSION,
+        copyPolicy: {
+          fingerprints: {
+            [this.brandKey]: computeBrandPolicyFingerprint(brand.editorial),
+          },
+          modelOptionKeys: opened.template.editorial.models.map(
+            (model) => model.key,
+          ),
+          platforms: opened.template.editorial.drafting.copy.platforms.map(
+            (entry) => ({
+              platform: entry.platform,
+              variantKeys: entry.variants.map((variant) => variant.key),
+            }),
+          ),
+        },
         customerTemplateFingerprint: opened.identity.fingerprint,
         idempotencyKey: `copy-source-probe-retry-${commandId}`,
         mode: "retry_failed",

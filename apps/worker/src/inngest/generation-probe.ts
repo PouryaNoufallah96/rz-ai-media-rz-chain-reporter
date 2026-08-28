@@ -7,13 +7,13 @@ import { withWorkspaceContext } from "@rz-chain-reporter/db/executor";
 import { aiUsageEvent } from "@rz-chain-reporter/db/schema/ai-usage-event";
 import { operation } from "@rz-chain-reporter/db/schema/operation";
 import { operationAttempt } from "@rz-chain-reporter/db/schema/operation-attempt";
+import { ModelGatewayInvocationError } from "@rz-chain-reporter/model-gateway/errors";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { NonRetriableError } from "inngest";
 import { z } from "zod";
-
 import { workerLogger } from "../logging/logger";
-import { ModelGatewayInvocationError } from "../model-gateway/errors";
-import { createModelGateway } from "../model-gateway/gateway";
+
+import { createWorkerModelGateway } from "../model-gateway/worker-gateway";
 import { workerEnv } from "../runtime/env";
 import { notifyUsageLedgerChanged } from "../web-cache/usage-ledger";
 import { publishOperationStatus } from "./channels";
@@ -81,7 +81,7 @@ export function createGenerationProbeFunction(
           await assertWorkspace(runtime, event.data.workspaceId);
           const gateway =
             claim.mode === "real"
-              ? createModelGateway({
+              ? createWorkerModelGateway({
                   bindings: {
                     OLLAMA_BASE_URL: workerEnv.OLLAMA_BASE_URL,
                     OPENROUTER_API_KEY: workerEnv.OPENROUTER_API_KEY,

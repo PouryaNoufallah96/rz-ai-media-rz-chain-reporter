@@ -646,6 +646,7 @@ export function LabeledSelect<T extends string>({
   onBlur,
   onValueChange,
   options,
+  orientation,
   placeholder,
   triggerClassName,
   value,
@@ -661,6 +662,7 @@ export function LabeledSelect<T extends string>({
   onBlur?: ComponentProps<typeof SelectTrigger>["onBlur"];
   onValueChange: (value: T | null) => void;
   options: readonly SelectOption<T>[];
+  orientation?: ComponentProps<typeof Field>["orientation"];
   placeholder?: string;
   triggerClassName?: string;
   value: T | null;
@@ -678,6 +680,7 @@ export function LabeledSelect<T extends string>({
       data-disabled={disabled || undefined}
       data-invalid={controlProps["aria-invalid"] || undefined}
       disabled={disabled}
+      orientation={orientation}
     >
       <FieldCaption htmlFor={controlId}>{label}</FieldCaption>
       <SelectControl

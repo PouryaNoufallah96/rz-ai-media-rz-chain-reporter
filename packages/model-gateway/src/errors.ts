@@ -6,21 +6,46 @@ export type AdapterFailureKind =
   | "structured-output-invalid"
   | "unknown";
 
+export type ModelInvocationFailureReason =
+  | "adapter-cancelled"
+  | "adapter-failed"
+  | "adapter-timeout"
+  | "adapter-unknown"
+  | "invocation-bounds"
+  | "result-persistence-failed"
+  | "structured-output-invalid"
+  | "template-drift"
+  | "unexpected-error"
+  | "unit-deadline-exhausted"
+  | "unspecified"
+  | "usage-finalization-lost"
+  | "usage-slot-replayed";
+
+const ADAPTER_KIND_REASONS = {
+  cancelled: "adapter-cancelled",
+  failed: "adapter-failed",
+  "structured-output-invalid": "structured-output-invalid",
+  unknown: "adapter-unknown",
+} satisfies Record<AdapterFailureKind, ModelInvocationFailureReason>;
+
 export class AdapterInvocationError extends Error {
   readonly kind: AdapterFailureKind;
   readonly observation: ModelCallObservation;
+  readonly reason: ModelInvocationFailureReason;
   readonly retryable: boolean;
 
   constructor(
     kind: AdapterFailureKind,
     retryable: boolean,
     observation: ModelCallObservation,
+    reason?: ModelInvocationFailureReason,
   ) {
     super("model adapter invocation failed");
     this.name = "AdapterInvocationError";
     this.kind = kind;
     this.retryable = retryable;
     this.observation = observation;
+    this.reason = reason ?? ADAPTER_KIND_REASONS[kind];
   }
 }
 
@@ -58,6 +83,7 @@ export class ModelGatewayInvocationError extends Error {
     | "MODEL_INVOCATION_FAILED"
     | "STRUCTURED_OUTPUT_INVALID"
     | "TEMPLATE_DRIFT";
+  readonly reason: ModelInvocationFailureReason;
   readonly retryable: boolean;
   readonly usageEventId: string | null;
 
@@ -65,6 +91,7 @@ export class ModelGatewayInvocationError extends Error {
     code: ModelGatewayInvocationError["code"],
     options: {
       ambiguous?: boolean;
+      reason?: ModelInvocationFailureReason;
       retryable?: boolean;
       usageEventId?: string;
     } = {},
@@ -73,6 +100,7 @@ export class ModelGatewayInvocationError extends Error {
     this.name = "ModelGatewayInvocationError";
     this.code = code;
     this.ambiguous = options.ambiguous ?? false;
+    this.reason = options.reason ?? "unspecified";
     this.retryable = options.retryable ?? false;
     this.usageEventId = options.usageEventId ?? null;
   }

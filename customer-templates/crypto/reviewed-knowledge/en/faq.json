@@ -1,0 +1,527 @@
+[
+  {
+    "key": "website_overview",
+    "question": "What is the ChainReporter website?",
+    "aliases": [],
+    "keywords": [
+      "chainreporter website",
+      "website overview",
+      "workspace"
+    ],
+    "answer": "ChainReporter is a multi-brand workspace for finding news, routing stories, and preparing social-media copy and images.",
+    "priority": 50
+  },
+  {
+    "key": "available_brands",
+    "question": "Which media brands are available?",
+    "aliases": [],
+    "keywords": [
+      "media brands",
+      "available brands",
+      "supported brands"
+    ],
+    "answer": "The available media brands are RZ Prime, Coin Hall, Meta Coin Guard, and ChainReporter.",
+    "priority": 70
+  },
+  {
+    "key": "rz_prime",
+    "question": "What is RZ Prime?",
+    "aliases": [],
+    "keywords": [
+      "rz prime",
+      "token reservation",
+      "reserve token"
+    ],
+    "answer": "RZ Prime is a token-reservation platform where users can reserve token opportunities without an upfront payment and manage the process through smart contracts.",
+    "priority": 90
+  },
+  {
+    "key": "coin_hall",
+    "question": "What is Coin Hall?",
+    "aliases": [],
+    "keywords": [
+      "coin hall",
+      "real world asset",
+      "rwa"
+    ],
+    "answer": "Coin Hall presents time-limited opportunities involving tokenized real-world assets such as jewelry, real estate, and cars.",
+    "priority": 90
+  },
+  {
+    "key": "meta_coin_guard",
+    "question": "What is Meta Coin Guard?",
+    "aliases": [],
+    "keywords": [
+      "meta coin guard",
+      "token protection",
+      "crypto protection"
+    ],
+    "answer": "Meta Coin Guard is a non-custodial, smart-contract-based service designed to protect crypto token value through documented cover plans.",
+    "priority": 90
+  },
+  {
+    "key": "chainreporter_media",
+    "question": "What does ChainReporter cover?",
+    "aliases": [],
+    "keywords": [
+      "chainreporter cover",
+      "chainreporter news",
+      "crypto news outlet"
+    ],
+    "answer": "ChainReporter covers crypto markets, regulation, security incidents, exchanges, launches, governance, protocols, and important industry participants.",
+    "priority": 90
+  },
+  {
+    "key": "security_brand",
+    "question": "Which brand should cover crypto-security news?",
+    "aliases": [],
+    "keywords": [
+      "security news brand",
+      "hack exploit brand",
+      "crypto security story"
+    ],
+    "answer": "Meta Coin Guard is the primary fit for security, exploit, wallet-risk, scam, and smart-contract-risk stories.",
+    "priority": 80
+  },
+  {
+    "key": "general_news_brand",
+    "question": "Which brand should cover general crypto news?",
+    "aliases": [],
+    "keywords": [
+      "general crypto news brand",
+      "market regulation brand",
+      "mainstream crypto"
+    ],
+    "answer": "ChainReporter is the primary fit for broad crypto, market, regulation, exchange, ETF, and institutional stories.",
+    "priority": 80
+  },
+  {
+    "key": "reservation_brand",
+    "question": "Which brand fits token-reservation stories?",
+    "aliases": [],
+    "keywords": [
+      "token reservation brand",
+      "token deal brand",
+      "zero upfront"
+    ],
+    "answer": "RZ Prime is the primary fit for token-reservation opportunities and related smart-contract processes.",
+    "priority": 80
+  },
+  {
+    "key": "rwa_brand",
+    "question": "Which brand fits tokenized real-world-asset stories?",
+    "aliases": [],
+    "keywords": [
+      "rwa brand",
+      "tokenized asset brand",
+      "jewelry property cars"
+    ],
+    "answer": "Coin Hall is the primary fit for tokenized real-world assets, luxury assets, property, jewelry, and cars.",
+    "priority": 80
+  },
+  {
+    "key": "select_brand",
+    "question": "Why should I select a media brand?",
+    "aliases": [],
+    "keywords": [
+      "select media brand",
+      "choose brand",
+      "why select media"
+    ],
+    "answer": "Selecting a media brand tells the editorial pipeline which brand documents, audience, tone, and routing rules should guide the result.",
+    "priority": 60
+  },
+  {
+    "key": "multiple_brands",
+    "question": "Can I select multiple media brands?",
+    "aliases": [],
+    "keywords": [
+      "multiple media brands",
+      "select several brands",
+      "more than one brand"
+    ],
+    "answer": "Yes. The pipeline can evaluate stories for multiple selected brands and route each story to the strongest fit.",
+    "priority": 60
+  },
+  {
+    "key": "analyze_button",
+    "question": "How do I start a run?",
+    "aliases": [],
+    "keywords": [
+      "analyze button",
+      "analyze stories",
+      "run analysis",
+      "start run",
+      "news run"
+    ],
+    "answer": "Start run collects the run's selected sources, media brands, editorial models, and settings, filters and scores source items for editorial fit, and places the results as cards in Model Lanes and Telegram Lanes for each media brand.",
+    "priority": 70
+  },
+  {
+    "key": "news_sources",
+    "question": "What news sources can I use?",
+    "aliases": [],
+    "keywords": [
+      "news sources",
+      "source selection",
+      "available sources"
+    ],
+    "answer": "You can use the RSS feeds and public Telegram channels configured for this installation. Choose a subset as compact run options on the Editorial Workspace; the full source catalog, import history, and per-source outcomes stay on the Sources page.",
+    "priority": 60
+  },
+  {
+    "key": "rss_sources",
+    "question": "How do RSS sources work?",
+    "aliases": [],
+    "keywords": [
+      "rss source",
+      "rss feed",
+      "import feed"
+    ],
+    "answer": "Select a configured RSS source, set the run options, and start the run to evaluate recent articles from that feed.",
+    "priority": 70
+  },
+  {
+    "key": "telegram_sources",
+    "question": "How do Telegram sources work?",
+    "aliases": [],
+    "keywords": [
+      "telegram sources",
+      "telegram channels",
+      "public telegram"
+    ],
+    "answer": "Select configured public Telegram channels, choose the recency and ordering options, and start the run.",
+    "priority": 70
+  },
+  {
+    "key": "platforms",
+    "question": "Which content platforms are supported?",
+    "aliases": [],
+    "keywords": [
+      "supported platforms",
+      "content platforms",
+      "telegram x instagram"
+    ],
+    "answer": "ChainReporter can prepare content for Telegram, X, and Instagram.",
+    "priority": 70
+  },
+  {
+    "key": "editorial_models",
+    "question": "What are editorial models?",
+    "aliases": [],
+    "keywords": [
+      "editorial models",
+      "ai models",
+      "select model"
+    ],
+    "answer": "Editorial models evaluate, select, and prepare stories. You can choose the available models before running an analysis.",
+    "priority": 60
+  },
+  {
+    "key": "story_routing",
+    "question": "How are stories routed to brands?",
+    "aliases": [],
+    "keywords": [
+      "story routing",
+      "route to brands",
+      "filter scoring"
+    ],
+    "answer": "The editorial pipeline evaluates topic relevance, brand fit, freshness, source quality, and selected settings before assigning stories.",
+    "priority": 60
+  },
+  {
+    "key": "brand_lanes",
+    "question": "What lanes does the Editorial Workspace show?",
+    "aliases": [],
+    "keywords": [
+      "brand lanes",
+      "card lanes",
+      "lane board",
+      "model lanes",
+      "platform lanes"
+    ],
+    "answer": "The Editorial Workspace groups cards into Model Lanes (editorial selections or promo ideas, by editorial model and media brand), Telegram Lanes (Telegram source cards by media brand), and Platform Lanes (routed cards by media brand and destination platform).",
+    "priority": 60
+  },
+  {
+    "key": "open_card",
+    "question": "What happens when I open a news card?",
+    "aliases": [],
+    "keywords": [
+      "open news card",
+      "card preview",
+      "click card"
+    ],
+    "answer": "Opening a routed card opens the Card Sheet with its headline, copy, platform, brand, image controls, and available actions. An origin card opens a read-only details sheet instead.",
+    "priority": 60
+  },
+  {
+    "key": "generate_copy",
+    "question": "How do I generate social-media copy?",
+    "aliases": [],
+    "keywords": [
+      "generate social copy",
+      "create caption",
+      "copy generation"
+    ],
+    "answer": "Open a routed card, select its destination platform, and use the copy-generation control to create platform-specific text.",
+    "priority": 70
+  },
+  {
+    "key": "platform_copy",
+    "question": "Is generated copy different for each platform?",
+    "aliases": [],
+    "keywords": [
+      "platform specific copy",
+      "different platform copy",
+      "telegram x copy"
+    ],
+    "answer": "Yes. The copy generator applies the formatting, length, hashtag, and style requirements of the selected platform.",
+    "priority": 70
+  },
+  {
+    "key": "copy_variants",
+    "question": "Can I generate alternative copy variants?",
+    "aliases": [],
+    "keywords": [
+      "copy variants",
+      "alternative copy",
+      "another caption"
+    ],
+    "answer": "Yes. The copy workflow can provide alternative versions that you can review and edit before saving or publishing.",
+    "priority": 60
+  },
+  {
+    "key": "hashtags",
+    "question": "How are hashtags selected?",
+    "aliases": [],
+    "keywords": [
+      "hashtags",
+      "brand hashtag",
+      "select hashtags"
+    ],
+    "answer": "Hashtags are generated from the article topic and platform context, and the appropriate brand-identity hashtag is preserved.",
+    "priority": 60
+  },
+  {
+    "key": "edit_copy",
+    "question": "Can I edit generated copy and headlines?",
+    "aliases": [],
+    "keywords": [
+      "edit copy",
+      "edit headline",
+      "change caption"
+    ],
+    "answer": "Yes. Use the Card Sheet to edit the visible copy or headline before saving, scheduling, or publishing.",
+    "priority": 60
+  },
+  {
+    "key": "generate_image",
+    "question": "How do I generate an image?",
+    "aliases": [],
+    "keywords": [
+      "generate image",
+      "news image",
+      "create visual"
+    ],
+    "answer": "Open a routed card in the Card Sheet and use the image-generation control. The workspace uses the selected story and the media brand's image profile to produce a template selection, an image brief, the provider's original image, and the branded final image.",
+    "priority": 70
+  },
+  {
+    "key": "regenerate_image",
+    "question": "Can I regenerate an image?",
+    "aliases": [],
+    "keywords": [
+      "regenerate image",
+      "new image",
+      "another image"
+    ],
+    "answer": "Yes. You can request another image from the Card Sheet when the current result is unsuitable.",
+    "priority": 60
+  },
+  {
+    "key": "preview_panel",
+    "question": "What is the Card Sheet?",
+    "aliases": [],
+    "keywords": [
+      "preview panel",
+      "card preview",
+      "what is preview",
+      "card sheet"
+    ],
+    "answer": "The Card Sheet is the side sheet a routed card opens into, for reviewing and editing copy, selecting draft revisions, creating images, saving, approving, scheduling, and publishing supported content.",
+    "priority": 60
+  },
+  {
+    "key": "save_card",
+    "question": "How do I save a news card?",
+    "aliases": [],
+    "keywords": [
+      "save news card",
+      "save content",
+      "save for later"
+    ],
+    "answer": "Open the routed card's Card Sheet and select Save. The saved card becomes available from the Account page.",
+    "priority": 70
+  },
+  {
+    "key": "saved_cards",
+    "question": "Where can I find saved cards?",
+    "aliases": [],
+    "keywords": [
+      "find saved cards",
+      "saved content",
+      "where saved"
+    ],
+    "answer": "Saved cards are listed on the Account page, where opening one loads the shared Card Sheet to review, edit, schedule, or discard it. The Saved route redirects to Account and preserves its filter and cursor state.",
+    "priority": 70
+  },
+  {
+    "key": "schedule_content",
+    "question": "How do I schedule content?",
+    "aliases": [],
+    "keywords": [
+      "schedule content",
+      "schedule post",
+      "date and time"
+    ],
+    "answer": "Open the card's Card Sheet, approve the revision, choose Schedule as the delivery mode, and set the required installation date and time.",
+    "priority": 70
+  },
+  {
+    "key": "manage_schedule",
+    "question": "Can I manage scheduled content?",
+    "aliases": [],
+    "keywords": [
+      "manage scheduled content",
+      "reschedule",
+      "cancel schedule"
+    ],
+    "answer": "Yes. The Account page shows your schedule history, and the Schedule desk is the full dispatch, retry, and reconciliation surface where scheduled work is cancelled, rescheduled, and resolved.",
+    "priority": 70
+  },
+  {
+    "key": "publish_telegram",
+    "question": "Can ChainReporter publish directly to Telegram?",
+    "aliases": [],
+    "keywords": [
+      "publish telegram",
+      "send to telegram",
+      "telegram post"
+    ],
+    "answer": "Yes. Supported Telegram content can be published from the Card Sheet when the destination account is bound.",
+    "priority": 80
+  },
+  {
+    "key": "publish_x",
+    "question": "Can ChainReporter publish directly to X?",
+    "aliases": [],
+    "keywords": [
+      "publish x",
+      "twitter post",
+      "send to x"
+    ],
+    "answer": "Yes. Supported content can be published to the bound X destination account from the Card Sheet.",
+    "priority": 80
+  },
+  {
+    "key": "instagram_content",
+    "question": "Can ChainReporter prepare Instagram content?",
+    "aliases": [],
+    "keywords": [
+      "instagram content",
+      "instagram caption",
+      "instagram visual"
+    ],
+    "answer": "Yes. ChainReporter can generate and edit Instagram-oriented copy and visual content.",
+    "priority": 80
+  },
+  {
+    "key": "publish_instagram",
+    "question": "Can ChainReporter publish directly to Instagram?",
+    "aliases": [],
+    "keywords": [
+      "publish directly instagram",
+      "post to instagram",
+      "instagram publishing"
+    ],
+    "answer": "Yes. Instagram is a first-class publishing target. Approved revisions publish directly or on a schedule through an asynchronous media-container workflow, the same as Telegram and X.",
+    "priority": 100
+  },
+  {
+    "key": "languages",
+    "question": "Which website languages are supported?",
+    "aliases": [],
+    "keywords": [
+      "supported languages",
+      "english persian",
+      "website language"
+    ],
+    "answer": "The supported website and chatbot languages are English and Persian only.",
+    "priority": 90
+  },
+  {
+    "key": "account_page",
+    "question": "What information is available on the Account page?",
+    "aliases": [],
+    "keywords": [
+      "account page",
+      "account information",
+      "account statistics"
+    ],
+    "answer": "Account shows your operator profile, workspace and saved counts, per-brand counts, your recent activity and recent topics, schedule history, and keyset-paged saved cards.",
+    "priority": 60
+  },
+  {
+    "key": "chatbot_scope",
+    "question": "What can the chatbot help me with?",
+    "aliases": [],
+    "keywords": [
+      "chatbot help",
+      "assistant scope",
+      "what can chatbot do"
+    ],
+    "answer": "The chatbot answers questions about the four media brands, active news cards, and documented ChainReporter functions.",
+    "priority": 80
+  },
+  {
+    "key": "selected_media_context",
+    "question": "Does the chatbot know which media brands I selected?",
+    "aliases": [],
+    "keywords": [
+      "chatbot selected media",
+      "selected brands context",
+      "know selected brand"
+    ],
+    "answer": "Yes. The current media selection is sent as context with your question, allowing the chatbot to focus on one brand or ask which selected brand you mean.",
+    "priority": 70
+  },
+  {
+    "key": "active_card_context",
+    "question": "Does the chatbot understand the open news card?",
+    "aliases": [],
+    "keywords": [
+      "chatbot active card",
+      "open card context",
+      "understand current card"
+    ],
+    "answer": "Yes. When a card is open, its brand, platform, headline, and available copy are provided as temporary context for your question.",
+    "priority": 70
+  },
+  {
+    "key": "unsupported_actions",
+    "question": "What can the website not do?",
+    "aliases": [],
+    "keywords": [
+      "website cannot do",
+      "unsupported action",
+      "email delivery",
+      "linkedin publishing",
+      "crypto trading",
+      "wallet transaction",
+      "video generation"
+    ],
+    "answer": "The website cannot perform undocumented actions such as email delivery, LinkedIn publishing, crypto trading, payments, wallet transactions, external web searches, or video generation.",
+    "priority": 100
+  }
+]

@@ -2,14 +2,22 @@
 
 import type { Platform } from "@rz-chain-reporter/contracts";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
+import { Button } from "@rz-chain-reporter/ui/components/button";
 import {
   Empty,
   EmptyContent,
   EmptyHeader,
   EmptyTitle,
 } from "@rz-chain-reporter/ui/components/empty";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { Link } from "@/i18n/navigation";
 
@@ -186,26 +194,7 @@ export function LaneBoard({
                       className="min-w-0 rounded-xl border border-border bg-card/40 p-3"
                       key={brand.key}
                     >
-                      <header className="flex items-center gap-2 pb-1">
-                        <span
-                          aria-hidden="true"
-                          className="grid size-7 place-items-center rounded-md bg-accent font-semibold text-accent-foreground text-xs"
-                        >
-                          {brand.name.slice(0, 1)}
-                        </span>
-                        <h3
-                          className="font-medium"
-                          id={`brand-rail-${brand.key}`}
-                        >
-                          <Bdi>{brand.name}</Bdi>
-                        </h3>
-                      </header>
-                      <section
-                        aria-label={t("lane.board.rail", { brand: brand.name })}
-                        className="mt-3 flex snap-x snap-proximity gap-3 overflow-x-auto rounded-lg pb-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable brand rail must be keyboard reachable.
-                        tabIndex={0}
-                      >
+                      <BrandRail brandKey={brand.key} brandName={brand.name}>
                         {telegramLane ? (
                           <TelegramLaneColumn
                             alsoIn={alsoIn}
@@ -237,7 +226,7 @@ export function LaneBoard({
                           brandName={brand.name}
                           platforms={board.platforms}
                         />
-                      </section>
+                      </BrandRail>
                     </section>
                   );
                 })}
@@ -246,6 +235,106 @@ export function LaneBoard({
           </div>
         </PlatformLanes>
       </RouteProvider>
+    </>
+  );
+}
+
+function BrandRail({
+  brandKey,
+  brandName,
+  children,
+}: {
+  brandKey: string;
+  brandName: string;
+  children: ReactNode;
+}) {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+  const rail = useRef<HTMLElement>(null);
+  const railId = `brand-rail-scroller-${brandKey}`;
+  const [overflowing, setOverflowing] = useState(false);
+
+  useLayoutEffect(() => {
+    const node = rail.current;
+    if (!node) return;
+
+    const update = () => {
+      setOverflowing(node.scrollWidth - node.clientWidth > 1);
+    };
+
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    for (const child of node.children) observer.observe(child);
+
+    const mutations = new MutationObserver(update);
+    mutations.observe(node, { childList: true });
+    update();
+
+    return () => {
+      observer.disconnect();
+      mutations.disconnect();
+    };
+  }, []);
+
+  const scroll = (towardEnd: boolean) => {
+    const node = rail.current;
+    if (!node) return;
+    const distance = Math.max(240, node.clientWidth * 0.8);
+    const delta = towardEnd ? distance : -distance;
+    const rtl = getComputedStyle(node).direction === "rtl";
+    const reduce = globalThis.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    node.scrollBy({
+      left: rtl ? -delta : delta,
+      behavior: reduce ? "auto" : "smooth",
+    });
+  };
+
+  return (
+    <>
+      <header className="flex items-center gap-2 pb-1">
+        <span
+          aria-hidden="true"
+          className="grid size-7 place-items-center rounded-md bg-accent font-semibold text-accent-foreground text-xs"
+        >
+          {brandName.slice(0, 1)}
+        </span>
+        <h3 className="font-medium" id={`brand-rail-${brandKey}`}>
+          <Bdi>{brandName}</Bdi>
+        </h3>
+        {overflowing ? (
+          <div className="ms-auto flex gap-1">
+            <Button
+              aria-controls={railId}
+              aria-label={t("lane.board.railPrevious", { brand: brandName })}
+              onClick={() => scroll(false)}
+              size="icon-sm"
+              type="button"
+              variant="ghost"
+            >
+              <ChevronLeftIcon className="rtl:-scale-x-100" />
+            </Button>
+            <Button
+              aria-controls={railId}
+              aria-label={t("lane.board.railNext", { brand: brandName })}
+              onClick={() => scroll(true)}
+              size="icon-sm"
+              type="button"
+              variant="ghost"
+            >
+              <ChevronRightIcon className="rtl:-scale-x-100" />
+            </Button>
+          </div>
+        ) : null}
+      </header>
+      <section
+        aria-label={t("lane.board.rail", { brand: brandName })}
+        className="mt-3 flex snap-x snap-proximity gap-3 overflow-x-auto rounded-lg pb-2"
+        id={railId}
+        ref={rail}
+      >
+        {children}
+      </section>
     </>
   );
 }

@@ -19,10 +19,7 @@ import {
   requestAnalysisRunCancellation,
   startAnalysisRun,
 } from "@rz-chain-reporter/db/repositories/analysis-run";
-import {
-  readCopyOperationDraftContext,
-  startCopyOperation,
-} from "@rz-chain-reporter/db/repositories/copy-generation";
+import { startCopyOperation } from "@rz-chain-reporter/db/repositories/copy-generation";
 import {
   executeDraftRevisionCommand,
   readDraftRevisionCommandContext,
@@ -95,6 +92,22 @@ const imageOperationErrors = {
   OPERATION_IN_PROGRESS: { status: 409 },
   REFERENCE_CONFLICT: { status: 409 },
 } as const;
+
+async function requireOwnRun(
+  workspaceId: string,
+  analysisRunId: string,
+  userId: string,
+  notFound: () => Error,
+) {
+  const run = await readRunLifecycle(
+    rpcDb(),
+    workspaceId,
+    userId,
+    analysisRunId,
+  );
+  if (!run) throw notFound();
+  return run;
+}
 
 export const startImageGeneration = installationProcedure
   .input(startImageGenerationInputSchema)
@@ -176,34 +189,14 @@ export const regenerateCopy = installationProcedure
   .output(copyOperationResultSchema)
   .errors(copyOperationErrors)
   .handler(async ({ context, errors, input }) => {
-    const draft = await readCopyOperationDraftContext(
-      rpcDb(),
-      context.workspaceId,
-      input.platformDraftId,
-    );
-    if (!draft) throw errors.NOT_FOUND();
-    const policyFingerprint = brandPolicyFingerprint(draft.brandKey);
-    const policy = customerEditorial.drafting.copy.platforms.find(
-      (entry) => entry.platform === draft.platform,
-    );
-    if (
-      !policyFingerprint ||
-      !policy ||
-      !customerEditorial.models.some(
-        (model) => model.key === input.modelOptionKey,
-      )
-    ) {
-      throw errors.VALIDATION_FAILED();
-    }
     return settleCopyOperation(
       await startCopyOperation(rpcDb(), context.workspaceId, {
         ...copyOperationIdentity(context, input),
         mode: "regenerate",
         modelOptionKey: input.modelOptionKey,
         requestedContentLocale: input.requestedContentLocale,
-        variantKeys: policy.variants.map((variant) => variant.key),
+        copyPolicy: copyCommandPolicy(),
         customerTemplateFingerprint,
-        brandPolicyFingerprint: policyFingerprint,
         promptVersion: COPY_PROMPT_VERSION,
         configurationVersion: COPY_CONFIGURATION_VERSION,
       }),
@@ -216,34 +209,14 @@ export const refreshArticleAndRegenerate = installationProcedure
   .output(copyOperationResultSchema)
   .errors(copyOperationErrors)
   .handler(async ({ context, errors, input }) => {
-    const draft = await readCopyOperationDraftContext(
-      rpcDb(),
-      context.workspaceId,
-      input.platformDraftId,
-    );
-    if (!draft) throw errors.NOT_FOUND();
-    const policyFingerprint = brandPolicyFingerprint(draft.brandKey);
-    const policy = customerEditorial.drafting.copy.platforms.find(
-      (entry) => entry.platform === draft.platform,
-    );
-    if (
-      !policyFingerprint ||
-      !policy ||
-      !customerEditorial.models.some(
-        (model) => model.key === input.modelOptionKey,
-      )
-    ) {
-      throw errors.VALIDATION_FAILED();
-    }
     return settleCopyOperation(
       await startCopyOperation(rpcDb(), context.workspaceId, {
         ...copyOperationIdentity(context, input),
         mode: "refresh_article",
         modelOptionKey: input.modelOptionKey,
         requestedContentLocale: input.requestedContentLocale,
-        variantKeys: policy.variants.map((variant) => variant.key),
+        copyPolicy: copyCommandPolicy(),
         customerTemplateFingerprint,
-        brandPolicyFingerprint: policyFingerprint,
         promptVersion: COPY_PROMPT_VERSION,
         configurationVersion: COPY_CONFIGURATION_VERSION,
       }),
@@ -256,21 +229,12 @@ export const retryCopyGeneration = installationProcedure
   .output(copyOperationResultSchema)
   .errors(copyOperationErrors)
   .handler(async ({ context, errors, input }) => {
-    const draft = await readCopyOperationDraftContext(
-      rpcDb(),
-      context.workspaceId,
-      input.platformDraftId,
-    );
-    if (!draft) throw errors.NOT_FOUND();
-    const policyFingerprint = brandPolicyFingerprint(draft.brandKey);
-    if (!policyFingerprint) throw errors.TEMPLATE_DRIFT();
-
     return settleCopyOperation(
       await startCopyOperation(rpcDb(), context.workspaceId, {
         ...copyOperationIdentity(context, input),
         mode: "retry_failed",
+        copyPolicy: copyCommandPolicy(),
         customerTemplateFingerprint,
-        brandPolicyFingerprint: policyFingerprint,
         promptVersion: COPY_PROMPT_VERSION,
         configurationVersion: COPY_CONFIGURATION_VERSION,
       }),
@@ -295,6 +259,7 @@ export const updateDraftRevision = installationProcedure
       rpcDb(),
       context.workspaceId,
       input.platformDraftId,
+      context.session.user.id,
       input.expectedActive.id,
     );
     if (!commandContext) throw errors.NOT_FOUND();
@@ -436,6 +401,17 @@ function copyOperationIdentity(
   };
 }
 
+function copyCommandPolicy() {
+  return {
+    fingerprints: Object.fromEntries(customerBrandPolicyFingerprints),
+    modelOptionKeys: customerEditorial.models.map((model) => model.key),
+    platforms: customerEditorial.drafting.copy.platforms.map((entry) => ({
+      platform: entry.platform,
+      variantKeys: entry.variants.map((variant) => variant.key),
+    })),
+  };
+}
+
 function brandPolicyFingerprint(brandKey: string) {
   return customerBrandPolicyFingerprints.get(brandKey) ?? null;
 }
@@ -496,11 +472,10 @@ export const reorderDrafts = installationProcedure
     LANE_MEMBERSHIP_CONFLICT: { status: 409 },
   })
   .handler(async ({ context, errors, input }) => {
-    const result = await reorderPlatformDrafts(
-      rpcDb(),
-      context.workspaceId,
-      input,
-    );
+    const result = await reorderPlatformDrafts(rpcDb(), context.workspaceId, {
+      ...input,
+      actorId: context.session.user.id,
+    });
 
     if (result.status === "not_found") throw errors.NOT_FOUND();
     if (result.status === "version_conflict") {
@@ -533,6 +508,9 @@ export const routeDraft = installationProcedure
     if (originContext.status !== "found") {
       if (originContext.status === "not_found") throw errors.NOT_FOUND();
       throw errors.VALIDATION_FAILED();
+    }
+    if (originContext.value.actorId !== context.session.user.id) {
+      throw errors.NOT_FOUND();
     }
     if (
       originContext.value.templateFingerprint !== customerTemplateFingerprint
@@ -734,16 +712,12 @@ export const cancelRun = installationProcedure
     NOT_FOUND: { status: 404 },
   })
   .handler(async ({ context, errors, input }) => {
-    const database = rpcDb();
-    const run = await readRunLifecycle(
-      database,
+    const run = await requireOwnRun(
       context.workspaceId,
       input.analysisRunId,
+      context.session.user.id,
+      errors.NOT_FOUND,
     );
-
-    if (!run) {
-      throw errors.NOT_FOUND();
-    }
 
     // A settled run keeps its real outcome: no timestamp, no outbox event.
     if (TERMINAL_LIFECYCLES.includes(run.lifecycle)) {
@@ -751,7 +725,7 @@ export const cancelRun = installationProcedure
     }
 
     const result = await requestAnalysisRunCancellation(
-      database,
+      rpcDb(),
       context.workspaceId,
       input.analysisRunId,
     );

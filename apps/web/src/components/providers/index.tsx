@@ -4,7 +4,7 @@ import { DIRECTION, type Locale } from "@rz-chain-reporter/i18n";
 import { DirectionProvider } from "@rz-chain-reporter/ui/components/direction-provider";
 import { Toaster } from "@rz-chain-reporter/ui/components/sonner";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+// import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import {
   type IntlError,
   IntlErrorCode,
@@ -61,9 +61,9 @@ export default function Providers({
           >
             <QueryClientProvider client={queryClient}>
               {children}
-              {process.env.NODE_ENV === "development" ? (
+              {/* {process.env.NODE_ENV === "development" ? (
                 <ReactQueryDevtools />
-              ) : null}
+              ) : null} */}
             </QueryClientProvider>
             <Toaster dir={direction} richColors />
             <WebVitals />

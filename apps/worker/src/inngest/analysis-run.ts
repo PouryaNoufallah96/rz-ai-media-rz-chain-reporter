@@ -68,23 +68,27 @@ import { sourceImportItem } from "@rz-chain-reporter/db/schema/source-import-ite
 import { sourceImportSource } from "@rz-chain-reporter/db/schema/source-import-source";
 import { sourceItem } from "@rz-chain-reporter/db/schema/source-item";
 import { sourceItemRevision } from "@rz-chain-reporter/db/schema/source-item-revision";
+import {
+  ModelGatewayInvocationError,
+  type ModelInvocationFailureReason,
+} from "@rz-chain-reporter/model-gateway/errors";
+import {
+  MAX_OUTPUT_TOKENS,
+  type ModelGateway,
+} from "@rz-chain-reporter/model-gateway/gateway";
 import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { invoke, NonRetriableError } from "inngest";
 import { z } from "zod";
-
 import type { PipelineConfiguration } from "../editorial/pipeline";
 import { prepareCandidates, scoreAndRoute } from "../editorial/pipeline";
 import { buildProjection, PROJECTION_VERSION } from "../editorial/projection";
 import { SCORING_VERSION } from "../editorial/scoring";
 import { planSemanticStage, SemanticVectorError } from "../editorial/semantic";
 import { NORMALIZATION_VERSION } from "../editorial/text";
-import { workerLogger } from "../logging/logger";
-import { ModelGatewayInvocationError } from "../model-gateway/errors";
-import {
-  createModelGateway,
-  MAX_OUTPUT_TOKENS,
-  type ModelGateway,
-} from "../model-gateway/gateway";
+import { InstallationIdentityError } from "../identity/assert";
+import { stableFailureCode, workerLogger } from "../logging/logger";
+
+import { createWorkerModelGateway } from "../model-gateway/worker-gateway";
 import { workerEnv } from "../runtime/env";
 import {
   notifyEditorialAndUsageChanged,
@@ -106,9 +110,9 @@ const SEMANTIC_TASK_KEY = "keyword-embedding";
 const SOURCE_IMPORT_READY_WAIT_SLICE = "10s";
 const SOURCE_IMPORT_READY_WAIT_SLICES = 72;
 
-const UNIT_TOTAL_DEADLINE_MS = 30_000;
-const UNIT_PRIMARY_DEADLINE_MS = 20_000;
-const UNIT_REPAIR_DEADLINE_MS = 10_000;
+export const UNIT_TOTAL_DEADLINE_MS = 90_000;
+export const UNIT_PRIMARY_DEADLINE_MS = 70_000;
+export const UNIT_REPAIR_DEADLINE_MS = 20_000;
 const UNIT_REASONING_MAX_CHARS = 600;
 const UNIT_TEXT_MAX_CHARS = 400;
 const UNIT_REPAIR_INSTRUCTIONS =
@@ -116,26 +120,51 @@ const UNIT_REPAIR_INSTRUCTIONS =
 
 // inngest/function.failed may carry only this message; keep it a stable code.
 class AnalysisRunError extends Error {
-  constructor(code: ErrorCode) {
-    super(code);
+  constructor(code: ErrorCode, options?: ErrorOptions) {
+    super(code, options);
     this.name = "AnalysisRunError";
   }
 }
 
-function failureCodeOf(value: unknown): ErrorCode {
+function carriedCodeOf(value: unknown): ErrorCode | null {
+  if (value instanceof InstallationIdentityError) {
+    return "TEMPLATE_DRIFT";
+  }
   const message = value instanceof Error ? value.message : String(value ?? "");
   const parsed = errorCodeSchema.safeParse(message);
-  return parsed.success ? parsed.data : "INTERNAL_SERVER_ERROR";
+  return parsed.success ? parsed.data : null;
+}
+
+function failureCodeOf(value: unknown): ErrorCode {
+  return carriedCodeOf(value) ?? "INTERNAL_SERVER_ERROR";
 }
 
 async function coded<T>(run: () => Promise<T>): Promise<T> {
   try {
     return await run();
   } catch (error) {
-    const code = failureCodeOf(error);
-    throw error instanceof NonRetriableError
-      ? new NonRetriableError(code)
-      : new AnalysisRunError(code);
+    if (error instanceof AnalysisRunError) {
+      throw error;
+    }
+    const carried = carriedCodeOf(error);
+    if (carried !== null && !(error instanceof InstallationIdentityError)) {
+      if (error instanceof NonRetriableError) {
+        throw error;
+      }
+      throw new AnalysisRunError(carried, { cause: error });
+    }
+    const code = carried ?? "INTERNAL_SERVER_ERROR";
+    workerLogger.error("worker.analysis-run.step-failed", {
+      errorCode: code,
+      reason: stableFailureCode(
+        error,
+        error instanceof Error ? error.name : "unknown",
+      ),
+    });
+    throw error instanceof NonRetriableError ||
+      error instanceof InstallationIdentityError
+      ? new NonRetriableError(code, { cause: error })
+      : new AnalysisRunError(code, { cause: error });
   }
 }
 
@@ -762,7 +791,7 @@ export function createAnalysisRunFunctions(
   runtime: WorkerRuntime,
 ) {
   const gateway = () =>
-    createModelGateway({
+    createWorkerModelGateway({
       bindings: {
         OLLAMA_BASE_URL: workerEnv.OLLAMA_BASE_URL,
         OPENROUTER_API_KEY: workerEnv.OPENROUTER_API_KEY,
@@ -1203,7 +1232,16 @@ export function createAnalysisRunFunctions(
         try {
           const settled = await step.run("settle-failed-run", () =>
             coded(async () => {
-              await assertWorkspace(runtime, workspaceId);
+              try {
+                await assertWorkspace(runtime, workspaceId);
+              } catch (error) {
+                if (
+                  !(error instanceof InstallationIdentityError) ||
+                  error.code !== "TEMPLATE_NOT_APPLIED"
+                ) {
+                  throw error;
+                }
+              }
               const run = await findAnalysisRunByOperationId(
                 runtime.db,
                 workspaceId,
@@ -2221,6 +2259,11 @@ type UnitSlots = {
   retry: UsageStatus | null;
 };
 
+type NewsModelRecoveryError = Pick<
+  ModelGatewayInvocationError,
+  "ambiguous" | "code"
+> & { reason?: ModelInvocationFailureReason };
+
 type NewsModelRecoveryDecision =
   | { kind: "repair" }
   | {
@@ -2230,19 +2273,19 @@ type NewsModelRecoveryDecision =
     };
 
 export function decideNewsModelRecovery(
-  error: Pick<ModelGatewayInvocationError, "ambiguous" | "code">,
+  error: NewsModelRecoveryError,
   repairAttempted: true,
 ): Extract<NewsModelRecoveryDecision, { kind: "deterministic" }>;
 export function decideNewsModelRecovery(
-  error: Pick<ModelGatewayInvocationError, "ambiguous" | "code">,
+  error: NewsModelRecoveryError,
   repairAttempted: false,
 ): NewsModelRecoveryDecision;
 export function decideNewsModelRecovery(
-  error: Pick<ModelGatewayInvocationError, "ambiguous" | "code">,
+  error: NewsModelRecoveryError,
   repairAttempted: boolean,
 ): NewsModelRecoveryDecision;
 export function decideNewsModelRecovery(
-  error: Pick<ModelGatewayInvocationError, "ambiguous" | "code">,
+  error: NewsModelRecoveryError,
   repairAttempted: boolean,
 ): NewsModelRecoveryDecision {
   if (
@@ -2255,9 +2298,17 @@ export function decideNewsModelRecovery(
 
   return {
     kind: "deterministic",
-    failureCode: error.code,
+    failureCode: persistedFailureCode(error),
     outcome: error.ambiguous ? "ambiguous" : "failed_terminal",
   };
+}
+
+function persistedFailureCode(
+  error: Pick<NewsModelRecoveryError, "code" | "reason">,
+): ErrorCode {
+  return error.reason === "invocation-bounds"
+    ? "VALIDATION_FAILED"
+    : error.code;
 }
 
 export function decideRecordedNewsModelRecovery(
@@ -2452,6 +2503,7 @@ async function runModelUnit(
 
     invokeSlot = (invocationKey) =>
       invokeUnitSlot(gateway, {
+        analysisModelUnitId: input.analysisModelUnitId,
         deadlineMs: unitInvocationDeadlineMs(
           unitDeadlineAt,
           invocationKey,
@@ -2551,6 +2603,7 @@ async function runModelUnit(
 
     invokeSlot = (invocationKey) =>
       invokeUnitSlot(gateway, {
+        analysisModelUnitId: input.analysisModelUnitId,
         deadlineMs: unitInvocationDeadlineMs(
           unitDeadlineAt,
           invocationKey,
@@ -2658,7 +2711,7 @@ async function runModelUnit(
   const failUnit = (error: ModelGatewayInvocationError) =>
     settleUnit(
       "failed",
-      error.code === "TEMPLATE_DRIFT" ? "TEMPLATE_DRIFT" : error.code,
+      persistedFailureCode(error),
       error.ambiguous ? "ambiguous" : "failed_terminal",
     );
 
@@ -2721,6 +2774,7 @@ async function runModelUnit(
 async function invokeUnitSlot<TOutput>(
   gateway: ModelGateway,
   input: {
+    analysisModelUnitId: string;
     deadlineMs: number | null;
     instructions?: string;
     invocationKey: InvocationKey;
@@ -2737,8 +2791,27 @@ async function invokeUnitSlot<TOutput>(
     workspaceId: string;
   },
 ): Promise<ModelGatewayInvocationError | null> {
+  const logFailure = (error: ModelGatewayInvocationError) => {
+    workerLogger.error("worker.analysis-run.unit-invocation-failed", {
+      analysisModelUnitId: input.analysisModelUnitId,
+      attemptId: input.operationAttemptId,
+      errorCode: error.code,
+      invocationKey: input.invocationKey,
+      operationId: input.operationId,
+      reason: error.reason,
+      taskKey: input.taskKey,
+      usageEventId: error.usageEventId ?? undefined,
+      workspaceId: input.workspaceId,
+    });
+    return error;
+  };
+
   if (input.deadlineMs === null) {
-    return new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED");
+    return logFailure(
+      new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+        reason: "unit-deadline-exhausted",
+      }),
+    );
   }
 
   try {
@@ -2760,9 +2833,18 @@ async function invokeUnitSlot<TOutput>(
     return null;
   } catch (error) {
     if (!(error instanceof ModelGatewayInvocationError)) {
+      workerLogger.error("worker.analysis-run.unit-invocation-crashed", {
+        analysisModelUnitId: input.analysisModelUnitId,
+        attemptId: input.operationAttemptId,
+        invocationKey: input.invocationKey,
+        operationId: input.operationId,
+        reason: error instanceof Error ? error.name : "unknown",
+        taskKey: input.taskKey,
+        workspaceId: input.workspaceId,
+      });
       throw error;
     }
-    return error;
+    return logFailure(error);
   }
 }
 

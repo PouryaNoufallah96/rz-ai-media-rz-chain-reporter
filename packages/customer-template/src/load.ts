@@ -12,6 +12,9 @@ import {
   CUSTOMER_TEMPLATE_SCHEMA_VERSION,
   type CustomerTemplate,
   customerTemplateSchema,
+  type ReviewedKnowledgeFaqRow,
+  type ReviewedKnowledgeLocale,
+  reviewedKnowledgeFaqSchema,
 } from "./schema";
 import { stableKeySchema } from "./stable-key";
 
@@ -27,6 +30,7 @@ const CUSTOMER_TEMPLATE_ERROR_CODES = [
   "REFERENCE_ESCAPES_ROOT",
   "IMAGE_PROFILE_INVALID",
   "BRAND_LOGO_INVALID",
+  "REVIEWED_KNOWLEDGE_INVALID",
   "UNDECLARED_FILE",
 ] as const;
 
@@ -43,9 +47,34 @@ export class CustomerTemplateError extends Error {
   }
 }
 
+// No repository path: a citation must never expose the artifact layout.
+export type ReviewedKnowledgeDocument = {
+  id: string;
+  kind: "workspace-overview" | "brand-chat";
+  brandKey: string | null;
+  locale: ReviewedKnowledgeLocale;
+  sha256: string;
+  text: string;
+};
+
+export type BrandBibleDocument = {
+  brandKey: string;
+  sha256: string;
+  text: string;
+};
+
+export type LoadedReviewedKnowledge = {
+  faqByLocale: Partial<
+    Record<ReviewedKnowledgeLocale, readonly ReviewedKnowledgeFaqRow[]>
+  >;
+  documents: readonly ReviewedKnowledgeDocument[];
+  brandBibles: readonly BrandBibleDocument[];
+};
+
 export type LoadedCustomerTemplate = {
   template: CustomerTemplate;
   references: readonly CustomerTemplateReference[];
+  reviewedKnowledge: LoadedReviewedKnowledge;
   fingerprint: string;
 };
 
@@ -157,13 +186,15 @@ export function loadCustomerTemplate(
     );
   }
 
-  const references = resolveReferences(customerDir, validated.data);
+  const admitted = readDeclaredReferences(customerDir, validated.data);
+  const references = admitted.map(({ path, sha256 }) => ({ path, sha256 }));
 
   assertNoUndeclaredFiles(customerDir, references);
 
   return {
     template: validated.data,
     references,
+    reviewedKnowledge: buildReviewedKnowledge(validated.data, admitted),
     fingerprint: computeCustomerTemplateFingerprint({
       template: validated.data,
       references,
@@ -171,27 +202,168 @@ export function loadCustomerTemplate(
   };
 }
 
-function resolveReferences(
-  customerDir: string,
+type AdmittedReference = CustomerTemplateReference & { bytes: Buffer };
+
+function reviewedKnowledgeReferences(template: CustomerTemplate) {
+  const reviewed = template.reviewedKnowledge;
+
+  if (!reviewed) {
+    return [];
+  }
+
+  return [
+    ...Object.values(reviewed.faq ?? {}).map((path) => ({
+      kind: "reviewed-faq" as const,
+      path,
+    })),
+    ...Object.values(reviewed.workspaceOverview ?? {}).map((path) => ({
+      kind: "reviewed-document" as const,
+      path,
+    })),
+    ...Object.values(reviewed.brandChat ?? {}).flatMap((byLocale) =>
+      Object.values(byLocale ?? {}).map((path) => ({
+        kind: "reviewed-document" as const,
+        path,
+      })),
+    ),
+  ];
+}
+
+function buildReviewedKnowledge(
   template: CustomerTemplate,
-): CustomerTemplateReference[] {
-  const declared = template.mediaBrands.flatMap((brand) => [
-    ...(brand.brandBible
-      ? [{ kind: "document" as const, path: brand.brandBible }]
-      : []),
-    ...(brand.imageProfile
-      ? [{ kind: "image-profile" as const, path: brand.imageProfile }]
-      : []),
-    ...(brand.brandLogo
+  admitted: readonly AdmittedReference[],
+): LoadedReviewedKnowledge {
+  const byPath = new Map(admitted.map((entry) => [entry.path, entry]));
+  const brandBibles = template.mediaBrands.flatMap((brand) => {
+    const entry = brand.brandBible ? byPath.get(brand.brandBible) : undefined;
+
+    return entry
       ? [
           {
-            kind: "brand-logo" as const,
-            path: brand.brandLogo.path,
-            metadata: brand.brandLogo,
+            brandKey: brand.key,
+            sha256: entry.sha256,
+            text: entry.bytes.toString("utf8"),
           },
         ]
-      : []),
-  ]);
+      : [];
+  });
+  const reviewed = template.reviewedKnowledge;
+
+  if (!reviewed) {
+    return { faqByLocale: {}, documents: [], brandBibles };
+  }
+
+  const read = (path: string) => {
+    const entry = byPath.get(path);
+
+    if (!entry) {
+      throw new CustomerTemplateError(
+        "REFERENCE_NOT_FOUND",
+        `Reviewed Knowledge reference "${path}" was not admitted`,
+      );
+    }
+
+    return entry;
+  };
+
+  const faqByLocale: LoadedReviewedKnowledge["faqByLocale"] = {};
+
+  for (const [locale, path] of localeEntries(reviewed.faq)) {
+    faqByLocale[locale] = parseReviewedFaq(path, read(path).bytes);
+  }
+
+  const documents = [
+    ...localeEntries(reviewed.workspaceOverview).map(([locale, path]) => ({
+      id: "workspace-overview",
+      kind: "workspace-overview" as const,
+      brandKey: null,
+      locale,
+      sha256: read(path).sha256,
+      text: read(path).bytes.toString("utf8"),
+    })),
+    ...Object.entries(reviewed.brandChat ?? {}).flatMap(
+      ([brandKey, byLocale]) =>
+        localeEntries(byLocale).map(([locale, path]) => ({
+          id: `brand:${brandKey}`,
+          kind: "brand-chat" as const,
+          brandKey,
+          locale,
+          sha256: read(path).sha256,
+          text: read(path).bytes.toString("utf8"),
+        })),
+    ),
+  ];
+
+  return { faqByLocale, documents, brandBibles };
+}
+
+function localeEntries(
+  byLocale: Partial<Record<ReviewedKnowledgeLocale, string>> | undefined,
+) {
+  return Object.entries(byLocale ?? {}) as [ReviewedKnowledgeLocale, string][];
+}
+
+function parseReviewedFaq(path: string, bytes: Buffer) {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(bytes.toString("utf8"));
+  } catch (error) {
+    throw new CustomerTemplateError(
+      "REVIEWED_KNOWLEDGE_INVALID",
+      `Reviewed FAQ "${path}" is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  const validated = reviewedKnowledgeFaqSchema.safeParse(parsed);
+
+  if (!validated.success) {
+    throw new CustomerTemplateError(
+      "REVIEWED_KNOWLEDGE_INVALID",
+      `Reviewed FAQ "${path}" is not a valid reviewed FAQ:\n${z.prettifyError(validated.error)}`,
+    );
+  }
+
+  const keys = new Set<string>();
+
+  for (const row of validated.data) {
+    if (keys.has(row.key)) {
+      throw new CustomerTemplateError(
+        "REVIEWED_KNOWLEDGE_INVALID",
+        `Reviewed FAQ "${path}" repeats key "${row.key}"`,
+      );
+    }
+
+    keys.add(row.key);
+  }
+
+  return validated.data satisfies readonly ReviewedKnowledgeFaqRow[];
+}
+
+function readDeclaredReferences(
+  customerDir: string,
+  template: CustomerTemplate,
+): AdmittedReference[] {
+  const declared = [
+    ...reviewedKnowledgeReferences(template),
+    ...template.mediaBrands.flatMap((brand) => [
+      ...(brand.brandBible
+        ? [{ kind: "document" as const, path: brand.brandBible }]
+        : []),
+      ...(brand.imageProfile
+        ? [{ kind: "image-profile" as const, path: brand.imageProfile }]
+        : []),
+      ...(brand.brandLogo
+        ? [
+            {
+              kind: "brand-logo" as const,
+              path: brand.brandLogo.path,
+              metadata: brand.brandLogo,
+            },
+          ]
+        : []),
+    ]),
+  ];
 
   return declared
     .sort((left, right) => (left.path < right.path ? -1 : 1))
@@ -205,6 +377,7 @@ function resolveReferences(
       }
 
       return {
+        bytes,
         path: reference.path,
         sha256: createHash("sha256").update(bytes).digest("hex"),
       };

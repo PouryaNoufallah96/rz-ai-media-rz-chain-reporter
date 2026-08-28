@@ -2,6 +2,7 @@ import { createServer, type Server, type ServerResponse } from "node:http";
 
 import { stableFailureCode } from "../logging/logger";
 import type { WorkerRuntimeState } from "../runtime/state";
+import { checkObjectStoreReachable } from "./object-store";
 
 type ReadinessCheck = () => Promise<void>;
 
@@ -41,6 +42,11 @@ export function createHealthServer(
     }
 
     void checkReadiness()
+      .then(() =>
+        state.config.objectStore === "bound"
+          ? checkObjectStoreReachable()
+          : undefined,
+      )
       .then(() => {
         const runtimeReady = state.runtimeReady();
         json(response, runtimeReady ? 200 : 503, {

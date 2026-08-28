@@ -169,6 +169,13 @@
       "when": 1787872913061,
       "tag": "0023_active_draft_revision",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1787906904662,
+      "tag": "0024_activity_workspace_occurred_index",
+      "breakpoints": true
     }
   ]
 }

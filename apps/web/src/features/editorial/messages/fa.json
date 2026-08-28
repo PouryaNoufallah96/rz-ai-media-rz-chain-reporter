@@ -266,9 +266,8 @@
       "selector": {
         "label": "اجرا",
         "latest": "انتخاب اجرا",
-        "option": "{kind} · {actor} · {time}",
+        "option": "{kind} · {time}",
         "viewing": "در حال مشاهدهٔ یک اجرای تاریخی.",
-        "you": "شما",
         "recent": "اجراهای اخیر"
       },
       "templateChanged": {
@@ -445,7 +444,9 @@
       "board": {
         "zone": "تخته",
         "noBrands": "برای باز شدن ریل، یک برند رسانه‌ای انتخاب کنید.",
-        "rail": "ریل محتوای {brand}"
+        "rail": "ریل محتوای {brand}",
+        "railPrevious": "اسکرول ریل {brand} به سمت شروع",
+        "railNext": "اسکرول ریل {brand} به سمت پایان"
       },
       "model": {
         "title": "{model} · {brand}",

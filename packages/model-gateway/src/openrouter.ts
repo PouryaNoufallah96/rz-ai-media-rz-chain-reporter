@@ -8,6 +8,7 @@ import {
   generateEmbeddings,
   generateImageOnce,
   generateStructured,
+  streamSynthesis,
 } from "./generate";
 import type {
   ImageAdapterInput,
@@ -119,6 +120,7 @@ export function createOpenRouterAdapter(
           error.kind,
           error.retryable,
           observation,
+          error.reason,
         );
         const diagnosis = readProviderFailure(error);
         throw diagnosis
@@ -147,6 +149,15 @@ export function createOpenRouterAdapter(
 
       return generateStructured(
         model,
+        input,
+        emptyObservation(),
+        observeOpenRouterStep,
+      );
+    },
+
+    streamText(input) {
+      return streamSynthesis(
+        getProvider().chat(input.model),
         input,
         emptyObservation(),
         observeOpenRouterStep,

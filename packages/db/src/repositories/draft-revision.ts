@@ -20,6 +20,7 @@ import { draftRevisionCommandReceipt } from "../schema/draft-revision-command-re
 import { imageGeneration } from "../schema/image-generation";
 import { mediaAsset } from "../schema/media-asset";
 import { platformDraft } from "../schema/platform-draft";
+import { ownedDraftExists } from "./draft-origin";
 
 const RECEIPT_IDENTITY_CONSTRAINT =
   "uq_draft_revision_command_receipt_identity";
@@ -85,6 +86,7 @@ export async function readDraftRevisionCommandContext(
   executor: Executor,
   workspaceId: string,
   platformDraftId: string,
+  actorId: string,
   expectedRevisionId?: string | null,
 ) {
   const [draft] = await executor
@@ -100,6 +102,7 @@ export async function readDraftRevisionCommandContext(
         inWorkspace(platformDraft, workspaceId),
         eq(platformDraft.id, platformDraftId),
         isNull(platformDraft.deletedAt),
+        ownedDraftExists(workspaceId, actorId),
       ),
     );
   if (!draft) return null;
@@ -152,6 +155,7 @@ export async function executeDraftRevisionCommand(
             inWorkspace(platformDraft, workspaceId),
             eq(platformDraft.id, input.platformDraftId),
             isNull(platformDraft.deletedAt),
+            ownedDraftExists(workspaceId, input.actorId),
           ),
         )
         .for("update");

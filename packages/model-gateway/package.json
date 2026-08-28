@@ -1,0 +1,35 @@
+{
+  "name": "@rz-chain-reporter/model-gateway",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./errors": "./src/errors.ts",
+    "./gateway": "./src/gateway.ts",
+    "./ollama": "./src/ollama.ts",
+    "./openrouter": "./src/openrouter.ts",
+    "./prestart": "./src/prestart.ts",
+    "./task": "./src/task.ts",
+    "./types": "./src/types.ts",
+    "./usage": "./src/usage.ts"
+  },
+  "scripts": {
+    "check": "biome check .",
+    "check-types": "tsc --noEmit",
+    "fix": "biome check --write ."
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "catalog:",
+    "@openrouter/ai-sdk-provider": "catalog:",
+    "@rz-chain-reporter/contracts": "workspace:*",
+    "@rz-chain-reporter/customer-template": "workspace:*",
+    "@rz-chain-reporter/db": "workspace:*",
+    "ai": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@rz-chain-reporter/config": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

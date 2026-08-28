@@ -9,21 +9,26 @@ RUN corepack enable && corepack prepare pnpm@11.21.0 --activate
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
+COPY patches patches
 COPY apps/worker/package.json apps/worker/package.json
+COPY packages/cache-invalidation/package.json packages/cache-invalidation/package.json
 COPY packages/config/package.json packages/config/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/customer-template/package.json packages/customer-template/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/env/package.json packages/env/package.json
+COPY packages/model-gateway/package.json packages/model-gateway/package.json
 COPY packages/storage/package.json packages/storage/package.json
 RUN --mount=type=cache,target=/pnpm/store pnpm install --frozen-lockfile
 
 COPY apps/worker apps/worker
+COPY packages/cache-invalidation packages/cache-invalidation
 COPY packages/config packages/config
 COPY packages/contracts packages/contracts
 COPY packages/customer-template packages/customer-template
 COPY packages/db packages/db
 COPY packages/env packages/env
+COPY packages/model-gateway packages/model-gateway
 COPY packages/storage packages/storage
 
 ARG CUSTOMER_TEMPLATE_KEY

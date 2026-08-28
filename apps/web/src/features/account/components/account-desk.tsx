@@ -27,11 +27,17 @@ import {
 } from "@rz-chain-reporter/ui/components/empty";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { type MouseEvent, startTransition, useState } from "react";
+import {
+  type MouseEvent,
+  type ReactNode,
+  startTransition,
+  useState,
+} from "react";
 
 import { StateMark, type StateMarkState } from "@/components/common/state-mark";
 import { KeysetPagination } from "@/components/data-table/keyset-pagination";
 import { LabeledSelect } from "@/components/form/form-field";
+import { useAssistant } from "@/features/assistant/lib/assistant-context";
 import { CardSheet } from "@/features/editorial/components/card-sheet";
 import type { PlatformDraftCard } from "@/features/editorial/schemas/drafts";
 import { PublishingFreshness } from "@/features/publishing/components/publishing-freshness";
@@ -46,39 +52,22 @@ import type {
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 import { Link } from "@/i18n/navigation";
 
-import { ACCOUNT_NAMESPACE, ACCOUNT_SAVED_STATES } from "../constants";
-import type { AccountSummary, ActivityHistoryRow } from "../schemas/account";
+import {
+  ACCOUNT_NAMESPACE,
+  ACCOUNT_SAVED_STATES,
+  ACTIVITY_MESSAGE,
+} from "../constants";
+import type {
+  AccountSummary,
+  ActivityHistoryRow,
+  ActivityLedgerRow,
+} from "../schemas/account";
 import {
   type AccountQuery,
   accountSearchParsers,
   normalizeAccountQuery,
 } from "../schemas/search";
-
-const ACTIVITY_MESSAGE = {
-  "saved_card.saved": "activity.events.saved_card.saved",
-  "saved_card.discarded": "activity.events.saved_card.discarded",
-  "saved_card.restored": "activity.events.saved_card.restored",
-  "approval.granted": "activity.events.approval.granted",
-  "schedule.created": "activity.events.schedule.created",
-  "schedule.cancelled": "activity.events.schedule.cancelled",
-  "schedule.rescheduled": "activity.events.schedule.rescheduled",
-  "schedule.missed": "activity.events.schedule.missed",
-  "publication.requested": "activity.events.publication.requested",
-  "publication.confirmed": "activity.events.publication.confirmed",
-  "publication.failed": "activity.events.publication.failed",
-  "publication.delivery_unknown":
-    "activity.events.publication.delivery_unknown",
-  "publication.reconciled_delivered":
-    "activity.events.publication.reconciled_delivered",
-  "publication.reconciled_not_delivered":
-    "activity.events.publication.reconciled_not_delivered",
-  "publication.telegram_attested_delivered":
-    "activity.events.publication.telegram_attested_delivered",
-  "publication.telegram_attested_not_delivered":
-    "activity.events.publication.telegram_attested_not_delivered",
-  "publishing.paused": "activity.events.publishing.paused",
-  "publishing.resumed": "activity.events.publishing.resumed",
-} as const satisfies Record<ActivityEventType, string>;
+import { ActivityLedger } from "./activity-ledger";
 
 const ACTIVITY_MARK = {
   "saved_card.saved": "succeeded",
@@ -110,6 +99,7 @@ type SelectedDraft = {
 
 export function AccountDesk({
   activities,
+  ledger,
   profile,
   query,
   saved,
@@ -119,6 +109,7 @@ export function AccountDesk({
   topics,
 }: {
   activities: ActivityHistoryRow[];
+  ledger: KeysetPage<ActivityLedgerRow>;
   profile: { name: string; email: string; createdAt: Date };
   query: AccountQuery;
   saved: { page: KeysetPage<SavedHistoryRow>; query: SavedQuery };
@@ -132,6 +123,7 @@ export function AccountDesk({
   topics: string[];
 }) {
   const t = useTranslations(ACCOUNT_NAMESPACE);
+  const assistant = useAssistant();
   const { isPending, setValues, values } =
     useTransitionUrlState(accountSearchParsers);
   const [opener, setOpener] = useState<HTMLElement | null>(null);
@@ -181,24 +173,25 @@ export function AccountDesk({
           <ActivityList activities={activities} />
         </div>
       </div>
+      <ActivityLedger page={ledger} />
       <nav
         aria-label={t("links.title")}
         className="mt-8 flex flex-wrap gap-x-5 gap-y-1 border-border border-t pt-2 text-muted-foreground text-xs"
       >
         <Link
-          className="inline-flex min-h-11 items-center py-3 hover:text-foreground"
+          className="inline-flex min-h-11 items-center hover:text-foreground"
           href="/sources"
         >
           {t("links.sources")}
         </Link>
         <Link
-          className="inline-flex min-h-11 items-center py-3 hover:text-foreground"
+          className="inline-flex min-h-11 items-center hover:text-foreground"
           href="/installation"
         >
           {t("links.installation")}
         </Link>
         <Link
-          className="inline-flex min-h-11 items-center py-3 hover:text-foreground"
+          className="inline-flex min-h-11 items-center hover:text-foreground"
           href="/schedule"
         >
           {t("links.schedule")}
@@ -211,7 +204,10 @@ export function AccountDesk({
         key={selectedDraftId ?? "missing-draft"}
         loading={selectedDraftId !== null && selectedDraftId !== query.draft}
         onOpenChange={(open) => {
-          if (!open) void setValues({ draft: null }, { startTransition });
+          if (!open) {
+            assistant?.clearCard();
+            void setValues({ draft: null }, { startTransition });
+          }
         }}
         open={selectedDraftId !== null}
       />
@@ -313,7 +309,7 @@ function BrandList({ brands }: { brands: AccountSummary["brands"] }) {
   );
 }
 
-function Fact({ label, value }: { label: string; value: React.ReactNode }) {
+function Fact({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="grid min-w-0 gap-1">
       <dt className="ticket-label text-muted-foreground">{label}</dt>
@@ -389,7 +385,7 @@ function ActivityList({ activities }: { activities: ActivityHistoryRow[] }) {
               <CollapsibleTrigger
                 render={
                   <Button
-                    className="mt-2 min-h-11"
+                    className="mt-2 max-sm:min-h-11"
                     type="button"
                     variant="ghost"
                   />
@@ -500,7 +496,7 @@ function ScheduledCards({
               {t("scheduled.title")}
             </h2>
             <Link
-              className="inline-flex min-h-11 items-center text-xs underline-offset-4 hover:underline"
+              className="inline-flex items-center text-xs underline-offset-4 hover:underline max-sm:min-h-11"
               href="/schedule?view=scheduled"
             >
               {t("scheduled.viewAll")}
@@ -509,7 +505,7 @@ function ScheduledCards({
           <p className="text-muted-foreground text-xs">
             {t("scheduled.description")}
           </p>
-          <div className="mt-2 [&_button]:min-h-11 sm:[&_button]:min-h-0">
+          <div className="mt-2">
             <PublishingFreshness />
           </div>
         </div>
@@ -543,7 +539,7 @@ function ScheduledCards({
                 <CollapsibleTrigger
                   render={
                     <Button
-                      className="mt-2 min-h-11"
+                      className="mt-2 max-sm:min-h-11"
                       type="button"
                       variant="ghost"
                     />
@@ -632,12 +628,10 @@ function ScheduledRows({
           {row.hasImage ? t("card.image") : t("card.textOnly")}
         </p>
         {row.lifecycle === "scheduled" && row.scheduleId ? (
-          <div className="min-w-0 [&_button]:min-h-11 [&_input]:min-h-11">
-            <ScheduledPublicationActions
-              installationTimeZone={installationTimeZone}
-              row={row}
-            />
-          </div>
+          <ScheduledPublicationActions
+            installationTimeZone={installationTimeZone}
+            row={row}
+          />
         ) : null}
       </li>
     );
@@ -668,31 +662,20 @@ function SavedCards({
       aria-busy={isPending || undefined}
       aria-labelledby="account-saved-title"
       className="min-w-0"
-      data-pending={isPending || undefined}
     >
-      <Card
-        data-pending={isPending || undefined}
-        className="min-w-0 gap-0 border bg-muted/20 p-3 ring-0 data-pending:border-working sm:p-4"
-      >
+      <Card className="min-w-0 gap-0 border bg-muted/20 p-3 ring-0 sm:p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="grid gap-1">
-            <h2
-              className="font-medium text-sm"
-              id="account-saved-title"
-              ref={onFallbackFocus}
-              tabIndex={-1}
-            >
-              {t("saved.title")}
-            </h2>
-            {isPending ? (
-              <span className="text-working text-xs" role="status">
-                {t("saved.updating")}
-              </span>
-            ) : null}
-          </div>
+          <h2
+            className="font-medium text-sm"
+            id="account-saved-title"
+            ref={onFallbackFocus}
+            tabIndex={-1}
+          >
+            {t("saved.title")}
+          </h2>
           <LabeledSelect
             busy={isPending}
-            className="ms-auto w-auto max-w-full flex-row items-center gap-2 *:w-auto"
+            className="w-fit"
             label={t("saved.filter")}
             onValueChange={(savedState) =>
               void setValues({
@@ -704,7 +687,8 @@ function SavedCards({
               label: t(`saved.filterState.${value}`),
               value,
             }))}
-            triggerClassName="min-h-11 min-w-28"
+            orientation="horizontal"
+            triggerClassName="max-sm:min-h-11"
             value={query.savedState}
           />
         </div>
@@ -720,7 +704,7 @@ function SavedCards({
                 const savedAt = new Date(row.savedAt.valueOf());
                 return (
                   <li key={row.id}>
-                    <Card className="gap-3 border ring-0" size="sm">
+                    <Card className="border ring-0" size="sm">
                       <CardHeader className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 py-3">
                         <CardTitle className="flex items-center gap-2">
                           <StateMark
@@ -752,7 +736,7 @@ function SavedCards({
                           />
                         </Button>
                       </CardContent>
-                      <CardFooter className="flex flex-wrap justify-between gap-2 border-t bg-muted/20 py-3 text-muted-foreground text-xs">
+                      <CardFooter className="flex-wrap justify-between gap-2 bg-muted/20 py-3 text-muted-foreground text-xs">
                         <time dateTime={savedAt.toISOString()}>
                           {format.dateTime(savedAt, {
                             dateStyle: "short",
@@ -774,21 +758,19 @@ function SavedCards({
             </ul>
           </section>
         )}
-        <div className="[&_button]:min-h-11">
-          <KeysetPagination
-            backToLatestLabel={t("saved.latest")}
-            newerLabel={t("saved.newer")}
-            olderLabel={t("saved.older")}
-            offLatest={page.offLatest}
-            onBackToLatest={() => void setValues({ savedCursor: null })}
-            onNewer={() => void setValues({ savedCursor: page.newerCursor })}
-            onOlder={
-              page.olderCursor
-                ? () => void setValues({ savedCursor: page.olderCursor })
-                : null
-            }
-          />
-        </div>
+        <KeysetPagination
+          backToLatestLabel={t("saved.latest")}
+          newerLabel={t("saved.newer")}
+          olderLabel={t("saved.older")}
+          offLatest={page.offLatest}
+          onBackToLatest={() => void setValues({ savedCursor: null })}
+          onNewer={() => void setValues({ savedCursor: page.newerCursor })}
+          onOlder={
+            page.olderCursor
+              ? () => void setValues({ savedCursor: page.olderCursor })
+              : null
+          }
+        />
       </Card>
     </section>
   );
@@ -824,7 +806,7 @@ function ContentPreview({
 
 function CompactEmpty({ description }: { description: string }) {
   return (
-    <Empty className="items-start rounded-lg border bg-muted/20 px-4 py-5 text-start md:px-4 md:py-5">
+    <Empty className="items-start rounded-lg border bg-muted/20 px-4 py-5 text-start">
       <EmptyHeader className="items-start">
         <EmptyDescription>{description}</EmptyDescription>
       </EmptyHeader>

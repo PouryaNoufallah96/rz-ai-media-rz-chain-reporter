@@ -2,7 +2,13 @@ import type { InvocationKey } from "@rz-chain-reporter/contracts";
 import type { ModelTaskKey } from "@rz-chain-reporter/customer-template/schema";
 import type { Transaction } from "@rz-chain-reporter/db/executor";
 import type { FinalizeUsageInput } from "@rz-chain-reporter/db/repositories/ai-usage-event";
-import type { LanguageModelResponseMetadata, LanguageModelUsage } from "ai";
+import type {
+  LanguageModelResponseMetadata,
+  LanguageModelUsage,
+  StopCondition,
+  ToolChoice,
+  ToolSet,
+} from "ai";
 import type { z } from "zod";
 
 export type ModelBindings = {
@@ -45,6 +51,38 @@ export type StructuredAdapterResult<TOutput> = {
   output: TOutput;
 };
 
+export type ModelToolCall = {
+  output: unknown;
+  toolCallId: string;
+  toolName: string;
+};
+
+export type TextStreamToolOptions = {
+  stopWhen?: StopCondition<ToolSet>;
+  toolChoice?: ToolChoice<ToolSet>;
+  tools?: ToolSet;
+};
+
+export type TextStreamAdapterInput = TextStreamToolOptions & {
+  abortSignal?: AbortSignal;
+  deadlineMs: number;
+  instructions: string;
+  maxOutputTokens: number;
+  model: string;
+  prompt: string;
+  telemetry: {
+    operationAttemptId: string;
+    operationId: string;
+    usageEventId: string;
+  };
+};
+
+export type TextStreamAdapterResult = {
+  observation: () => ModelCallObservation;
+  textStream: AsyncIterable<string>;
+  toolCalls: () => readonly ModelToolCall[];
+};
+
 export type EmbeddingAdapterInput = {
   abortSignal?: AbortSignal;
   deadlineMs: number;
@@ -82,6 +120,7 @@ export interface ModelAdapter {
 export interface RemoteModelAdapter extends ModelAdapter {
   embedMany(input: EmbeddingAdapterInput): Promise<EmbeddingAdapterResult>;
   generateImage(input: ImageAdapterInput): Promise<ImageAdapterResult>;
+  streamText?(input: TextStreamAdapterInput): TextStreamAdapterResult;
 }
 
 export type StructuredModelInvocation<TOutput> = {
@@ -128,6 +167,19 @@ export type EmbeddingModelInvocation = {
   persistResult?: (tx: Transaction, embeddings: number[][]) => Promise<void>;
   taskKey: ModelTaskKey;
   values: string[];
+  workspaceId: string;
+};
+
+export type TextStreamModelInvocation = TextStreamToolOptions & {
+  abortSignal?: AbortSignal;
+  deadlineMs: number;
+  instructions: string;
+  invocationKey: InvocationKey;
+  maxOutputTokens: number;
+  operationAttemptId: string;
+  operationId: string;
+  prompt: string;
+  taskKey: ModelTaskKey;
   workspaceId: string;
 };
 

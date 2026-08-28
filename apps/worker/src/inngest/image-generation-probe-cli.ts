@@ -87,6 +87,25 @@ import { source } from "@rz-chain-reporter/db/schema/source";
 import { sourceItem } from "@rz-chain-reporter/db/schema/source-item";
 import { sourceItemEnrichment } from "@rz-chain-reporter/db/schema/source-item-enrichment";
 import { sourceItemRevision } from "@rz-chain-reporter/db/schema/source-item-revision";
+import {
+  AdapterInvocationError,
+  ImagePreparationError,
+  ModelBindingError,
+  ModelGatewayInvocationError,
+  ModelTaskConfigurationError,
+} from "@rz-chain-reporter/model-gateway/errors";
+import {
+  MAX_OUTPUT_TOKENS,
+  type ModelGateway,
+} from "@rz-chain-reporter/model-gateway/gateway";
+import { createOpenRouterAdapter } from "@rz-chain-reporter/model-gateway/openrouter";
+import type {
+  ImageAdapterInput,
+  ImageModelInvocation,
+  RemoteModelAdapter,
+  StructuredAdapterInput,
+  StructuredModelInvocation,
+} from "@rz-chain-reporter/model-gateway/types";
 import type { Storage } from "@rz-chain-reporter/storage";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Inngest } from "inngest";
@@ -105,26 +124,7 @@ import {
   normalizeCreativeBrief,
   selectionSignature,
 } from "../image-selection";
-import {
-  AdapterInvocationError,
-  ImagePreparationError,
-  ModelBindingError,
-  ModelGatewayInvocationError,
-  ModelTaskConfigurationError,
-} from "../model-gateway/errors";
-import {
-  createModelGateway,
-  MAX_OUTPUT_TOKENS,
-  type ModelGateway,
-} from "../model-gateway/gateway";
-import { createOpenRouterAdapter } from "../model-gateway/openrouter";
-import type {
-  ImageAdapterInput,
-  ImageModelInvocation,
-  RemoteModelAdapter,
-  StructuredAdapterInput,
-  StructuredModelInvocation,
-} from "../model-gateway/types";
+import { createWorkerModelGateway } from "../model-gateway/worker-gateway";
 import { resolveArtifactRoot } from "../runtime/artifact-root";
 import { workerEnv } from "../runtime/env";
 import {
@@ -214,7 +214,7 @@ async function mainLocal() {
       fixture.fallback,
       "invalid-then-accepted",
     );
-    const gateway = createModelGateway({
+    const gateway = createWorkerModelGateway({
       adapters: { local: adapter, remote: adapter },
       bindings: {},
       executor: opened.database.db,
@@ -922,7 +922,7 @@ async function mainInngest() {
       childFixture.fallback,
       "accepted",
     );
-    const gateway = createModelGateway({
+    const gateway = createWorkerModelGateway({
       adapters: { local: adapter, remote: adapter },
       bindings: {},
       executor: opened.database.db,
@@ -1630,7 +1630,7 @@ async function proveCrossDraftReferenceConflict(
 async function proveReferenceAndCancellation(
   db: Executor,
   runtime: WorkerRuntime,
-  gateway: ReturnType<typeof createModelGateway>,
+  gateway: ReturnType<typeof createWorkerModelGateway>,
   fixture: Fixture,
   adapter: DeterministicImageAdapter,
 ) {
@@ -2001,7 +2001,7 @@ async function mainPaid() {
       fixture.fallback,
       "invalid-then-accepted",
     );
-    const deterministicGateway = createModelGateway({
+    const deterministicGateway = createWorkerModelGateway({
       adapters: {
         local: deterministicAdapter,
         remote: deterministicAdapter,
@@ -2031,7 +2031,7 @@ async function mainPaid() {
       ).status,
       "succeeded",
     );
-    const providerGateway = createModelGateway({
+    const providerGateway = createWorkerModelGateway({
       bindings: { OPENROUTER_API_KEY: workerEnv.OPENROUTER_API_KEY },
       executor: opened.database.db,
       identity: opened.identity,
@@ -2719,7 +2719,7 @@ async function runImageStagesThroughProvider(
     template: fixture.template,
   };
   const adapter = new DeterministicImageAdapter(fixture.fallback, "accepted");
-  const gateway = createModelGateway({
+  const gateway = createWorkerModelGateway({
     adapters: { local: adapter, remote: adapter },
     bindings: {},
     executor: opened.database.db,
@@ -2891,7 +2891,7 @@ async function proveJpegReferenceInvocation(
     template: fixture.template,
   };
   const adapter = new DeterministicImageAdapter(fixture.fallback, "accepted");
-  const gateway = createModelGateway({
+  const gateway = createWorkerModelGateway({
     adapters: { local: adapter, remote: adapter },
     bindings: {},
     executor: db,
@@ -3029,7 +3029,7 @@ async function proveImageProviderRejection(
       return structured.generateStructured(input);
     },
   };
-  const gateway = createModelGateway({
+  const gateway = createWorkerModelGateway({
     adapters: { local: structured, remote },
     bindings: {},
     executor: db,
@@ -3204,7 +3204,7 @@ async function proveCreativeBriefNormalization(
     headline,
     subjectScene: "A neutral fixture scene with no restricted subject.",
   });
-  const gateway = createModelGateway({
+  const gateway = createWorkerModelGateway({
     adapters: { local: adapter, remote: adapter },
     bindings: {},
     executor: db,
@@ -3323,7 +3323,7 @@ async function proveBannedCreativeBriefRejection(
     headline: fixture.fallback.brief.headline,
     subjectScene: `A marble hall displaying a ${banned.toLocaleUpperCase("und")} on a plinth.`,
   });
-  const gateway = createModelGateway({
+  const gateway = createWorkerModelGateway({
     adapters: { local: adapter, remote: adapter },
     bindings: {},
     executor: db,
@@ -3445,7 +3445,7 @@ async function proveDeterministicCreativeBrief(
     fixture.fallback,
     "invalid-selection",
   );
-  const gateway = createModelGateway({
+  const gateway = createWorkerModelGateway({
     adapters: { local: adapter, remote: adapter },
     bindings: {},
     executor: db,
@@ -4084,7 +4084,7 @@ async function proveImageSourceReadiness(
       template: fixture.template,
     };
     const adapter = new DeterministicImageAdapter(fixture.fallback, "accepted");
-    const gateway = createModelGateway({
+    const gateway = createWorkerModelGateway({
       adapters: { local: adapter, remote: adapter },
       bindings: {},
       executor: db,
@@ -5276,7 +5276,7 @@ function proveImagePromptProfileBounds(template: CustomerTemplate) {
 }
 
 async function proveGatewayBounds(
-  gateway: ReturnType<typeof createModelGateway>,
+  gateway: ReturnType<typeof createWorkerModelGateway>,
   adapter: DeterministicImageAdapter,
 ) {
   if (!gateway.invokeImage) throw new Error("IMAGE_GATEWAY_REQUIRED");
@@ -5758,7 +5758,7 @@ async function beginGatewayMatrixOperation(
   };
   if (stage !== "selection") {
     const adapter = new DeterministicImageAdapter(fixture.fallback, "accepted");
-    const gateway = createModelGateway({
+    const gateway = createWorkerModelGateway({
       adapters: { local: adapter, remote: adapter },
       bindings: {},
       executor: db,
