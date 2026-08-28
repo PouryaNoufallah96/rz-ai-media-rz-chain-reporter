@@ -1,14 +1,19 @@
+import { sql } from "drizzle-orm";
 import {
+  check,
   foreignKey,
   pgTable,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth";
 import { draftRevision } from "./draft-revision";
-import { timestamps, uuidPrimaryKey, workspaceScope } from "./helpers";
+import { platform } from "./enums";
+import { uuidPrimaryKey, workspaceScope } from "./helpers";
+import { mediaAsset } from "./media-asset";
 import { workspace } from "./workspace";
 
 export const approval = pgTable(
@@ -17,11 +22,14 @@ export const approval = pgTable(
     ...uuidPrimaryKey,
     ...workspaceScope,
     draftRevisionId: uuid("draft_revision_id").notNull(),
-    decidedBy: text("decided_by").notNull(),
-    decidedAt: timestamp("decided_at", { withTimezone: true })
+    platform: platform("platform").notNull(),
+    selectedFinalMediaAssetId: uuid("selected_final_media_asset_id"),
+    approvedBy: text("approved_by").notNull(),
+    approvedAt: timestamp("approved_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
-    ...timestamps,
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestHash: text("request_hash").notNull(),
   },
   (t) => [
     foreignKey({
@@ -35,9 +43,31 @@ export const approval = pgTable(
       foreignColumns: [draftRevision.id],
     }).onDelete("restrict"),
     foreignKey({
-      name: "fk_approval_decided_by",
-      columns: [t.decidedBy],
+      name: "fk_approval_selected_final_media_asset_id",
+      columns: [t.selectedFinalMediaAssetId],
+      foreignColumns: [mediaAsset.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "fk_approval_approved_by",
+      columns: [t.approvedBy],
       foreignColumns: [user.id],
     }).onDelete("restrict"),
+    unique("uq_approval_workspace_actor_idempotency").on(
+      t.workspaceId,
+      t.approvedBy,
+      t.idempotencyKey,
+    ),
+    unique("uq_approval_workspace_snapshot")
+      .on(
+        t.workspaceId,
+        t.draftRevisionId,
+        t.platform,
+        t.selectedFinalMediaAssetId,
+      )
+      .nullsNotDistinct(),
+    check(
+      "ck_approval_platform_media",
+      sql`${t.platform} <> 'instagram' or ${t.selectedFinalMediaAssetId} is not null`,
+    ),
   ],
 );

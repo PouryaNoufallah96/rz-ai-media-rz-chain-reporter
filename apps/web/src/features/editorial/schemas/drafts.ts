@@ -1,10 +1,16 @@
 import {
   cardOriginReferenceSchema,
   contentLocaleSchema,
+  draftRevisionMaterialSchema,
+  filteringReasonSchema,
   modelUnitStatusSchema,
   operationLifecycleSchema,
   operatorImageDirectionSchema,
   platformSchema,
+  publicationLifecycleSchema,
+  publishCheckpointKindSchema,
+  scheduleStatusSchema,
+  settlementActivityStatusSchema,
 } from "@rz-chain-reporter/contracts";
 import { z } from "zod";
 
@@ -77,18 +83,97 @@ export const platformDraftCardSchema = z.strictObject({
   platform: platformSchema,
   lanePosition: z.int().positive(),
   version: z.int().positive(),
+  activeRevisionId: z.uuid().nullable(),
+  revisionVersion: z.int().nonnegative(),
   origin: cardOriginReferenceSchema,
   originTitle: z.string(),
   sourceKind: z.enum(["promo", "rss", "telegram"]),
+  originDetails: z
+    .strictObject({
+      sourceName: z.string().nullable(),
+      publishedAt: z.date().nullable(),
+      canonicalUrl: z.string().nullable(),
+      summary: z.string().nullable(),
+      contentLocale: contentLocaleSchema.nullable(),
+      suitabilityScore: z.int().nullable(),
+      reasoning: z.string().nullable(),
+      suggestedPlatform: platformSchema.nullable(),
+      telegramReason: filteringReasonSchema.nullable(),
+      promoAngle: z.string().nullable(),
+    })
+    .nullable(),
   generation: platformDraftGenerationSchema.nullable(),
   candidates: z.array(copyVariantProjectionSchema),
   revisions: z.array(
     draftRevisionProjectionSchema.extend({
       imageSourceReadiness: z.enum(["ready", "extract_required"]),
+      sourceAttribution: z.string().nullable(),
+      sourceCanonicalUrl: z.string().nullable(),
     }),
   ),
   imageGeneration: imageGenerationProjectionSchema.nullable(),
   imageModels: z.array(z.strictObject({ key: z.string(), name: z.string() })),
+  publishing: z.strictObject({
+    savedCard: z
+      .strictObject({
+        id: z.uuid(),
+        version: z.int().positive(),
+        savedAt: z.date(),
+        discardedAt: z.date().nullable(),
+      })
+      .nullable(),
+    approval: z
+      .strictObject({
+        id: z.uuid(),
+        draftRevisionId: z.uuid(),
+        selectedFinalMediaAssetId: z.uuid().nullable(),
+        approvedAt: z.date(),
+      })
+      .nullable(),
+    destinations: z.array(
+      z.strictObject({
+        id: z.uuid(),
+        key: z.string(),
+        label: z.string(),
+        platform: platformSchema,
+        enabled: z.boolean(),
+        bound: z.boolean(),
+        bindingCheckedAt: z.date().nullable(),
+      }),
+    ),
+    timeZone: z.string(),
+    control: z.strictObject({
+      paused: z.boolean(),
+      environmentForced: z.boolean(),
+      version: z.int().nonnegative(),
+    }),
+    latestPublication: z
+      .strictObject({
+        id: z.uuid(),
+        lifecycle: publicationLifecycleSchema,
+        version: z.int().positive(),
+        activeOperationId: z.uuid().nullable(),
+        destinationAccountId: z.uuid().nullable(),
+        unresolvedAttemptId: z.uuid().nullable(),
+        confirmedProviderResultId: z.string().nullable(),
+        checkpointId: z.uuid().nullable(),
+        checkpointKind: publishCheckpointKindSchema.nullable(),
+        checkpointReferenceId: z.string().nullable(),
+        confirmedAt: z.date().nullable(),
+        activityStatus: settlementActivityStatusSchema,
+      })
+      .nullable(),
+    latestSchedule: z
+      .strictObject({
+        id: z.uuid(),
+        lifecycle: scheduleStatusSchema,
+        scheduledAt: z.date(),
+        timezone: z.string(),
+        destinationAccountId: z.uuid(),
+        version: z.int().positive(),
+      })
+      .nullable(),
+  }),
 });
 
 export type PlatformDraftCard = z.infer<typeof platformDraftCardSchema>;
@@ -156,14 +241,10 @@ export type ReorderPlatformDraftsResult = z.infer<
   typeof reorderPlatformDraftsResultSchema
 >;
 
-const expectedLatestRevisionSchema = z
-  .strictObject({
-    id: z.uuid().nullable(),
-    revisionNumber: z.int().positive().nullable(),
-  })
-  .refine((value) => (value.id === null) === (value.revisionNumber === null), {
-    error: "EXPECTED_LATEST_INVALID",
-  });
+const expectedActiveRevisionSchema = z.strictObject({
+  id: z.uuid().nullable(),
+  version: z.int().nonnegative(),
+});
 
 const copyOperationBase = {
   platformDraftId: z.uuid(),
@@ -207,7 +288,7 @@ export const copyOperationResultSchema = z.strictObject({
 
 const imageGenerationCommandBase = {
   draftRevisionId: z.uuid(),
-  expectedRevisionNumber: z.int().positive(),
+  expectedRevisionVersion: z.int().nonnegative(),
   idempotencyKey: z.uuid({ error: "IDEMPOTENCY_KEY_REQUIRED" }),
   modelOptionKey: z.string().trim().min(1, { error: "MODEL_REQUIRED" }),
   operatorDirection: operatorImageDirectionSchema.optional(),
@@ -233,19 +314,21 @@ export const imageGenerationCommandResultSchema = z.strictObject({
 const revisionCommandBase = {
   platformDraftId: z.uuid(),
   idempotencyKey: z.uuid({ error: "IDEMPOTENCY_KEY_REQUIRED" }),
-  expectedLatest: expectedLatestRevisionSchema,
+  expectedActive: expectedActiveRevisionSchema,
 };
 
-export const draftEditorSchema = z.strictObject({
-  contentLocale: contentLocaleSchema,
-  headline: z.string().trim().min(1, { error: "DRAFT_HEADLINE_REQUIRED" }),
-  body: z.string().trim().min(1, { error: "DRAFT_BODY_REQUIRED" }),
-  hashtags: z.array(z.string()).min(1, { error: "DRAFT_HASHTAGS_REQUIRED" }),
+export const draftEditorSchema = draftRevisionMaterialSchema.omit({
+  selectedFinalMediaAssetId: true,
 });
 
 export const updateDraftRevisionInputSchema = z.discriminatedUnion(
   "commandKind",
   [
+    z.strictObject({
+      commandKind: z.literal("select_revision"),
+      ...revisionCommandBase,
+      draftRevisionId: z.uuid(),
+    }),
     z.strictObject({
       commandKind: z.literal("apply_copy_variant"),
       ...revisionCommandBase,
@@ -268,17 +351,14 @@ export const updateDraftRevisionInputSchema = z.discriminatedUnion(
   ],
 );
 
-export type UpdateDraftRevisionInput = z.infer<
+export type UpdateDraftRevisionInput = z.input<
   typeof updateDraftRevisionInputSchema
 >;
 
 export const updateDraftRevisionResultSchema = z.strictObject({
   status: z.enum(["appended", "no_op", "replayed"]),
   appendedRevision: z.boolean(),
-  revision: draftRevisionProjectionSchema.omit({ authorName: true }).extend({
-    workspaceId: z.uuid(),
-    platformDraftId: z.uuid(),
-  }),
+  card: platformDraftCardSchema,
 });
 
 export type DraftEditorInput = Extract<

@@ -7,6 +7,7 @@ export * from "./list";
 export * from "./media";
 export * from "./operation";
 export * from "./platform";
+export * from "./publishing";
 export * from "./realtime";
 export * from "./schedule";
 export * from "./source";

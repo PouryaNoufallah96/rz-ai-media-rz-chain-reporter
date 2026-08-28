@@ -3,6 +3,7 @@ import {
   check,
   foreignKey,
   index,
+  integer,
   type PgTableExtraConfigValue,
   pgTable,
   text,
@@ -25,6 +26,7 @@ export const imageGeneration = pgTable(
     operationId: uuid("operation_id").primaryKey(),
     ...workspaceScope,
     draftRevisionId: uuid("draft_revision_id").notNull(),
+    expectedRevisionVersion: integer("expected_revision_version"),
     imageBriefId: uuid("image_brief_id"),
     operatorDirection: text("operator_direction"),
     modelOptionKey: text("model_option_key").notNull(),
@@ -37,6 +39,10 @@ export const imageGeneration = pgTable(
     ...timestamps,
   },
   (t): PgTableExtraConfigValue[] => [
+    check(
+      "ck_image_generation_expected_revision_version_nonnegative",
+      sql`${t.expectedRevisionVersion} is null or ${t.expectedRevisionVersion} >= 0`,
+    ),
     foreignKey({
       name: "fk_image_generation_operation_id",
       columns: [t.operationId],

@@ -8,9 +8,13 @@ type TransactionEvent = Parameters<
 
 const IDENTIFIER_SEGMENT =
   /\/(?:[0-9]+|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})(?=\/|$)/gi;
+const PUBLISHING_MEDIA_GRANT_SEGMENT = /(\/api\/publishing-media\/)[^/?\s]+/gi;
 
 export function sanitizeRoute(value: string | undefined) {
-  return value?.split("?", 1)[0]?.replace(IDENTIFIER_SEGMENT, "/:id");
+  return value
+    ?.split("?", 1)[0]
+    ?.replace(PUBLISHING_MEDIA_GRANT_SEGMENT, "$1:grant")
+    .replace(IDENTIFIER_SEGMENT, "/:id");
 }
 
 export function scrubErrorEvent(

@@ -1,9 +1,11 @@
 import {
+  ACTIVITY_EVENT_TYPES,
   ADMISSION_OUTCOMES,
   ANALYSIS_RUN_KINDS,
   ARTICLE_ADAPTERS,
   ARTICLE_FETCH_MODES,
   ATTEMPT_OUTCOMES,
+  CHECKPOINT_EVIDENCE_AUTHORITIES,
   CONTENT_LOCALES,
   DRAFT_REVISION_COMMAND_KINDS,
   DUPLICATE_METHODS,
@@ -19,10 +21,16 @@ import {
   MODEL_UNIT_STATUSES,
   OPERATION_LIFECYCLES,
   PLATFORMS,
+  PUBLICATION_LIFECYCLES,
+  PUBLISH_CHECKPOINT_KINDS,
+  PUBLISH_COMMAND_KINDS,
+  RECONCILIATION_AUTHORITIES,
+  RECONCILIATION_DECISIONS,
   SCHEDULE_STATUSES,
   SEMANTIC_DEGRADED_REASONS,
   SEMANTIC_PARTICIPATIONS,
   SEMANTIC_STAGE_STATUSES,
+  SETTLEMENT_ACTIVITY_STATUSES,
   SOURCE_FETCH_OUTCOMES,
   SOURCE_FETCH_REASONS,
   SOURCE_IMPORT_BINDINGS,
@@ -144,7 +152,50 @@ export const usageCostAuthority = pgEnum(
 
 export const usageSource = pgEnum("usage_source", USAGE_SOURCES);
 
-export const scheduleStatus = pgEnum("schedule_status", SCHEDULE_STATUSES);
+export const scheduleLifecycle = pgEnum(
+  "schedule_lifecycle",
+  SCHEDULE_STATUSES,
+);
+
+export const publicationLifecycle = pgEnum(
+  "publication_lifecycle",
+  PUBLICATION_LIFECYCLES,
+);
+
+export const publishCommandKind = pgEnum(
+  "publish_command_kind",
+  PUBLISH_COMMAND_KINDS,
+);
+
+export const settlementActivityStatus = pgEnum(
+  "settlement_activity_status",
+  SETTLEMENT_ACTIVITY_STATUSES,
+);
+
+export const publishCheckpointKind = pgEnum(
+  "publish_checkpoint_kind",
+  PUBLISH_CHECKPOINT_KINDS,
+);
+
+export const checkpointEvidenceAuthority = pgEnum(
+  "checkpoint_evidence_authority",
+  CHECKPOINT_EVIDENCE_AUTHORITIES,
+);
+
+export const reconciliationDecision = pgEnum(
+  "reconciliation_decision",
+  RECONCILIATION_DECISIONS,
+);
+
+export const reconciliationAuthority = pgEnum(
+  "reconciliation_authority",
+  RECONCILIATION_AUTHORITIES,
+);
+
+export const activityEventType = pgEnum(
+  "activity_event_type",
+  ACTIVITY_EVENT_TYPES,
+);
 
 export const draftRevisionCommandKind = pgEnum(
   "draft_revision_command_kind",

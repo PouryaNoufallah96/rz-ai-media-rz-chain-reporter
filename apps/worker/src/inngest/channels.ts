@@ -1,11 +1,13 @@
 import type {
   DraftsChangedRealtimeMessage,
   OperationStatusRealtimeMessage,
+  PublishingChangedRealtimeMessage,
 } from "@rz-chain-reporter/contracts";
 import {
   draftsRealtimeChannel,
   editorialRealtimeChannel,
   operationsRealtimeChannel,
+  publishingRealtimeChannel,
   sourcesRealtimeChannel,
   usageRealtimeChannel,
 } from "@rz-chain-reporter/contracts/realtime-channels";
@@ -34,6 +36,45 @@ export function publishOperationStatus(
       workerLogger.warn(logEvent, {
         operationId: message.operationId,
         status: message.lifecycle,
+        workspaceId,
+      });
+      return false;
+    });
+}
+
+export function publishPublishingChanged(
+  step: WorkerStep,
+  workspaceId: string,
+  message: PublishingChangedRealtimeMessage,
+  callSite: string,
+) {
+  return step.realtime
+    .publish(
+      `publish-publishing-changed-${callSite}`,
+      publishingRealtimeChannel(workspaceId).changed,
+      message,
+    )
+    .then(() => true)
+    .catch(() => {
+      workerLogger.warn("worker.publishing.realtime-unavailable", {
+        operationId: message.operationId,
+        workspaceId,
+      });
+      return false;
+    });
+}
+
+export function publishPublishingChangedNow(
+  client: WorkerInngestClient,
+  workspaceId: string,
+  message: PublishingChangedRealtimeMessage,
+) {
+  return client.realtime
+    .publish(publishingRealtimeChannel(workspaceId).changed, message)
+    .then(() => true)
+    .catch(() => {
+      workerLogger.warn("worker.publishing.realtime-unavailable", {
+        operationId: message.operationId,
         workspaceId,
       });
       return false;

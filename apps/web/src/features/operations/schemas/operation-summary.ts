@@ -5,6 +5,7 @@ import {
   invocationKeySchema,
   operationLifecycleSchema,
   platformSchema,
+  publicationFailureCodeSchema,
   sourceImportStageSchema,
 } from "@rz-chain-reporter/contracts";
 import { z } from "zod";
@@ -20,7 +21,9 @@ export const operationSummarySchema = z.object({
     })
     .nullable(),
   effectiveAt: z.date(),
-  failureCode: errorCodeSchema.nullable(),
+  failureCode: z
+    .union([errorCodeSchema, publicationFailureCodeSchema])
+    .nullable(),
   id: z.uuid(),
   latestAttemptOutcome: attemptOutcomeSchema.nullable(),
   lifecycle: operationLifecycleSchema,

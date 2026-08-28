@@ -33,6 +33,16 @@ type SuspendedProps<T> = ResolvedProps<T> & {
   fallback: ReactNode;
 };
 
+export function UrlDataBoundary({
+  children,
+  fallback,
+}: {
+  children: ReactNode;
+  fallback: ReactNode;
+}) {
+  return <Suspense fallback={fallback}>{children}</Suspense>;
+}
+
 export async function Suspended<T>({
   children,
   data,

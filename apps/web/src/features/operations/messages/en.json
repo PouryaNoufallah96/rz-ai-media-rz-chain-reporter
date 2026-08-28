@@ -44,7 +44,8 @@
       "scheduledEffect": "Scheduled effect",
       "mediaVerification": "Media verification",
       "sourceImport": "Source import",
-      "analysisRun": "Analysis run"
+      "analysisRun": "Analysis run",
+      "publishing": "Publishing"
     },
     "dispatch": {
       "awaiting": "awaiting dispatch",
@@ -79,20 +80,35 @@
       "forbidden": "This account cannot perform that action.",
       "idempotencyKeyReused": "This request key was already used with different details. Send the original request or start a new one.",
       "internalServerError": "The operation could not be completed.",
+      "deliveryDefinitelyFailed": "The provider rejected the publish. It is safe to correct the cause and retry.",
+      "deliveryUnknown": "The provider outcome is unknown. Reconcile it before retrying.",
+      "instagramCapacityUnavailable": "Instagram publishing capacity is unavailable. Retry after capacity recovers.",
+      "instagramContainerExpired": "The Instagram media container expired before it could be published.",
+      "instagramContainerFailed": "Instagram could not process the media container.",
+      "instagramProcessingUnknown": "Instagram has not returned a final media-processing state. Reconcile it before retrying.",
       "imageSourceExtractRequired": "This RSS copy only has feed text. Refresh the article and regenerate the copy before generating an image.",
+      "mediaNotPublishable": "The approved media is not publishable.",
       "mediaRejected": "The uploaded file failed verification and was removed.",
       "modelInvocationFailed": "The model call did not complete. Its tokens and cost are recorded on the usage screen.",
       "notFound": "The target of this operation is no longer available.",
       "objectStoreUnbound": "Object storage is not configured for this deployment.",
       "operationReplayed": "This request was already processed. The original operation is the one that ran.",
+      "providerAuthFailed": "The destination provider rejected this deployment's credentials.",
+      "providerCapabilityUnavailable": "The destination provider does not support the requested publish shape.",
+      "providerRateLimited": "The destination provider deferred the publish because its rate limit was reached.",
+      "providerRequestInvalid": "The destination provider rejected the publish request as invalid.",
+      "publishPayloadTooLong": "The approved copy exceeds the destination's publish limit.",
       "savedCardAlreadyActive": "This draft is already saved. Open the existing saved card.",
       "sourceImportInProgress": "An import is already running for this installation. Wait for it to settle, then start the next one.",
       "structuredOutputInvalid": "The model returned a result that did not match the expected shape. Nothing was saved.",
       "templateDrift": "The installation configuration changed while this operation was running. Reconcile the template, then send it again.",
+      "telegramChannelMigrated": "Telegram moved the destination channel. Update the deployment binding before retrying.",
+      "telegramPostingForbidden": "Telegram does not allow this deployment to post to the destination.",
       "transientConflict": "The workspace was busy. Send the identical request again.",
       "unauthorized": "The session ended. Sign in and send the request again.",
       "validationFailed": "Some details were rejected. Correct them and send the request again.",
-      "versionConflict": "This operation changed while it was open. Reload to see its current state."
+      "versionConflict": "This operation changed while it was open. Reload to see its current state.",
+      "xMediaPreparationUnknown": "X media preparation did not return a known result. Retry the media preparation step; no post was sent."
     }
   }
 }

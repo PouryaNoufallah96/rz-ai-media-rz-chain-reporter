@@ -27,9 +27,7 @@ export function EditorialFreshness({
     <div className="flex min-w-0 flex-wrap items-center gap-2 border-border border-b border-dashed py-2">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
         <span className="wrap-break-word min-w-0 font-mono text-muted-foreground text-xs tabular-nums">
-          {isRefreshing
-            ? t("transport.refreshing")
-            : t(`transport.${transport}`)}
+          {t(`transport.${transport}`)}
         </span>
         <span className="font-mono text-muted-foreground text-xs tabular-nums">
           {t("transport.asOf", {
@@ -41,13 +39,14 @@ export function EditorialFreshness({
         </span>
       </div>
       <Button
+        aria-busy={isRefreshing}
         disabled={isRefreshing}
         onClick={refresh}
         size="xs"
         type="button"
         variant="outline"
       >
-        {isRefreshing ? t("transport.refreshing") : t("transport.refresh")}
+        {t("transport.refresh")}
       </Button>
     </div>
   );

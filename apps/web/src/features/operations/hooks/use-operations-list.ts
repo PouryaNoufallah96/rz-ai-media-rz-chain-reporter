@@ -3,9 +3,18 @@ import { useEffect } from "react";
 
 import { orpc } from "@/lib/orpc";
 
-function operationsListQueryOptions(enabled: boolean) {
+import {
+  operationsListInput,
+  operationsListQueriesKey,
+} from "../lib/operations-list-query";
+
+function operationsListQueryOptions(
+  enabled: boolean,
+  focusedOperationId?: string,
+) {
   return orpc.operations.list.queryOptions({
     enabled,
+    input: operationsListInput(focusedOperationId),
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     retry: false,
@@ -13,16 +22,17 @@ function operationsListQueryOptions(enabled: boolean) {
   });
 }
 
-export const operationsListQueryKey = orpc.operations.list.queryKey();
-
-export function useOperationsList(enabled: boolean) {
+export function useOperationsList(
+  enabled: boolean,
+  focusedOperationId?: string,
+) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!enabled) {
-      queryClient.removeQueries({ queryKey: operationsListQueryKey });
+      queryClient.removeQueries({ queryKey: operationsListQueriesKey });
     }
   }, [enabled, queryClient]);
 
-  return useQuery(operationsListQueryOptions(enabled));
+  return useQuery(operationsListQueryOptions(enabled, focusedOperationId));
 }

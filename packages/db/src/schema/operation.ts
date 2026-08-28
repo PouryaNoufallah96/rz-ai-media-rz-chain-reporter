@@ -1,5 +1,6 @@
 import {
   foreignKey,
+  index,
   integer,
   pgTable,
   text,
@@ -49,6 +50,11 @@ export const operation = pgTable(
       t.actor,
       t.commandType,
       t.idempotencyKey,
+    ),
+    index("ix_operation_workspace_lifecycle_lease").on(
+      t.workspaceId,
+      t.lifecycle,
+      t.leaseExpiresAt,
     ),
   ],
 );

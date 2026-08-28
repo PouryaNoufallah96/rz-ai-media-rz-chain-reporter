@@ -6,8 +6,7 @@
       "reconnecting": "در حال اتصال دوباره…",
       "stale": "به‌روزرسانی متوقف شده",
       "unavailable": "به‌روزرسانی زنده خاموش است",
-      "refresh": "تازه‌سازی",
-      "refreshing": "در حال تازه‌سازی…"
+      "refresh": "تازه‌سازی"
     },
     "caption": {
       "sourceCount": "{rss, number} خوراک · {telegram, number} کانال · آخرین دریافت {time}",

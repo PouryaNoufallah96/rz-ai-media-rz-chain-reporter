@@ -1,6 +1,6 @@
 {
   "template": {
-    "schemaVersion": 5,
+    "schemaVersion": 6,
     "customer": {
       "key": "crypto",
       "productName": "RZ ChainReporter",
@@ -2148,7 +2148,8 @@
         "platform": "telegram",
         "enabled": true,
         "metadata": {
-          "label": "ChainReporter Telegram"
+          "label": "ChainReporter Telegram",
+          "channel": "@rzchainreportertest"
         }
       },
       {

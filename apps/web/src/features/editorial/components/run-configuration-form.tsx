@@ -53,7 +53,7 @@ import type {
   startAnalysisRunInputSchema,
 } from "../schemas/workspace";
 import { workspaceSearchParsers } from "../schemas/workspace";
-import { SHORT_ID_LENGTH } from "./run-selector";
+import type { BoardPresentation } from "./lane-board";
 
 const SOURCE_KINDS: readonly SourceOrigin[] = ["rss", "telegram_public"];
 
@@ -73,9 +73,13 @@ type FieldProps = {
 };
 
 export function RunConfigurationForm({
+  initialConfiguration,
+  onPresentationChange,
   options,
   sources,
 }: {
+  initialConfiguration: RunConfiguration | null;
+  onPresentationChange: (presentation: BoardPresentation) => void;
   options: RunOptions;
   sources: readonly SourceCatalogEntry[];
 }) {
@@ -111,7 +115,7 @@ export function RunConfigurationForm({
     setFocus,
     setValue,
   } = useForm<RunFormValues>({
-    defaultValues: initialValues(options, selectable),
+    defaultValues: initialValues(options, selectable, initialConfiguration),
     mode: "onSubmit",
     reValidateMode: "onSubmit",
     resolver: zodResolver(
@@ -137,6 +141,16 @@ export function RunConfigurationForm({
     control,
     name: "kind",
   });
+  const publishPresentation = () => {
+    const values = getValues();
+    onPresentationChange({
+      brandKeys: values.kind === "promo" ? values.promo.brands : values.brands,
+      kind: values.kind,
+      platforms: values.kind === "promo" ? options.platforms : values.platforms,
+      telegramOnly: values.kind === "news" && values.telegramOnly,
+    });
+  };
+  const publishPresentationSoon = () => queueMicrotask(publishPresentation);
 
   const onSubmit = handleSubmit(async (values) => {
     clearErrors("root");
@@ -145,12 +159,15 @@ export function RunConfigurationForm({
       toConfiguration(values, telegramSourceIds),
     );
 
-    if (result.status === "error") {
+    if (result.status !== "success" || !result.data) {
       applyActionErrorToForm(setError, result, setFocus);
       return;
     }
 
-    await setValues({ run: null });
+    await setValues(
+      { draft: null, run: result.data.analysisRunId },
+      { history: "push" },
+    );
   });
 
   const loadPreviousRun = () => {
@@ -180,6 +197,7 @@ export function RunConfigurationForm({
         ? t("run.usePrevious.partial", { n: previous.dropped.length })
         : t("run.usePrevious.loaded"),
     );
+    publishPresentationSoon();
   };
 
   const toggleTelegramOnly = (
@@ -231,6 +249,7 @@ export function RunConfigurationForm({
         shouldValidate: true,
       }),
     );
+    publishPresentationSoon();
   };
 
   return (
@@ -240,14 +259,16 @@ export function RunConfigurationForm({
       </h2>
       <form
         aria-busy={isPending}
-        className="mt-3"
+        className="mt-3 max-sm:[&_[data-slot=checkbox]]:after:-inset-[15px] max-sm:[&_[data-slot=input-group-control]]:min-h-11 max-sm:[&_[data-slot=input-group]]:min-h-11 max-sm:[&_[data-slot=input]]:min-h-11 max-sm:[&_[data-slot=select-trigger]]:min-h-11 max-sm:[&_button]:min-h-11 max-sm:[&_button]:min-w-11 max-sm:[&_li]:min-h-11 max-sm:[&_summary]:min-h-11"
         noValidate
+        onChange={publishPresentationSoon}
         onSubmit={onSubmit}
       >
         <FieldGroup>
           <KindField
             control={control}
             disabled={isPending}
+            onKindChange={publishPresentationSoon}
             resolveError={resolveError}
           />
           {kind.value === "promo" ? (
@@ -303,9 +324,7 @@ export function RunConfigurationForm({
               ) : null}
               {fromRunId ? (
                 <span className="font-mono text-muted-foreground text-xs">
-                  {t("run.usePrevious.from", {
-                    id: fromRunId.slice(0, SHORT_ID_LENGTH),
-                  })}
+                  {t("run.usePrevious.from")}
                 </span>
               ) : null}
             </span>
@@ -508,7 +527,12 @@ function NewsFields({
   );
 }
 
-function KindField({ control, disabled, resolveError }: FieldProps) {
+function KindField({
+  control,
+  disabled,
+  onKindChange,
+  resolveError,
+}: FieldProps & { onKindChange: () => void }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
 
   return (
@@ -531,7 +555,10 @@ function KindField({ control, disabled, resolveError }: FieldProps) {
                 disabled={disabled}
                 key={value}
                 onBlur={field.onBlur}
-                onClick={() => field.onChange(value)}
+                onClick={() => {
+                  field.onChange(value);
+                  onKindChange();
+                }}
                 size="xs"
                 type="button"
                 variant="ghost"
@@ -663,29 +690,23 @@ function SourceSubsetField({
                   selected.has(id),
                 ).length;
                 const allSelected = selectedCount === kindIds.length;
-                const headingId = `${controlId}-${origin}`;
-
                 return (
-                  <section
-                    aria-labelledby={headingId}
-                    className="grid gap-1"
+                  <details
+                    className="group border border-border border-dashed px-2 py-1"
                     key={origin}
                   >
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <h3
-                        className="flex min-w-0 items-baseline gap-2"
-                        id={headingId}
-                      >
-                        <span className="ticket-label">
-                          {t(`run.sources.kind.${origin}`)}
-                        </span>
-                        <span className="font-mono text-muted-foreground text-xs tabular-nums">
-                          {t("run.sources.selected", {
-                            m: kindIds.length,
-                            n: selectedCount,
-                          })}
-                        </span>
-                      </h3>
+                    <summary className="flex min-h-8 cursor-pointer list-none items-center justify-between gap-2 marker:hidden">
+                      <span className="ticket-label">
+                        {t(`run.sources.kind.${origin}`)}
+                      </span>
+                      <span className="font-mono text-muted-foreground text-xs tabular-nums">
+                        {t("run.sources.selected", {
+                          m: kindIds.length,
+                          n: selectedCount,
+                        })}
+                      </span>
+                    </summary>
+                    <div className="mt-1 flex justify-end border-border border-t border-dashed pt-1">
                       <Button
                         aria-pressed={allSelected}
                         className="shrink-0 border border-input bg-background aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary"
@@ -739,7 +760,7 @@ function SourceSubsetField({
                         </li>
                       ))}
                     </ul>
-                  </section>
+                  </details>
                 );
               })}
             </>
@@ -1094,6 +1115,7 @@ function TopicsField({
 function initialValues(
   options: RunOptions,
   selectable: readonly SourceCatalogEntry[],
+  initialConfiguration: RunConfiguration | null,
 ): RunFormValues {
   const sourceKeys = options.defaults.sourceKeys;
   const defaultKeys = sourceKeys ? new Set<string>(sourceKeys) : null;
@@ -1101,7 +1123,7 @@ function initialValues(
     ? selectable.filter((entry) => defaultKeys.has(entry.key))
     : selectable;
 
-  return {
+  const defaults: RunFormValues = {
     kind: "news",
     brands: [...options.defaults.brands],
     models: [...options.defaults.models],
@@ -1114,6 +1136,19 @@ function initialValues(
     topN: options.defaults.topN,
     topics: [],
     promo: { brands: [], prompts: {} },
+  };
+
+  if (initialConfiguration === null) return defaults;
+
+  const configured = toFormValues(initialConfiguration, defaults);
+  if (configured.kind === "promo") return configured;
+
+  const selectableIds = new Set(selectable.map((entry) => entry.id));
+  return {
+    ...configured,
+    sourceIds: configured.sourceIds.filter((sourceId) =>
+      selectableIds.has(sourceId),
+    ),
   };
 }
 

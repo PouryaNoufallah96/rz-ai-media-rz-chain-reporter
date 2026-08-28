@@ -4,11 +4,12 @@ import {
   foreignKey,
   index,
   integer,
+  type PgTableExtraConfigValue,
   pgTable,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-
+import { draftRevision } from "./draft-revision";
 import { editorialSelection } from "./editorial-selection";
 import { platform } from "./enums";
 import { filterResult } from "./filter-result";
@@ -34,10 +35,21 @@ export const platformDraft = pgTable(
     promoIdeaId: uuid("promo_idea_id"),
     lanePosition: integer("lane_position").notNull(),
     version: integer("version").default(1).notNull(),
+    activeRevisionId: uuid("active_revision_id"),
+    revisionVersion: integer("revision_version").default(0).notNull(),
     ...timestamps,
     ...softDelete,
   },
-  (t) => [
+  (t): PgTableExtraConfigValue[] => [
+    foreignKey({
+      name: "fk_platform_draft_active_revision",
+      columns: [t.workspaceId, t.id, t.activeRevisionId],
+      foreignColumns: [
+        draftRevision.workspaceId,
+        draftRevision.platformDraftId,
+        draftRevision.id,
+      ],
+    }).onDelete("restrict"),
     foreignKey({
       name: "fk_platform_draft_workspace_id",
       columns: [t.workspaceId],
@@ -72,6 +84,10 @@ export const platformDraft = pgTable(
       sql`${t.lanePosition} > 0`,
     ),
     check("ck_platform_draft_version_positive", sql`${t.version} > 0`),
+    check(
+      "ck_platform_draft_revision_version_nonnegative",
+      sql`${t.revisionVersion} >= 0`,
+    ),
     uniqueIndex("uq_platform_draft_active_editorial_selection_route")
       .on(t.workspaceId, t.editorialSelectionId, t.mediaBrandId, t.platform)
       .where(

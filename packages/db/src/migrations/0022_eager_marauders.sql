@@ -1,0 +1,1 @@
+CREATE INDEX "ix_activity_event_workspace_actor_occurred_id" ON "activity_event" USING btree ("workspace_id","actor_id","occurred_at" DESC NULLS LAST,"id" DESC NULLS LAST);

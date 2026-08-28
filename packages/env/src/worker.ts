@@ -17,6 +17,7 @@ export function validateWorkerEnv(
   return createEnv({
     server: {
       APP_VERSION: z.string().trim().min(1).optional(),
+      APP_URL: httpOrigin.optional(),
       CACHE_INVALIDATION_WEBHOOK_SECRET: z.string().min(32).optional(),
       CUSTOMER_TEMPLATE_KEY: customerTemplateKey,
       DATABASE_URL: postgresUrl,
@@ -31,6 +32,10 @@ export function validateWorkerEnv(
       INNGEST_SIGNING_KEY: z.string().min(1).optional(),
       OLLAMA_BASE_URL: httpUrl.optional(),
       OPENROUTER_API_KEY: z.string().min(1).optional(),
+      PUBLISHING_EMERGENCY_PAUSED: z
+        .enum(["1", "true"])
+        .transform(() => true)
+        .default(false),
       ...storageEnv,
       SENTRY_DSN: z.url().optional(),
       WEB_INTERNAL_BASE_URL: httpOrigin.optional(),

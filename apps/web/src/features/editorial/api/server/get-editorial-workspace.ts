@@ -20,15 +20,25 @@ export async function getEditorialWorkspace(
   searchParams: WorkspaceSearchParams,
 ): Promise<EditorialWorkspace> {
   const session = await requireSession();
-  const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
   const query = normalizeWorkspaceQuery(
     await loadWorkspaceSearchParams(searchParams),
   );
-  const { head, ...lanes } =
-    query.run === null
-      ? await readDefaultEditorialWorkspace(workspaceId, session.user.id)
-      : await readPinnedEditorialWorkspace(workspaceId, query.run);
 
+  if (query.run === null) {
+    return {
+      head: null,
+      modelLanes: [],
+      telegramLanes: [],
+      query,
+      readAt: new Date(),
+    };
+  }
+
+  const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
+  const { head, ...lanes } = await readPinnedEditorialWorkspace(
+    workspaceId,
+    query.run,
+  );
   const readAt = new Date();
 
   if (!head) {
@@ -58,15 +68,4 @@ async function readPinnedEditorialWorkspace(
   cacheLife("minutes");
 
   return readEditorialWorkspace(rpcDb(), workspaceId, analysisRunId);
-}
-
-async function readDefaultEditorialWorkspace(
-  workspaceId: string,
-  userId: string,
-) {
-  "use cache";
-  cacheTag(editorialTags.reads(workspaceId));
-  cacheLife("minutes");
-
-  return readEditorialWorkspace(rpcDb(), workspaceId, null, userId);
 }

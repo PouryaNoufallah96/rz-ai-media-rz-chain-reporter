@@ -1,6 +1,7 @@
 import {
   type ErrorCode,
   operationCommandKind,
+  type PublicationFailureCode,
 } from "@rz-chain-reporter/contracts";
 
 import {
@@ -29,6 +30,44 @@ export const OPERATION_ERROR_KEYS = {
   VALIDATION_FAILED: "errors.validationFailed",
   VERSION_CONFLICT: "errors.versionConflict",
 } as const satisfies Record<ErrorCode, string>;
+
+const PUBLICATION_FAILURE_KEYS = {
+  DELIVERY_DEFINITELY_FAILED: "errors.deliveryDefinitelyFailed",
+  DELIVERY_UNKNOWN: "errors.deliveryUnknown",
+  INSTAGRAM_AUTH_FAILED: "errors.providerAuthFailed",
+  INSTAGRAM_CAPABILITY_UNAVAILABLE: "errors.providerCapabilityUnavailable",
+  INSTAGRAM_CAPACITY_UNAVAILABLE: "errors.instagramCapacityUnavailable",
+  INSTAGRAM_CONTAINER_EXPIRED: "errors.instagramContainerExpired",
+  INSTAGRAM_CONTAINER_FAILED: "errors.instagramContainerFailed",
+  INSTAGRAM_CONTAINER_PREPARATION_UNKNOWN: "errors.instagramProcessingUnknown",
+  INSTAGRAM_CONTAINER_PROCESSING_DELAYED: "errors.instagramProcessingUnknown",
+  INSTAGRAM_CONTAINER_STATUS_UNKNOWN: "errors.instagramProcessingUnknown",
+  INSTAGRAM_DELIVERY_UNKNOWN: "errors.deliveryUnknown",
+  INSTAGRAM_RATE_LIMITED: "errors.providerRateLimited",
+  INSTAGRAM_REQUEST_INVALID: "errors.providerRequestInvalid",
+  MEDIA_NOT_PUBLISHABLE: "errors.mediaNotPublishable",
+  PROVIDER_AUTH_FAILED: "errors.providerAuthFailed",
+  PROVIDER_CAPABILITY_UNAVAILABLE: "errors.providerCapabilityUnavailable",
+  PROVIDER_RATE_DEFERRED: "errors.providerRateLimited",
+  PUBLISH_PAYLOAD_TOO_LONG: "errors.publishPayloadTooLong",
+  TELEGRAM_AUTH_FAILED: "errors.providerAuthFailed",
+  TELEGRAM_CHANNEL_MIGRATED: "errors.telegramChannelMigrated",
+  TELEGRAM_DELIVERY_UNKNOWN: "errors.deliveryUnknown",
+  TELEGRAM_POSTING_FORBIDDEN: "errors.telegramPostingForbidden",
+  TELEGRAM_RATE_LIMITED: "errors.providerRateLimited",
+  TELEGRAM_REQUEST_INVALID: "errors.providerRequestInvalid",
+  X_AUTH_FAILED: "errors.providerAuthFailed",
+  X_CAPABILITY_UNAVAILABLE: "errors.providerCapabilityUnavailable",
+  X_DELIVERY_UNKNOWN: "errors.deliveryUnknown",
+  X_MEDIA_PREPARATION_UNKNOWN: "errors.xMediaPreparationUnknown",
+  X_RATE_LIMITED: "errors.providerRateLimited",
+  X_REQUEST_INVALID: "errors.providerRequestInvalid",
+} as const satisfies Record<PublicationFailureCode, string>;
+
+export const OPERATION_FAILURE_KEYS = {
+  ...OPERATION_ERROR_KEYS,
+  ...PUBLICATION_FAILURE_KEYS,
+} as const satisfies Record<ErrorCode | PublicationFailureCode, string>;
 
 const PANEL_STATES = STATE_MARKS;
 

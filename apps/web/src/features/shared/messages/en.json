@@ -8,9 +8,18 @@
       "primaryNav": "Primary",
       "home": "Home",
       "dashboard": "Dashboard",
+      "multiMedia": "Multi Media",
+      "account": "Account",
       "sources": "Sources",
+      "saved": "Saved",
+      "schedule": "Schedule",
       "usage": "Usage",
       "installation": "Installation"
+    },
+    "language": {
+      "en": "English",
+      "fa": "Persian",
+      "switchTo": "Switch to {language}"
     },
     "theme": {
       "toggle": "Toggle theme",

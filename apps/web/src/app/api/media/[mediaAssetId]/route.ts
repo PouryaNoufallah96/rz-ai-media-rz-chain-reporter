@@ -10,6 +10,11 @@ import { createInstallationContext } from "@/server/rpc/context";
 import { rpcDb } from "@/server/rpc/db";
 
 const mediaAssetIdSchema = z.uuid();
+const imageExtensions = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
 
 export async function GET(
   request: NextRequest,
@@ -51,7 +56,7 @@ export async function GET(
     new Response(opened.stream, {
       headers: {
         "cache-control": "private, no-store",
-        "content-disposition": `${disposition}; filename="${parsed.data}.png"`,
+        "content-disposition": `${disposition}; filename="${parsed.data}.${imageExtensions[asset.mimeType]}"`,
         "content-length": String(asset.actualBytes),
         "content-type": asset.mimeType,
         "x-content-type-options": "nosniff",

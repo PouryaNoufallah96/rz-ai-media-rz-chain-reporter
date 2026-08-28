@@ -1,9 +1,13 @@
-import type { ErrorCode } from "@rz-chain-reporter/contracts";
+import type {
+  ErrorCode,
+  PublicationFailureCode,
+} from "@rz-chain-reporter/contracts";
 import {
   foreignKey,
   integer,
   pgTable,
   text,
+  timestamp,
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -22,6 +26,12 @@ export const operationAttempt = pgTable(
     attemptNumber: integer("attempt_number").notNull(),
     outcome: attemptOutcome("outcome"),
     failureCode: text("failure_code").$type<ErrorCode>(),
+    providerFailureCode: text(
+      "provider_failure_code",
+    ).$type<PublicationFailureCode>(),
+    finalEffectStartedAt: timestamp("final_effect_started_at", {
+      withTimezone: true,
+    }),
     providerResultId: text("provider_result_id"),
     latencyMs: integer("latency_ms"),
     ...timestamps,

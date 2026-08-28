@@ -17,6 +17,7 @@ import {
   eq,
   gt,
   inArray,
+  isNotNull,
   isNull,
   lte,
   notExists,
@@ -30,7 +31,7 @@ import {
   type Transaction,
   withWorkspaceContext,
 } from "../executor";
-import { inWorkspace } from "../filters";
+import { inWorkspace, liveInWorkspace } from "../filters";
 import { aiUsageEvent } from "../schema/ai-usage-event";
 import { copyGeneration } from "../schema/copy-generation";
 import { copyGenerationUnit } from "../schema/copy-generation-unit";
@@ -69,7 +70,7 @@ export const BRANDED_FINAL_MEDIA_KIND = "image_final";
 export type StartImageGenerationInput = {
   actor: string;
   draftRevisionId: string;
-  expectedRevisionNumber: number;
+  expectedRevisionVersion: number;
   idempotencyKey: string;
   modelOptionKey: string;
   operatorDirection?: string;
@@ -95,11 +96,32 @@ export type StartImageGenerationResult =
         | "version_conflict";
     };
 
+function replayImageGeneration(existing: OperationRow, requestHash: string) {
+  if (existing.requestHash !== requestHash) {
+    return { status: "idempotency_mismatch" } as const;
+  }
+  return {
+    status: "replayed",
+    lifecycle: existing.lifecycle,
+    operationId: existing.id,
+  } as const;
+}
+
 export async function startImageGeneration(
   executor: Executor,
   workspaceId: string,
   input: StartImageGenerationInput,
 ): Promise<StartImageGenerationResult> {
+  const identity = {
+    actor: input.actor,
+    commandType: `${IMAGE_GENERATION_COMMAND_PREFIX}start`,
+    idempotencyKey: input.idempotencyKey,
+    requestHash: input.requestHash,
+    requestId: input.requestId,
+  };
+  const existing = await readOperationIdentity(executor, workspaceId, identity);
+  if (existing) return replayImageGeneration(existing, input.requestHash);
+
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
     const [revision] = await tx
@@ -107,7 +129,6 @@ export async function startImageGeneration(
         id: draftRevision.id,
         originatingCopyVariantId: draftRevision.originatingCopyVariantId,
         platformDraftId: draftRevision.platformDraftId,
-        revisionNumber: draftRevision.revisionNumber,
       })
       .from(draftRevision)
       .where(
@@ -115,27 +136,33 @@ export async function startImageGeneration(
           inWorkspace(draftRevision, workspaceId),
           eq(draftRevision.id, input.draftRevisionId),
         ),
-      )
-      .for("update");
+      );
     if (!revision) return { status: "not_found" };
-    const [latest] = await tx
+    const [draft] = await tx
       .select({
-        id: draftRevision.id,
-        revisionNumber: draftRevision.revisionNumber,
+        activeRevisionId: platformDraft.activeRevisionId,
+        revisionVersion: platformDraft.revisionVersion,
       })
-      .from(draftRevision)
+      .from(platformDraft)
       .where(
         and(
-          inWorkspace(draftRevision, workspaceId),
-          eq(draftRevision.platformDraftId, revision.platformDraftId),
+          liveInWorkspace(platformDraft, workspaceId),
+          eq(platformDraft.id, revision.platformDraftId),
         ),
       )
-      .orderBy(desc(draftRevision.revisionNumber), desc(draftRevision.id))
-      .limit(1);
+      .for("update");
+    if (!draft) return { status: "not_found" };
+    const serializedReplay = await readOperationIdentity(
+      tx,
+      workspaceId,
+      identity,
+    );
+    if (serializedReplay) {
+      return replayImageGeneration(serializedReplay, input.requestHash);
+    }
     if (
-      !latest ||
-      latest.id !== revision.id ||
-      latest.revisionNumber !== input.expectedRevisionNumber
+      draft.activeRevisionId !== revision.id ||
+      draft.revisionVersion !== input.expectedRevisionVersion
     ) {
       return { status: "version_conflict" };
     }
@@ -150,14 +177,6 @@ export async function startImageGeneration(
       return { status: "image_source_extract_required" };
     }
 
-    const commandType = `${IMAGE_GENERATION_COMMAND_PREFIX}start`;
-    const identity = {
-      actor: input.actor,
-      commandType,
-      idempotencyKey: input.idempotencyKey,
-      requestHash: input.requestHash,
-      requestId: input.requestId,
-    };
     let created: OperationRow;
     try {
       created = await insertOperationIdentity(tx, workspaceId, identity);
@@ -172,11 +191,7 @@ export async function startImageGeneration(
       if (conflict.status === "mismatch") {
         return { status: "idempotency_mismatch" };
       }
-      return {
-        status: "replayed",
-        lifecycle: conflict.operation.lifecycle,
-        operationId: conflict.operation.id,
-      };
+      return replayImageGeneration(conflict.operation, input.requestHash);
     }
 
     const [busy] = await tx
@@ -284,6 +299,7 @@ export async function startImageGeneration(
       operationId: created.id,
       workspaceId,
       draftRevisionId: revision.id,
+      expectedRevisionVersion: input.expectedRevisionVersion,
       modelOptionKey: input.modelOptionKey,
       operatorDirection: input.operatorDirection,
       referenceMediaAssetId: input.referenceMediaAssetId,
@@ -401,7 +417,7 @@ export async function findImageExecutionContext(
       claimedBy: operation.claimedBy,
       contentLocale: draftRevision.contentLocale,
       draftRevisionId: imageGeneration.draftRevisionId,
-      draftRevisionNumber: draftRevision.revisionNumber,
+      expectedRevisionVersion: imageGeneration.expectedRevisionVersion,
       imageBriefId: imageGeneration.imageBriefId,
       modelOptionKey: imageGeneration.modelOptionKey,
       referenceMediaAssetId: imageGeneration.referenceMediaAssetId,
@@ -1644,7 +1660,7 @@ export async function findServableFinalMedia(
       objectKey: mediaAsset.objectKey,
     })
     .from(mediaAsset)
-    .innerJoin(
+    .leftJoin(
       imageGeneration,
       and(
         eq(imageGeneration.finalMediaAssetId, mediaAsset.id),
@@ -1655,16 +1671,24 @@ export async function findServableFinalMedia(
       and(
         inWorkspace(mediaAsset, workspaceId),
         eq(mediaAsset.id, mediaAssetId),
-        eq(mediaAsset.kind, BRANDED_FINAL_MEDIA_KIND),
+        or(
+          eq(mediaAsset.kind, "image"),
+          and(
+            eq(mediaAsset.kind, BRANDED_FINAL_MEDIA_KIND),
+            isNotNull(imageGeneration.operationId),
+          ),
+        ),
         eq(mediaAsset.lifecycle, "verified"),
         isNull(mediaAsset.objectRemovedAt),
       ),
     );
   if (!row || row.actualBytes === null || row.checksum === null) return null;
+  const mimeType = referenceImageMimeTypeSchema.safeParse(row.mimeType);
+  if (!mimeType.success) return null;
   return {
     actualBytes: row.actualBytes,
     checksum: row.checksum,
-    mimeType: row.mimeType,
+    mimeType: mimeType.data,
     objectKey: row.objectKey,
   };
 }
@@ -1880,6 +1904,25 @@ export async function settleCancelledImageOperationAndWakeNext(
     return settleOpenImageOperation(tx, workspaceId, {
       ...input,
       terminal: "cancelled",
+    });
+  });
+}
+
+export async function settleFailedImageOperationAndWakeNext(
+  executor: Executor,
+  workspaceId: string,
+  input: {
+    claimedBy: string | null;
+    expectedVersion: number;
+    mediaBrandId: string;
+    operationId: string;
+  },
+) {
+  return executor.transaction(async (tx) => {
+    await withWorkspaceContext(tx, workspaceId);
+    return settleOpenImageOperation(tx, workspaceId, {
+      ...input,
+      terminal: "failed",
     });
   });
 }

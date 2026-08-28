@@ -1,5 +1,6 @@
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
 import { Suspense } from "react";
+import { UrlDataBoundary } from "@/components/fetcher/suspended";
 import { getSession } from "@/features/auth/api/server/session";
 import UserMenu, {
   type UserMenuUser,
@@ -11,10 +12,11 @@ import { Localized } from "@/i18n/client";
 import { Link } from "@/i18n/navigation";
 import { getT } from "@/i18n/server";
 
+import { LocaleSwitch } from "./locale-switch";
 import { ModeToggle } from "./mode-toggle";
 
 const NAV_LINK_CLASS =
-  "underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+  "inline-flex items-center underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-sm:min-h-11";
 
 async function ResolvedUserMenu() {
   const session = await getSession();
@@ -43,22 +45,13 @@ export default async function Header() {
       <div className="flex min-w-0 flex-col gap-2 px-2 py-2 xl:flex-row xl:items-center xl:justify-between xl:gap-4">
         <nav
           aria-label={t("header.primaryNav")}
-          className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm sm:text-base xl:text-lg"
+          className="flex min-w-0 items-center gap-3 text-sm sm:text-base"
         >
-          <Link className={NAV_LINK_CLASS} href="/">
-            {t("header.home")}
-          </Link>
           <Link className={NAV_LINK_CLASS} href="/dashboard">
-            {t("header.dashboard")}
+            {t("header.multiMedia")}
           </Link>
-          <Link className={NAV_LINK_CLASS} href="/sources">
-            {t("header.sources")}
-          </Link>
-          <Link className={NAV_LINK_CLASS} href="/usage">
-            {t("header.usage")}
-          </Link>
-          <Link className={NAV_LINK_CLASS} href="/installation">
-            {t("header.installation")}
+          <Link className={NAV_LINK_CLASS} href="/account">
+            {t("header.account")}
           </Link>
         </nav>
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
@@ -66,8 +59,17 @@ export default async function Header() {
             <OperationsIndicator />
           </Localized>
           <Localized namespaces={[SHARED_NAMESPACE]}>
+            <UrlDataBoundary
+              fallback={
+                <Skeleton className="size-8 max-[599px]:size-11 sm:size-9" />
+              }
+            >
+              <LocaleSwitch />
+            </UrlDataBoundary>
             <ModeToggle />
-            <Suspense fallback={<Skeleton className="h-8 w-20 sm:w-32" />}>
+            <Suspense
+              fallback={<Skeleton className="h-8 w-20 max-sm:h-11 sm:w-32" />}
+            >
               <ResolvedUserMenu />
             </Suspense>
           </Localized>

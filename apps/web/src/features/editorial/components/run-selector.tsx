@@ -8,8 +8,6 @@ import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 import { EDITORIAL_NAMESPACE } from "../constants";
 import { type RunOption, workspaceSearchParsers } from "../schemas/workspace";
 
-export const SHORT_ID_LENGTH = 8;
-
 export function RunSelector({
   runs,
   selected,
@@ -30,7 +28,6 @@ export function RunSelector({
   ).map((run) => ({
     label: t("run.selector.option", {
       actor: run.mine ? t("run.selector.you") : run.actorName,
-      id: run.id.slice(0, SHORT_ID_LENGTH),
       kind: t(`run.kind.${run.kind}`),
       time: format.dateTime(run.startedAt, {
         dateStyle: "short",
@@ -45,9 +42,9 @@ export function RunSelector({
       busy={isPending}
       emptyLabel={t("run.selector.latest")}
       label={t("run.selector.label")}
-      onValueChange={(run) => setValues({ run })}
+      onValueChange={(run) => setValues({ draft: null, run })}
       options={options}
-      triggerClassName="w-full"
+      triggerClassName="w-full max-sm:min-h-11"
       value={selected?.id ?? null}
     />
   );

@@ -22,7 +22,7 @@ import {
   platformSchema,
 } from "@rz-chain-reporter/contracts";
 import { Button } from "@rz-chain-reporter/ui/components/button";
-import { GripVerticalIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronUpIcon, GripVerticalIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   createContext,
@@ -34,6 +34,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 
 import { useAction } from "@/hooks/use-action";
 
@@ -45,7 +46,6 @@ import type {
   PlatformDraftLane as PlatformDraftLaneValue,
 } from "../schemas/drafts";
 import { PlatformDraftLaneCard } from "./lane-card";
-import { SHORT_ID_LENGTH } from "./run-selector";
 
 type DraftDragData = {
   kind: "draft";
@@ -87,6 +87,18 @@ type RouteContextValue = {
   route: (request: RouteRequest) => void;
 };
 
+type PlatformBoardContextValue = {
+  lanes: readonly PlatformDraftLaneValue[];
+  move: (laneKey: string, cardId: string, destinationIndex: number) => void;
+  onOpenCard: (card: PlatformDraftCard, trigger: HTMLButtonElement) => void;
+  platforms: readonly Platform[];
+  sendTo: (
+    card: PlatformDraftCard,
+    platform: Platform,
+    returnFocusId: string,
+  ) => void;
+};
+
 type PluginConfigurator = Extract<
   NonNullable<DragDropManagerInput["plugins"]>,
   (...args: never[]) => unknown
@@ -103,6 +115,9 @@ type ReorderPrediction = {
 };
 
 const RouteContext = createContext<RouteContextValue | null>(null);
+const PlatformBoardContext = createContext<PlatformBoardContextValue | null>(
+  null,
+);
 
 const pointerSensor = PointerSensor.configure({
   activationConstraints: [
@@ -145,16 +160,15 @@ export function RouteProvider({
         requestedContentLocale: contentLocale,
         idempotencyKey: crypto.randomUUID(),
       });
-      setAnnouncement(
-        settled.data
-          ? t(
-              settled.data.status === "reconciled"
-                ? "route.existing"
-                : "route.queued",
-              { id: settled.data.draftId.slice(0, SHORT_ID_LENGTH) },
-            )
-          : routeError(t, settled.code),
-      );
+      const message = settled.data
+        ? t(
+            settled.data.status === "reconciled"
+              ? "route.existing"
+              : "route.queued",
+          )
+        : routeError(t, settled.code);
+      setAnnouncement(settled.data ? message : "");
+      if (!settled.data) toast.error(message);
       requestAnimationFrame(() =>
         document.getElementById(returnFocusId)?.focus(),
       );
@@ -202,14 +216,17 @@ function predictReorder(
 export function PlatformLanes({
   children,
   lanes: initialLanes,
+  onOpenCard,
 }: {
   children: ReactNode;
   lanes: readonly PlatformDraftLaneValue[];
+  onOpenCard: (card: PlatformDraftCard, trigger: HTMLButtonElement) => void;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const uiLocale = useLocale();
   const { announce, platforms, route } = useRouteContext();
   const [lanes, applyReorder] = useOptimistic(initialLanes, predictReorder);
+  const [reorderConflict, setReorderConflict] = useState("");
   const action = useAction(reorderPlatformDraftsAction);
   const translatorRef = useRef(t);
   useEffect(() => {
@@ -225,7 +242,7 @@ export function PlatformLanes({
             "",
         }),
       dragend: ({ operation }) =>
-        operation.canceled
+        operation.canceled || !operation.target
           ? translatorRef.current("platformDraft.a11y.cancelled")
           : translatorRef.current("platformDraft.a11y.dropped"),
     };
@@ -268,6 +285,7 @@ export function PlatformLanes({
         title: moved.originTitle,
       }),
     );
+    setReorderConflict("");
 
     startTransition(async () => {
       applyReorder({ cardId, destinationIndex, laneKey });
@@ -277,7 +295,9 @@ export function PlatformLanes({
         orderedDraftIds: ordered.map((draft) => draft.id),
       });
       if (settled.status === "error" || !settled.data) {
-        announce(t("platformDraft.a11y.conflict"));
+        const message = t("platformDraft.a11y.conflict");
+        announce(message);
+        setReorderConflict(message);
       }
       requestAnimationFrame(() =>
         document.getElementById(`draft-handle-${moved.id}`)?.focus(),
@@ -334,7 +354,7 @@ export function PlatformLanes({
         contentLocale: dropped.contentLocale,
         origin: dropped.origin,
         platform: destination.platform,
-        returnFocusId: `origin-handle-${originKey(dropped.origin)}`,
+        returnFocusId: `origin-handle-${originUiKey(dropped.brandKey, dropped.origin)}`,
       });
       return;
     }
@@ -361,40 +381,89 @@ export function PlatformLanes({
   };
 
   return (
-    <DragDropProvider
-      onDragEnd={onDragEnd}
-      plugins={configurePlugins}
-      sensors={[pointerSensor, KeyboardSensor]}
+    <PlatformBoardContext
+      value={{ lanes, move: reorder, onOpenCard, platforms, sendTo }}
     >
-      {children}
-      <section
-        aria-label={t("platformDraft.zone")}
-        className="mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2"
-        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable lane region must be reachable without a pointer.
-        tabIndex={0}
+      <DragDropProvider
+        onDragEnd={onDragEnd}
+        plugins={configurePlugins}
+        sensors={[pointerSensor, KeyboardSensor]}
       >
-        {lanes.map((lane) => (
-          <PlatformLane
-            key={keyOf(lane)}
-            lane={lane}
-            lanes={lanes}
-            onSendTo={sendTo}
-            platforms={platforms}
-          />
-        ))}
-      </section>
-    </DragDropProvider>
+        {reorderConflict ? (
+          <p
+            className="mb-3 border border-working p-2 text-working text-xs"
+            role="status"
+          >
+            {reorderConflict}
+          </p>
+        ) : null}
+        {children}
+      </DragDropProvider>
+    </PlatformBoardContext>
   );
+}
+
+export function PlatformLaneGroup({
+  brandKey,
+  brandName,
+  platforms: requestedPlatforms,
+}: {
+  brandKey: string;
+  brandName: string;
+  platforms: readonly Platform[];
+}) {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+  const context = useContext(PlatformBoardContext);
+  if (!context) throw new Error("Platform lanes require PlatformLanes");
+
+  return requestedPlatforms.map((platform) => {
+    const lane = context.lanes.find(
+      (candidate) =>
+        candidate.brandKey === brandKey && candidate.platform === platform,
+    );
+
+    return lane ? (
+      <PlatformLane
+        key={keyOf(lane)}
+        lane={lane}
+        lanes={context.lanes}
+        move={context.move}
+        onOpenCard={context.onOpenCard}
+        onSendTo={context.sendTo}
+        platforms={context.platforms}
+      />
+    ) : (
+      <section
+        aria-label={t("platformDraft.lane", {
+          brand: brandName,
+          platform: t(`run.platform.${platform}`),
+        })}
+        className="flex min-h-48 w-[clamp(260px,30vw,320px)] shrink-0 snap-start flex-col border border-border border-dashed bg-card/40 max-[599px]:w-[min(300px,calc(100vw-32px))]"
+        key={platform}
+      >
+        <header className="border-border border-b border-dashed px-3 py-2">
+          <h3 className="ticket-label">{t(`run.platform.${platform}`)}</h3>
+        </header>
+        <p className="m-auto p-4 text-center text-muted-foreground text-sm">
+          {t("platformDraft.placeholder")}
+        </p>
+      </section>
+    );
+  });
 }
 
 function PlatformLane({
   lane,
   lanes,
+  move,
+  onOpenCard,
   onSendTo,
   platforms,
 }: {
   lane: PlatformDraftLaneValue;
   lanes: readonly PlatformDraftLaneValue[];
+  move: (laneKey: string, cardId: string, destinationIndex: number) => void;
+  onOpenCard: (card: PlatformDraftCard, trigger: HTMLButtonElement) => void;
   onSendTo: (
     card: PlatformDraftCard,
     platform: Platform,
@@ -449,6 +518,8 @@ function PlatformLane({
             key={card.id}
             lanes={lanes}
             laneKey={laneKey}
+            move={move}
+            onOpenCard={onOpenCard}
             onSendTo={onSendTo}
             platforms={platforms}
           />
@@ -463,6 +534,8 @@ function SortablePlatformDraft({
   index,
   lanes,
   laneKey,
+  move,
+  onOpenCard,
   onSendTo,
   platforms,
 }: {
@@ -470,6 +543,8 @@ function SortablePlatformDraft({
   index: number;
   lanes: readonly PlatformDraftLaneValue[];
   laneKey: string;
+  move: (laneKey: string, cardId: string, destinationIndex: number) => void;
+  onOpenCard: (card: PlatformDraftCard, trigger: HTMLButtonElement) => void;
   onSendTo: (
     card: PlatformDraftCard,
     platform: Platform,
@@ -495,6 +570,8 @@ function SortablePlatformDraft({
     index,
     type: "platform-draft",
   });
+  const laneLength =
+    lanes.find((lane) => keyOf(lane) === laneKey)?.drafts.length ?? 0;
 
   return (
     <div
@@ -510,6 +587,7 @@ function SortablePlatformDraft({
         dragHandle={
           <Button
             aria-label={t("platformDraft.drag", { title: card.originTitle })}
+            className="max-[599px]:size-11"
             id={`draft-handle-${card.id}`}
             ref={handleRef}
             size="icon"
@@ -519,35 +597,72 @@ function SortablePlatformDraft({
             <GripVerticalIcon aria-hidden="true" />
           </Button>
         }
-        siblingRoutes={platforms.flatMap((platform) => {
-          if (platform === card.platform) return [];
-          const destination = lanes.find(
-            (lane) =>
-              lane.mediaBrandId === card.mediaBrandId &&
-              lane.platform === platform,
-          );
-          const platformName = t(`run.platform.${platform}`);
-          const buttonId = `platform-route-${card.id}-${platform}`;
+        onOpen={(trigger) => onOpenCard(card, trigger)}
+        siblingRoutes={
+          <>
+            <Button
+              aria-label={t("platformDraft.moveEarlier", {
+                title: card.originTitle,
+              })}
+              className="max-[599px]:size-11"
+              disabled={index === 0}
+              onClick={() => move(laneKey, card.id, index - 1)}
+              size="icon-xs"
+              type="button"
+              variant="ghost"
+            >
+              <ChevronUpIcon aria-hidden="true" />
+            </Button>
+            <Button
+              aria-label={t("platformDraft.moveLater", {
+                title: card.originTitle,
+              })}
+              className="max-[599px]:size-11"
+              disabled={index >= laneLength - 1}
+              onClick={() => move(laneKey, card.id, index + 1)}
+              size="icon-xs"
+              type="button"
+              variant="ghost"
+            >
+              <ChevronDownIcon aria-hidden="true" />
+            </Button>
+            {platforms.flatMap((platform) => {
+              if (platform === card.platform) return [];
+              const destination = lanes.find(
+                (lane) =>
+                  lane.mediaBrandId === card.mediaBrandId &&
+                  lane.platform === platform,
+              );
+              const platformName = t(`run.platform.${platform}`);
+              const buttonId = `platform-route-${card.id}-${platform}`;
 
-          return [
-            destination && hasOrigin(destination, card.origin) ? (
-              <span className="text-muted-foreground text-xs" key={platform}>
-                {t("platformDraft.alreadyRouted", { platform: platformName })}
-              </span>
-            ) : (
-              <Button
-                id={buttonId}
-                key={platform}
-                onClick={() => onSendTo(card, platform, buttonId)}
-                size="xs"
-                type="button"
-                variant="outline"
-              >
-                {t("platformDraft.sendTo", { platform: platformName })}
-              </Button>
-            ),
-          ];
-        })}
+              return [
+                destination && hasOrigin(destination, card.origin) ? (
+                  <span
+                    className="text-muted-foreground text-xs"
+                    key={platform}
+                  >
+                    {t("platformDraft.alreadyRouted", {
+                      platform: platformName,
+                    })}
+                  </span>
+                ) : (
+                  <Button
+                    className="max-[599px]:min-h-11"
+                    id={buttonId}
+                    key={platform}
+                    onClick={() => onSendTo(card, platform, buttonId)}
+                    size="xs"
+                    type="button"
+                    variant="outline"
+                  >
+                    {t("platformDraft.sendTo", { platform: platformName })}
+                  </Button>
+                ),
+              ];
+            })}
+          </>
+        }
       />
     </div>
   );
@@ -614,12 +729,16 @@ function acceptsDraft(lane: PlatformDraftLaneValue, value: unknown) {
   );
 }
 
-export function originKey(origin: CardOriginReference) {
+function originKey(origin: CardOriginReference) {
   if (origin.kind === "editorial_selection") return origin.editorialSelectionId;
   if (origin.kind === "telegram_filter_result") {
     return origin.telegramFilterResultId;
   }
   return origin.promoIdeaId;
+}
+
+export function originUiKey(brandKey: string, origin: CardOriginReference) {
+  return `${brandKey}-${originKey(origin)}`;
 }
 
 function originData(value: unknown): OriginDragData | null {

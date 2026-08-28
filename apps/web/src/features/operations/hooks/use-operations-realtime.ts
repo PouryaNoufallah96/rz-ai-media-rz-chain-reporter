@@ -9,8 +9,8 @@ import { useRealtime } from "inngest/react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { getOperationsRealtimeToken } from "../actions/get-realtime-token";
+import { operationsListQueryKey } from "../lib/operations-list-query";
 import type { OperationSummary } from "../schemas/operation-summary";
-import { operationsListQueryKey } from "./use-operations-list";
 
 export type RealtimeTransport =
   | "live"
@@ -20,9 +20,11 @@ export type RealtimeTransport =
 
 export function useOperationsRealtime({
   enabled,
+  focusedOperationId,
   refetch,
 }: {
   enabled: boolean;
+  focusedOperationId?: string;
   refetch: () => Promise<unknown>;
 }) {
   const queryClient = useQueryClient();
@@ -65,7 +67,7 @@ export function useOperationsRealtime({
     let requiresSnapshot = false;
 
     queryClient.setQueryData<OperationSummary[]>(
-      operationsListQueryKey,
+      operationsListQueryKey(focusedOperationId),
       (current) => {
         if (!current) {
           requiresSnapshot = true;
@@ -116,7 +118,7 @@ export function useOperationsRealtime({
     if (requiresSnapshot) {
       refetchSnapshot();
     }
-  }, [queryClient, realtime.messages.delta]);
+  }, [focusedOperationId, queryClient, realtime.messages.delta]);
 
   const handleConnectionOpen = useEffectEvent(() => {
     if (hasConnected.current) {

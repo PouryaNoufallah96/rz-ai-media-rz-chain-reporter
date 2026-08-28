@@ -1,0 +1,144 @@
+"use client";
+
+import { Button } from "@rz-chain-reporter/ui/components/button";
+import { Input } from "@rz-chain-reporter/ui/components/input";
+import { useQueryClient } from "@tanstack/react-query";
+import { useFormatter, useTranslations } from "next-intl";
+import { useState } from "react";
+
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { operationsListQueriesKey } from "@/features/operations/lib/operations-list-query";
+import { useAction } from "@/hooks/use-action";
+
+import {
+  cancelScheduledPublicationAction,
+  reschedulePublicationAction,
+} from "../actions/commands";
+import { PUBLISHING_NAMESPACE } from "../constants";
+import {
+  minimumLocalTime,
+  validFutureLocalTime,
+  zonedLocalDate,
+} from "../lib/installation-time";
+import type { PublishingHistoryRow } from "../schemas/history";
+
+type ScheduledIntent = "cancel" | "reschedule";
+
+export function ScheduledPublicationActions({
+  installationTimeZone,
+  row,
+}: {
+  installationTimeZone: string;
+  row: PublishingHistoryRow;
+}) {
+  const t = useTranslations(PUBLISHING_NAMESPACE);
+  const format = useFormatter();
+  const queryClient = useQueryClient();
+  const cancel = useAction(cancelScheduledPublicationAction);
+  const reschedule = useAction(reschedulePublicationAction);
+  const [localTime, setLocalTime] = useState(() =>
+    minimumLocalTime(installationTimeZone),
+  );
+  const [intent, setIntent] = useState<ScheduledIntent | null>(null);
+  const scheduledAt = zonedLocalDate(localTime, installationTimeZone);
+  const scheduleId = row.scheduleId;
+
+  if (row.lifecycle !== "scheduled" || !scheduleId) return null;
+
+  const confirm = async () => {
+    const result =
+      intent === "cancel"
+        ? await cancel.execute({
+            scheduleId,
+            expectedVersion: row.version,
+            idempotencyKey: crypto.randomUUID(),
+          })
+        : intent === "reschedule" && scheduledAt
+          ? await reschedule.execute({
+              scheduleId,
+              expectedVersion: row.version,
+              scheduledAt: scheduledAt.toISOString(),
+              idempotencyKey: crypto.randomUUID(),
+            })
+          : null;
+    if (result?.status !== "success") {
+      return { error: t("error.command") };
+    }
+    void queryClient.invalidateQueries({ queryKey: operationsListQueriesKey });
+    return undefined;
+  };
+  const facts = {
+    account: row.destinationLabel,
+    n: row.revisionNumber,
+    platform: t(`platform.${row.platform}`),
+  };
+  const confirmationDescription =
+    intent === "reschedule" && scheduledAt
+      ? t("desk.confirmRescheduleDescription", {
+          ...facts,
+          instant: format.dateTime(scheduledAt, {
+            dateStyle: "full",
+            timeStyle: "long",
+            timeZone: installationTimeZone,
+          }),
+          timeZone: installationTimeZone,
+        })
+      : t("desk.confirmRecordDescription", facts);
+
+  return (
+    <div className="grid min-w-52 gap-1">
+      <Input
+        aria-label={t("schedule.rescheduleTime")}
+        className="min-h-11 sm:min-h-8"
+        min={minimumLocalTime(installationTimeZone)}
+        onChange={(event) => setLocalTime(event.currentTarget.value)}
+        type="datetime-local"
+        value={localTime}
+      />
+      {scheduledAt ? (
+        <p className="text-muted-foreground text-xs">
+          {format.dateTime(scheduledAt, {
+            dateStyle: "full",
+            timeStyle: "long",
+            timeZone: installationTimeZone,
+          })}{" "}
+          · {installationTimeZone}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-1">
+        <Button
+          className="min-h-11 sm:min-h-6"
+          onClick={() => setIntent("cancel")}
+          size="xs"
+          type="button"
+          variant="ghost"
+        >
+          {t("action.cancel")}
+        </Button>
+        <Button
+          className="min-h-11 sm:min-h-6"
+          disabled={!validFutureLocalTime(localTime, installationTimeZone)}
+          onClick={() => setIntent("reschedule")}
+          size="xs"
+          type="button"
+          variant="outline"
+        >
+          {t("action.reschedule")}
+        </Button>
+      </div>
+      <ConfirmDialog
+        cancelLabel={t("confirm.cancel")}
+        confirmLabel={
+          intent === "cancel" ? t("action.cancel") : t("action.reschedule")
+        }
+        description={confirmationDescription}
+        fallbackError={t("error.command")}
+        onConfirm={confirm}
+        onOpenChange={(open) => !open && setIntent(null)}
+        open={intent !== null}
+        pendingLabel={t("ticket.pending")}
+        title={t("confirm.title")}
+      />
+    </div>
+  );
+}

@@ -6,8 +6,7 @@
       "reconnecting": "reconnecting…",
       "stale": "updates paused",
       "unavailable": "live updates off",
-      "refresh": "Refresh",
-      "refreshing": "Refreshing…"
+      "refresh": "Refresh"
     },
     "caption": {
       "sourceCount": "{rss, number} feeds · {telegram, number} channels · last import {time}",

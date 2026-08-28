@@ -1,5 +1,7 @@
 "use client";
 
+import type { Platform } from "@rz-chain-reporter/contracts";
+import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import {
   Empty,
   EmptyContent,
@@ -7,7 +9,7 @@ import {
   EmptyTitle,
 } from "@rz-chain-reporter/ui/components/empty";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Link } from "@/i18n/navigation";
 
@@ -25,13 +27,24 @@ import {
   type ModelSlot,
   TelegramLaneColumn,
 } from "./lane-column";
-import { PlatformLanes, RouteProvider } from "./platform-lane";
+import {
+  PlatformLaneGroup,
+  PlatformLanes,
+  RouteProvider,
+} from "./platform-lane";
 
 const ANNOUNCE_WINDOW_MS = 500;
 const SEPARATOR = "\n";
 const NO_TOPICS: readonly string[] = [];
 
 type Translate = ReturnType<typeof useTranslations<typeof EDITORIAL_NAMESPACE>>;
+
+export type BoardPresentation = {
+  brandKeys: readonly string[];
+  kind: "news" | "promo";
+  platforms: readonly Platform[];
+  telegramOnly: boolean;
+};
 
 export function LaneBoard({
   brands,
@@ -40,57 +53,62 @@ export function LaneBoard({
   limitedGuidanceBrands,
   models,
   modelLanes,
+  onOpenCard,
   platformDraftLanes,
+  presentation,
   templatePlatforms,
   telegramLanes,
 }: {
   brands: RunOptions["brands"];
   defaultModelOptionKey: string;
-  head: RunHead;
+  head: RunHead | null;
   limitedGuidanceBrands: readonly string[];
   models: RunOptions["models"];
   modelLanes: readonly ModelLane[];
+  onOpenCard: (
+    card: PlatformDraftLane["drafts"][number],
+    trigger: HTMLButtonElement,
+  ) => void;
   platformDraftLanes: readonly PlatformDraftLane[];
+  presentation: BoardPresentation;
   templatePlatforms: RunOptions["platforms"];
   telegramLanes: readonly TelegramLane[];
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
-  const promo = head.kind === "promo";
-  const routePlatforms =
-    head.configuration.kind === "news"
-      ? head.configuration.platforms
-      : templatePlatforms;
-  const telegramOnly =
-    head.configuration.kind === "news" && head.configuration.telegramOnly;
-  const degraded = head.provenance.semanticStatus === "degraded";
+  const board = head
+    ? presentationOfHead(head, templatePlatforms)
+    : presentation;
+  const promo = board.kind === "promo";
+  const degraded = head?.provenance.semanticStatus === "degraded";
   const topics =
-    head.configuration.kind === "news" ? head.configuration.topics : NO_TOPICS;
-  const slots = telegramOnly
-    ? []
-    : modelSlots(head, modelLanes, brands, models);
-  const unitsPlanned = modelLanes.length > 0 || head.completedAt !== null;
+    head?.configuration.kind === "news" ? head.configuration.topics : NO_TOPICS;
+  const slots =
+    head && !board.telegramOnly
+      ? modelSlots(head, modelLanes, brands, models)
+      : [];
+  const unitsPlanned =
+    head !== null && (modelLanes.length > 0 || head.completedAt !== null);
   const limitedGuidance = new Set(promo ? limitedGuidanceBrands : []);
   const alsoIn = brandsByItem(telegramLanes);
-  const { telegramAcquisition } = head;
-  const partialTelegramAcquisition =
-    telegramAcquisition.acquiredChannels > 0 &&
-    telegramAcquisition.acquiredChannels < telegramAcquisition.totalChannels;
-  const allTelegramSourcesFailed =
-    head.completedAt !== null &&
-    telegramAcquisition.totalChannels > 0 &&
-    telegramAcquisition.acquiredChannels === 0 &&
-    telegramAcquisition.failures.length === telegramAcquisition.totalChannels;
-  const telegramZoneVisible =
-    !promo &&
-    (telegramLanes.length > 0 || telegramAcquisition.totalChannels > 0);
+  const selectedBrands = board.brandKeys.flatMap((brandKey) => {
+    const brand = brands.find((candidate) => candidate.key === brandKey);
+    return brand ? [brand] : [];
+  });
   const announcement = useLaneAnnouncements(
-    [
-      head.id,
-      ...slots.flatMap((slot) =>
-        slotAnnouncements(slot, promo, limitedGuidance.has(slot.brandKey), t),
-      ),
-      ...telegramAnnouncements(head, telegramLanes, t),
-    ].join(SEPARATOR),
+    head
+      ? [
+          head.id,
+          ...slots.flatMap((slot) =>
+            slotAnnouncements(
+              slot,
+              promo,
+              limitedGuidance.has(slot.brandKey),
+              t,
+            ),
+          ),
+          ...telegramAnnouncements(head, telegramLanes, t),
+        ].join(SEPARATOR)
+      : "fresh",
     t,
   );
 
@@ -101,154 +119,197 @@ export function LaneBoard({
       </p>
       <RouteProvider
         defaultModelOptionKey={defaultModelOptionKey}
-        platforms={routePlatforms}
+        platforms={board.platforms}
       >
-        <div className="mt-8 border-border border-t border-dashed pt-4">
-          <h2 className="ticket-label">{t("lane.board.zone")}</h2>
-          <PlatformLanes lanes={platformDraftLanes}>
-            {telegramOnly ? null : (
-              <>
-                <h3 className="ticket-label mt-3 text-muted-foreground">
-                  {t("lane.model.zone")}
-                </h3>
-                <section
-                  aria-label={t("lane.model.zone")}
-                  className="mt-2 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2"
-                  // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable lane region must be reachable without a pointer.
-                  tabIndex={0}
-                >
-                  {slots.map((slot, index) => (
-                    <ModelLaneColumn
-                      degraded={degraded}
-                      index={index}
-                      key={`${slot.modelOptionKey}:${slot.brandKey}`}
-                      limitedGuidance={limitedGuidance.has(slot.brandKey)}
-                      promo={promo}
-                      runId={head.id}
-                      slot={slot}
-                      total={slots.length}
-                      unitsPlanned={unitsPlanned}
-                    />
-                  ))}
-                </section>
-              </>
-            )}
-            {telegramZoneVisible ? (
-              <LaneSubsection
-                label={t("lane.telegram.zone")}
-                status={
-                  partialTelegramAcquisition ? (
-                    <Link
-                      className="font-mono text-muted-foreground text-xs underline underline-offset-4"
-                      href="/sources"
+        <PlatformLanes lanes={platformDraftLanes} onOpenCard={onOpenCard}>
+          <div className="border-border border-t border-dashed pt-4">
+            <h2 className="ticket-label">{t("lane.board.zone")}</h2>
+            {head ? <TelegramAcquisitionNotice head={head} /> : null}
+            {selectedBrands.length === 0 ? (
+              <Empty className="mt-3 border border-border border-dashed p-4">
+                <EmptyHeader>
+                  <EmptyTitle className="text-sm">
+                    {t("lane.board.noBrands")}
+                  </EmptyTitle>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              <div className="mt-3 grid gap-4">
+                {selectedBrands.map((brand) => {
+                  const telegramLane = telegramLanes.find(
+                    (lane) => lane.brandKey === brand.key,
+                  );
+                  const brandSlots = slots.filter(
+                    (slot) => slot.brandKey === brand.key,
+                  );
+                  const railCount =
+                    (telegramLane ? 1 : 0) +
+                    brandSlots.length +
+                    board.platforms.length;
+
+                  return (
+                    <section
+                      aria-labelledby={`brand-rail-${brand.key}`}
+                      className="min-w-0 border border-border bg-background p-3"
+                      key={brand.key}
                     >
-                      {t("telegram.acquisition.partial", {
-                        acquired: telegramAcquisition.acquiredChannels,
-                        total: telegramAcquisition.totalChannels,
-                      })}
-                    </Link>
-                  ) : null
-                }
-              >
-                {telegramLanes.length > 0 ? (
-                  telegramLanes.map((lane, index) => (
-                    <TelegramLaneColumn
-                      alsoIn={alsoIn}
-                      degraded={degraded}
-                      index={index}
-                      key={lane.mediaBrandId}
-                      lane={lane}
-                      topics={topics}
-                      total={telegramLanes.length}
-                    />
-                  ))
-                ) : allTelegramSourcesFailed ? (
-                  <Empty className="w-full p-4">
-                    <EmptyHeader>
-                      <EmptyTitle className="text-sm">
-                        {t("telegram.acquisition.failed")}
-                      </EmptyTitle>
-                    </EmptyHeader>
-                    <EmptyContent className="items-start">
-                      <ul className="grid gap-2 text-sm">
-                        {telegramAcquisition.failures.map((failure) => (
-                          <li
-                            className="flex flex-wrap items-center gap-2"
-                            key={`${failure.channelHandle}:${failure.code}`}
-                          >
-                            <ChannelPlate handle={failure.channelHandle} />
-                            <code
-                              className="text-muted-foreground"
-                              dir="ltr"
-                              translate="no"
-                            >
-                              {failure.code}
-                            </code>
-                          </li>
-                        ))}
-                      </ul>
-                      <Link
-                        className="text-sm underline underline-offset-4"
-                        href="/sources"
+                      <header className="flex items-center gap-2 border-border border-b border-dashed pb-2">
+                        <span
+                          aria-hidden="true"
+                          className="grid size-7 place-items-center border border-border bg-accent font-semibold text-xs"
+                        >
+                          {brand.name.slice(0, 1)}
+                        </span>
+                        <h3
+                          className="font-medium"
+                          id={`brand-rail-${brand.key}`}
+                        >
+                          <Bdi>{brand.name}</Bdi>
+                        </h3>
+                      </header>
+                      <section
+                        aria-label={t("lane.board.rail", { brand: brand.name })}
+                        className="mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2"
+                        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable brand rail must be keyboard reachable.
+                        tabIndex={0}
                       >
-                        {t("telegram.acquisition.openSources")}
-                      </Link>
-                    </EmptyContent>
-                  </Empty>
-                ) : head.completedAt !== null ? (
-                  <Empty className="w-full p-4">
-                    <EmptyHeader>
-                      <EmptyTitle className="text-sm">
-                        {t("telegram.none")}
-                      </EmptyTitle>
-                    </EmptyHeader>
-                  </Empty>
-                ) : null}
-              </LaneSubsection>
-            ) : null}
-            <h3 className="ticket-label mt-6 border-border border-t border-dashed pt-4 text-muted-foreground">
-              {t("platformDraft.zone")}
-            </h3>
-          </PlatformLanes>
-        </div>
+                        {telegramLane ? (
+                          <TelegramLaneColumn
+                            alsoIn={alsoIn}
+                            degraded={Boolean(degraded)}
+                            index={0}
+                            lane={telegramLane}
+                            topics={topics}
+                            total={railCount}
+                          />
+                        ) : null}
+                        {head
+                          ? brandSlots.map((slot, index) => (
+                              <ModelLaneColumn
+                                degraded={Boolean(degraded)}
+                                index={index + (telegramLane ? 1 : 0)}
+                                key={`${slot.modelOptionKey}:${slot.brandKey}`}
+                                limitedGuidance={limitedGuidance.has(
+                                  slot.brandKey,
+                                )}
+                                promo={promo}
+                                slot={slot}
+                                total={railCount}
+                                unitsPlanned={unitsPlanned}
+                              />
+                            ))
+                          : null}
+                        <PlatformLaneGroup
+                          brandKey={brand.key}
+                          brandName={brand.name}
+                          platforms={board.platforms}
+                        />
+                      </section>
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </PlatformLanes>
       </RouteProvider>
-      <p className="mt-6 text-end">
-        <Link
-          className="text-sm underline underline-offset-4"
-          href={`/dashboard/runs/${head.id}/report`}
-        >
-          {t("report.link")}
-        </Link>
-      </p>
+      {head ? (
+        <p className="mt-4 text-end">
+          <Link
+            className="text-sm underline underline-offset-4"
+            href={`/dashboard/runs/${head.id}/report`}
+          >
+            {t("report.link")}
+          </Link>
+        </p>
+      ) : null}
     </>
   );
 }
 
-function LaneSubsection({
-  children,
-  label,
-  status,
-}: {
-  children: ReactNode;
-  label: string;
-  status?: ReactNode;
-}) {
-  return (
-    <div className="mt-6 border-border border-t border-dashed pt-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="ticket-label text-muted-foreground">{label}</h3>
-        {status}
-      </div>
-      <section
-        aria-label={label}
-        className="mt-2 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2"
-        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable lane region must be reachable without a pointer.
-        tabIndex={0}
+function presentationOfHead(
+  head: RunHead,
+  templatePlatforms: readonly Platform[],
+): BoardPresentation {
+  if (head.configuration.kind === "promo") {
+    return {
+      brandKeys: head.configuration.promo.brands,
+      kind: "promo",
+      platforms: templatePlatforms,
+      telegramOnly: false,
+    };
+  }
+
+  return {
+    brandKeys: head.configuration.brands,
+    kind: "news",
+    platforms: head.configuration.platforms,
+    telegramOnly: head.configuration.telegramOnly,
+  };
+}
+
+function TelegramAcquisitionNotice({ head }: { head: RunHead }) {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+  const { telegramAcquisition } = head;
+  const partial =
+    telegramAcquisition.acquiredChannels > 0 &&
+    telegramAcquisition.acquiredChannels < telegramAcquisition.totalChannels;
+  const allFailed =
+    head.completedAt !== null &&
+    telegramAcquisition.totalChannels > 0 &&
+    telegramAcquisition.acquiredChannels === 0 &&
+    telegramAcquisition.failures.length === telegramAcquisition.totalChannels;
+
+  if (allFailed) {
+    return (
+      <Empty className="mt-3 w-full border border-border border-dashed p-4">
+        <EmptyHeader>
+          <EmptyTitle className="text-sm">
+            {t("telegram.acquisition.failed")}
+          </EmptyTitle>
+        </EmptyHeader>
+        <EmptyContent className="items-start">
+          <ul className="grid gap-2 text-sm">
+            {telegramAcquisition.failures.map((failure) => (
+              <li
+                className="flex flex-wrap items-center gap-2"
+                key={`${failure.channelHandle}:${failure.code}`}
+              >
+                <ChannelPlate handle={failure.channelHandle} />
+                <code
+                  className="text-muted-foreground"
+                  dir="ltr"
+                  translate="no"
+                >
+                  {failure.code}
+                </code>
+              </li>
+            ))}
+          </ul>
+          <Link
+            className="text-sm underline underline-offset-4"
+            href="/sources"
+          >
+            {t("telegram.acquisition.openSources")}
+          </Link>
+        </EmptyContent>
+      </Empty>
+    );
+  }
+
+  return partial ? (
+    <p className="mt-3 text-end">
+      <Link
+        className="font-mono text-muted-foreground text-xs underline underline-offset-4"
+        href="/sources"
       >
-        {children}
-      </section>
-    </div>
-  );
+        {t("telegram.acquisition.partial", {
+          acquired: telegramAcquisition.acquiredChannels,
+          total: telegramAcquisition.totalChannels,
+        })}
+      </Link>
+    </p>
+  ) : null;
 }
 
 function modelSlots(

@@ -21,6 +21,25 @@ export type OperationStatusRealtimeMessage = z.infer<
   typeof operationStatusRealtimeMessageSchema
 >;
 
+const PUBLISHING_REALTIME_TOPICS = ["changed"] as const;
+export const PUBLISHING_REALTIME_CHANGED_TOPIC = PUBLISHING_REALTIME_TOPICS[0];
+
+export function getPublishingRealtimeChannelName(workspaceId: string) {
+  return `publishing:${workspaceId}` as const;
+}
+
+export const publishingChangedRealtimeMessageSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  occurredAt: z.iso.datetime(),
+  operationId: z.uuid(),
+  publicationId: z.uuid(),
+  scheduleId: z.uuid().nullable(),
+});
+
+export type PublishingChangedRealtimeMessage = z.infer<
+  typeof publishingChangedRealtimeMessageSchema
+>;
+
 export const USAGE_REALTIME_TOPICS = ["ledger"] as const;
 export const USAGE_REALTIME_LEDGER_TOPIC = USAGE_REALTIME_TOPICS[0];
 

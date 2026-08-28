@@ -4,6 +4,7 @@ import { createCopyGenerationFunctions } from "./copy-generation";
 import { createGenerationProbeFunction } from "./generation-probe";
 import { createImageGenerationFunctions } from "./image-generation";
 import { createMediaUploadVerificationFunction } from "./media-upload-function";
+import { createPublishingFunctions } from "./publishing";
 import type { WorkerRuntime } from "./runtime";
 import { createScheduledEffectProbeFunction } from "./scheduled-effect-probe";
 import { createSourceImportFunctions } from "./source-import";
@@ -14,6 +15,7 @@ export function createWorkerFunctions(
   runtime: WorkerRuntime,
   options: { diagnosticsEnabled: boolean },
 ) {
+  const publishing = createPublishingFunctions(client, runtime);
   const functions = [
     createGenerationProbeFunction(client, runtime),
     createMediaUploadVerificationFunction(client, runtime),
@@ -22,6 +24,9 @@ export function createWorkerFunctions(
     ...createAnalysisRunFunctions(client, runtime),
     ...createCopyGenerationFunctions(client, runtime),
     ...createImageGenerationFunctions(client, runtime),
+    publishing.effect,
+    publishing.parent,
+    publishing.reconciliation,
   ];
   return options.diagnosticsEnabled
     ? [...functions, createScheduledEffectProbeFunction(client, runtime)]

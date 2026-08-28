@@ -250,6 +250,59 @@ export const PLATFORM_COPY_HARD_MAX: Record<Platform, number> = {
 
 export const INLINE_HASHTAG_TOKEN = /(?:^|\s)#[^\s#]+/gu;
 
+export function assemblePublishPayload(input: {
+  contentLocale: "en" | "fa";
+  draft: {
+    body: string;
+    hashtags: readonly string[];
+    headline: string;
+  } | null;
+  hasMedia: boolean;
+  platform: Platform;
+  source: { attribution: string; canonicalUrl: string } | null;
+}) {
+  const method =
+    input.platform === "telegram"
+      ? input.hasMedia
+        ? "sendPhoto"
+        : "sendMessage"
+      : input.platform === "instagram"
+        ? "caption"
+        : "post";
+  const maximum =
+    input.platform === "telegram" && input.hasMedia
+      ? 1_024
+      : PLATFORM_COPY_HARD_MAX[input.platform];
+  if (!input.draft) {
+    return { status: "missing" as const, method, length: 0, maximum };
+  }
+
+  const body = normalizePublishText(input.draft.body);
+  const headline = normalizePublishText(input.draft.headline);
+  const hashtags = normalizePublishHashtags(input.draft.hashtags);
+  let text = assembleCopy(input.platform, { body, hashtags, headline });
+
+  if (input.platform === "telegram" && input.source) {
+    const label =
+      input.contentLocale === "fa" ? "مطالعه کامل خبر" : "Read full story";
+    text = `${text}\n\n${label}: ${input.source.attribution}\n${input.source.canonicalUrl}`;
+  }
+
+  const length = platformCopyLength(input.platform, text);
+  if (input.platform === "instagram" && !input.hasMedia) {
+    return {
+      status: "media_required" as const,
+      method,
+      length,
+      maximum,
+      text,
+    };
+  }
+  return length <= maximum
+    ? { status: "ready" as const, method, length, maximum, text }
+    : { status: "overflow" as const, method, length, maximum };
+}
+
 export function assembleCopy(
   platform: Platform,
   candidate: {
@@ -286,4 +339,22 @@ function xCharacterWeight(character: string) {
     (codePoint >= 0x2032 && codePoint <= 0x2037)
     ? 1
     : 2;
+}
+
+function normalizePublishText(value: string) {
+  return value.trim().replace(/\s+/gu, " ");
+}
+
+function normalizePublishHashtags(values: readonly string[]) {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const value of values) {
+    const hashtag = value.trim().replace(/^#+/u, "").replace(/\s+/gu, "_");
+    if (!hashtag) continue;
+    const key = hashtag.toLocaleLowerCase("und");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(`#${hashtag}`);
+  }
+  return normalized;
 }

@@ -11,35 +11,42 @@ import {
   SheetTrigger,
 } from "@rz-chain-reporter/ui/components/sheet";
 import { useFormatter, useTranslations } from "next-intl";
-import { StateMark } from "@/components/common/state-mark";
+import { useEffect, useState } from "react";
 import { authClient } from "@/features/auth/lib/auth-client";
-import { CHIP_COUNT_CAP, OPERATIONS_NAMESPACE } from "../constants";
+import { OPERATIONS_NAMESPACE } from "../constants";
 import { useOperationsList } from "../hooks/use-operations-list";
 import {
   type RealtimeTransport,
   useOperationsRealtime,
 } from "../hooks/use-operations-realtime";
-import {
-  chipsOf,
-  edgeToneOf,
-  type PanelState,
-  panelStateOf,
-} from "../lib/panel-state";
+import { subscribeToOperationFocus } from "../lib/focus-operation";
+import { edgeToneOf, type PanelState, panelStateOf } from "../lib/panel-state";
 import { ColorBar } from "./color-bar";
 import { OperationsPanel, OperationsPanelSkeleton } from "./operations-panel";
 
 export function OperationsIndicator() {
   const t = useTranslations(OPERATIONS_NAMESPACE);
   const { data: session } = authClient.useSession();
-  const operations = useOperationsList(Boolean(session));
+  const [open, setOpen] = useState(false);
+  const [focusedOperationId, setFocusedOperationId] = useState<string>();
+  const operations = useOperationsList(Boolean(session), focusedOperationId);
   const realtime = useOperationsRealtime({
     enabled: Boolean(session),
+    focusedOperationId,
     refetch: operations.refetch,
   });
   const states = (operations.data ?? []).map(panelStateOf);
-  const chips = chipsOf(states);
   const barTone =
     realtime.transport === "live" ? (edgeToneOf(states) ?? "idle") : "offline";
+
+  useEffect(
+    () =>
+      subscribeToOperationFocus((operationId) => {
+        setFocusedOperationId(operationId);
+        setOpen(true);
+      }),
+    [],
+  );
 
   if (!session) {
     return null;
@@ -47,38 +54,29 @@ export function OperationsIndicator() {
 
   return (
     <>
-      <Sheet>
+      <Sheet
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setFocusedOperationId(undefined);
+        }}
+        open={open}
+      >
         <SheetTrigger
-          render={<Button className="max-w-full" size="sm" variant="ghost" />}
+          render={
+            <Button
+              className="max-w-full max-sm:min-h-11 max-sm:min-w-11"
+              size="sm"
+              variant="ghost"
+            />
+          }
         >
-          <span className="sr-only">{t("indicator.label")}</span>
-          <span
-            aria-hidden="true"
-            className="flex items-center gap-1 xl:hidden"
-          >
+          <span className="flex items-center gap-1.5">
             <ColorBar tone={barTone} />
-            <span className="font-mono text-xs tabular-nums">
-              {states.length > CHIP_COUNT_CAP
-                ? t("indicator.countCapped")
-                : t("indicator.count", { count: states.length })}
+            <span className="hidden text-muted-foreground text-xs sm:inline">
+              {t("panel.title")}
             </span>
           </span>
-          <span
-            aria-hidden="true"
-            className="hidden items-center gap-2 xl:flex"
-          >
-            <ColorBar tone={barTone} />
-            {chips.map((chip) => (
-              <span className="flex items-center gap-1" key={chip.state}>
-                <StateMark state={chip.state} />
-                <span className="font-mono text-xs tabular-nums">
-                  {chip.count > CHIP_COUNT_CAP
-                    ? t("indicator.countCapped")
-                    : t("indicator.count", { count: chip.count })}
-                </span>
-              </span>
-            ))}
-          </span>
+          <span className="sr-only sm:hidden">{t("indicator.label")}</span>
         </SheetTrigger>
         <SheetContent className="min-w-0" closeLabel={t("panel.close")}>
           <SheetHeader className="pe-8">
@@ -103,6 +101,7 @@ export function OperationsIndicator() {
             <OperationsPanelSkeleton />
           ) : (
             <OperationsPanel
+              focusedOperationId={focusedOperationId}
               isError={operations.isError}
               isFetching={operations.isFetching}
               operations={operations.data ?? []}

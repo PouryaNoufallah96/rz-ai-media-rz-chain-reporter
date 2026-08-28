@@ -264,7 +264,10 @@ export function prepareCandidates(input: {
   }
 
   const admitted = items
-    .filter((item) => item.routes.some((route) => route.passed))
+    .filter(
+      (item) =>
+        item.projection.length > 0 && item.routes.some((route) => route.passed),
+    )
     .map((item) => ({
       sourceItemId: item.sourceItemId,
       bestMediaFit: item.routes.reduce(

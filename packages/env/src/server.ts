@@ -27,6 +27,10 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
+    PUBLISHING_EMERGENCY_PAUSED: z
+      .enum(["1", "true"])
+      .transform(() => true)
+      .default(false),
     ...storageEnv,
     SENTRY_DSN: z.url().optional(),
   },

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "customer": {
     "key": "demo-sports",
     "productName": "Demo Sports Desk",
@@ -720,7 +720,7 @@
       "enabled": true,
       "metadata": {
         "label": "Match Day Telegram",
-        "channel": "demo_match_day"
+        "channel": "@demo_match_day"
       }
     },
     {

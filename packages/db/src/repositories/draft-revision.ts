@@ -3,7 +3,7 @@ import type {
   ContentLocale,
   DraftRevisionCommandKind,
 } from "@rz-chain-reporter/contracts";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, max } from "drizzle-orm";
 import { DatabaseError } from "pg";
 
 import {
@@ -27,9 +27,9 @@ const RECEIPT_IDENTITY_CONSTRAINT =
 type RevisionRow = typeof draftRevision.$inferSelect;
 type ReceiptRow = typeof draftRevisionCommandReceipt.$inferSelect;
 
-type ExpectedLatest = {
+type ExpectedActive = {
   id: string | null;
-  revisionNumber: number | null;
+  version: number;
 };
 
 type RevisionContent = {
@@ -45,7 +45,7 @@ type RevisionCommandBase = {
   commandKind: DraftRevisionCommandKind;
   idempotencyKey: string;
   requestHash: string;
-  expectedLatest: ExpectedLatest;
+  expectedActive: ExpectedActive;
 };
 
 export type ExecuteDraftRevisionCommandInput = RevisionCommandBase &
@@ -63,6 +63,7 @@ export type ExecuteDraftRevisionCommandInput = RevisionCommandBase &
         finalMediaAssetId: string;
       }
     | { commandKind: "remove_image" }
+    | { commandKind: "select_revision"; draftRevisionId: string }
   );
 
 export type ExecuteDraftRevisionCommandResult =
@@ -84,9 +85,15 @@ export async function readDraftRevisionCommandContext(
   executor: Executor,
   workspaceId: string,
   platformDraftId: string,
+  expectedRevisionId?: string | null,
 ) {
   const [draft] = await executor
-    .select({ id: platformDraft.id, platform: platformDraft.platform })
+    .select({
+      id: platformDraft.id,
+      platform: platformDraft.platform,
+      activeRevisionId: platformDraft.activeRevisionId,
+      revisionVersion: platformDraft.revisionVersion,
+    })
     .from(platformDraft)
     .where(
       and(
@@ -96,9 +103,24 @@ export async function readDraftRevisionCommandContext(
       ),
     );
   if (!draft) return null;
+  const active = await readRevision(
+    executor,
+    workspaceId,
+    platformDraftId,
+    draft.activeRevisionId,
+  );
   return {
     ...draft,
-    latest: await readLatestRevision(executor, workspaceId, platformDraftId),
+    active,
+    expectedRevision:
+      expectedRevisionId === draft.activeRevisionId
+        ? active
+        : await readRevision(
+            executor,
+            workspaceId,
+            platformDraftId,
+            expectedRevisionId ?? null,
+          ),
   };
 }
 
@@ -119,7 +141,11 @@ export async function executeDraftRevisionCommand(
       if (existing) return replayReceipt(tx, workspaceId, input, existing);
 
       const [draft] = await tx
-        .select({ id: platformDraft.id })
+        .select({
+          id: platformDraft.id,
+          activeRevisionId: platformDraft.activeRevisionId,
+          revisionVersion: platformDraft.revisionVersion,
+        })
         .from(platformDraft)
         .where(
           and(
@@ -136,52 +162,82 @@ export async function executeDraftRevisionCommand(
         return replayReceipt(tx, workspaceId, input, serializedReceipt);
       }
 
-      const latest = await readLatestRevision(
-        tx,
-        workspaceId,
-        input.platformDraftId,
-      );
-      if (!matchesExpectedLatest(latest, input.expectedLatest)) {
+      if (
+        draft.activeRevisionId !== input.expectedActive.id ||
+        draft.revisionVersion !== input.expectedActive.version
+      ) {
         return { status: "version_conflict" } as const;
       }
 
-      const resolved = await resolveDesiredRevision(
+      const active = await readRevision(
         tx,
         workspaceId,
-        input,
-        latest,
+        input.platformDraftId,
+        draft.activeRevisionId,
       );
-      if (resolved.status !== "resolved") return resolved;
-      const desired = resolved.revision;
 
-      const updatesImageOnly =
-        input.commandKind === "adopt_image" ||
-        input.commandKind === "remove_image";
-      const shouldAppend =
-        !updatesImageOnly && revisionMaterialDiffers(latest, input, desired);
-      const shouldUpdateImage =
-        updatesImageOnly &&
-        latest?.selectedFinalMediaAssetId !== desired.selectedFinalMediaAssetId;
-      if (!shouldAppend && !latest) return { status: "not_found" } as const;
+      let matching: RevisionRow | null;
+      let desired: DesiredRevision;
+      if (input.commandKind === "select_revision") {
+        matching = await readRevision(
+          tx,
+          workspaceId,
+          input.platformDraftId,
+          input.draftRevisionId,
+        );
+        if (!matching) return { status: "not_found" } as const;
+        desired = matching;
+      } else {
+        const resolved = await resolveDesiredRevision(
+          tx,
+          workspaceId,
+          input,
+          active,
+        );
+        if (resolved.status !== "resolved") return resolved;
+        desired = resolved.revision;
+        matching =
+          active && sameRevisionMaterial(active, desired)
+            ? active
+            : await readMatchingRevision(
+                tx,
+                workspaceId,
+                input.platformDraftId,
+                desired,
+              );
+      }
+      const shouldAppend = matching === null;
 
       try {
         const saved = await tx.transaction(async (savepoint) => {
-          const revision = shouldAppend
-            ? await insertRevision(savepoint, workspaceId, {
-                ...desired,
-                authoredBy: input.actorId,
-                platformDraftId: input.platformDraftId,
-                revisionNumber: (latest?.revisionNumber ?? 0) + 1,
+          const revision =
+            matching ??
+            (await insertRevision(savepoint, workspaceId, {
+              ...desired,
+              authoredBy: input.actorId,
+              platformDraftId: input.platformDraftId,
+              revisionNumber: await nextRevisionNumber(
+                savepoint,
+                workspaceId,
+                input.platformDraftId,
+              ),
+            }));
+
+          if (revision.id !== draft.activeRevisionId) {
+            await savepoint
+              .update(platformDraft)
+              .set({
+                activeRevisionId: revision.id,
+                revisionVersion: draft.revisionVersion + 1,
+                updatedAt: new Date(),
               })
-            : shouldUpdateImage && latest
-              ? await updateRevisionImage(
-                  savepoint,
-                  workspaceId,
-                  latest.id,
-                  desired.selectedFinalMediaAssetId,
-                )
-              : latest;
-          if (!revision) throw new Error("revision command has no result");
+              .where(
+                and(
+                  inWorkspace(platformDraft, workspaceId),
+                  eq(platformDraft.id, input.platformDraftId),
+                ),
+              );
+          }
 
           await savepoint.insert(draftRevisionCommandReceipt).values({
             workspaceId,
@@ -229,17 +285,17 @@ export function attachGeneratedFinalToRevision(
     finalMediaAssetId: string;
     operationId: string;
     platformDraftId: string;
-    revisionNumber: number;
+    expectedRevisionVersion: number;
   },
 ) {
-  const expectedLatest = {
+  const expectedActive = {
     id: input.draftRevisionId,
-    revisionNumber: input.revisionNumber,
+    version: input.expectedRevisionVersion,
   };
   const semanticPayload = {
     commandKind: "adopt_image" as const,
     platformDraftId: input.platformDraftId,
-    expectedLatest,
+    expectedActive,
     finalMediaAssetId: input.finalMediaAssetId,
   };
   return executeDraftRevisionCommand(executor, workspaceId, {
@@ -314,10 +370,31 @@ async function replayReceipt(
   };
 }
 
-async function readLatestRevision(
+async function readRevision(
   executor: Executor | Transaction,
   workspaceId: string,
   platformDraftId: string,
+  revisionId: string | null,
+) {
+  if (!revisionId) return null;
+  const [revision] = await executor
+    .select()
+    .from(draftRevision)
+    .where(
+      and(
+        inWorkspace(draftRevision, workspaceId),
+        eq(draftRevision.platformDraftId, platformDraftId),
+        eq(draftRevision.id, revisionId),
+      ),
+    );
+  return revision ?? null;
+}
+
+async function readMatchingRevision(
+  executor: Transaction,
+  workspaceId: string,
+  platformDraftId: string,
+  desired: DesiredRevision,
 ) {
   const [revision] = await executor
     .select()
@@ -326,21 +403,38 @@ async function readLatestRevision(
       and(
         inWorkspace(draftRevision, workspaceId),
         eq(draftRevision.platformDraftId, platformDraftId),
+        eq(draftRevision.contentLocale, desired.contentLocale),
+        eq(draftRevision.headline, desired.headline),
+        eq(draftRevision.body, desired.body),
+        eq(draftRevision.hashtags, [...desired.hashtags]),
+        desired.selectedFinalMediaAssetId === null
+          ? isNull(draftRevision.selectedFinalMediaAssetId)
+          : eq(
+              draftRevision.selectedFinalMediaAssetId,
+              desired.selectedFinalMediaAssetId,
+            ),
       ),
     )
-    .orderBy(desc(draftRevision.revisionNumber))
+    .orderBy(asc(draftRevision.revisionNumber))
     .limit(1);
   return revision ?? null;
 }
 
-function matchesExpectedLatest(
-  latest: RevisionRow | null,
-  expected: ExpectedLatest,
+async function nextRevisionNumber(
+  executor: Transaction,
+  workspaceId: string,
+  platformDraftId: string,
 ) {
-  return latest
-    ? latest.id === expected.id &&
-        latest.revisionNumber === expected.revisionNumber
-    : expected.id === null && expected.revisionNumber === null;
+  const [row] = await executor
+    .select({ number: max(draftRevision.revisionNumber) })
+    .from(draftRevision)
+    .where(
+      and(
+        inWorkspace(draftRevision, workspaceId),
+        eq(draftRevision.platformDraftId, platformDraftId),
+      ),
+    );
+  return (row?.number ?? 0) + 1;
 }
 
 type DesiredRevision = {
@@ -359,80 +453,65 @@ type ResolvedRevision =
 async function resolveDesiredRevision(
   executor: Transaction,
   workspaceId: string,
-  input: ExecuteDraftRevisionCommandInput,
-  latest: RevisionRow | null,
+  input: Exclude<
+    ExecuteDraftRevisionCommandInput,
+    { commandKind: "select_revision" }
+  >,
+  active: RevisionRow | null,
 ): Promise<ResolvedRevision> {
   if (input.commandKind === "submit_content") {
-    if (!latest) return { status: "not_found" };
-    const canonicalHashtag = latest.hashtags[0];
+    if (!active) return { status: "not_found" };
+    const canonicalHashtag = active.hashtags[0];
     if (!canonicalHashtag) return { status: "not_found" };
+    const content = normalizeContent(input.content);
     const hashtags = [
       canonicalHashtag,
-      ...input.content.hashtags.filter(
+      ...content.hashtags.filter(
         (hashtag) =>
           hashtag.toLocaleLowerCase() !== canonicalHashtag.toLocaleLowerCase(),
       ),
     ];
+    const desired = {
+      ...content,
+      hashtags,
+      originatingCopyVariantId: active.originatingCopyVariantId,
+      selectedFinalMediaAssetId: active.selectedFinalMediaAssetId,
+    };
+    if (
+      desired.selectedFinalMediaAssetId &&
+      !sameRevisionCopy(active, desired) &&
+      (await checkSelectedMedia(
+        executor,
+        workspaceId,
+        input.platformDraftId,
+        desired.selectedFinalMediaAssetId,
+        desired,
+      )) !== "matched"
+    ) {
+      desired.selectedFinalMediaAssetId = null;
+    }
     return {
       status: "resolved",
-      revision: {
-        ...input.content,
-        hashtags,
-        originatingCopyVariantId: latest.originatingCopyVariantId,
-        selectedFinalMediaAssetId: null,
-      },
+      revision: desired,
     };
   }
 
   if (input.commandKind !== "apply_copy_variant") {
-    if (!latest) return { status: "not_found" };
+    if (!active) return { status: "not_found" };
     if (input.commandKind === "remove_image") {
-      return { status: "resolved", revision: carryContent(latest, null) };
+      return { status: "resolved", revision: carryContent(active, null) };
     }
-    const [final] = await executor
-      .select({
-        contentLocale: draftRevision.contentLocale,
-        headline: draftRevision.headline,
-        body: draftRevision.body,
-        hashtags: draftRevision.hashtags,
-      })
-      .from(mediaAsset)
-      .innerJoin(
-        imageGeneration,
-        and(
-          inWorkspace(imageGeneration, workspaceId),
-          eq(imageGeneration.finalMediaAssetId, mediaAsset.id),
-        ),
-      )
-      .innerJoin(
-        draftRevision,
-        and(
-          inWorkspace(draftRevision, workspaceId),
-          eq(draftRevision.id, imageGeneration.draftRevisionId),
-          eq(draftRevision.platformDraftId, input.platformDraftId),
-        ),
-      )
-      .where(
-        and(
-          inWorkspace(mediaAsset, workspaceId),
-          eq(mediaAsset.id, input.finalMediaAssetId),
-          eq(mediaAsset.kind, "image_final"),
-          eq(mediaAsset.lifecycle, "verified"),
-          isNull(mediaAsset.objectRemovedAt),
-        ),
-      );
-    if (!final) return { status: "media_invalid" };
-    if (
-      final.contentLocale !== latest.contentLocale ||
-      final.headline !== latest.headline ||
-      final.body !== latest.body ||
-      !sameStrings(final.hashtags, latest.hashtags)
-    ) {
-      return { status: "media_content_mismatch" };
-    }
+    const mediaStatus = await checkSelectedMedia(
+      executor,
+      workspaceId,
+      input.platformDraftId,
+      input.finalMediaAssetId,
+      active,
+    );
+    if (mediaStatus !== "matched") return { status: mediaStatus };
     return {
       status: "resolved",
-      revision: carryContent(latest, input.finalMediaAssetId),
+      revision: carryContent(active, input.finalMediaAssetId),
     };
   }
 
@@ -467,49 +546,107 @@ async function resolveDesiredRevision(
       ),
     );
   if (!variant) return { status: "not_found" };
+  const content = normalizeContent(variant);
   return {
     status: "resolved",
     revision: {
-      contentLocale: variant.contentLocale,
-      headline: variant.headline,
-      body: variant.body,
-      hashtags: variant.hashtags,
+      ...content,
       originatingCopyVariantId: variant.id,
-      selectedFinalMediaAssetId: null,
+      selectedFinalMediaAssetId:
+        active && sameRevisionCopy(active, content)
+          ? active.selectedFinalMediaAssetId
+          : null,
     },
   };
 }
 
 function carryContent(
-  latest: RevisionRow,
+  revision: RevisionRow,
   selectedFinalMediaAssetId: string | null,
 ): DesiredRevision {
   return {
-    contentLocale: latest.contentLocale,
-    headline: latest.headline,
-    body: latest.body,
-    hashtags: latest.hashtags,
-    originatingCopyVariantId: latest.originatingCopyVariantId,
+    contentLocale: revision.contentLocale,
+    headline: revision.headline,
+    body: revision.body,
+    hashtags: revision.hashtags,
+    originatingCopyVariantId: revision.originatingCopyVariantId,
     selectedFinalMediaAssetId,
   };
 }
 
-function revisionMaterialDiffers(
-  latest: RevisionRow | null,
-  input: ExecuteDraftRevisionCommandInput,
-  desired: DesiredRevision,
-) {
-  if (!latest) return true;
-  const contentDiffers =
-    latest.contentLocale !== desired.contentLocale ||
-    latest.headline !== desired.headline ||
-    latest.body !== desired.body ||
-    !sameStrings(latest.hashtags, desired.hashtags);
-  if (input.commandKind === "submit_content") return contentDiffers;
+function normalizeContent(content: RevisionContent): RevisionContent {
+  return {
+    contentLocale: content.contentLocale,
+    headline: content.headline.trim(),
+    body: content.body.trim(),
+    hashtags: content.hashtags.map((hashtag) => hashtag.trim()),
+  };
+}
+
+async function checkSelectedMedia(
+  executor: Transaction,
+  workspaceId: string,
+  platformDraftId: string,
+  finalMediaAssetId: string,
+  content: RevisionContent,
+): Promise<"matched" | "media_invalid" | "media_content_mismatch"> {
+  const [asset] = await executor
+    .select({ kind: mediaAsset.kind })
+    .from(mediaAsset)
+    .where(
+      and(
+        inWorkspace(mediaAsset, workspaceId),
+        eq(mediaAsset.id, finalMediaAssetId),
+        eq(mediaAsset.lifecycle, "verified"),
+        isNull(mediaAsset.objectRemovedAt),
+      ),
+    );
+  if (!asset || (asset.kind !== "image" && asset.kind !== "image_final")) {
+    return "media_invalid";
+  }
+  if (asset.kind === "image") return "matched";
+
+  const [source] = await executor
+    .select({
+      contentLocale: draftRevision.contentLocale,
+      headline: draftRevision.headline,
+      body: draftRevision.body,
+      hashtags: draftRevision.hashtags,
+    })
+    .from(imageGeneration)
+    .innerJoin(
+      draftRevision,
+      and(
+        inWorkspace(draftRevision, workspaceId),
+        eq(draftRevision.id, imageGeneration.draftRevisionId),
+        eq(draftRevision.platformDraftId, platformDraftId),
+      ),
+    )
+    .where(
+      and(
+        inWorkspace(imageGeneration, workspaceId),
+        eq(imageGeneration.finalMediaAssetId, finalMediaAssetId),
+      ),
+    );
+  if (!source) return "media_invalid";
+  return sameRevisionCopy(source, content)
+    ? "matched"
+    : "media_content_mismatch";
+}
+
+function sameRevisionMaterial(revision: RevisionRow, desired: DesiredRevision) {
   return (
-    contentDiffers ||
-    latest.originatingCopyVariantId !== desired.originatingCopyVariantId ||
-    latest.selectedFinalMediaAssetId !== desired.selectedFinalMediaAssetId
+    sameRevisionCopy(revision, desired) &&
+    revision.selectedFinalMediaAssetId === desired.selectedFinalMediaAssetId
+  );
+}
+
+function sameRevisionCopy(left: RevisionContent, right: RevisionContent) {
+  return (
+    left.contentLocale === right.contentLocale &&
+    left.headline === right.headline &&
+    left.body === right.body &&
+    sameStrings(left.hashtags, right.hashtags)
   );
 }
 
@@ -540,26 +677,6 @@ async function insertRevision(
     .values({ ...input, hashtags: [...input.hashtags], workspaceId })
     .returning();
   if (!revision) throw new Error("draft revision insert returned no row");
-  return revision;
-}
-
-async function updateRevisionImage(
-  tx: Transaction,
-  workspaceId: string,
-  revisionId: string,
-  selectedFinalMediaAssetId: string | null,
-) {
-  const [revision] = await tx
-    .update(draftRevision)
-    .set({ selectedFinalMediaAssetId })
-    .where(
-      and(
-        inWorkspace(draftRevision, workspaceId),
-        eq(draftRevision.id, revisionId),
-      ),
-    )
-    .returning();
-  if (!revision) throw new Error("draft revision image update lost its fence");
   return revision;
 }
 

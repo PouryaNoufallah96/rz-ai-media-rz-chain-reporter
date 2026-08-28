@@ -63,7 +63,7 @@ type StartAnalysisRunInput = {
 
 type StartAnalysisRunResult =
   | { status: "created"; operationId: string; analysisRunId: string }
-  | { status: "replayed"; operationId: string }
+  | { status: "replayed"; operationId: string; analysisRunId: string }
   | { status: "mismatch" }
   | { status: "template_drift" };
 
@@ -108,7 +108,25 @@ export async function startAnalysisRun(
     }
 
     if (created.status === "replayed") {
-      return { status: "replayed", operationId: created.operation.id };
+      const [run] = await tx
+        .select({ id: analysisRun.id })
+        .from(analysisRun)
+        .where(
+          and(
+            inWorkspace(analysisRun, workspaceId),
+            eq(analysisRun.operationId, created.operation.id),
+          ),
+        );
+
+      if (!run) {
+        throw new Error("replayed analysis run returned no row");
+      }
+
+      return {
+        status: "replayed",
+        operationId: created.operation.id,
+        analysisRunId: run.id,
+      };
     }
 
     const [run] = await tx
