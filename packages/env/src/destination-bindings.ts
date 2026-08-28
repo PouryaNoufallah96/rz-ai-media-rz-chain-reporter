@@ -49,6 +49,38 @@ export class DestinationBindingError extends Error {
   }
 }
 
+class DestinationCredentialError extends Error {
+  readonly code:
+    | "DESTINATION_DISABLED"
+    | "DESTINATION_UNBOUND"
+    | "DESTINATION_UNSUPPORTED";
+
+  constructor(code: DestinationCredentialError["code"]) {
+    super(code);
+    this.name = "DestinationCredentialError";
+    this.code = code;
+  }
+}
+
+export type DestinationCredential =
+  | {
+      platform: "telegram";
+      botToken: string;
+      channel: string;
+    }
+  | {
+      platform: "x";
+      accessToken: string;
+      accessTokenSecret: string;
+      applicationKey: string;
+      applicationSecret: string;
+    }
+  | {
+      platform: "instagram";
+      professionalAccountId: string;
+      systemUserAccessToken: string;
+    };
+
 type BindingRequirement = { field: BindingField; variable: string };
 
 function envPrefix(key: string) {
@@ -102,6 +134,61 @@ function isPresent(
   variable: string,
 ) {
   return (runtimeEnv[variable] ?? "").trim() !== "";
+}
+
+function requiredValue(
+  runtimeEnv: Record<string, string | undefined>,
+  variable: string,
+) {
+  const value = runtimeEnv[variable]?.trim();
+  if (!value) throw new DestinationCredentialError("DESTINATION_UNBOUND");
+  return value;
+}
+
+export function resolveDestinationCredential(
+  destination: TemplateDestination,
+  runtimeEnv: Record<string, string | undefined>,
+): DestinationCredential {
+  if (!destination.enabled) {
+    throw new DestinationCredentialError("DESTINATION_DISABLED");
+  }
+
+  const prefix = envPrefix(destination.key);
+  switch (destination.platform) {
+    case "telegram": {
+      const channel = destination.metadata.channel?.trim();
+      if (!channel) {
+        throw new DestinationCredentialError("DESTINATION_UNBOUND");
+      }
+      return {
+        platform: "telegram",
+        botToken: requiredValue(runtimeEnv, `DEST_${prefix}_BOT_TOKEN`),
+        channel,
+      };
+    }
+    case "x":
+      return {
+        platform: "x",
+        accessToken: requiredValue(runtimeEnv, `DEST_${prefix}_ACCESS_TOKEN`),
+        accessTokenSecret: requiredValue(
+          runtimeEnv,
+          `DEST_${prefix}_ACCESS_TOKEN_SECRET`,
+        ),
+        applicationKey: requiredValue(runtimeEnv, "X_API_KEY"),
+        applicationSecret: requiredValue(runtimeEnv, "X_API_SECRET"),
+      };
+    case "instagram":
+      return {
+        platform: "instagram",
+        professionalAccountId: destination.metadata.professionalAccountId,
+        systemUserAccessToken: requiredValue(
+          runtimeEnv,
+          "META_INSTAGRAM_SYSTEM_USER_ACCESS_TOKEN",
+        ),
+      };
+    default:
+      throw new DestinationCredentialError("DESTINATION_UNSUPPORTED");
+  }
 }
 
 function missingFields(

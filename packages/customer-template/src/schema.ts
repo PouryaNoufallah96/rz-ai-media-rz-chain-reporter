@@ -18,7 +18,7 @@ export { imageProfileSchema } from "./image-profile";
 
 // Loader compatibility only. Git owns content versioning, so this bumps solely
 // when a template that loaded before would no longer load.
-export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 5;
+export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 6;
 
 const trimmedText = z
   .string()
@@ -169,6 +169,13 @@ const sourceBase = {
 const telegramHandleSchema = z
   .string()
   .regex(/^[A-Za-z0-9_]{4,32}$/, "Expected a public Telegram channel handle");
+
+const telegramDestinationChannelSchema = z
+  .string()
+  .regex(
+    /^(?:@[A-Za-z0-9_]{4,32}|-\d{1,16})$/,
+    "Expected @channel_username or a negative Telegram channel chat ID",
+  );
 
 const sourceSchema = z.discriminatedUnion("origin", [
   z.strictObject({
@@ -349,7 +356,7 @@ const destinationAccountSchema = z.discriminatedUnion("platform", [
     enabled: z.boolean(),
     metadata: z.strictObject({
       label: trimmedText,
-      channel: trimmedText.optional(),
+      channel: telegramDestinationChannelSchema,
     }),
   }),
   z.strictObject({
