@@ -439,6 +439,7 @@ export function FormCheckboxField<
 }
 
 export type SelectOption<T extends string = string> = {
+  disabled?: boolean;
   label: ReactNode;
   value: T;
 };
@@ -493,7 +494,11 @@ function SelectControl<T extends string>({
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
+          <SelectItem
+            disabled={option.disabled}
+            key={option.value}
+            value={option.value}
+          >
             {option.label}
           </SelectItem>
         ))}

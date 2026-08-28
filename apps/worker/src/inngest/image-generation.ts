@@ -49,6 +49,7 @@ import {
   reserveProviderOriginal,
   resolveProviderOriginalCommit,
   settleCancelledImageOperationAndWakeNext,
+  settleFailedImageOperationAndWakeNext,
   settleImageOperationAndWakeNext,
   stableImageIdentity,
 } from "@rz-chain-reporter/db/repositories/image-generation";
@@ -116,6 +117,13 @@ export const IMAGE_STAGE_QUIESCENCE_PASSES = 12;
 export const IMAGE_STAGE_QUIESCENCE_INTERVAL = "5s";
 export const IMAGE_PROVIDER_DEADLINE_MS = 90_000;
 
+const IMAGE_TERMINAL_LIFECYCLES: readonly OperationLifecycle[] = [
+  "cancelled",
+  "failed",
+  "succeeded",
+  "unknown",
+];
+
 export function nextImageInvocation(
   slots: readonly InvocationKey[],
   usage: readonly { invocationKey: string; status: string }[],
@@ -141,7 +149,7 @@ const stageResultSchema = z.strictObject({
   status: z.enum(["failed", "succeeded", "waiting"]),
 });
 
-const cancelledEnvelopeSchema = z.object({
+const interruptedEnvelopeSchema = z.object({
   data: z.object({
     event: z.object({ data: imageGenerationRequestedPayloadSchema }),
   }),
@@ -1454,6 +1462,7 @@ async function attachFinalToGeneratingRevision(
   context: NonNullable<Awaited<ReturnType<typeof findImageExecutionContext>>>,
   finalMediaAssetId: string,
 ) {
+  if (context.expectedRevisionVersion === null) return;
   const result = await attachGeneratedFinalToRevision(
     runtime.db,
     context.workspaceId,
@@ -1463,7 +1472,7 @@ async function attachFinalToGeneratingRevision(
       finalMediaAssetId,
       operationId: context.operationId,
       platformDraftId: context.platformDraftId,
-      revisionNumber: context.draftRevisionNumber,
+      expectedRevisionVersion: context.expectedRevisionVersion,
     },
   );
   if (
@@ -1543,6 +1552,73 @@ function toSourceProjection(
   };
 }
 
+async function settleInterruptedImage(
+  step: WorkerStep,
+  runtime: WorkerRuntime,
+  workspaceId: string,
+  operationId: string,
+  terminal: "cancelled" | "failed",
+  callSite: string,
+) {
+  let context = await step.run(`reload-${callSite}-image`, () =>
+    findImageExecutionContext(runtime.db, workspaceId, operationId),
+  );
+  if (!context) return { settled: false } as const;
+  const interrupted = context;
+  const outcome = await step.run(`settle-${callSite}-image`, () =>
+    terminal === "cancelled"
+      ? settleCancelledImageOperationAndWakeNext(runtime.db, workspaceId, {
+          claimedBy: interrupted.claimedBy,
+          expectedVersion: interrupted.operationVersion,
+          mediaBrandId: interrupted.mediaBrandId,
+          operationId,
+        })
+      : settleFailedImageOperationAndWakeNext(runtime.db, workspaceId, {
+          claimedBy: interrupted.claimedBy,
+          expectedVersion: interrupted.operationVersion,
+          mediaBrandId: interrupted.mediaBrandId,
+          operationId,
+        }),
+  );
+  if (!outcome) {
+    context = await step.run(`reload-${callSite}-image-terminal`, () =>
+      findImageExecutionContext(runtime.db, workspaceId, operationId),
+    );
+    if (
+      !context ||
+      !IMAGE_TERMINAL_LIFECYCLES.includes(context.operationLifecycle)
+    ) {
+      return { settled: false } as const;
+    }
+  }
+  if (!context) return { settled: false } as const;
+  const operation = outcome?.operation ?? {
+    lifecycle: context.operationLifecycle,
+    version: context.operationVersion,
+  };
+  const usageChanged = outcome
+    ? outcome.usageSettled
+    : hasSettledUsage(
+        (
+          await step.run(`inspect-${callSite}-image-usage`, () =>
+            inspectImageAttemptTruth(runtime.db, workspaceId, operationId),
+          )
+        ).rows,
+      );
+  const code = operation.lifecycle;
+  await publishImageTransition(
+    step,
+    runtime,
+    workspaceId,
+    context,
+    operation,
+    code,
+    callSite,
+    usageChanged,
+  );
+  return { lifecycle: operation.lifecycle, settled: true } as const;
+}
+
 export function createImageGenerationFunctions(
   client: WorkerInngestClient,
   runtime: WorkerRuntime,
@@ -1606,34 +1682,13 @@ export function createImageGenerationFunctions(
       triggers: [durableEvents.operationImageGenerationRequested],
       onFailure: async ({ event, step }) => {
         const { operationId, workspaceId } = event.data.event.data;
-        const context = await step.run("reload-failed-image", () =>
-          findImageExecutionContext(runtime.db, workspaceId, operationId),
-        );
-        if (!context?.claimedBy) return;
-        const claimedBy = context.claimedBy;
-        const truth = await step.run("inspect-failed-image-usage", () =>
-          inspectImageAttemptTruth(runtime.db, workspaceId, operationId),
-        );
-        const lifecycle = truth.hasAmbiguousPaidWork ? "unknown" : "failed";
-        const settled = await step.run("settle-failed-image", () =>
-          settleImageOperationAndWakeNext(runtime.db, workspaceId, {
-            claimedBy,
-            expectedVersion: context.operationVersion,
-            lifecycle,
-            mediaBrandId: context.mediaBrandId,
-            operationId,
-          }),
-        );
-        if (!settled) return;
-        await publishImageTransition(
+        await settleInterruptedImage(
           step,
           runtime,
           workspaceId,
-          context,
-          settled,
-          lifecycle,
+          operationId,
+          "failed",
           "image-failure",
-          hasSettledUsage(truth.rows),
         );
       },
     },
@@ -1657,6 +1712,14 @@ export function createImageGenerationFunctions(
         inspectImageAttemptTruth(runtime.db, workspaceId, operationId),
       );
       if (truth.hasAmbiguousPaidWork) {
+        await settleInterruptedImage(
+          step,
+          runtime,
+          workspaceId,
+          operationId,
+          "failed",
+          "image-ambiguous-attempt",
+        );
         return { operationId, status: "waiting_for_attempt" as const };
       }
       const token = `inngest:${runId}`;
@@ -1825,33 +1888,17 @@ export function createImageGenerationFunctions(
       ],
     },
     async ({ event, step }) => {
-      const envelope = cancelledEnvelopeSchema.safeParse(event);
+      const envelope = interruptedEnvelopeSchema.safeParse(event);
       if (!envelope.success) return { settled: false };
       const { operationId, workspaceId } = envelope.data.data.event.data;
-      const context = await step.run("reload-cancelled-image", () =>
-        findImageExecutionContext(runtime.db, workspaceId, operationId),
-      );
-      if (!context) return { settled: false };
-      const settled = await step.run("settle-cancelled-image", () =>
-        settleCancelledImageOperationAndWakeNext(runtime.db, workspaceId, {
-          claimedBy: context.claimedBy,
-          expectedVersion: context.operationVersion,
-          mediaBrandId: context.mediaBrandId,
-          operationId,
-        }),
-      );
-      if (!settled) return { settled: false };
-      await publishImageTransition(
+      return settleInterruptedImage(
         step,
         runtime,
         workspaceId,
-        context,
-        settled.operation,
-        settled.operation.lifecycle === "unknown" ? "unknown" : "cancelled",
+        operationId,
+        "cancelled",
         "image-cancelled",
-        settled.usageSettled,
       );
-      return { lifecycle: settled.operation.lifecycle, settled: true };
     },
   );
   return [parent, selection, creative, provider, final, cancelled];

@@ -8,9 +8,18 @@
       "primaryNav": "اصلی",
       "home": "خانه",
       "dashboard": "داشبورد",
+      "multiMedia": "چندرسانه‌ای",
+      "account": "حساب",
       "sources": "منابع",
+      "saved": "ذخیره‌ها",
+      "schedule": "زمان‌بندی",
       "usage": "مصرف",
       "installation": "نصب"
+    },
+    "language": {
+      "en": "انگلیسی",
+      "fa": "فارسی",
+      "switchTo": "تغییر زبان به {language}"
     },
     "theme": {
       "toggle": "تغییر پوسته",

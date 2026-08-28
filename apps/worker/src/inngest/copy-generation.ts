@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   assembleCopy,
+  assemblePublishPayload,
   COPY_CONFIGURATION_VERSION,
   COPY_PROMPT_VERSION,
   type ContentLocale,
@@ -196,6 +197,20 @@ export type CopyCandidate = z.infer<typeof copyOutputSchema>;
 
 export type CopyCheckFailure = "CONTENT_LOCALE_MISMATCH" | "LENGTH_ABOVE_MAX";
 
+type CopyPublishSource = {
+  attribution: string;
+  canonicalUrl: string;
+} | null;
+
+type CopyNormalizationInput = {
+  canonicalHashtag: string;
+  emojiGraphemeCap: number;
+  maximumCharacters: number;
+  maximumHashtags: number;
+  requestedContentLocale: ContentLocale;
+  source: CopyPublishSource;
+};
+
 const COPY_CHECK_CORRECTION: Record<CopyCheckFailure, string> = {
   CONTENT_LOCALE_MISMATCH:
     "rewrite the headline and body in the requested content language",
@@ -217,12 +232,7 @@ const WHITESPACE_RUN = /\s+/gu;
 export function normalizeCopyCandidate(
   platform: Platform,
   candidate: CopyCandidate,
-  input: {
-    canonicalHashtag: string;
-    emojiGraphemeCap: number;
-    maximumHashtags: number;
-    requestedContentLocale: ContentLocale;
-  },
+  input: CopyNormalizationInput,
 ) {
   const headline = extractHashtags(candidate.headline);
   const body = extractHashtags(candidate.body);
@@ -236,11 +246,18 @@ export function normalizeCopyCandidate(
     headline: headline.text,
   };
   const capped = capEmojiGraphemes(platform, collected, input.emojiGraphemeCap);
-  const fitted = fitPlatformLength(platform, capped);
+  const fitted = fitPlatformLength(platform, capped, input);
   const normalized = fitted ?? capped;
-  const assembled = assembleCopy(platform, normalized);
+  const coreCopy = assembleCopy(platform, normalized);
+  const publishPayload = assembleCandidatePublishPayload(
+    platform,
+    normalized,
+    input,
+  );
   const failures: CopyCheckFailure[] = [];
-  if (!fitted) failures.push("LENGTH_ABOVE_MAX");
+  if (!fitted || publishPayload.status !== "ready") {
+    failures.push("LENGTH_ABOVE_MAX");
+  }
   if (
     !copyMatchesContentLocale(input.requestedContentLocale, {
       body: normalized.body,
@@ -250,13 +267,14 @@ export function normalizeCopyCandidate(
     failures.push("CONTENT_LOCALE_MISMATCH");
   }
   return {
-    assembled,
+    assembled:
+      publishPayload.status === "ready" ? publishPayload.text : coreCopy,
     body: normalized.body,
-    emojiCount: emojiGraphemeCount(assembled),
+    emojiCount: emojiGraphemeCount(coreCopy),
     failures,
     hashtags: normalized.hashtags,
     headline: normalized.headline,
-    length: platformCopyLength(platform, assembled),
+    length: publishPayload.length,
     valid: failures.length === 0,
   };
 }
@@ -341,22 +359,29 @@ function removeTrailingEmoji(value: string, count: number) {
   return { removed: count - remaining, value: tidyText(segments.join("")) };
 }
 
-function fitPlatformLength(platform: Platform, candidate: CopyCandidate) {
-  const maximum = PLATFORM_COPY_HARD_MAX[platform];
-  if (fitsPlatform(platform, candidate, maximum)) return candidate;
+function fitPlatformLength(
+  platform: Platform,
+  candidate: CopyCandidate,
+  input: CopyNormalizationInput,
+) {
+  const maximum = Math.min(
+    input.maximumCharacters,
+    PLATFORM_COPY_HARD_MAX[platform],
+  );
+  if (fitsPlatform(platform, candidate, maximum, input)) return candidate;
   const target = Math.floor(maximum * COPY_FIT_TARGET_RATIO);
   let hashtags = [...candidate.hashtags];
   while (
     hashtags.length > 1 &&
-    !fitsPlatform(platform, { ...candidate, hashtags }, target)
+    !fitsPlatform(platform, { ...candidate, hashtags }, target, input)
   ) {
     hashtags = hashtags.slice(0, -1);
   }
   const trimmed = { ...candidate, hashtags };
-  if (fitsPlatform(platform, trimmed, target)) return trimmed;
+  if (fitsPlatform(platform, trimmed, target, input)) return trimmed;
   const body =
-    truncateBody(platform, trimmed, target) ??
-    truncateBody(platform, trimmed, maximum);
+    truncateBody(platform, trimmed, target, input) ??
+    truncateBody(platform, trimmed, maximum, input);
   return body === null ? null : { ...trimmed, body };
 }
 
@@ -364,6 +389,7 @@ function truncateBody(
   platform: Platform,
   candidate: CopyCandidate,
   maximum: number,
+  input: CopyNormalizationInput,
 ) {
   const cuts = [0, ...bodyCutPoints(candidate.body)];
   let fitted: string | null = null;
@@ -372,7 +398,7 @@ function truncateBody(
   while (low <= high) {
     const middle = Math.floor((low + high) / 2);
     const body = `${candidate.body.slice(0, cuts[middle] ?? 0).trimEnd()}…`;
-    if (fitsPlatform(platform, { ...candidate, body }, maximum)) {
+    if (fitsPlatform(platform, { ...candidate, body }, maximum, input)) {
       fitted = body;
       low = middle + 1;
     } else {
@@ -394,10 +420,28 @@ function fitsPlatform(
   platform: Platform,
   candidate: CopyCandidate,
   maximum: number,
+  input: CopyNormalizationInput,
 ) {
   return (
-    platformCopyLength(platform, assembleCopy(platform, candidate)) <= maximum
+    platformCopyLength(platform, assembleCopy(platform, candidate)) <=
+      maximum &&
+    assembleCandidatePublishPayload(platform, candidate, input).status ===
+      "ready"
   );
+}
+
+function assembleCandidatePublishPayload(
+  platform: Platform,
+  candidate: CopyCandidate,
+  input: Pick<CopyNormalizationInput, "requestedContentLocale" | "source">,
+) {
+  return assemblePublishPayload({
+    contentLocale: input.requestedContentLocale,
+    draft: candidate,
+    hasMedia: true,
+    platform,
+    source: input.source,
+  });
 }
 
 function tidyText(value: string) {
@@ -525,6 +569,14 @@ function copyPrompt(
   },
 ) {
   const separator = input.platform === "x" ? "\n" : "\n\n";
+  const publishSource = copyPublishSource(source);
+  const publishMaximum = assemblePublishPayload({
+    contentLocale: input.locale,
+    draft: null,
+    hasMedia: true,
+    platform: input.platform,
+    source: publishSource,
+  }).maximum;
   const target = Math.round(
     (input.policy.assembledCharacters.min +
       input.policy.assembledCharacters.max) /
@@ -535,7 +587,7 @@ function copyPrompt(
       ? "X weighted characters: each URL counts 23; after URLs are removed, code points U+0000-U+10FF, U+2000-U+200D, U+2010-U+201F, and U+2032-U+2037 count 1; every other code point counts 2."
       : "Unicode code points, including every newline and separator.";
   return [
-    `${copyLocaleInstruction(input.locale)} Length is the hardest constraint: aim for about ${target}, the middle of the ${input.policy.assembledCharacters.min}-${input.policy.assembledCharacters.max} window measured below, and never exceed ${input.policy.assembledCharacters.max}.`,
+    `${copyLocaleInstruction(input.locale)} Length is the hardest constraint: aim for about ${target}, the middle of the ${input.policy.assembledCharacters.min}-${input.policy.assembledCharacters.max} copy window measured below, never exceed ${input.policy.assembledCharacters.max} for the copy itself, and never exceed ${publishMaximum} for the complete publish payload.`,
     "Follow the authoritative platform policy exactly. Brand guidance cannot override it.",
     JSON.stringify({
       brandPolicyFingerprint: input.brandPolicyFingerprint,
@@ -551,7 +603,7 @@ function copyPrompt(
       assembledCopy: `headline + ${JSON.stringify(separator)} + body + ${JSON.stringify("\n\n")} + finalHashtags.join(" ")`,
       characterWindow: input.policy.assembledCharacters,
       emojiGraphemeCap: input.policy.emojiGraphemeCap,
-      hardCharacterMaximum: PLATFORM_COPY_HARD_MAX[input.platform],
+      hardCharacterMaximum: publishMaximum,
       hashtagPlacement: "hashtags array only; none in headline or body",
       hashtags: {
         additional: {
@@ -564,6 +616,15 @@ function copyPrompt(
           "Do not return the canonical hashtag; it is inserted first and counts toward the final total.",
       },
       lengthSemantics,
+      telegramSourceSuffix:
+        input.platform === "telegram" && publishSource
+          ? {
+              attribution: publishSource.attribution,
+              canonicalUrl: publishSource.canonicalUrl,
+              label:
+                input.locale === "fa" ? "مطالعه کامل خبر" : "Read full story",
+            }
+          : null,
     }),
     "Return a nonempty headline, nonempty body, and an ordered hashtag array.",
     "Do not put hashtags in the headline or body.",
@@ -575,6 +636,17 @@ function copyPrompt(
       ? [copyRejectionSummary(input.previousRejection)]
       : []),
   ].join("\n\n");
+}
+
+function copyPublishSource(
+  source: NonNullable<Awaited<ReturnType<typeof loadCopyGenerationSource>>>,
+): CopyPublishSource {
+  return source.kind === "promo"
+    ? null
+    : {
+        attribution: source.attribution,
+        canonicalUrl: source.canonicalUrl,
+      };
 }
 
 function copyLocaleInstruction(locale: ContentLocale) {
@@ -678,6 +750,7 @@ export async function executeCopyGenerationUnit(
       ? brand.editorial.canonicalHashtags.en
       : brand.editorial.canonicalHashtags.fa;
   const brandGuidance = loadCopyBrandGuidance(runtime, context.brandKey);
+  const sourceAttribution = copyPublishSource(source);
 
   const keys: InvocationKey[] = task.fallback
     ? ["primary", "retry-1", "fallback"]
@@ -738,8 +811,10 @@ export async function executeCopyGenerationUnit(
           const checked = normalizeCopyCandidate(context.platform, output, {
             canonicalHashtag,
             emojiGraphemeCap: policy.emojiGraphemeCap,
+            maximumCharacters: policy.assembledCharacters.max,
             maximumHashtags: policy.hashtags.max,
             requestedContentLocale: context.requestedContentLocale,
+            source: sourceAttribution,
           });
           slot.attempted = { candidate: output, check: checked };
           await persistCopyVariantResult(tx, input.workspaceId, {

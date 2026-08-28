@@ -479,7 +479,7 @@ function assertDiagnosticEligibility(
     currentSchedule.workspaceId !== input.workspaceId ||
     currentOperation.idempotencyKey !==
       diagnosticIdempotencyKey(input.scheduleId, input.operationId) ||
-    currentSchedule.status !== "scheduled"
+    currentSchedule.lifecycle !== "scheduled"
   ) {
     throw new NonRetriableError(
       "scheduled effect is no longer diagnostic eligible",

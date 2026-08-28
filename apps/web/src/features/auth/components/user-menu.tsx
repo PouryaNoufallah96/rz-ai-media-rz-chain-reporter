@@ -52,6 +52,7 @@ export default function UserMenu({ user }: { user: UserMenuUser | null }) {
   if (!user) {
     return (
       <Button
+        className="max-sm:min-h-11"
         nativeButton={false}
         render={<Link href="/login" />}
         variant="outline"
@@ -64,7 +65,13 @@ export default function UserMenu({ user }: { user: UserMenuUser | null }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button className="min-w-0 max-w-48" variant="outline" />}
+        render={
+          <Button
+            className="min-w-0 max-w-48 max-sm:min-h-11"
+            suppressHydrationWarning
+            variant="outline"
+          />
+        }
       >
         <span className="sm:hidden">{t("userMenu.account")}</span>
         <span className="hidden min-w-0 truncate sm:inline">{user.name}</span>

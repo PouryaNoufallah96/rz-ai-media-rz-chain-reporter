@@ -23,8 +23,10 @@ import {
   finalizeUsageWithResult,
   insertPendingUsage,
 } from "@rz-chain-reporter/db/repositories/ai-usage-event";
+import { grantApproval } from "@rz-chain-reporter/db/repositories/approval";
 import { executeDraftRevisionCommand } from "@rz-chain-reporter/db/repositories/draft-revision";
 import {
+  allocateImageStageAttempt,
   attachProviderOriginal,
   createImageBrief,
   FAILED_ORIGINAL_CLEANUP_DELAY_MS,
@@ -274,7 +276,7 @@ async function mainLocal() {
     const idempotencyKey = randomUUID();
     const requestHash = commandHash({
       draftRevisionId: fixture.draftRevisionId,
-      expectedRevisionNumber: 1,
+      expectedRevisionVersion: 1,
       idempotencyKey,
       modelOptionKey: fixture.modelOptionKey,
       operatorDirection: direction,
@@ -285,7 +287,7 @@ async function mainLocal() {
       {
         actor: fixture.actorId,
         draftRevisionId: fixture.draftRevisionId,
-        expectedRevisionNumber: 1,
+        expectedRevisionVersion: 1,
         idempotencyKey,
         modelOptionKey: fixture.modelOptionKey,
         operatorDirection: direction,
@@ -310,7 +312,7 @@ async function mainLocal() {
       {
         actor: fixture.actorId,
         draftRevisionId: fixture.draftRevisionId,
-        expectedRevisionNumber: 1,
+        expectedRevisionVersion: 1,
         idempotencyKey,
         modelOptionKey: fixture.modelOptionKey,
         operatorDirection: operatorImageDirectionSchema.parse(
@@ -344,7 +346,7 @@ async function mainLocal() {
       {
         actor: fixture.actorId,
         draftRevisionId: fixture.draftRevisionId,
-        expectedRevisionNumber: 1,
+        expectedRevisionVersion: 1,
         idempotencyKey,
         modelOptionKey: fixture.modelOptionKey,
         operatorDirection: normalizeOperatorImageDirection("material change"),
@@ -799,12 +801,12 @@ async function mainLocal() {
       {
         actor: fixture.actorId,
         draftRevisionId: fixture.draftRevisionId,
-        expectedRevisionNumber: 1,
+        expectedRevisionVersion: 1,
         idempotencyKey: rearmIdempotencyKey,
         modelOptionKey: fixture.modelOptionKey,
         requestHash: commandHash({
           draftRevisionId: fixture.draftRevisionId,
-          expectedRevisionNumber: 1,
+          expectedRevisionVersion: 1,
           idempotencyKey: rearmIdempotencyKey,
           modelOptionKey: fixture.modelOptionKey,
         }),
@@ -892,7 +894,7 @@ async function mainInngest() {
       {
         actor: childFixture.actorId,
         draftRevisionId: childFixture.draftRevisionId,
-        expectedRevisionNumber: 1,
+        expectedRevisionVersion: 1,
         idempotencyKey: randomUUID(),
         modelOptionKey: childFixture.modelOptionKey,
         requestHash: commandHash({ proof: "inngest-child", id: randomUUID() }),
@@ -1019,7 +1021,7 @@ async function mainInngest() {
       {
         actor: parentFixture.actorId,
         draftRevisionId: parentFixture.draftRevisionId,
-        expectedRevisionNumber: 1,
+        expectedRevisionVersion: 1,
         idempotencyKey: randomUUID(),
         modelOptionKey: parentFixture.modelOptionKey,
         requestHash: commandHash({ proof: "inngest-parent", id: randomUUID() }),
@@ -1048,6 +1050,35 @@ async function mainInngest() {
     if (parentClaim.status !== "claimed") {
       throw new Error("INNGEST_IMAGE_PARENT_CLAIM_REJECTED");
     }
+    const interruptedAttempt = await allocateImageStageAttempt(
+      opened.database.db,
+      parentFixture.workspaceId,
+      {
+        claimedBy: parentToken,
+        expectedVersion: parentClaim.operation.version,
+        operationId: parentOperation.operationId,
+        stage: "provider",
+      },
+    );
+    if (!interruptedAttempt) {
+      throw new Error("INNGEST_IMAGE_PARENT_ATTEMPT_MISSING");
+    }
+    await opened.database.db.insert(aiUsageEvent).values({
+      apiKind: "image",
+      backend: "remote",
+      invocationKey: "primary",
+      operationAttemptId: interruptedAttempt.attempt.id,
+      operationId: parentOperation.operationId,
+      providerGateway: "openrouter",
+      requestedModel: "probe/no-provider",
+      status: "pending",
+      taskKey: "image-generation:probe",
+      workspaceId: parentFixture.workspaceId,
+    });
+    await opened.database.db
+      .update(operation)
+      .set({ leaseExpiresAt: new Date(Date.now() - 1_000) })
+      .where(eq(operation.id, parentOperation.operationId));
     const parentClient = new Inngest({
       appVersion: `image-parent-${randomUUID()}`,
       id: `rz-image-probe-parent-${randomUUID()}`,
@@ -1118,18 +1149,27 @@ async function mainInngest() {
       parentOperation.operationId,
     );
     if (!terminal) throw new Error("IMAGE_PARENT_ON_FAILURE_NOT_TERMINAL");
-    assert.equal(terminal.operationLifecycle, "failed");
+    assert.equal(terminal.operationLifecycle, "unknown");
     assert.equal(terminal.claimedBy, null);
     assert.equal(
       await usageCount(opened.database.db, parentOperation.operationId),
-      0,
+      1,
     );
+    const interruptedTruth = await inspectImageAttemptTruth(
+      opened.database.db,
+      parentFixture.workspaceId,
+      parentOperation.operationId,
+    );
+    assert.equal(interruptedTruth.hasAmbiguousPaidWork, true);
+    assert.equal(interruptedTruth.hasPendingPaidWork, false);
+    assert.equal(interruptedTruth.rows[0]?.attemptOutcome, "ambiguous");
+    assert.equal(interruptedTruth.rows[0]?.usageStatus, "unknown");
     assert.ok(
       order.indexOf("notify-drafts-cache-image-failure") <
         order.indexOf("publish-drafts-changed-image-failure"),
     );
     console.log(
-      "image-generation inngest injected-envelope handler-step=true fenced-onFailure=failed providerEffects=0 cleanup=pending status=pass",
+      "image-generation inngest injected-envelope handler-step=true expired-lease=unknown providerEffects=0 cleanup=pending status=pass",
     );
   } finally {
     for (const fixture of fixtures.reverse()) {
@@ -1449,7 +1489,7 @@ async function proveBrandConcurrency(
   const sameBrand = await startImageGeneration(db, secondary.workspaceId, {
     actor: secondary.actorId,
     draftRevisionId: secondary.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey: sameBrandKey,
     modelOptionKey: secondary.modelOptionKey,
     requestHash: sameBrandHash,
@@ -1464,7 +1504,7 @@ async function proveBrandConcurrency(
       await startImageGeneration(db, secondary.workspaceId, {
         actor: secondary.actorId,
         draftRevisionId: secondary.draftRevisionId,
-        expectedRevisionNumber: 1,
+        expectedRevisionVersion: 1,
         idempotencyKey: sameBrandKey,
         modelOptionKey: secondary.modelOptionKey,
         requestHash: sameBrandHash,
@@ -1518,7 +1558,7 @@ async function proveBrandConcurrency(
   const differentBrand = await startImageGeneration(db, secondary.workspaceId, {
     actor: secondary.actorId,
     draftRevisionId: secondary.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey: differentBrandKey,
     modelOptionKey: secondary.modelOptionKey,
     requestHash: commandHash({ differentBrandKey }),
@@ -1572,7 +1612,7 @@ async function proveCrossDraftReferenceConflict(
       await startImageGeneration(db, secondary.workspaceId, {
         actor: secondary.actorId,
         draftRevisionId: secondary.draftRevisionId,
-        expectedRevisionNumber: 1,
+        expectedRevisionVersion: 1,
         idempotencyKey,
         modelOptionKey: secondary.modelOptionKey,
         referenceMediaAssetId: primary.reference.id,
@@ -1598,7 +1638,7 @@ async function proveReferenceAndCancellation(
   const created = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
     referenceMediaAssetId: fixture.reference.id,
@@ -1667,7 +1707,7 @@ async function proveReferenceAndCancellation(
   const reused = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey: reuseKey,
     modelOptionKey: fixture.modelOptionKey,
     referenceMediaAssetId: fixture.reference.id,
@@ -1732,7 +1772,7 @@ async function proveReferenceAndCancellation(
   const invalidated = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey: invalidatedKey,
     modelOptionKey: fixture.modelOptionKey,
     referenceMediaAssetId: fixture.reference.id,
@@ -1928,12 +1968,12 @@ async function mainPaid() {
       {
         actor: fixture.actorId,
         draftRevisionId: fixture.draftRevisionId,
-        expectedRevisionNumber: 1,
+        expectedRevisionVersion: 1,
         idempotencyKey,
         modelOptionKey: fixture.modelOptionKey,
         requestHash: commandHash({
           draftRevisionId: fixture.draftRevisionId,
-          expectedRevisionNumber: 1,
+          expectedRevisionVersion: 1,
           idempotencyKey,
           modelOptionKey: fixture.modelOptionKey,
         }),
@@ -2094,7 +2134,7 @@ async function mainPaid() {
         requestedModel: usage.requestedModel,
         resolvedModel: usage.resolvedModel,
         revisionCount: proof?.revisionCount,
-        sameRevisionAttached: true,
+        immutableMediaRevision: true,
         servableMediaRoute: "/api/media/:mediaAssetId",
         usageStatus: usage.status,
       }),
@@ -2158,6 +2198,7 @@ async function mainFinalization() {
       workspaceId,
       finalized.operationId,
     );
+    await proveImageAdmissionReplay(db, succeeded, finalized.operationId);
     await proveImageRemoval(db, workspaceId, succeeded);
     assert.equal(
       (await executeImageBrandedFinal(finalized.runtime, finalized.stageInput))
@@ -2218,6 +2259,104 @@ async function mainFinalization() {
       changedCopy,
       staleFinal.operationId,
     );
+
+    const returnedSelection = await createFixture(
+      db,
+      workspaceId,
+      opened.template,
+      opened.identity.fingerprint,
+    );
+    fixtures.push(returnedSelection);
+    const returnedFinal = await runImageStagesThroughProvider(
+      opened,
+      returnedSelection,
+      workspaceId,
+    );
+    await proveChangedCopySkipsAttachment(db, returnedSelection);
+    const [changedSelection] = await db
+      .select()
+      .from(platformDraft)
+      .where(eq(platformDraft.id, returnedSelection.platformDraftId));
+    assert.ok(changedSelection);
+    const returned = await executeDraftRevisionCommand(db, workspaceId, {
+      actorId: returnedSelection.actorId,
+      commandKind: "select_revision",
+      draftRevisionId: returnedSelection.draftRevisionId,
+      expectedActive: {
+        id: changedSelection.activeRevisionId,
+        version: changedSelection.revisionVersion,
+      },
+      idempotencyKey: randomUUID(),
+      platformDraftId: returnedSelection.platformDraftId,
+      requestHash: commandHash({
+        draftRevisionId: returnedSelection.draftRevisionId,
+      }),
+    });
+    assert.ok("revision" in returned);
+    await proveImageAdmissionReplay(
+      db,
+      returnedSelection,
+      returnedFinal.operationId,
+    );
+    const rejectedStaleImage = await startImageGeneration(db, workspaceId, {
+      actor: returnedSelection.actorId,
+      draftRevisionId: returnedSelection.draftRevisionId,
+      expectedRevisionVersion: 1,
+      idempotencyKey: randomUUID(),
+      modelOptionKey: returnedSelection.modelOptionKey,
+      requestHash: "stale-image-selection",
+      requestId: null,
+    });
+    assert.equal(rejectedStaleImage.status, "version_conflict");
+    assert.equal(
+      (
+        await executeImageBrandedFinal(
+          returnedFinal.runtime,
+          returnedFinal.stageInput,
+        )
+      ).status,
+      "succeeded",
+    );
+    await proveStaleFinalIsUnattached(
+      db,
+      workspaceId,
+      returnedSelection,
+      returnedFinal.operationId,
+    );
+
+    const legacySelection = await createFixture(
+      db,
+      workspaceId,
+      opened.template,
+      opened.identity.fingerprint,
+    );
+    fixtures.push(legacySelection);
+    const legacyFinal = await runImageStagesThroughProvider(
+      opened,
+      legacySelection,
+      workspaceId,
+    );
+    await db
+      .update(imageGeneration)
+      .set({ expectedRevisionVersion: null })
+      .where(eq(imageGeneration.operationId, legacyFinal.operationId));
+    assert.equal(
+      (
+        await executeImageBrandedFinal(
+          legacyFinal.runtime,
+          legacyFinal.stageInput,
+        )
+      ).status,
+      "succeeded",
+    );
+    const legacyRevisions = await db
+      .select()
+      .from(draftRevision)
+      .where(
+        eq(draftRevision.platformDraftId, legacySelection.platformDraftId),
+      );
+    assert.equal(legacyRevisions.length, 1);
+    assert.equal(legacyRevisions[0]?.selectedFinalMediaAssetId, null);
 
     const failed = await createFixture(
       db,
@@ -2382,6 +2521,8 @@ async function mainFinalization() {
         normalizedBriefOperationId,
         normalizedBriefProfiles,
         providerCalls: 0,
+        revisionFences:
+          "immutable-media-snapshot,replay,remove,reselected-source,legacy-admission",
         providerRejectionOperationId,
         rejectedBriefOperationId,
         renewedLeaseOperationId,
@@ -2589,7 +2730,7 @@ async function runImageStagesThroughProvider(
   const created = await startImageGeneration(opened.database.db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
     requestHash: commandHash({ idempotencyKey }),
@@ -2790,7 +2931,7 @@ async function proveJpegReferenceInvocation(
   const created = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
     referenceMediaAssetId: referenceId,
@@ -2899,7 +3040,7 @@ async function proveImageProviderRejection(
   const created = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
     requestHash: commandHash({ idempotencyKey }),
@@ -3074,7 +3215,7 @@ async function proveCreativeBriefNormalization(
   const created = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
     requestHash: commandHash({ idempotencyKey }),
@@ -3193,7 +3334,7 @@ async function proveBannedCreativeBriefRejection(
   const created = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
     requestHash: commandHash({ idempotencyKey }),
@@ -3315,7 +3456,7 @@ async function proveDeterministicCreativeBrief(
   const created = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
     requestHash: commandHash({ idempotencyKey }),
@@ -3458,7 +3599,7 @@ async function proveFinalizationCommit(
     );
   assert.equal(revisions.length, 1);
   assert.equal(revisions[0]?.id, generation.draftRevisionId);
-  assert.equal(revisions[0]?.selectedFinalMediaAssetId, finalId);
+  assert.equal(revisions[0]?.selectedFinalMediaAssetId, null);
   const receipts = await db
     .select()
     .from(draftRevisionCommandReceipt)
@@ -3470,10 +3611,73 @@ async function proveFinalizationCommit(
       ),
     );
   assert.equal(receipts.length, 1);
-  assert.equal(receipts[0]?.appendedRevision, false);
-  assert.equal(
+  assert.equal(receipts[0]?.appendedRevision, true);
+  assert.notEqual(
     receipts[0]?.resultingDraftRevisionId,
     generation.draftRevisionId,
+  );
+  const [active] = await db
+    .select({
+      revision: draftRevision,
+      revisionVersion: platformDraft.revisionVersion,
+    })
+    .from(platformDraft)
+    .innerJoin(
+      draftRevision,
+      eq(draftRevision.id, platformDraft.activeRevisionId),
+    )
+    .where(
+      eq(
+        platformDraft.activeRevisionId,
+        receipts[0]?.resultingDraftRevisionId ?? "",
+      ),
+    );
+  assert.equal(active?.revision.selectedFinalMediaAssetId, finalId);
+  assert.equal(active?.revision.revisionNumber, 2);
+  assert.equal(active?.revisionVersion, 2);
+  assert.ok(active);
+  const rollback = new Error("APPROVAL_PROBE_ROLLBACK");
+  await assert.rejects(
+    db.transaction(async (tx) => {
+      const approved = await grantApproval(tx, workspaceId, {
+        actorId: active.revision.authoredBy,
+        draftRevisionId: active.revision.id,
+        expectedRevisionVersion: active.revisionVersion,
+        selectedFinalMediaAssetId: finalId,
+        idempotencyKey: `final-approval:${operationId}`,
+        requestHash: commandHash({ finalId }),
+      });
+      assert.ok("approval" in approved);
+      const edited = await executeDraftRevisionCommand(tx, workspaceId, {
+        actorId: active.revision.authoredBy,
+        commandKind: "submit_content",
+        content: {
+          body: active.revision.body,
+          contentLocale: active.revision.contentLocale,
+          hashtags: active.revision.hashtags,
+          headline: `${active.revision.headline} changed`,
+        },
+        expectedActive: {
+          id: active.revision.id,
+          version: active.revisionVersion,
+        },
+        idempotencyKey: `edited-final:${operationId}`,
+        platformDraftId: active.revision.platformDraftId,
+        requestHash: commandHash({ finalId, edited: true }),
+      });
+      assert.ok("revision" in edited);
+      assert.notEqual(edited.revision.id, active.revision.id);
+      assert.equal(edited.revision.selectedFinalMediaAssetId, null);
+      const [originalSnapshot] = await tx
+        .select({
+          selectedFinalMediaAssetId: draftRevision.selectedFinalMediaAssetId,
+        })
+        .from(draftRevision)
+        .where(eq(draftRevision.id, active.revision.id));
+      assert.equal(originalSnapshot?.selectedFinalMediaAssetId, finalId);
+      throw rollback;
+    }),
+    (error: unknown) => error === rollback,
   );
   return { finalId, originalId };
 }
@@ -3485,22 +3689,26 @@ async function proveImageRemoval(
 ) {
   const [before] = await db
     .select({
-      revisionCount: sql<number>`count(*)::int`,
+      id: draftRevision.id,
+      revisionVersion: platformDraft.revisionVersion,
       selectedFinalMediaAssetId: draftRevision.selectedFinalMediaAssetId,
     })
-    .from(draftRevision)
-    .where(eq(draftRevision.platformDraftId, fixture.platformDraftId))
-    .groupBy(draftRevision.selectedFinalMediaAssetId);
+    .from(platformDraft)
+    .innerJoin(
+      draftRevision,
+      eq(draftRevision.id, platformDraft.activeRevisionId),
+    )
+    .where(eq(platformDraft.id, fixture.platformDraftId));
   assert.ok(before?.selectedFinalMediaAssetId);
   const idempotencyKey = randomUUID();
-  const expectedLatest = {
-    id: fixture.draftRevisionId,
-    revisionNumber: 1,
+  const expectedActive = {
+    id: before.id,
+    version: before.revisionVersion,
   };
   const semanticPayload = {
     commandKind: "remove_image" as const,
     platformDraftId: fixture.platformDraftId,
-    expectedLatest,
+    expectedActive,
   };
   const input = {
     ...semanticPayload,
@@ -3523,7 +3731,7 @@ async function proveImageRemoval(
     .select({ revisionCount: sql<number>`count(*)::int` })
     .from(draftRevision)
     .where(eq(draftRevision.platformDraftId, fixture.platformDraftId));
-  assert.equal(after?.revisionCount, before.revisionCount);
+  assert.equal(after?.revisionCount, 2);
   const [receipt] = await db
     .select()
     .from(draftRevisionCommandReceipt)
@@ -3538,6 +3746,41 @@ async function proveImageRemoval(
   assert.equal(receipt?.resultingDraftRevisionId, fixture.draftRevisionId);
 }
 
+async function proveImageAdmissionReplay(
+  db: Executor,
+  fixture: Fixture,
+  operationId: string,
+) {
+  const [admitted] = await db
+    .select()
+    .from(operation)
+    .where(eq(operation.id, operationId));
+  assert.ok(admitted);
+  const input = {
+    actor: fixture.actorId,
+    draftRevisionId: fixture.draftRevisionId,
+    expectedRevisionVersion: 1,
+    idempotencyKey: admitted.idempotencyKey,
+    modelOptionKey: fixture.modelOptionKey,
+    requestHash: admitted.requestHash,
+    requestId: admitted.requestId,
+  };
+  const replayed = await startImageGeneration(db, fixture.workspaceId, input);
+  assert.equal(replayed.status, "replayed");
+  assert.ok("operationId" in replayed);
+  assert.equal(replayed.operationId, operationId);
+  const mismatched = await startImageGeneration(db, fixture.workspaceId, {
+    ...input,
+    requestHash: `${input.requestHash}:changed`,
+  });
+  assert.equal(mismatched.status, "idempotency_mismatch");
+  const freshStale = await startImageGeneration(db, fixture.workspaceId, {
+    ...input,
+    idempotencyKey: randomUUID(),
+  });
+  assert.equal(freshStale.status, "version_conflict");
+}
+
 async function proveImageRemainsRemoved(
   db: Executor,
   draftRevisionId: string,
@@ -3545,11 +3788,17 @@ async function proveImageRemainsRemoved(
 ) {
   const [revision] = await db
     .select({
+      activeRevisionId: platformDraft.activeRevisionId,
       selectedFinalMediaAssetId: draftRevision.selectedFinalMediaAssetId,
     })
     .from(draftRevision)
+    .innerJoin(
+      platformDraft,
+      eq(platformDraft.id, draftRevision.platformDraftId),
+    )
     .where(eq(draftRevision.id, draftRevisionId));
   assert.equal(revision?.selectedFinalMediaAssetId, null);
+  assert.equal(revision?.activeRevisionId, draftRevisionId);
   const receipts = await db
     .select({ id: draftRevisionCommandReceipt.id })
     .from(draftRevisionCommandReceipt)
@@ -3563,17 +3812,21 @@ async function proveChangedCopySkipsAttachment(db: Executor, fixture: Fixture) {
     .from(draftRevision)
     .where(eq(draftRevision.id, fixture.draftRevisionId));
   if (!source) throw new Error("CHANGED_COPY_SOURCE_MISSING");
-  await db.insert(draftRevision).values({
-    authoredBy: fixture.actorId,
-    body: source.body,
-    contentLocale: source.contentLocale,
-    hashtags: source.hashtags,
-    headline: `${source.headline} changed`,
-    originatingCopyVariantId: source.originatingCopyVariantId,
+  const changed = await executeDraftRevisionCommand(db, fixture.workspaceId, {
+    actorId: fixture.actorId,
+    commandKind: "submit_content",
+    content: {
+      body: source.body,
+      contentLocale: source.contentLocale,
+      hashtags: source.hashtags,
+      headline: `${source.headline} changed`,
+    },
+    expectedActive: { id: source.id, version: 1 },
+    idempotencyKey: randomUUID(),
     platformDraftId: fixture.platformDraftId,
-    revisionNumber: 2,
-    workspaceId: fixture.workspaceId,
+    requestHash: commandHash({ headline: `${source.headline} changed` }),
   });
+  assert.ok("revision" in changed);
 }
 
 async function proveStaleFinalIsUnattached(
@@ -3621,7 +3874,7 @@ async function proveStaleImageOperations(
   const running = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey: runningKey,
     modelOptionKey: fixture.modelOptionKey,
     requestHash: commandHash({ idempotencyKey: runningKey }),
@@ -3660,7 +3913,7 @@ async function proveStaleImageOperations(
   const queued = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey: queuedKey,
     modelOptionKey: fixture.modelOptionKey,
     requestHash: commandHash({ idempotencyKey: queuedKey }),
@@ -3706,7 +3959,7 @@ async function proveStaleImageOperations(
   const freshness = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey: freshnessKey,
     modelOptionKey: fixture.modelOptionKey,
     requestHash: commandHash({ idempotencyKey: freshnessKey }),
@@ -3843,7 +4096,7 @@ async function proveImageSourceReadiness(
     const rejected = await startImageGeneration(db, workspaceId, {
       actor: fixture.actorId,
       draftRevisionId: fixture.draftRevisionId,
-      expectedRevisionNumber: 1,
+      expectedRevisionVersion: 1,
       idempotencyKey: rejectedKey,
       modelOptionKey: fixture.modelOptionKey,
       requestHash: commandHash({ proof: "feed-only-preflight", rejectedKey }),
@@ -3862,7 +4115,7 @@ async function proveImageSourceReadiness(
     const incomplete = await startImageGeneration(db, workspaceId, {
       actor: fixture.actorId,
       draftRevisionId: fixture.draftRevisionId,
-      expectedRevisionNumber: 1,
+      expectedRevisionVersion: 1,
       idempotencyKey: incompleteKey,
       modelOptionKey: fixture.modelOptionKey,
       requestHash: commandHash({ incompleteKey, proof: "missing-extract" }),
@@ -4189,7 +4442,7 @@ async function startFixtureImageGeneration(
   const created = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
     requestHash: commandHash({ idempotencyKey, proof }),
@@ -4761,6 +5014,10 @@ async function createFixture(
         revisionNumber: 1,
         workspaceId,
       });
+      await tx
+        .update(platformDraft)
+        .set({ activeRevisionId: revisionId, revisionVersion: 1 })
+        .where(eq(platformDraft.id, draftId));
       await tx.insert(mediaAsset).values({
         actualBytes: referenceBytes.byteLength,
         checksum: referenceChecksum,
@@ -5476,7 +5733,7 @@ async function beginGatewayMatrixOperation(
   const created = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedRevisionNumber: 1,
+    expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
     requestHash: commandHash({ idempotencyKey, proof: "gateway-error-matrix" }),
@@ -6426,8 +6683,11 @@ async function cleanupFixture(
       await tx.delete(imageBrief).where(inArray(imageBrief.id, briefIds));
     }
     await tx
-      .update(draftRevision)
-      .set({ selectedFinalMediaAssetId: null })
+      .update(platformDraft)
+      .set({ activeRevisionId: null })
+      .where(eq(platformDraft.id, platformDraftId));
+    await tx
+      .delete(draftRevision)
       .where(eq(draftRevision.platformDraftId, platformDraftId));
     if (assetIds.length > 0) {
       await tx
@@ -6446,9 +6706,6 @@ async function cleanupFixture(
         .delete(operation)
         .where(inArray(operation.id, imageOperationIds));
     }
-    await tx
-      .delete(draftRevision)
-      .where(eq(draftRevision.platformDraftId, platformDraftId));
     await tx
       .delete(copyVariant)
       .where(eq(copyVariant.copyGenerationUnitId, revision.copyUnitId));

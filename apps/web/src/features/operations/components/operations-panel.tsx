@@ -5,6 +5,7 @@ import {
   type ErrorCode,
   type OperationCommandKind,
   operationCommandKind,
+  type PublicationFailureCode,
 } from "@rz-chain-reporter/contracts";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
@@ -22,13 +23,13 @@ import {
 import { cn } from "@rz-chain-reporter/ui/lib/utils";
 import { Check, ChevronRight, Copy } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { StateMark } from "@/components/common/state-mark";
 
 import { OPERATIONS_NAMESPACE } from "../constants";
 import {
-  OPERATION_ERROR_KEYS,
+  OPERATION_FAILURE_KEYS,
   type PanelState,
   panelStateOf,
 } from "../lib/panel-state";
@@ -46,10 +47,12 @@ const KIND_KEYS = {
 type TimelineEntry = OperationSummary["timeline"][number];
 
 export function OperationsPanel({
+  focusedOperationId,
   isError,
   isFetching,
   operations,
 }: {
+  focusedOperationId?: string;
   isError: boolean;
   isFetching: boolean;
   operations: OperationSummary[];
@@ -73,7 +76,11 @@ export function OperationsPanel({
           data-pending={isFetching || undefined}
         >
           {operations.map((operation) => (
-            <OperationRow key={operation.id} operation={operation} />
+            <OperationRow
+              focused={operation.id === focusedOperationId}
+              key={operation.id}
+              operation={operation}
+            />
           ))}
         </ul>
       )}
@@ -81,24 +88,39 @@ export function OperationsPanel({
   );
 }
 
-function OperationRow({ operation }: { operation: OperationSummary }) {
+function OperationRow({
+  focused,
+  operation,
+}: {
+  focused: boolean;
+  operation: OperationSummary;
+}) {
   const format = useFormatter();
   const t = useTranslations(OPERATIONS_NAMESPACE);
   const [expanded, setExpanded] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const recordId = useId();
   const state = panelStateOf(operation);
   const kind = t(operationKindKey(operation.commandType));
   const exhausted = operation.dispatch?.state === "exhausted";
+  const revealed = focused || expanded;
+
+  useEffect(() => {
+    if (!focused) return;
+    triggerRef.current?.focus();
+    triggerRef.current?.scrollIntoView({ block: "nearest" });
+  }, [focused]);
 
   return (
     <li className="border-border border-b py-2 last:border-b-0">
       <div className="flex items-start gap-1">
         <Button
           aria-controls={recordId}
-          aria-expanded={expanded}
+          aria-expanded={revealed}
           aria-label={t("panel.toggleTimeline", { id: operation.id, kind })}
           className="h-auto min-w-0 flex-1 items-start justify-start gap-3 whitespace-normal rounded-none px-0 font-normal aria-expanded:bg-transparent"
           onClick={() => setExpanded((value) => !value)}
+          ref={triggerRef}
           type="button"
           variant="ghost"
         >
@@ -129,14 +151,14 @@ function OperationRow({ operation }: { operation: OperationSummary }) {
             aria-hidden="true"
             className={cn(
               "size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none",
-              expanded ? "rotate-90" : "rtl:rotate-180",
+              revealed ? "rotate-90" : "rtl:rotate-180",
             )}
           />
         </Button>
         {exhausted ? <CopyOperationId id={operation.id} /> : null}
       </div>
       <DispatchCaption operation={operation} />
-      {expanded ? (
+      {revealed ? (
         <TravelRecord
           id={recordId}
           kind={kind}
@@ -263,13 +285,17 @@ function CopyOperationId({ id }: { id: string }) {
   );
 }
 
-function FailureMessage({ code }: { code: ErrorCode | null }) {
+function FailureMessage({
+  code,
+}: {
+  code: ErrorCode | PublicationFailureCode | null;
+}) {
   const t = useTranslations(OPERATIONS_NAMESPACE);
   if (!code) return null;
 
   return (
     <span className="text-destructive text-xs">
-      {t(OPERATION_ERROR_KEYS[code])}
+      {t(OPERATION_FAILURE_KEYS[code])}
     </span>
   );
 }
@@ -364,6 +390,9 @@ function outcomeStateOf(outcome: AttemptOutcome | null): PanelState | null {
 }
 
 function operationKindKey(commandType: string) {
+  if (commandType.startsWith("publishing:")) {
+    return "kind.publishing" as const;
+  }
   return KIND_KEYS[operationCommandKind(commandType)];
 }
 

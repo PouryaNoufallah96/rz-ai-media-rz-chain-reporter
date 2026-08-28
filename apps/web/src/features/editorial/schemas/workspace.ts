@@ -31,13 +31,17 @@ import type { AnalysisRunProgress } from "@rz-chain-reporter/db/repositories/ana
 import { createLoader, parseAsString, type SearchParams } from "nuqs/server";
 import { z } from "zod";
 
-export const workspaceSearchParsers = { run: parseAsString };
+export const workspaceSearchParsers = {
+  draft: parseAsString,
+  run: parseAsString,
+};
 
 export const loadWorkspaceSearchParams = createLoader(workspaceSearchParsers);
 
 export type WorkspaceSearchParams = Promise<SearchParams>;
 
 const workspaceQuerySchema = z.object({
+  draft: z.uuid().nullable().catch(null),
   run: z.uuid().nullable().catch(null),
 });
 
@@ -87,6 +91,7 @@ export const cancelAnalysisRunInputSchema = z.object({
 
 export const startAnalysisRunResultSchema = z.object({
   operationId: z.uuid(),
+  analysisRunId: z.uuid(),
 });
 
 type RunProvenance = {

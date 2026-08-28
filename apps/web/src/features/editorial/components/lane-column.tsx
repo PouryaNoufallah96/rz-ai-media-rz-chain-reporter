@@ -45,7 +45,6 @@ export function ModelLaneColumn({
   index,
   limitedGuidance,
   promo,
-  runId,
   slot,
   total,
   unitsPlanned,
@@ -54,7 +53,6 @@ export function ModelLaneColumn({
   index: number;
   limitedGuidance: boolean;
   promo: boolean;
-  runId: string;
   slot: ModelSlot;
   total: number;
   unitsPlanned: boolean;
@@ -115,9 +113,6 @@ export function ModelLaneColumn({
                 fallback={fallback}
                 key={card.id}
                 limitedGuidance={limitedGuidance}
-                modelOptionKey={lane.modelOptionKey}
-                runId={runId}
-                unitId={lane.unitId}
               />
             ),
           )}

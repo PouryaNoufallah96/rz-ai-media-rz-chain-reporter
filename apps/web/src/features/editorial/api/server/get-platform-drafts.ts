@@ -1,10 +1,14 @@
 import "server-only";
 
-import type { Platform } from "@rz-chain-reporter/contracts";
+import { type Platform, workspaceCacheTag } from "@rz-chain-reporter/contracts";
+import { env } from "@rz-chain-reporter/env/server";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { requireSession } from "@/features/auth/api/server/session";
-import { customerEditorial } from "@/lib/customer-template.server";
+import {
+  customerEditorial,
+  customerTimeZone,
+} from "@/lib/customer-template.server";
 import { rpcDb } from "@/server/rpc/db";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 
@@ -19,11 +23,14 @@ import type { PlatformDraftLane } from "../../schemas/drafts";
 export async function getPlatformDrafts(
   analysisRunId: string,
 ): Promise<PlatformDraftLane[]> {
-  await requireSession();
+  const session = await requireSession();
   const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
 
   return readCachedPlatformDrafts(
     workspaceId,
+    session.user.id,
+    env.PUBLISHING_EMERGENCY_PAUSED,
+    customerTimeZone,
     analysisRunId,
     customerEditorial.brands,
     customerEditorial.platforms,
@@ -33,6 +40,9 @@ export async function getPlatformDrafts(
 
 async function readCachedPlatformDrafts(
   workspaceId: string,
+  userId: string,
+  environmentForcedPause: boolean,
+  timeZone: string,
   analysisRunId: string,
   enabledBrands: readonly { key: string; name: string }[],
   enabledPlatforms: readonly Platform[],
@@ -40,14 +50,24 @@ async function readCachedPlatformDrafts(
 ): Promise<PlatformDraftLane[]> {
   "use cache";
   cacheTag(draftsTags.reads(workspaceId));
+  cacheTag(workspaceCacheTag(workspaceId, "publishing"));
   cacheLife("minutes");
 
   const [configuration, storedBrands, drafts] = await Promise.all([
     readPlatformDraftRunConfiguration(rpcDb(), workspaceId, analysisRunId),
     readPlatformDraftBrands(rpcDb(), workspaceId),
-    readPlatformDrafts(rpcDb(), workspaceId, analysisRunId, enabledImageModels),
+    readPlatformDrafts(
+      rpcDb(),
+      workspaceId,
+      { analysisRunId },
+      userId,
+      environmentForcedPause,
+      timeZone,
+      enabledImageModels,
+    ),
   ]);
   if (!configuration) return [];
+  const draftCards = drafts.map((draft) => draft.card);
 
   const brandByKey = new Map(storedBrands.map((brand) => [brand.key, brand]));
   const enabledBrandKeys = new Set(enabledBrands.map((brand) => brand.key));
@@ -76,7 +96,7 @@ async function readCachedPlatformDrafts(
       brandKey: brand.key,
       brandName: brand.name,
       platform,
-      drafts: drafts.filter(
+      drafts: draftCards.filter(
         (draft) =>
           draft.mediaBrandId === brand.id && draft.platform === platform,
       ),

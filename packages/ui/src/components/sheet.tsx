@@ -104,13 +104,13 @@ function SheetPopup({
           data-slot="sheet-close"
           render={
             <Button
-              className="absolute inset-e-4 top-4"
+              className="absolute inset-e-4 top-4 max-[599px]:size-11"
               size="icon-sm"
               variant="ghost"
             />
           }
         >
-          <XIcon />
+          <XIcon aria-hidden="true" />
           <span className="sr-only">{closeLabel}</span>
         </SheetPrimitive.Close>
       ) : null}

@@ -9,6 +9,13 @@ import { operationSummarySchema } from "@/features/operations/schemas/operation-
 import { rpcDb } from "../db";
 
 export const list = installationProcedure
+  .input(z.strictObject({ focusedOperationId: z.uuid().optional() }))
   .output(z.array(operationSummarySchema))
   .errors({ UNAUTHORIZED: { status: 401 } })
-  .handler(({ context }) => listRecentOperations(rpcDb(), context.workspaceId));
+  .handler(({ context, input }) =>
+    listRecentOperations(
+      rpcDb(),
+      context.workspaceId,
+      input.focusedOperationId,
+    ),
+  );

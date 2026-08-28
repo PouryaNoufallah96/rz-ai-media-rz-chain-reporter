@@ -4,6 +4,7 @@ import type {
   CardOriginReference,
   ContentLocale,
   FilterDisposition,
+  FilteringReason,
   ModelUnitStatus,
   OperationLifecycle,
   RunConfiguration,
@@ -13,26 +14,35 @@ import type {
   SourceOrigin,
 } from "@rz-chain-reporter/contracts";
 import { OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME } from "@rz-chain-reporter/contracts";
-import type { Executor } from "@rz-chain-reporter/db/executor";
+import type { Executor, Transaction } from "@rz-chain-reporter/db/executor";
 import { inWorkspace } from "@rz-chain-reporter/db/filters";
 import { analysisRunProgress } from "@rz-chain-reporter/db/repositories/analysis-run";
 import { aiUsageEvent } from "@rz-chain-reporter/db/schema/ai-usage-event";
 import { analysisModelUnit } from "@rz-chain-reporter/db/schema/analysis-model-unit";
 import { analysisRun } from "@rz-chain-reporter/db/schema/analysis-run";
 import { analysisRunItem } from "@rz-chain-reporter/db/schema/analysis-run-item";
+import { approval } from "@rz-chain-reporter/db/schema/approval";
 import { user } from "@rz-chain-reporter/db/schema/auth";
 import { copyGeneration } from "@rz-chain-reporter/db/schema/copy-generation";
 import { copyGenerationUnit } from "@rz-chain-reporter/db/schema/copy-generation-unit";
 import { copyVariant } from "@rz-chain-reporter/db/schema/copy-variant";
+import { destinationAccount } from "@rz-chain-reporter/db/schema/destination-account";
 import { draftRevision } from "@rz-chain-reporter/db/schema/draft-revision";
 import { editorialSelection } from "@rz-chain-reporter/db/schema/editorial-selection";
 import { filterResult } from "@rz-chain-reporter/db/schema/filter-result";
 import { mediaBrand } from "@rz-chain-reporter/db/schema/media-brand";
+import { mediaBrandDestinationAccount } from "@rz-chain-reporter/db/schema/media-brand-destination-account";
 import { operation } from "@rz-chain-reporter/db/schema/operation";
 import { operationAttempt } from "@rz-chain-reporter/db/schema/operation-attempt";
 import { outboxEvent } from "@rz-chain-reporter/db/schema/outbox-event";
 import { platformDraft } from "@rz-chain-reporter/db/schema/platform-draft";
 import { promoIdea } from "@rz-chain-reporter/db/schema/promo-idea";
+import { publication } from "@rz-chain-reporter/db/schema/publication";
+import { publishCheckpoint } from "@rz-chain-reporter/db/schema/publish-checkpoint";
+import { publishOperation } from "@rz-chain-reporter/db/schema/publish-operation";
+import { publishingControl } from "@rz-chain-reporter/db/schema/publishing-control";
+import { savedCard } from "@rz-chain-reporter/db/schema/saved-card";
+import { schedule } from "@rz-chain-reporter/db/schema/schedule";
 import { source } from "@rz-chain-reporter/db/schema/source";
 import { sourceImport } from "@rz-chain-reporter/db/schema/source-import";
 import { sourceImportItem } from "@rz-chain-reporter/db/schema/source-import-item";
@@ -84,15 +94,9 @@ const DUPLICATE_BRAND_ID = "00000000-0000-0000-0000-000000000000";
 export async function readEditorialWorkspace(
   executor: Executor,
   workspaceId: string,
-  analysisRunId: string | null,
-  userId?: string,
+  analysisRunId: string,
 ) {
-  const selected = await readRunHead(
-    executor,
-    workspaceId,
-    analysisRunId,
-    userId,
-  );
+  const selected = await readRunHead(executor, workspaceId, analysisRunId);
 
   if (!selected) {
     return { head: null, modelLanes: [], telegramLanes: [] };
@@ -124,24 +128,38 @@ export async function readEditorialWorkspace(
 
 type PlatformDraftProjectionRow = {
   id: string;
+  analysisRunId: string;
+  originLifecycle: OperationLifecycle;
   mediaBrandId: string;
   brandKey: string;
   brandName: string;
   platform: PlatformDraftCard["platform"];
   lanePosition: number;
   version: number;
+  activeRevisionId: string | null;
+  revisionVersion: number;
   editorialSelectionId: string | null;
   telegramFilterResultId: string | null;
   promoIdeaId: string | null;
   originTitle: string;
   sourceKind: "promo" | "rss" | "telegram";
+  originSourceName: string | null;
+  originPublishedAt: string | null;
+  originCanonicalUrl: string | null;
+  originSummary: string | null;
+  originContentLocale: ContentLocale | null;
+  originSuitabilityScore: number | null;
+  originReasoning: string | null;
+  originSuggestedPlatform: PlatformDraftCard["platform"] | null;
+  originTelegramReason: FilteringReason | null;
+  originPromoAngle: string | null;
   operationId: string | null;
   lifecycle: OperationLifecycle | null;
   modelOptionKey: string | null;
   requestedContentLocale: ContentLocale | null;
   limited: boolean | null;
   forceArticleRefresh: boolean | null;
-  generationCreatedAt: Date | null;
+  generationCreatedAt: string | null;
   imageOperationId: string | null;
   imageDraftRevisionId: string | null;
   imageLifecycle: OperationLifecycle | null;
@@ -149,24 +167,47 @@ type PlatformDraftProjectionRow = {
   imageReferenceMediaAssetId: string | null;
   imageProviderOriginalMediaAssetId: string | null;
   imageFinalMediaAssetId: string | null;
-  imageCreatedAt: Date | null;
+  imageCreatedAt: string | null;
+};
+
+type PlatformDraftSelector =
+  | { analysisRunId: string; platformDraftId?: never }
+  | { analysisRunId?: never; platformDraftId: string };
+
+type PlatformDraftRead = {
+  analysisRunId: string;
+  lifecycle: OperationLifecycle;
+  card: PlatformDraftCard;
 };
 
 export async function readPlatformDrafts(
-  executor: Executor,
+  database: Executor,
   workspaceId: string,
-  analysisRunId: string,
+  selector: PlatformDraftSelector,
+  userId: string,
+  environmentForcedPause: boolean,
+  timeZone: string,
   imageModels: readonly { key: string; name: string }[] = [],
-): Promise<PlatformDraftCard[]> {
-  const result = await executor.execute<PlatformDraftProjectionRow>(sql`
+): Promise<PlatformDraftRead[]> {
+  return database.transaction(
+    async (executor) => {
+      const selectorSql =
+        "analysisRunId" in selector
+          ? sql`origin_run.id = ${selector.analysisRunId}::uuid`
+          : sql`draft.id = ${selector.platformDraftId}::uuid`;
+      const result = await executor.execute<PlatformDraftProjectionRow>(sql`
     select
       draft.id,
+      origin_run.id as "analysisRunId",
+      origin_operation.lifecycle as "originLifecycle",
       draft.media_brand_id as "mediaBrandId",
       brand.key as "brandKey",
       brand.name as "brandName",
       draft.platform,
       draft.lane_position as "lanePosition",
       draft.version,
+      draft.active_revision_id as "activeRevisionId",
+      draft.revision_version as "revisionVersion",
       draft.editorial_selection_id as "editorialSelectionId",
       draft.telegram_filter_result_id as "telegramFilterResultId",
       draft.promo_idea_id as "promoIdeaId",
@@ -176,6 +217,16 @@ export async function readPlatformDrafts(
         when draft.telegram_filter_result_id is not null or selection_item.origin = 'telegram_public' then 'telegram'
         else 'rss'
       end as "sourceKind",
+      origin_source.name as "originSourceName",
+      origin_item.published_at as "originPublishedAt",
+      origin_revision.canonical_url as "originCanonicalUrl",
+      coalesce(origin_revision.summary, promo.description) as "originSummary",
+      origin_revision.content_locale as "originContentLocale",
+      selection.selection_suitability_score as "originSuitabilityScore",
+      selection.reasoning as "originReasoning",
+      coalesce(selection.suggested_platform, draft.platform) as "originSuggestedPlatform",
+      telegram.reason as "originTelegramReason",
+      promo.angle as "originPromoAngle",
       latest.operation_id as "operationId",
       latest.lifecycle,
       latest.model_option_key as "modelOptionKey",
@@ -196,6 +247,10 @@ export async function readPlatformDrafts(
       on brand.id = draft.media_brand_id
       and brand.workspace_id = draft.workspace_id
       and brand.deleted_at is null
+    left join draft_revision active_revision
+      on active_revision.id = draft.active_revision_id
+      and active_revision.workspace_id = draft.workspace_id
+      and active_revision.platform_draft_id = draft.id
     left join editorial_selection selection
       on selection.id = draft.editorial_selection_id
       and selection.workspace_id = draft.workspace_id
@@ -217,6 +272,29 @@ export async function readPlatformDrafts(
     left join analysis_model_unit promo_unit
       on promo_unit.id = promo.analysis_model_unit_id
       and promo_unit.workspace_id = draft.workspace_id
+    inner join analysis_run origin_run
+      on origin_run.id = coalesce(
+        selection_unit.analysis_run_id,
+        telegram.analysis_run_id,
+        promo_unit.analysis_run_id
+      )
+      and origin_run.workspace_id = draft.workspace_id
+    inner join operation origin_operation
+      on origin_operation.id = origin_run.operation_id
+      and origin_operation.workspace_id = draft.workspace_id
+    left join source_item origin_item
+      on origin_item.id = coalesce(selection.source_item_id, telegram.source_item_id)
+      and origin_item.workspace_id = draft.workspace_id
+    left join source origin_source
+      on origin_source.id = origin_item.source_id
+      and origin_source.workspace_id = draft.workspace_id
+    left join analysis_run_item origin_run_item
+      on origin_run_item.workspace_id = draft.workspace_id
+      and origin_run_item.analysis_run_id = origin_run.id
+      and origin_run_item.source_item_id = origin_item.id
+    left join source_item_revision origin_revision
+      on origin_revision.id = origin_run_item.source_item_revision_id
+      and origin_revision.workspace_id = draft.workspace_id
     left join lateral (
       select
         generation.operation_id,
@@ -254,113 +332,116 @@ export async function readPlatformDrafts(
         and generation_operation.workspace_id = generation.workspace_id
       where generation.workspace_id = draft.workspace_id
         and image_revision.platform_draft_id = draft.id
+        and image_revision.content_locale = active_revision.content_locale
+        and image_revision.headline = active_revision.headline
+        and image_revision.body = active_revision.body
+        and image_revision.hashtags = active_revision.hashtags
       order by generation.created_at desc, generation.operation_id desc
       limit 1
     ) latest_image on true
     where draft.workspace_id = ${workspaceId}::uuid
       and draft.deleted_at is null
-      and coalesce(
-        selection_unit.analysis_run_id,
-        telegram.analysis_run_id,
-        promo_unit.analysis_run_id
-      ) = ${analysisRunId}::uuid
+      and ${selectorSql}
     order by brand.sort_order, draft.platform, draft.lane_position, draft.id
   `);
 
-  const operationIds = result.rows.flatMap((row) =>
-    row.operationId ? [row.operationId] : [],
-  );
-  const units =
-    operationIds.length === 0
-      ? []
-      : await executor
-          .select({
-            id: copyGenerationUnit.id,
-            operationId: copyGenerationUnit.copyGenerationId,
-            status: copyGenerationUnit.status,
-            variantKey: copyGenerationUnit.variantKey,
-          })
-          .from(copyGenerationUnit)
-          .where(
-            and(
-              inWorkspace(copyGenerationUnit, workspaceId),
-              inArray(copyGenerationUnit.copyGenerationId, operationIds),
-            ),
-          )
-          .orderBy(
-            asc(copyGenerationUnit.createdAt),
-            asc(copyGenerationUnit.variantKey),
-          );
-  const unitsByOperation = new Map<
-    string,
-    { id: string; variantKey: string; status: ModelUnitStatus }[]
-  >();
-  for (const unit of units) {
-    const existing = unitsByOperation.get(unit.operationId);
-    if (existing) {
-      existing.push({
-        id: unit.id,
-        variantKey: unit.variantKey,
-        status: unit.status,
-      });
-    } else {
-      unitsByOperation.set(unit.operationId, [
-        { id: unit.id, variantKey: unit.variantKey, status: unit.status },
-      ]);
-    }
-  }
-
-  const draftIds = result.rows.map((row) => row.id);
-  const [variants, revisions] =
-    draftIds.length === 0
-      ? [[], []]
-      : await Promise.all([
-          executor
-            .select({
-              id: copyVariant.id,
-              platformDraftId: copyGeneration.platformDraftId,
-              operationId: copyGeneration.operationId,
-              variantKey: copyGenerationUnit.variantKey,
-              contentLocale: copyVariant.contentLocale,
-              headline: copyVariant.headline,
-              body: copyVariant.body,
-              hashtags: copyVariant.hashtags,
-              limited: copyGeneration.limited,
-              modelOptionKey: copyGeneration.modelOptionKey,
-              createdAt: copyVariant.createdAt,
-            })
-            .from(copyVariant)
-            .innerJoin(
-              copyGenerationUnit,
-              and(
-                inWorkspace(copyGenerationUnit, workspaceId),
-                eq(copyGenerationUnit.id, copyVariant.copyGenerationUnitId),
-              ),
-            )
-            .innerJoin(
-              copyGeneration,
-              and(
-                inWorkspace(copyGeneration, workspaceId),
-                eq(
-                  copyGeneration.operationId,
-                  copyGenerationUnit.copyGenerationId,
+      const operationIds = result.rows.flatMap((row) =>
+        row.operationId ? [row.operationId] : [],
+      );
+      const units =
+        operationIds.length === 0
+          ? []
+          : await executor
+              .select({
+                id: copyGenerationUnit.id,
+                operationId: copyGenerationUnit.copyGenerationId,
+                status: copyGenerationUnit.status,
+                variantKey: copyGenerationUnit.variantKey,
+              })
+              .from(copyGenerationUnit)
+              .where(
+                and(
+                  inWorkspace(copyGenerationUnit, workspaceId),
+                  inArray(copyGenerationUnit.copyGenerationId, operationIds),
                 ),
-                inArray(copyGeneration.platformDraftId, draftIds),
-              ),
-            )
-            .where(inWorkspace(copyVariant, workspaceId))
-            .orderBy(desc(copyVariant.createdAt), asc(copyVariant.id)),
-          executor
-            .select({
-              id: draftRevision.id,
-              platformDraftId: draftRevision.platformDraftId,
-              revisionNumber: draftRevision.revisionNumber,
-              contentLocale: draftRevision.contentLocale,
-              headline: draftRevision.headline,
-              body: draftRevision.body,
-              hashtags: draftRevision.hashtags,
-              originatingCopyVariantId: draftRevision.originatingCopyVariantId,
-              imageSourceReadiness: sql<"ready" | "extract_required">`case
+              )
+              .orderBy(
+                asc(copyGenerationUnit.createdAt),
+                asc(copyGenerationUnit.variantKey),
+              );
+      const unitsByOperation = new Map<
+        string,
+        { id: string; variantKey: string; status: ModelUnitStatus }[]
+      >();
+      for (const unit of units) {
+        const existing = unitsByOperation.get(unit.operationId);
+        if (existing) {
+          existing.push({
+            id: unit.id,
+            variantKey: unit.variantKey,
+            status: unit.status,
+          });
+        } else {
+          unitsByOperation.set(unit.operationId, [
+            { id: unit.id, variantKey: unit.variantKey, status: unit.status },
+          ]);
+        }
+      }
+
+      const draftIds = result.rows.map((row) => row.id);
+      const variants =
+        draftIds.length === 0
+          ? []
+          : await executor
+              .select({
+                id: copyVariant.id,
+                platformDraftId: copyGeneration.platformDraftId,
+                operationId: copyGeneration.operationId,
+                variantKey: copyGenerationUnit.variantKey,
+                contentLocale: copyVariant.contentLocale,
+                headline: copyVariant.headline,
+                body: copyVariant.body,
+                hashtags: copyVariant.hashtags,
+                limited: copyGeneration.limited,
+                modelOptionKey: copyGeneration.modelOptionKey,
+                createdAt: copyVariant.createdAt,
+              })
+              .from(copyVariant)
+              .innerJoin(
+                copyGenerationUnit,
+                and(
+                  inWorkspace(copyGenerationUnit, workspaceId),
+                  eq(copyGenerationUnit.id, copyVariant.copyGenerationUnitId),
+                ),
+              )
+              .innerJoin(
+                copyGeneration,
+                and(
+                  inWorkspace(copyGeneration, workspaceId),
+                  eq(
+                    copyGeneration.operationId,
+                    copyGenerationUnit.copyGenerationId,
+                  ),
+                  inArray(copyGeneration.platformDraftId, draftIds),
+                ),
+              )
+              .where(inWorkspace(copyVariant, workspaceId))
+              .orderBy(desc(copyVariant.createdAt), asc(copyVariant.id));
+      const revisions =
+        draftIds.length === 0
+          ? []
+          : await executor
+              .select({
+                id: draftRevision.id,
+                platformDraftId: draftRevision.platformDraftId,
+                revisionNumber: draftRevision.revisionNumber,
+                contentLocale: draftRevision.contentLocale,
+                headline: draftRevision.headline,
+                body: draftRevision.body,
+                hashtags: draftRevision.hashtags,
+                originatingCopyVariantId:
+                  draftRevision.originatingCopyVariantId,
+                imageSourceReadiness: sql<"ready" | "extract_required">`case
                 when ${platformDraft.promoIdeaId} is not null then 'ready'
                 when ${sourceItem.origin} = 'telegram_public' then 'ready'
                 when ${sourceItem.origin} = 'rss'
@@ -369,142 +450,513 @@ export async function readPlatformDrafts(
                   and ${copyGeneration.pageContentHash} is not null then 'ready'
                 else 'extract_required'
               end`,
-              selectedFinalMediaAssetId:
-                draftRevision.selectedFinalMediaAssetId,
-              authoredBy: draftRevision.authoredBy,
-              authorName: user.name,
-              createdAt: draftRevision.createdAt,
-            })
-            .from(draftRevision)
-            .innerJoin(
-              platformDraft,
-              and(
-                eq(platformDraft.id, draftRevision.platformDraftId),
-                eq(platformDraft.workspaceId, draftRevision.workspaceId),
-              ),
-            )
-            .innerJoin(
-              copyVariant,
-              and(
-                eq(copyVariant.id, draftRevision.originatingCopyVariantId),
-                eq(copyVariant.workspaceId, draftRevision.workspaceId),
-              ),
-            )
-            .innerJoin(
-              copyGenerationUnit,
-              and(
-                eq(copyGenerationUnit.id, copyVariant.copyGenerationUnitId),
-                eq(copyGenerationUnit.workspaceId, copyVariant.workspaceId),
-              ),
-            )
-            .innerJoin(
-              copyGeneration,
-              and(
-                eq(
-                  copyGeneration.operationId,
-                  copyGenerationUnit.copyGenerationId,
+                sourceAttribution: sourceItem.attribution,
+                sourceCanonicalUrl: sourceItemRevision.canonicalUrl,
+                selectedFinalMediaAssetId:
+                  draftRevision.selectedFinalMediaAssetId,
+                authoredBy: draftRevision.authoredBy,
+                authorName: user.name,
+                createdAt: draftRevision.createdAt,
+              })
+              .from(draftRevision)
+              .innerJoin(
+                platformDraft,
+                and(
+                  eq(platformDraft.id, draftRevision.platformDraftId),
+                  eq(platformDraft.workspaceId, draftRevision.workspaceId),
                 ),
-                eq(copyGeneration.workspaceId, copyGenerationUnit.workspaceId),
-              ),
-            )
-            .leftJoin(
-              sourceItemRevision,
-              and(
-                eq(sourceItemRevision.id, copyGeneration.sourceItemRevisionId),
-                eq(sourceItemRevision.workspaceId, copyGeneration.workspaceId),
-              ),
-            )
-            .leftJoin(
-              sourceItem,
-              and(
-                eq(sourceItem.id, sourceItemRevision.sourceItemId),
-                eq(sourceItem.workspaceId, sourceItemRevision.workspaceId),
-              ),
-            )
-            .innerJoin(user, eq(user.id, draftRevision.authoredBy))
-            .where(
-              and(
-                inWorkspace(draftRevision, workspaceId),
-                inArray(draftRevision.platformDraftId, draftIds),
-              ),
-            )
-            .orderBy(
-              asc(draftRevision.platformDraftId),
-              desc(draftRevision.revisionNumber),
+              )
+              .innerJoin(
+                copyVariant,
+                and(
+                  eq(copyVariant.id, draftRevision.originatingCopyVariantId),
+                  eq(copyVariant.workspaceId, draftRevision.workspaceId),
+                ),
+              )
+              .innerJoin(
+                copyGenerationUnit,
+                and(
+                  eq(copyGenerationUnit.id, copyVariant.copyGenerationUnitId),
+                  eq(copyGenerationUnit.workspaceId, copyVariant.workspaceId),
+                ),
+              )
+              .innerJoin(
+                copyGeneration,
+                and(
+                  eq(
+                    copyGeneration.operationId,
+                    copyGenerationUnit.copyGenerationId,
+                  ),
+                  eq(
+                    copyGeneration.workspaceId,
+                    copyGenerationUnit.workspaceId,
+                  ),
+                ),
+              )
+              .leftJoin(
+                sourceItemRevision,
+                and(
+                  eq(
+                    sourceItemRevision.id,
+                    copyGeneration.sourceItemRevisionId,
+                  ),
+                  eq(
+                    sourceItemRevision.workspaceId,
+                    copyGeneration.workspaceId,
+                  ),
+                ),
+              )
+              .leftJoin(
+                sourceItem,
+                and(
+                  eq(sourceItem.id, sourceItemRevision.sourceItemId),
+                  eq(sourceItem.workspaceId, sourceItemRevision.workspaceId),
+                ),
+              )
+              .innerJoin(user, eq(user.id, draftRevision.authoredBy))
+              .where(
+                and(
+                  inWorkspace(draftRevision, workspaceId),
+                  inArray(draftRevision.platformDraftId, draftIds),
+                ),
+              )
+              .orderBy(
+                asc(draftRevision.platformDraftId),
+                desc(draftRevision.revisionNumber),
+              );
+      const candidatesByDraft = new Map<
+        string,
+        Omit<(typeof variants)[number], "platformDraftId">[]
+      >();
+      for (const { platformDraftId, ...variant } of variants) {
+        const existing = candidatesByDraft.get(platformDraftId);
+        if (existing) existing.push(variant);
+        else candidatesByDraft.set(platformDraftId, [variant]);
+      }
+      const revisionsByDraft = new Map<
+        string,
+        Omit<(typeof revisions)[number], "platformDraftId">[]
+      >();
+      for (const { platformDraftId, ...revision } of revisions) {
+        const existing = revisionsByDraft.get(platformDraftId);
+        if (existing) existing.push(revision);
+        else revisionsByDraft.set(platformDraftId, [revision]);
+      }
+
+      const publishingByDraft = await readPlatformDraftPublishing(
+        executor,
+        workspaceId,
+        userId,
+        result.rows,
+        revisions,
+        environmentForcedPause,
+        timeZone,
+      );
+
+      return result.rows.map((row) => {
+        const origin = platformDraftOrigin(row);
+        const generation =
+          row.operationId &&
+          row.lifecycle &&
+          row.modelOptionKey &&
+          row.requestedContentLocale !== null
+            ? {
+                operationId: row.operationId,
+                lifecycle: row.lifecycle,
+                modelOptionKey: row.modelOptionKey,
+                requestedContentLocale: row.requestedContentLocale,
+                limited: row.limited ?? false,
+                forceArticleRefresh: row.forceArticleRefresh ?? false,
+                createdAt:
+                  row.generationCreatedAt === null
+                    ? new Date(0)
+                    : new Date(row.generationCreatedAt),
+                units: unitsByOperation.get(row.operationId) ?? [],
+              }
+            : null;
+        const imageGeneration =
+          row.imageOperationId &&
+          row.imageDraftRevisionId &&
+          row.imageLifecycle &&
+          row.imageModelOptionKey
+            ? {
+                operationId: row.imageOperationId,
+                draftRevisionId: row.imageDraftRevisionId,
+                lifecycle: row.imageLifecycle,
+                modelOptionKey: row.imageModelOptionKey,
+                referenceMediaAssetId: row.imageReferenceMediaAssetId,
+                providerOriginalMediaAssetId:
+                  row.imageProviderOriginalMediaAssetId,
+                finalMediaAssetId: row.imageFinalMediaAssetId,
+                createdAt:
+                  row.imageCreatedAt === null
+                    ? new Date(0)
+                    : new Date(row.imageCreatedAt),
+              }
+            : null;
+
+        const card: PlatformDraftCard = {
+          id: row.id,
+          mediaBrandId: row.mediaBrandId,
+          brandKey: row.brandKey,
+          brandName: row.brandName,
+          platform: row.platform,
+          lanePosition: row.lanePosition,
+          version: row.version,
+          activeRevisionId: row.activeRevisionId,
+          revisionVersion: row.revisionVersion,
+          origin,
+          originTitle: row.originTitle,
+          sourceKind: row.sourceKind,
+          originDetails: platformDraftOriginDetails(row),
+          generation,
+          candidates: candidatesByDraft.get(row.id) ?? [],
+          revisions: revisionsByDraft.get(row.id) ?? [],
+          imageGeneration,
+          imageModels: imageModels.map(({ key, name }) => ({ key, name })),
+          publishing:
+            publishingByDraft.get(row.id) ??
+            emptyPublishingProjection(environmentForcedPause, timeZone),
+        };
+
+        return {
+          analysisRunId: row.analysisRunId,
+          lifecycle: row.originLifecycle,
+          card,
+        };
+      });
+    },
+    { isolationLevel: "repeatable read", accessMode: "read only" },
+  );
+}
+
+function emptyPublishingProjection(
+  environmentForcedPause: boolean,
+  timeZone: string,
+): PlatformDraftCard["publishing"] {
+  return {
+    savedCard: null,
+    approval: null,
+    destinations: [],
+    timeZone,
+    control: {
+      paused: environmentForcedPause,
+      environmentForced: environmentForcedPause,
+      version: 0,
+    },
+    latestPublication: null,
+    latestSchedule: null,
+  };
+}
+
+async function readPlatformDraftPublishing(
+  executor: Transaction,
+  workspaceId: string,
+  userId: string,
+  drafts: PlatformDraftProjectionRow[],
+  revisions: Array<{
+    id: string;
+    platformDraftId: string;
+    selectedFinalMediaAssetId: string | null;
+  }>,
+  environmentForcedPause: boolean,
+  timeZone: string,
+) {
+  const draftIds = drafts.map((draft) => draft.id);
+  if (draftIds.length === 0) {
+    return new Map<string, PlatformDraftCard["publishing"]>();
+  }
+
+  const revisionsById = new Map(
+    revisions.map((revision) => [revision.id, revision]),
+  );
+  const activeRevisionByDraft = new Map<string, (typeof revisions)[number]>();
+  for (const draft of drafts) {
+    const revision = draft.activeRevisionId
+      ? revisionsById.get(draft.activeRevisionId)
+      : undefined;
+    if (revision?.platformDraftId === draft.id) {
+      activeRevisionByDraft.set(draft.id, revision);
+    }
+  }
+  const revisionIds = [...activeRevisionByDraft.values()].map((row) => row.id);
+  const brandIds = [...new Set(drafts.map((draft) => draft.mediaBrandId))];
+  const savedRows = await executor
+    .select({
+      id: savedCard.id,
+      platformDraftId: savedCard.platformDraftId,
+      version: savedCard.version,
+      savedAt: savedCard.createdAt,
+      discardedAt: savedCard.discardedAt,
+    })
+    .from(savedCard)
+    .where(
+      and(
+        inWorkspace(savedCard, workspaceId),
+        eq(savedCard.savedBy, userId),
+        inArray(savedCard.platformDraftId, draftIds),
+      ),
+    )
+    .orderBy(desc(savedCard.createdAt), desc(savedCard.id));
+  const approvalRows =
+    revisionIds.length === 0
+      ? []
+      : await executor
+          .select({
+            id: approval.id,
+            draftRevisionId: approval.draftRevisionId,
+            selectedFinalMediaAssetId: approval.selectedFinalMediaAssetId,
+            approvedAt: approval.approvedAt,
+          })
+          .from(approval)
+          .where(
+            and(
+              inWorkspace(approval, workspaceId),
+              inArray(approval.draftRevisionId, revisionIds),
             ),
-        ]);
-  const candidatesByDraft = new Map<
-    string,
-    Omit<(typeof variants)[number], "platformDraftId">[]
-  >();
-  for (const { platformDraftId, ...variant } of variants) {
-    const existing = candidatesByDraft.get(platformDraftId);
-    if (existing) existing.push(variant);
-    else candidatesByDraft.set(platformDraftId, [variant]);
+          )
+          .orderBy(desc(approval.approvedAt), desc(approval.id));
+  const destinationRows = await executor
+    .select({
+      mediaBrandId: mediaBrandDestinationAccount.mediaBrandId,
+      id: destinationAccount.id,
+      key: destinationAccount.key,
+      label: sql<string>`coalesce(${destinationAccount.metadata}->>'label', ${destinationAccount.key})`,
+      platform: destinationAccount.platform,
+      enabled: destinationAccount.enabled,
+      bound: sql<boolean>`coalesce(${destinationAccount.bindingPresent}, false)`,
+      bindingCheckedAt: destinationAccount.bindingCheckedAt,
+    })
+    .from(mediaBrandDestinationAccount)
+    .innerJoin(
+      destinationAccount,
+      and(
+        inWorkspace(destinationAccount, workspaceId),
+        eq(
+          destinationAccount.id,
+          mediaBrandDestinationAccount.destinationAccountId,
+        ),
+        isNull(destinationAccount.deletedAt),
+      ),
+    )
+    .where(
+      and(
+        inWorkspace(mediaBrandDestinationAccount, workspaceId),
+        isNull(mediaBrandDestinationAccount.deletedAt),
+        inArray(mediaBrandDestinationAccount.mediaBrandId, brandIds),
+      ),
+    )
+    .orderBy(asc(destinationAccount.key));
+  const controlRows = await executor
+    .select({
+      paused: publishingControl.paused,
+      version: publishingControl.version,
+    })
+    .from(publishingControl)
+    .where(eq(publishingControl.workspaceId, workspaceId));
+  const publicationRows =
+    revisionIds.length === 0
+      ? []
+      : await executor
+          .select({
+            id: publication.id,
+            draftRevisionId: publication.draftRevisionId,
+            lifecycle: publication.lifecycle,
+            version: publication.version,
+            activeOperationId: publication.activeOperationId,
+            destinationAccountId: publishOperation.destinationAccountId,
+            unresolvedAttemptId: publication.unresolvedAttemptId,
+            confirmedProviderResultId: publication.confirmedProviderResultId,
+            confirmedAt: publication.confirmedAt,
+            activityStatus: sql<
+              "not_due" | "pending" | "failed" | "recorded"
+            >`coalesce(${publishOperation.settlementActivityStatus}, 'not_due')`,
+            updatedAt: publication.updatedAt,
+          })
+          .from(publication)
+          .leftJoin(
+            publishOperation,
+            and(
+              inWorkspace(publishOperation, workspaceId),
+              eq(publishOperation.operationId, publication.activeOperationId),
+            ),
+          )
+          .where(
+            and(
+              inWorkspace(publication, workspaceId),
+              inArray(publication.draftRevisionId, revisionIds),
+            ),
+          )
+          .orderBy(desc(publication.updatedAt), desc(publication.id));
+  const scheduleRows =
+    revisionIds.length === 0
+      ? []
+      : await executor
+          .select({
+            id: schedule.id,
+            draftRevisionId: schedule.draftRevisionId,
+            lifecycle: schedule.lifecycle,
+            scheduledAt: schedule.scheduledAt,
+            timezone: schedule.timezone,
+            destinationAccountId: schedule.destinationAccountId,
+            version: schedule.version,
+            updatedAt: schedule.updatedAt,
+          })
+          .from(schedule)
+          .where(
+            and(
+              inWorkspace(schedule, workspaceId),
+              inArray(schedule.draftRevisionId, revisionIds),
+            ),
+          )
+          .orderBy(desc(schedule.updatedAt), desc(schedule.id));
+  const checkpointRows =
+    revisionIds.length === 0
+      ? []
+      : await executor
+          .select({
+            id: publishCheckpoint.id,
+            publicationId: publishCheckpoint.publicationId,
+            kind: publishCheckpoint.kind,
+            referenceId: publishCheckpoint.providerReferenceId,
+          })
+          .from(publishCheckpoint)
+          .innerJoin(
+            publication,
+            and(
+              inWorkspace(publication, workspaceId),
+              eq(publication.id, publishCheckpoint.publicationId),
+              inArray(publication.draftRevisionId, revisionIds),
+            ),
+          )
+          .where(inWorkspace(publishCheckpoint, workspaceId))
+          .orderBy(
+            desc(publishCheckpoint.observedAt),
+            desc(publishCheckpoint.id),
+          );
+
+  const savedByDraft = new Map<string, (typeof savedRows)[number]>();
+  for (const row of savedRows) {
+    const preserved = savedByDraft.get(row.platformDraftId);
+    if (!preserved || (preserved.discardedAt && !row.discardedAt)) {
+      savedByDraft.set(row.platformDraftId, row);
+    }
   }
-  const revisionsByDraft = new Map<
+  const approvalByRevision = new Map<string, (typeof approvalRows)[number]>();
+  for (const row of approvalRows) {
+    if (!approvalByRevision.has(row.draftRevisionId)) {
+      approvalByRevision.set(row.draftRevisionId, row);
+    }
+  }
+  const destinationsByBrand = new Map<string, typeof destinationRows>();
+  for (const row of destinationRows) {
+    const entries = destinationsByBrand.get(row.mediaBrandId) ?? [];
+    entries.push(row);
+    destinationsByBrand.set(row.mediaBrandId, entries);
+  }
+  const publicationByRevision = new Map<
     string,
-    Omit<(typeof revisions)[number], "platformDraftId">[]
+    (typeof publicationRows)[number]
   >();
-  for (const { platformDraftId, ...revision } of revisions) {
-    const existing = revisionsByDraft.get(platformDraftId);
-    if (existing) existing.push(revision);
-    else revisionsByDraft.set(platformDraftId, [revision]);
+  for (const row of publicationRows) {
+    if (!publicationByRevision.has(row.draftRevisionId)) {
+      publicationByRevision.set(row.draftRevisionId, row);
+    }
+  }
+  const scheduleByRevision = new Map<string, (typeof scheduleRows)[number]>();
+  for (const row of scheduleRows) {
+    if (!scheduleByRevision.has(row.draftRevisionId)) {
+      scheduleByRevision.set(row.draftRevisionId, row);
+    }
+  }
+  const checkpointByPublication = new Map<
+    string,
+    (typeof checkpointRows)[number]
+  >();
+  for (const row of checkpointRows) {
+    if (!checkpointByPublication.has(row.publicationId)) {
+      checkpointByPublication.set(row.publicationId, row);
+    }
   }
 
-  return result.rows.map((row) => {
-    const origin = platformDraftOrigin(row);
-    const generation =
-      row.operationId &&
-      row.lifecycle &&
-      row.modelOptionKey &&
-      row.requestedContentLocale !== null
-        ? {
-            operationId: row.operationId,
-            lifecycle: row.lifecycle,
-            modelOptionKey: row.modelOptionKey,
-            requestedContentLocale: row.requestedContentLocale,
-            limited: row.limited ?? false,
-            forceArticleRefresh: row.forceArticleRefresh ?? false,
-            createdAt: row.generationCreatedAt ?? new Date(0),
-            units: unitsByOperation.get(row.operationId) ?? [],
-          }
+  const persistedControl = controlRows[0];
+  const output = new Map<string, PlatformDraftCard["publishing"]>();
+  for (const draft of drafts) {
+    const savedRow = savedByDraft.get(draft.id);
+    const revision = activeRevisionByDraft.get(draft.id);
+    const approvalRow = revision
+      ? (approvalByRevision.get(revision.id) ?? null)
+      : null;
+    const currentApproval =
+      approvalRow &&
+      approvalRow.selectedFinalMediaAssetId ===
+        revision?.selectedFinalMediaAssetId
+        ? approvalRow
         : null;
-    const imageGeneration =
-      row.imageOperationId &&
-      row.imageDraftRevisionId &&
-      row.imageLifecycle &&
-      row.imageModelOptionKey
+    const publicationRow = revision
+      ? (publicationByRevision.get(revision.id) ?? null)
+      : null;
+    const scheduleRow = revision
+      ? (scheduleByRevision.get(revision.id) ?? null)
+      : null;
+    const checkpointRow = publicationRow
+      ? (checkpointByPublication.get(publicationRow.id) ?? null)
+      : null;
+    const destinations = [];
+    for (const {
+      mediaBrandId: _mediaBrandId,
+      ...destination
+    } of destinationsByBrand.get(draft.mediaBrandId) ?? []) {
+      if (destination.platform === draft.platform) {
+        destinations.push(destination);
+      }
+    }
+    output.set(draft.id, {
+      savedCard: savedRow
         ? {
-            operationId: row.imageOperationId,
-            draftRevisionId: row.imageDraftRevisionId,
-            lifecycle: row.imageLifecycle,
-            modelOptionKey: row.imageModelOptionKey,
-            referenceMediaAssetId: row.imageReferenceMediaAssetId,
-            providerOriginalMediaAssetId: row.imageProviderOriginalMediaAssetId,
-            finalMediaAssetId: row.imageFinalMediaAssetId,
-            createdAt: row.imageCreatedAt ?? new Date(0),
+            id: savedRow.id,
+            version: savedRow.version,
+            savedAt: savedRow.savedAt,
+            discardedAt: savedRow.discardedAt,
           }
-        : null;
-
-    return {
-      id: row.id,
-      mediaBrandId: row.mediaBrandId,
-      brandKey: row.brandKey,
-      brandName: row.brandName,
-      platform: row.platform,
-      lanePosition: row.lanePosition,
-      version: row.version,
-      origin,
-      originTitle: row.originTitle,
-      sourceKind: row.sourceKind,
-      generation,
-      candidates: candidatesByDraft.get(row.id) ?? [],
-      revisions: revisionsByDraft.get(row.id) ?? [],
-      imageGeneration,
-      imageModels: [...imageModels],
-    };
-  });
+        : null,
+      approval: currentApproval,
+      destinations,
+      timeZone,
+      control: {
+        paused: environmentForcedPause || (persistedControl?.paused ?? false),
+        environmentForced: environmentForcedPause,
+        version: persistedControl?.version ?? 0,
+      },
+      latestPublication: publicationRow
+        ? {
+            id: publicationRow.id,
+            lifecycle: publicationRow.lifecycle,
+            version: publicationRow.version,
+            activeOperationId: publicationRow.activeOperationId,
+            destinationAccountId: publicationRow.destinationAccountId,
+            unresolvedAttemptId: publicationRow.unresolvedAttemptId,
+            confirmedProviderResultId: publicationRow.confirmedProviderResultId,
+            checkpointId: checkpointRow?.id ?? null,
+            checkpointKind: checkpointRow?.kind ?? null,
+            checkpointReferenceId: checkpointRow?.referenceId ?? null,
+            confirmedAt: publicationRow.confirmedAt,
+            activityStatus: publicationRow.activityStatus,
+          }
+        : null,
+      latestSchedule: scheduleRow
+        ? {
+            id: scheduleRow.id,
+            lifecycle: scheduleRow.lifecycle,
+            scheduledAt: scheduleRow.scheduledAt,
+            timezone: scheduleRow.timezone,
+            destinationAccountId: scheduleRow.destinationAccountId,
+            version: scheduleRow.version,
+          }
+        : null,
+    });
+  }
+  return output;
 }
 
 export async function readPlatformDraftBrands(
@@ -569,21 +1021,33 @@ function platformDraftOrigin(
   throw new Error("platform draft origin is missing");
 }
 
+function platformDraftOriginDetails(
+  row: PlatformDraftProjectionRow,
+): PlatformDraftCard["originDetails"] {
+  if (row.originSourceName === null && row.originPromoAngle === null) {
+    return null;
+  }
+
+  return {
+    sourceName: row.originSourceName,
+    publishedAt:
+      row.originPublishedAt === null ? null : new Date(row.originPublishedAt),
+    canonicalUrl: row.originCanonicalUrl,
+    summary: row.originSummary,
+    contentLocale: row.originContentLocale,
+    suitabilityScore: row.originSuitabilityScore,
+    reasoning: row.originReasoning,
+    suggestedPlatform: row.originSuggestedPlatform,
+    telegramReason: row.originTelegramReason,
+    promoAngle: row.originPromoAngle,
+  };
+}
+
 async function readRunHead(
   executor: Executor,
   workspaceId: string,
-  analysisRunId: string | null,
-  userId?: string,
+  analysisRunId: string,
 ): Promise<RunHeadRead | null> {
-  const runMatch =
-    analysisRunId !== null
-      ? eq(analysisRun.id, analysisRunId)
-      : userId !== undefined
-        ? eq(operation.actor, userId)
-        : undefined;
-  if (!runMatch) {
-    return null;
-  }
   const latestAttempt = executor
     .select({ failureCode: operationAttempt.failureCode })
     .from(operationAttempt)
@@ -703,7 +1167,12 @@ async function readRunHead(
       ),
     )
     .leftJoinLateral(latestUnitProgress, sql`true`)
-    .where(and(inWorkspace(analysisRun, workspaceId), runMatch))
+    .where(
+      and(
+        inWorkspace(analysisRun, workspaceId),
+        eq(analysisRun.id, analysisRunId),
+      ),
+    )
     .orderBy(desc(analysisRun.startedAt), desc(analysisRun.id))
     .limit(1);
 
@@ -1232,6 +1701,7 @@ export async function readRunFilters(
 export async function readRunOptions(
   executor: Executor,
   workspaceId: string,
+  userId: string,
 ): Promise<{
   runs: {
     actorId: string;
@@ -1245,7 +1715,7 @@ export async function readRunOptions(
   }[];
   recentTopics: string[];
 }> {
-  const [runs, topics] = await Promise.all([
+  const [runs, recentTopics] = await Promise.all([
     executor
       .select({
         id: analysisRun.id,
@@ -1263,28 +1733,51 @@ export async function readRunOptions(
       .where(inWorkspace(analysisRun, workspaceId))
       .orderBy(desc(analysisRun.startedAt), desc(analysisRun.id))
       .limit(RECENT_TOPIC_RUNS),
-    // Newest authored spelling wins, over the same bounded run window.
-    executor.execute<{ topic: string }>(sql`
-      select folded.topic
-      from (
-        select distinct on (fold_unique_name_v1(topic)) topic, recent.started_at
-        from (
-          select runs.configuration, runs.started_at
-          from ${analysisRun} as runs
-          where runs.workspace_id = ${workspaceId}
-          order by runs.started_at desc, runs.id desc
-          limit ${RECENT_TOPIC_RUNS}
-        ) as recent,
-        jsonb_array_elements_text(recent.configuration -> 'topics') as topic
-        where jsonb_exists(recent.configuration, 'topics')
-        order by fold_unique_name_v1(topic), recent.started_at desc
-      ) as folded
-      order by folded.started_at desc
-      limit ${RECENT_TOPIC_LIMIT}
-    `),
+    readRecentTopics(executor, workspaceId, userId),
   ]);
 
-  return { runs, recentTopics: topics.rows.map((row) => row.topic) };
+  return { runs, recentTopics };
+}
+
+export async function readRecentTopics(
+  executor: Executor,
+  workspaceId: string,
+  userId: string,
+): Promise<string[]> {
+  const result = await executor.execute<{ topic: string }>(sql`
+    select folded.topic
+    from (
+      select distinct on (fold_unique_name_v1(authored.topic))
+        authored.topic,
+        recent.started_at,
+        recent.id,
+        authored.ordinal
+      from (
+        select runs.id, runs.configuration, runs.started_at
+        from ${analysisRun} as runs
+        inner join ${operation} as run_operation
+          on run_operation.id = runs.operation_id
+          and run_operation.workspace_id = runs.workspace_id
+        where runs.workspace_id = ${workspaceId}::uuid
+          and run_operation.actor = ${userId}
+        order by runs.started_at desc, runs.id desc
+        limit ${RECENT_TOPIC_RUNS}
+      ) as recent
+      cross join lateral jsonb_array_elements_text(
+        recent.configuration -> 'topics'
+      ) with ordinality as authored(topic, ordinal)
+      where jsonb_exists(recent.configuration, 'topics')
+      order by
+        fold_unique_name_v1(authored.topic),
+        recent.started_at desc,
+        recent.id desc,
+        authored.ordinal
+    ) as folded
+    order by folded.started_at desc, folded.id desc, folded.ordinal
+    limit ${RECENT_TOPIC_LIMIT}
+  `);
+
+  return result.rows.map((row) => row.topic);
 }
 
 export async function readRunReportPage(

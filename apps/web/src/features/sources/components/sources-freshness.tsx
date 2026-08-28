@@ -27,13 +27,14 @@ export function SourcesFreshness({ readAt }: { readAt: Date }) {
         </span>
       </div>
       <Button
+        aria-busy={isRefreshing}
         disabled={isRefreshing}
         onClick={refresh}
         size="xs"
         type="button"
         variant="outline"
       >
-        {isRefreshing ? t("transport.refreshing") : t("transport.refresh")}
+        {t("transport.refresh")}
       </Button>
     </div>
   );

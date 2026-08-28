@@ -755,6 +755,9 @@ async function insertFixture() {
        created_at)
         values (${ids.revision}, ${ids.workspace}, ${ids.draft}, 1, 'en', 'Probe',
           'Probe', array['#probe'], ${ids.copyVariant}, ${ids.actor}, now())`,
+    sql`update platform_draft
+      set active_revision_id = ${ids.revision}, revision_version = 1, updated_at = now()
+      where id = ${ids.draft} and workspace_id = ${ids.workspace}`,
     sql`insert into operation
       (id, workspace_id, actor, command_type, idempotency_key, request_hash,
        lifecycle, effective_at, attempt_seq, version, created_at, updated_at)
@@ -768,6 +771,8 @@ async function insertFixture() {
 
 async function cleanupFixture() {
   const statements = [
+    sql`update platform_draft set active_revision_id = null
+      where id = ${ids.draft} and workspace_id = ${ids.workspace}`,
     sql`delete from image_generation where workspace_id = ${ids.workspace}`,
     sql`delete from media_asset where workspace_id = ${ids.workspace}`,
     sql`delete from draft_revision where workspace_id = ${ids.workspace}`,

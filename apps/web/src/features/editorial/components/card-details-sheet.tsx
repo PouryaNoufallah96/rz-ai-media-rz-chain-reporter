@@ -1,20 +1,14 @@
 "use client";
 
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
-import { Button } from "@rz-chain-reporter/ui/components/button";
 import {
-  SheetClose,
+  SheetContent,
   SheetDescription,
   SheetHeader,
-  SheetOverlay,
-  SheetPopup,
-  SheetPortal,
   SheetTitle,
-  SheetViewport,
 } from "@rz-chain-reporter/ui/components/sheet";
-import { XIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { EDITORIAL_NAMESPACE } from "../constants";
 import type {
@@ -23,6 +17,7 @@ import type {
   TelegramCard,
 } from "../schemas/workspace";
 import { ChannelPlate } from "./channel-plate";
+import { ExpandablePreview } from "./expandable-preview";
 
 export function CardDetailsSheet({
   children,
@@ -32,37 +27,32 @@ export function CardDetailsSheet({
   title: string;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
+  const [narrow, setNarrow] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 599px)");
+    const update = () => setNarrow(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
 
   return (
-    <SheetPortal>
-      <SheetOverlay />
-      <SheetViewport
-        className="max-[599px]:items-end max-[599px]:justify-stretch"
-        side="inline-end"
-      >
-        <SheetPopup
-          className="max-[599px]:h-auto max-[599px]:max-h-[88dvh] max-[599px]:w-full"
-          side="inline-end"
-        >
-          <SheetClose
-            className="absolute inset-e-4 top-4"
-            render={<Button size="icon-sm" variant="ghost" />}
-          >
-            <XIcon />
-            <span className="sr-only">{t("card.close")}</span>
-          </SheetClose>
-          <SheetHeader className="pe-10">
-            <SheetTitle className="text-sm">
-              <Bdi>{title}</Bdi>
-            </SheetTitle>
-            <SheetDescription className="sr-only">
-              {t("card.description")}
-            </SheetDescription>
-          </SheetHeader>
-          <dl className="grid gap-2 text-xs">{children}</dl>
-        </SheetPopup>
-      </SheetViewport>
-    </SheetPortal>
+    <SheetContent
+      className="w-full sm:w-[min(760px,100vw)]"
+      closeLabel={t("card.close")}
+      side={narrow ? "block-end" : "inline-end"}
+    >
+      <SheetHeader className="border-border border-b border-dashed pe-10 pb-3">
+        <SheetTitle className="text-sm">
+          <Bdi>{title}</Bdi>
+        </SheetTitle>
+        <SheetDescription className="sr-only">
+          {t("card.description")}
+        </SheetDescription>
+      </SheetHeader>
+      <dl className="grid gap-2 text-xs">{children}</dl>
+    </SheetContent>
   );
 }
 
@@ -109,7 +99,7 @@ export function SelectionDetails({ card }: { card: SelectionCard }) {
       </CardDetail>
       {card.summary ? (
         <CardDetail label={t("detail.summary")}>
-          <Prose>{card.summary}</Prose>
+          <ExpandablePreview>{card.summary}</ExpandablePreview>
         </CardDetail>
       ) : null}
       <div className="ticket-label mt-2">{t("selection.modelOutput")}</div>
@@ -244,7 +234,7 @@ export function TelegramDetails({
       </CardDetail>
       {card.summary ? (
         <CardDetail label={t("detail.summary")}>
-          <Prose>{card.summary}</Prose>
+          <ExpandablePreview>{card.summary}</ExpandablePreview>
         </CardDetail>
       ) : null}
     </>

@@ -1,7 +1,6 @@
 "use client";
 
 import type { OperationLifecycle } from "@rz-chain-reporter/contracts";
-import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import {
   Empty,
@@ -9,11 +8,6 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@rz-chain-reporter/ui/components/empty";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@rz-chain-reporter/ui/components/tooltip";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
@@ -28,7 +22,7 @@ import { EDITORIAL_NAMESPACE } from "../constants";
 import { useEditorialErrorMessage } from "../hooks/use-editorial-error-message";
 import type { RunHead as RunHeadView, RunOption } from "../schemas/workspace";
 import { EditorialFreshness } from "./editorial-freshness";
-import { RunSelector, SHORT_ID_LENGTH } from "./run-selector";
+import { RunSelector } from "./run-selector";
 
 const LIFECYCLE_MARK: Record<OperationLifecycle, StateMarkState> = {
   queued: "queued",
@@ -54,13 +48,11 @@ export function RunHead({
   readAt,
   runs,
   selectedRunId,
-  templateFingerprint,
 }: {
   head: RunHeadView | null;
   readAt: Date;
   runs: readonly RunOption[];
   selectedRunId: string | null;
-  templateFingerprint: string;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const titleId = useId();
@@ -79,35 +71,53 @@ export function RunHead({
         />
       ) : null}
       <div className="mt-3 grid gap-3">
-        <RunSelector
-          runs={runs}
-          selected={
-            selectedRunId === null || head === null
-              ? null
-              : (runs.find((run) => run.id === head.id) ?? {
-                  actorName: head.actorName,
-                  id: head.id,
-                  kind: head.kind,
-                  lifecycle: head.lifecycle,
-                  mine: head.mine,
-                  startedAt: head.startedAt,
-                  templateFingerprint: head.templateFingerprint,
-                })
-          }
-        />
+        <details className="border border-border border-dashed p-2">
+          <summary className="min-h-8 cursor-pointer content-center text-muted-foreground text-xs max-sm:min-h-11">
+            {t("run.selector.recent")}
+          </summary>
+          <div className="pt-2">
+            <RunSelector
+              runs={runs}
+              selected={
+                selectedRunId === null || head === null
+                  ? null
+                  : (runs.find((run) => run.id === head.id) ?? {
+                      actorName: head.actorName,
+                      id: head.id,
+                      kind: head.kind,
+                      lifecycle: head.lifecycle,
+                      mine: head.mine,
+                      startedAt: head.startedAt,
+                      templateFingerprint: head.templateFingerprint,
+                    })
+              }
+            />
+          </div>
+        </details>
         {head ? (
           <RunState
             head={head}
             key={head.id}
             readAt={readAt}
             selectedRunId={selectedRunId}
-            templateFingerprint={templateFingerprint}
           />
         ) : (
           <Empty className="p-0">
             <EmptyHeader>
-              <EmptyTitle>{t("run.empty.title")}</EmptyTitle>
-              <EmptyDescription>{t("run.empty.hint")}</EmptyDescription>
+              <EmptyTitle>
+                {t(
+                  selectedRunId === null
+                    ? "run.fresh.title"
+                    : "run.unavailable.title",
+                )}
+              </EmptyTitle>
+              <EmptyDescription>
+                {t(
+                  selectedRunId === null
+                    ? "run.fresh.hint"
+                    : "run.unavailable.hint",
+                )}
+              </EmptyDescription>
             </EmptyHeader>
           </Empty>
         )}
@@ -120,12 +130,10 @@ function RunState({
   head,
   readAt,
   selectedRunId,
-  templateFingerprint,
 }: {
   head: RunHeadView;
   readAt: Date;
   selectedRunId: string | null;
-  templateFingerprint: string;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const format = useFormatter();
@@ -133,7 +141,6 @@ function RunState({
   const terminal = TERMINAL_LIFECYCLES.includes(head.lifecycle);
   const tickingNow = useNow({ updateInterval: terminal ? undefined : 1_000 });
   const now = tickingNow.getTime() === 0 ? readAt : tickingNow;
-  const semantic = semanticSegments(head, t);
   const elapsed = elapsedClock(
     head.execution.elapsedFrom,
     head.execution.elapsedTo ?? now,
@@ -175,18 +182,10 @@ function RunState({
           when: format.relativeTime(head.execution.lastProgressAt, { now }),
         })}
       </p>
-      <p className="wrap-anywhere font-mono text-muted-foreground text-xs">
-        {identitySegments(head, t).join(" · ")}
-        {head.templateChanged ? (
-          <TemplateChanged
-            now={templateFingerprint.slice(0, SHORT_ID_LENGTH)}
-            was={head.templateFingerprint.slice(0, SHORT_ID_LENGTH)}
-          />
-        ) : null}
-      </p>
-      {semantic.length > 0 ? (
-        <p className="wrap-anywhere font-mono text-muted-foreground text-xs tabular-nums">
-          {semanticLine(semantic.join(" · "), head.provenance.semanticModel)}
+      <RunProgress head={head} />
+      {head.templateChanged ? (
+        <p className="text-working text-xs">
+          {t("run.templateChanged.notice")}
         </p>
       ) : null}
       {head.provenance.semanticStatus === "degraded" ? (
@@ -224,7 +223,7 @@ function CancelRun({ analysisRunId }: { analysisRunId: string }) {
   return (
     <>
       <Button
-        className="justify-self-start"
+        className="justify-self-start max-sm:min-h-11"
         onClick={() => setOpen(true)}
         size="sm"
         type="button"
@@ -236,6 +235,7 @@ function CancelRun({ analysisRunId }: { analysisRunId: string }) {
         cancelLabel={t("run.cancelConfirm.dismiss")}
         confirmLabel={t("run.cancelConfirm.confirm")}
         description={t("run.cancelConfirm.body")}
+        fallbackError={resolveError(undefined)}
         onConfirm={async () => {
           const result = await action.execute({ analysisRunId });
           return result.status === "error"
@@ -249,21 +249,6 @@ function CancelRun({ analysisRunId }: { analysisRunId: string }) {
         variant="destructive"
       />
     </>
-  );
-}
-
-function TemplateChanged({ now, was }: { now: string; was: string }) {
-  const t = useTranslations(EDITORIAL_NAMESPACE);
-
-  return (
-    <Tooltip>
-      <TooltipTrigger className="ms-2 border border-border border-dashed px-1">
-        {t("run.templateChanged.tag")}
-      </TooltipTrigger>
-      <TooltipContent>
-        {t("run.templateChanged.detail", { now, was })}
-      </TooltipContent>
-    </Tooltip>
   );
 }
 
@@ -301,116 +286,28 @@ function stateLabel(head: RunHeadView, t: Translate) {
   return t(`state.${head.execution.stage}`);
 }
 
-function identitySegments(head: RunHeadView, t: Translate) {
-  const segments = [
-    t("provenance.run", { id: head.id.slice(0, SHORT_ID_LENGTH) }),
-    t("provenance.template", {
-      fingerprint: head.templateFingerprint.slice(0, SHORT_ID_LENGTH),
-    }),
-  ];
-
-  if (head.configuration.kind === "news") {
-    segments.push(t("provenance.topN", { n: head.configuration.topN }));
-  }
-
-  if (head.sourceImportId && head.sourceImportBinding) {
-    segments.push(
-      t(
-        head.sourceImportBinding === "started"
-          ? "provenance.import.started"
-          : "provenance.import.reused",
-        { id: head.sourceImportId.slice(0, SHORT_ID_LENGTH) },
-      ),
-    );
-  }
-
-  return segments;
-}
-
-// The model id is interpolated into `semantic.line`, so its hyphens can only be
-// kept from breaking the token across lines here, at the render site.
-function semanticLine(line: string, model: string | null) {
-  if (model === null) return line;
-
-  const at = line.indexOf(model);
-  if (at === -1) return line;
+function RunProgress({ head }: { head: RunHeadView }) {
+  const format = useFormatter();
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+  const facts = [
+    ["run.progress.fetched", head.progress.items.fetched],
+    ["run.progress.admitted", head.progress.items.admitted],
+    ["run.progress.output", head.progress.items.inOutputLane],
+  ] as const;
 
   return (
-    <>
-      {line.slice(0, at)}
-      <Bdi className="whitespace-nowrap">{model}</Bdi>
-      {line.slice(at + model.length)}
-    </>
+    <dl className="grid grid-cols-3 border border-border text-center">
+      {facts.map(([label, value]) => (
+        <div
+          className="grid gap-1 border-border border-e p-2 last:border-e-0"
+          key={label}
+        >
+          <dt className="text-muted-foreground text-xs">{t(label)}</dt>
+          <dd className="font-mono tabular-nums">{format.number(value)}</dd>
+        </div>
+      ))}
+    </dl>
   );
-}
-
-function semanticSegments(head: RunHeadView, t: Translate) {
-  const { provenance } = head;
-  const segments: string[] = [];
-
-  if (provenance.scoringVersion !== null) {
-    segments.push(
-      t("provenance.scoring", { k: Number(provenance.scoringVersion) }),
-    );
-  }
-
-  if (head.kind === "promo" || provenance.semanticStatus === "pending") {
-    return segments;
-  }
-
-  if (provenance.semanticStatus === "running") {
-    segments.push(t("semantic.status.running"));
-    return segments;
-  }
-
-  if (provenance.semanticStatus === "degraded") {
-    segments.push(t("semantic.status.degraded"));
-    if (provenance.semanticReason) {
-      segments.push(t(`semantic.reason.${provenance.semanticReason}`));
-    }
-    segments.push(t("semantic.deterministic"));
-    return segments;
-  }
-
-  if (provenance.semanticStatus !== "succeeded") {
-    return segments;
-  }
-
-  segments.push(t("semantic.status.succeeded"));
-
-  if (
-    provenance.semanticModel !== null &&
-    provenance.semanticDimension !== null &&
-    provenance.semanticTopicCount !== null &&
-    provenance.semanticAnchorCount !== null &&
-    head.progress.semanticCandidates !== null
-  ) {
-    segments.push(
-      t("semantic.line", {
-        anchors: provenance.semanticAnchorCount,
-        candidates: head.progress.semanticCandidates,
-        dimension: provenance.semanticDimension,
-        model: provenance.semanticModel,
-        topics: provenance.semanticTopicCount,
-      }),
-    );
-  }
-  if (provenance.semanticNormalizationVersion !== null) {
-    segments.push(
-      t("provenance.norm", {
-        k: Number(provenance.semanticNormalizationVersion),
-      }),
-    );
-  }
-  if (provenance.semanticProjectionVersion !== null) {
-    segments.push(
-      t("provenance.projection", {
-        k: Number(provenance.semanticProjectionVersion),
-      }),
-    );
-  }
-
-  return segments;
 }
 
 function announcement(
@@ -419,9 +316,7 @@ function announcement(
   t: Translate,
 ) {
   if (selectedRunId !== null) {
-    return t("run.selector.viewing", {
-      id: head.id.slice(0, SHORT_ID_LENGTH),
-    });
+    return t("run.selector.viewing");
   }
 
   const degraded =

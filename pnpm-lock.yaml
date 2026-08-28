@@ -139,6 +139,9 @@ catalogs:
       specifier: 4.4.3
       version: 4.4.3
 
+patchedDependencies:
+  next-themes@0.4.6: d24900ef70620525d2b7e8b28e5c306edf8d06dfbc9d94ee8df0c947ed9dba58
+
 importers:
 
   .:
@@ -250,7 +253,7 @@ importers:
         version: 4.13.6(@swc/helpers@0.5.23)(next@16.3.1(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(typescript@7.0.2)
       next-themes:
         specifier: 'catalog:'
-        version: 0.4.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 0.4.6(patch_hash=d24900ef70620525d2b7e8b28e5c306edf8d06dfbc9d94ee8df0c947ed9dba58)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       nuqs:
         specifier: 'catalog:'
         version: 2.9.5(next@16.3.1(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
@@ -613,7 +616,7 @@ importers:
         version: 1.31.0(react@19.2.8)
       next-themes:
         specifier: 'catalog:'
-        version: 0.4.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 0.4.6(patch_hash=d24900ef70620525d2b7e8b28e5c306edf8d06dfbc9d94ee8df0c947ed9dba58)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: 'catalog:'
         version: 19.2.8
@@ -10103,7 +10106,7 @@ snapshots:
     transitivePeerDependencies:
       - '@swc/helpers'
 
-  next-themes@0.4.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  next-themes@0.4.6(patch_hash=d24900ef70620525d2b7e8b28e5c306edf8d06dfbc9d94ee8df0c947ed9dba58)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)

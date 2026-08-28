@@ -21,8 +21,11 @@ import type { PreviousRun, RunOptions } from "../../schemas/workspace";
 export async function getRunOptions(): Promise<RunOptions> {
   const session = await requireSession();
   const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
-  const { runs, recentTopics } = await readCachedRunOptions(workspaceId);
   const actorId = session.user.id;
+  const { runs, recentTopics } = await readCachedRunOptions(
+    workspaceId,
+    actorId,
+  );
 
   return {
     models: customerEditorial.models,
@@ -51,12 +54,12 @@ export async function getRunOptions(): Promise<RunOptions> {
   };
 }
 
-async function readCachedRunOptions(workspaceId: string) {
+async function readCachedRunOptions(workspaceId: string, userId: string) {
   "use cache";
   cacheTag(editorialTags.reads(workspaceId));
   cacheLife("minutes");
 
-  return readRunOptions(rpcDb(), workspaceId);
+  return readRunOptions(rpcDb(), workspaceId, userId);
 }
 
 function previousCompatibleRun(

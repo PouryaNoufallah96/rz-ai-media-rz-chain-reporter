@@ -8,14 +8,17 @@ import {
 } from "@rz-chain-reporter/contracts";
 import { withWorkspaceContext } from "@rz-chain-reporter/db/executor";
 import { createOperation } from "@rz-chain-reporter/db/repositories/operation";
-import { user } from "@rz-chain-reporter/db/schema/auth";
+import { reservePublication } from "@rz-chain-reporter/db/repositories/publication";
+import { approval } from "@rz-chain-reporter/db/schema/approval";
+import { destinationAccount } from "@rz-chain-reporter/db/schema/destination-account";
 import { draftRevision } from "@rz-chain-reporter/db/schema/draft-revision";
+import { mediaBrandDestinationAccount } from "@rz-chain-reporter/db/schema/media-brand-destination-account";
 import { operation } from "@rz-chain-reporter/db/schema/operation";
 import { operationAttempt } from "@rz-chain-reporter/db/schema/operation-attempt";
 import { outboxEvent } from "@rz-chain-reporter/db/schema/outbox-event";
 import { platformDraft } from "@rz-chain-reporter/db/schema/platform-draft";
 import { schedule } from "@rz-chain-reporter/db/schema/schedule";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { workerEnv } from "../runtime/env";
@@ -76,43 +79,89 @@ async function createProbe(workspaceId: string, args: string[]) {
 
   const result = await database.db.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
-    const [actor] = await tx
-      .select({ id: user.id })
-      .from(user)
-      .orderBy(asc(user.createdAt))
-      .limit(1);
-    const [draft] = await tx
+    const candidates = await tx
       .select({
-        id: draftRevision.id,
-        platform: platformDraft.platform,
+        actorId: approval.approvedBy,
+        approvalId: approval.id,
+        revisionVersion: platformDraft.revisionVersion,
+        destinationAccountId: destinationAccount.id,
       })
-      .from(draftRevision)
+      .from(approval)
+      .innerJoin(
+        draftRevision,
+        and(
+          eq(draftRevision.workspaceId, workspaceId),
+          eq(draftRevision.id, approval.draftRevisionId),
+        ),
+      )
       .innerJoin(
         platformDraft,
         and(
-          eq(platformDraft.id, draftRevision.platformDraftId),
           eq(platformDraft.workspaceId, workspaceId),
+          eq(platformDraft.id, draftRevision.platformDraftId),
         ),
       )
-      .where(eq(draftRevision.workspaceId, workspaceId))
-      .orderBy(desc(draftRevision.createdAt))
-      .limit(1);
-    if (!actor || !draft) {
+      .innerJoin(
+        mediaBrandDestinationAccount,
+        and(
+          eq(mediaBrandDestinationAccount.workspaceId, workspaceId),
+          eq(
+            mediaBrandDestinationAccount.mediaBrandId,
+            platformDraft.mediaBrandId,
+          ),
+        ),
+      )
+      .innerJoin(
+        destinationAccount,
+        and(
+          eq(destinationAccount.workspaceId, workspaceId),
+          eq(
+            destinationAccount.id,
+            mediaBrandDestinationAccount.destinationAccountId,
+          ),
+          eq(destinationAccount.platform, approval.platform),
+        ),
+      )
+      .where(
+        and(
+          eq(approval.workspaceId, workspaceId),
+          eq(platformDraft.activeRevisionId, approval.draftRevisionId),
+        ),
+      )
+      .orderBy(desc(approval.approvedAt));
+
+    let fixture:
+      | {
+          actorId: string;
+          destinationAccountId: string;
+          reservation: Extract<
+            Awaited<ReturnType<typeof reservePublication>>,
+            { status: "reserved" }
+          >;
+        }
+      | undefined;
+    for (const candidate of candidates) {
+      const reservation = await reservePublication(tx, workspaceId, {
+        approvalId: candidate.approvalId,
+        expectedRevisionVersion: candidate.revisionVersion,
+        destinationAccountId: candidate.destinationAccountId,
+        scheduleId,
+      });
+      if (reservation.status === "reserved") {
+        fixture = {
+          actorId: candidate.actorId,
+          destinationAccountId: candidate.destinationAccountId,
+          reservation,
+        };
+        break;
+      }
+    }
+    if (!fixture) {
       throw new Error("DIAGNOSTIC_FIXTURE_REQUIRED");
     }
 
-    await tx.insert(schedule).values({
-      id: scheduleId,
-      draftRevisionId: draft.id,
-      effectiveAt,
-      platform: draft.platform,
-      scheduledAt: effectiveAt,
-      timezone: "UTC",
-      workspaceId,
-    });
-
-    return createOperation(tx, workspaceId, {
-      actor: actor.id,
+    const operationResult = await createOperation(tx, workspaceId, {
+      actor: fixture.actorId,
       commandType,
       event: {
         payload: {
@@ -129,6 +178,28 @@ async function createProbe(workspaceId: string, args: string[]) {
       requestHash,
       requestId: null,
     });
+    if (operationResult.status !== "created") {
+      throw new Error("CREATE_REJECTED");
+    }
+
+    await tx.insert(schedule).values({
+      id: scheduleId,
+      approvalId: fixture.reservation.admission.approval.id,
+      createdBy: fixture.actorId,
+      destinationAccountId: fixture.destinationAccountId,
+      draftRevisionId: fixture.reservation.publication.draftRevisionId,
+      effectiveAt,
+      originatingOperationId: operationId,
+      platform: fixture.reservation.publication.platform,
+      publicationId: fixture.reservation.publication.id,
+      scheduledAt: effectiveAt,
+      selectedFinalMediaAssetId:
+        fixture.reservation.publication.selectedFinalMediaAssetId,
+      timezone: "UTC",
+      workspaceId,
+    });
+
+    return operationResult;
   });
 
   if (result.status !== "created") {

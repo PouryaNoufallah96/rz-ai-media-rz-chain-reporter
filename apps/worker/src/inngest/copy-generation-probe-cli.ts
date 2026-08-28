@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import {
+  assemblePublishPayload,
   COPY_CONFIGURATION_VERSION,
   COPY_PROMPT_VERSION,
   type EnrichmentReason,
@@ -426,6 +427,8 @@ async function proveTelegramNoFetch(probe: CopySourceFixture) {
   const loaded = await probe.load(operationId);
   assert.equal(loaded?.kind, "telegram");
   assert.equal(loaded?.content, TELEGRAM_POST);
+  assert.equal(loaded?.attribution, "copy-source-probe");
+  assert.match(loaded?.canonicalUrl ?? "", /^https:\/\/t\.me\/probe\//u);
   assert.equal(calls.value, 0);
   await probe.assertReplay(operationId, calls);
   pass("telegram-no-fetch");
@@ -1244,8 +1247,10 @@ function candidateFor(
     normalizeCopyCandidate(platform, candidate, {
       canonicalHashtag,
       emojiGraphemeCap: policy.emojiGraphemeCap,
+      maximumCharacters: policy.assembledCharacters.max,
       maximumHashtags: policy.hashtags.max,
       requestedContentLocale: "en",
+      source: null,
     });
   let checked = normalize();
   while (checked.length < policy.assembledCharacters.max) {
@@ -1274,8 +1279,10 @@ function persianCandidateFor(
     normalizeCopyCandidate(platform, candidate, {
       canonicalHashtag,
       emojiGraphemeCap: policy.emojiGraphemeCap,
+      maximumCharacters: policy.assembledCharacters.max,
       maximumHashtags: policy.hashtags.max,
       requestedContentLocale: "fa",
+      source: null,
     });
   let checked = normalize();
   while (checked.length < policy.assembledCharacters.max) {
@@ -1300,8 +1307,10 @@ function proveCopyNormalization(
   const input = {
     canonicalHashtag: canonical,
     emojiGraphemeCap: policy.emojiGraphemeCap,
+    maximumCharacters: policy.assembledCharacters.max,
     maximumHashtags: policy.hashtags.max,
     requestedContentLocale: "en" as const,
+    source: null,
   };
 
   const moved = normalizeCopyCandidate(
@@ -1371,12 +1380,50 @@ function proveCopyNormalization(
     {
       canonicalHashtag: canonical,
       emojiGraphemeCap: telegramPolicy.emojiGraphemeCap,
+      maximumCharacters: telegramPolicy.assembledCharacters.max,
       maximumHashtags: telegramPolicy.hashtags.max,
       requestedContentLocale: "en",
+      source: null,
     },
   );
   assert.equal(emoji.valid, true);
   assert.equal(emoji.emojiCount, telegramPolicy.emojiGraphemeCap);
+
+  const telegramSource = {
+    attribution: "Coin Hall ".repeat(30).trim(),
+    canonicalUrl: `https://example.invalid/${"story".repeat(40)}`,
+  };
+  const telegramMedia = normalizeCopyCandidate(
+    "telegram",
+    {
+      body: Array.from({ length: 240 }, () => "market").join(" "),
+      hashtags: ["#markets", "#bitcoin"],
+      headline: "Markets reprice the latest verified move",
+    },
+    {
+      canonicalHashtag: canonical,
+      emojiGraphemeCap: telegramPolicy.emojiGraphemeCap,
+      maximumCharacters: telegramPolicy.assembledCharacters.max,
+      maximumHashtags: telegramPolicy.hashtags.max,
+      requestedContentLocale: "en",
+      source: telegramSource,
+    },
+  );
+  const telegramPayload = assemblePublishPayload({
+    contentLocale: "en",
+    draft: {
+      body: telegramMedia.body,
+      hashtags: telegramMedia.hashtags,
+      headline: telegramMedia.headline,
+    },
+    hasMedia: true,
+    platform: "telegram",
+    source: telegramSource,
+  });
+  assert.equal(telegramMedia.valid, true);
+  assert.equal(telegramPayload.status, "ready");
+  assert.ok(telegramPayload.length <= 1_024);
+  assert.match(telegramMedia.assembled, /Read full story/u);
 
   const wrongLocale = normalizeCopyCandidate(
     "x",
@@ -1394,7 +1441,7 @@ function proveCopyNormalization(
   assert.equal(persian.valid, true);
 
   console.log(
-    `copy-generation execution normalization hashtags-moved=true tag-format=true hashtag-cap=${policy.hashtags.max} body-truncated=true emoji-capped=${telegramPolicy.emojiGraphemeCap} unfittable=rejected status=pass`,
+    `copy-generation execution normalization hashtags-moved=true tag-format=true hashtag-cap=${policy.hashtags.max} body-truncated=true emoji-capped=${telegramPolicy.emojiGraphemeCap} telegram-send-photo=true telegram-source-suffix=true unfittable=rejected status=pass`,
   );
 }
 
@@ -1726,8 +1773,10 @@ async function runExecutionProbe(probe: CopySourceFixture) {
     const checked = normalizeCopyCandidate(platform, candidate, {
       canonicalHashtag: brand.editorial.canonicalHashtags.en,
       emojiGraphemeCap: policy.emojiGraphemeCap,
+      maximumCharacters: policy.assembledCharacters.max,
       maximumHashtags: policy.hashtags.max,
       requestedContentLocale: "en",
+      source: null,
     });
     assert.equal(checked.length, policy.assembledCharacters.max);
     assert.equal(

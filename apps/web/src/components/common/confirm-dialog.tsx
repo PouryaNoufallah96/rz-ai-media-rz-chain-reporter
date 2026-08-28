@@ -20,6 +20,7 @@ interface ConfirmDialogProps {
   cancelLabel: string;
   confirmLabel: string;
   description?: string;
+  fallbackError: string;
   onConfirm: () => ConfirmOutcome | Promise<ConfirmOutcome>;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -32,6 +33,7 @@ export function ConfirmDialog({
   cancelLabel,
   confirmLabel,
   description,
+  fallbackError,
   onConfirm,
   onOpenChange,
   open,
@@ -42,14 +44,18 @@ export function ConfirmDialog({
   const [error, setError] = useState<string>();
   const [isPending, startTransition] = useTransition();
 
-  // Cancel stays live while an ordinary attempt runs; a destructive one holds
-  // the dialog until it settles.
   const locked = isPending && variant === "destructive";
 
   const confirm = () => {
     setError(undefined);
     startTransition(async () => {
-      const outcome = await onConfirm();
+      let outcome: ConfirmOutcome;
+      try {
+        outcome = await onConfirm();
+      } catch {
+        setError(fallbackError);
+        return;
+      }
 
       if (outcome?.error) {
         setError(outcome.error);

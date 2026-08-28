@@ -28,7 +28,6 @@ import {
 import type { RunHead } from "../schemas/workspace";
 import { ChannelPlate } from "./channel-plate";
 import { MutedTag } from "./provenance-line";
-import { SHORT_ID_LENGTH } from "./run-selector";
 
 const BASIS_POINTS = 10_000;
 
@@ -476,3 +475,4 @@ function hasOperatorTopics(head: RunHead) {
     head.configuration.kind === "news" && head.configuration.topics.length > 0
   );
 }
+const SHORT_ID_LENGTH = 8;

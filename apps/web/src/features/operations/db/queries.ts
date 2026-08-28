@@ -37,6 +37,7 @@ const USAGE_OUTCOME: Record<UsageStatus, AttemptOutcome | null> = {
 export async function listRecentOperations(
   executor: Executor,
   workspaceId: string,
+  focusedOperationId?: string,
 ): Promise<OperationSummary[]> {
   const settledSince = new Date(Date.now() - RECENT_TERMINAL_WINDOW_MS);
 
@@ -69,12 +70,13 @@ export async function listRecentOperations(
         columns: { failureCode: true, id: true },
       },
     },
-    where: (operation, { and, gte, notInArray, or }) =>
+    where: (operation, { and, eq, gte, notInArray, or }) =>
       and(
         inWorkspace(operation, workspaceId),
         or(
           notInArray(operation.lifecycle, TERMINAL_LIFECYCLES),
           gte(operation.updatedAt, settledSince),
+          focusedOperationId ? eq(operation.id, focusedOperationId) : undefined,
         ),
       ),
     orderBy: (operation, { desc }) => [
@@ -96,6 +98,7 @@ export async function listRecentOperations(
         id: true,
         operationId: true,
         outcome: true,
+        providerFailureCode: true,
         updatedAt: true,
       },
       with: {
@@ -138,7 +141,9 @@ export async function listRecentOperations(
         dispatch: outbox ? dispatchOf(outbox) : null,
         failureCode: sourceImport
           ? sourceImport.failureCode
-          : (attempts[0]?.failureCode ?? null),
+          : (attempts[0]?.providerFailureCode ??
+            attempts[0]?.failureCode ??
+            null),
         latestAttemptOutcome: attempts[0]?.outcome ?? null,
         platform: publish?.platform ?? null,
         ...(measured

@@ -26,15 +26,13 @@ import {
   SelectionDetails,
   TelegramDetails,
 } from "./card-details-sheet";
-import { CardSheet } from "./card-sheet";
 import { ChannelPlate } from "./channel-plate";
 import {
   type OriginDragData,
-  originKey,
+  originUiKey,
   useRouteContext,
 } from "./platform-lane";
 import { FallbackTag, MutedTag, ProvenanceLine } from "./provenance-line";
-import { SHORT_ID_LENGTH } from "./run-selector";
 
 type Translate = ReturnType<typeof useTranslations<typeof EDITORIAL_NAMESPACE>>;
 
@@ -55,7 +53,7 @@ function LaneCard({
   title: string;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
-  const id = originKey(drag.origin);
+  const id = originUiKey(drag.brandKey, drag.origin);
   const { handleRef, isDragging, ref } = useDraggable<OriginDragData>({
     data: drag,
     id: `origin-${id}`,
@@ -72,7 +70,7 @@ function LaneCard({
         <SheetTrigger
           render={
             <Button
-              className="grid h-auto w-full min-w-0 justify-normal gap-1 whitespace-normal px-0 py-1 text-start font-normal"
+              className="grid h-auto min-h-11 w-full min-w-0 justify-normal gap-1 whitespace-normal px-0 py-1 text-start font-normal sm:min-h-0"
               type="button"
               variant="ghost"
             />
@@ -85,6 +83,7 @@ function LaneCard({
       <div className="flex flex-wrap items-start gap-2">
         <Button
           aria-label={t("platformDraft.dragOrigin", { title: drag.title })}
+          className="max-[599px]:size-11"
           id={`origin-handle-${id}`}
           ref={handleRef}
           size="icon"
@@ -102,10 +101,12 @@ function LaneCard({
 export function PlatformDraftLaneCard({
   card,
   dragHandle,
+  onOpen,
   siblingRoutes,
 }: {
   card: PlatformDraftCard;
   dragHandle: ReactNode;
+  onOpen: (trigger: HTMLButtonElement) => void;
   siblingRoutes: ReactNode;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
@@ -117,7 +118,12 @@ export function PlatformDraftLaneCard({
   return (
     <article className="grid gap-2 border-border border-b border-dashed px-2 py-3">
       <div className="flex min-w-0 items-start gap-2">
-        <CardSheet card={card}>
+        <Button
+          className="grid h-auto min-h-11 w-full min-w-0 flex-1 justify-normal gap-1 whitespace-normal p-2 text-start"
+          onClick={(event) => onOpen(event.currentTarget)}
+          type="button"
+          variant="ghost"
+        >
           <span className="line-clamp-2 text-sm">
             <Bdi>{card.originTitle}</Bdi>
           </span>
@@ -130,7 +136,7 @@ export function PlatformDraftLaneCard({
               t("platformDraft.units", { completed, total }),
             ]}
           />
-        </CardSheet>
+        </Button>
         {dragHandle}
       </div>
       <div className="flex flex-wrap items-start gap-2">{siblingRoutes}</div>
@@ -204,18 +210,12 @@ export function PromoLaneCard({
   card,
   fallback,
   limitedGuidance,
-  modelOptionKey,
-  runId,
-  unitId,
 }: {
   brandKey: string;
   brandName: string;
   card: PromoIdeaCard;
   fallback: boolean;
   limitedGuidance: boolean;
-  modelOptionKey: string;
-  runId: string;
-  unitId: string;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const uiLocale = useLocale();
@@ -251,20 +251,14 @@ export function PromoLaneCard({
       <span className="line-clamp-2 text-muted-foreground text-xs">
         <Bdi>{card.description}</Bdi>
       </span>
-      <ProvenanceLine
-        segments={[
-          t("provenance.run", { id: runId.slice(0, SHORT_ID_LENGTH) }),
-          modelOptionKey,
-          t("promo.unit", { id: unitId.slice(0, SHORT_ID_LENGTH) }),
-        ]}
-      >
-        {fallback ? (
+      {fallback ? (
+        <ProvenanceLine segments={[]}>
           <FallbackTag
             detail={t("lane.fallback.detail")}
             tag={t("lane.fallback.tag")}
           />
-        ) : null}
-      </ProvenanceLine>
+        </ProvenanceLine>
+      ) : null}
     </LaneCard>
   );
 }
@@ -357,6 +351,7 @@ function SendToPlatforms({
 
         return (
           <Button
+            className="max-[599px]:min-h-11"
             id={buttonId}
             key={platform}
             onClick={() =>
