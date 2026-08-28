@@ -7,20 +7,21 @@ import {
   CustomerTemplateError,
   loadCustomerTemplate,
 } from "@rz-chain-reporter/customer-template/load";
+import type { CustomerTemplate } from "@rz-chain-reporter/customer-template/schema";
 import { createDb, DB_PROBE_TIMEOUT_MS } from "@rz-chain-reporter/db";
 import {
   DestinationBindingError,
   formatDestinationBindingReport,
 } from "@rz-chain-reporter/env/destination-bindings";
 import { validateWorkerEnv } from "@rz-chain-reporter/env/worker";
-
-import { assertFirecrawlBinding } from "../articles/firecrawl";
-import { checkDestinationBindings } from "../bindings/check";
 import {
   ModelBindingError,
   ModelTaskConfigurationError,
-} from "../model-gateway/errors";
-import { assertModelCapabilities } from "../model-gateway/prestart";
+} from "@rz-chain-reporter/model-gateway/errors";
+import { assertModelCapabilities } from "@rz-chain-reporter/model-gateway/prestart";
+import { resolveModelTask } from "@rz-chain-reporter/model-gateway/task";
+import { assertFirecrawlBinding } from "../articles/firecrawl";
+import { checkDestinationBindings } from "../bindings/check";
 import {
   assertObjectStoreBound,
   deriveWorkerRuntimeConfig,
@@ -38,6 +39,29 @@ const EXIT_FAILURE = 1;
 const EXIT_UNBOUND = 2;
 
 const STAGES = ["web", "worker"] as const;
+
+const ASSISTANT_TASK_KEY = "assistant-synthesis";
+
+// Web serves the assistant through the remote provider only, so an unbound or
+// locally routed task must stop the process instead of failing the first ask.
+function assertAssistantBinding(template: CustomerTemplate) {
+  const primary = resolveModelTask(template, ASSISTANT_TASK_KEY, "primary");
+  const fallback = template.models.tasks[ASSISTANT_TASK_KEY]?.fallback;
+
+  for (const backend of [primary.route.backend, fallback?.backend]) {
+    if (backend !== undefined && backend !== "remote") {
+      throw new ModelBindingError(
+        `model task "${ASSISTANT_TASK_KEY}" selects a ${backend} backend, which web cannot serve`,
+      );
+    }
+  }
+
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new ModelBindingError(
+      `model task "${ASSISTANT_TASK_KEY}" selects an unbound remote backend`,
+    );
+  }
+}
 
 type Stage = (typeof STAGES)[number];
 
@@ -86,6 +110,13 @@ try {
     `${command} ${identity.customerTemplateKey} ${shortFingerprint(identity.fingerprint)}`,
   );
   console.log("build, runtime, loaded and applied template identity match");
+
+  if (stage === "web") {
+    assertAssistantBinding(
+      loadCustomerTemplate(artifactRoot, identity.customerTemplateKey).template,
+    );
+    console.log(`web model task ${ASSISTANT_TASK_KEY}: remote backend bound`);
+  }
 
   if (stage === "worker") {
     const workerEnvironment = validateWorkerEnv(process.env);

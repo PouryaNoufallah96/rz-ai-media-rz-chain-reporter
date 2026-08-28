@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
+import { AdapterInvocationError } from "@rz-chain-reporter/model-gateway/errors";
+import { createOllamaAdapter } from "@rz-chain-reporter/model-gateway/ollama";
+import { createOpenRouterAdapter } from "@rz-chain-reporter/model-gateway/openrouter";
+import { diagnoseProviderCall } from "@rz-chain-reporter/model-gateway/usage";
 import { APICallError } from "ai";
-
-import { AdapterInvocationError } from "./errors";
-import { createOllamaAdapter } from "./ollama";
-import { createOpenRouterAdapter } from "./openrouter";
-import { diagnoseProviderCall } from "./usage";
 
 const LOCAL_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",

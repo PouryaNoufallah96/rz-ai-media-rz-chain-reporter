@@ -9,6 +9,7 @@ import {
   NoObjectGeneratedError,
   NoOutputGeneratedError,
   Output,
+  streamText,
 } from "ai";
 
 import { AdapterInvocationError } from "./errors";
@@ -18,11 +19,23 @@ import type {
   ImageAdapterInput,
   ImageAdapterResult,
   ModelCallObservation,
+  ModelToolCall,
   ObservedModelStep,
   StructuredAdapterInput,
   StructuredAdapterResult,
+  TextStreamAdapterInput,
+  TextStreamAdapterResult,
 } from "./types";
 import { diagnoseProviderCall, recordProviderFailure } from "./usage";
+
+function isTimeoutAbort(error: unknown) {
+  return (
+    (error instanceof Error || error instanceof DOMException) &&
+    (error.name === "AbortError" ||
+      error.name === "ResponseAborted" ||
+      error.name === "TimeoutError")
+  );
+}
 
 export async function generateImageOnce(
   model: Parameters<typeof generateImage>[0]["model"],
@@ -63,11 +76,13 @@ export async function generateImageOnce(
     if (input.abortSignal?.aborted) {
       throw new AdapterInvocationError("cancelled", false, observation);
     }
-    if (
-      (error instanceof Error || error instanceof DOMException) &&
-      (error.name === "TimeoutError" || error.name === "AbortError")
-    ) {
-      throw new AdapterInvocationError("unknown", false, observation);
+    if (isTimeoutAbort(error)) {
+      throw new AdapterInvocationError(
+        "unknown",
+        false,
+        observation,
+        "adapter-timeout",
+      );
     }
     if (APICallError.isInstance(error)) {
       const diagnosis = diagnoseProviderCall(error);
@@ -143,11 +158,13 @@ export async function generateEmbeddings(
     if (input.abortSignal?.aborted) {
       throw new AdapterInvocationError("cancelled", false, observation);
     }
-    if (
-      (error instanceof Error || error instanceof DOMException) &&
-      (error.name === "TimeoutError" || error.name === "AbortError")
-    ) {
-      throw new AdapterInvocationError("unknown", false, observation);
+    if (isTimeoutAbort(error)) {
+      throw new AdapterInvocationError(
+        "unknown",
+        false,
+        observation,
+        "adapter-timeout",
+      );
     }
     if (APICallError.isInstance(error)) {
       const diagnosis = diagnoseProviderCall(error);
@@ -238,11 +255,13 @@ export async function generateStructured<TOutput>(
       throw new AdapterInvocationError("cancelled", false, observation);
     }
 
-    if (
-      (error instanceof Error || error instanceof DOMException) &&
-      (error.name === "TimeoutError" || error.name === "AbortError")
-    ) {
-      throw new AdapterInvocationError("unknown", false, observation);
+    if (isTimeoutAbort(error)) {
+      throw new AdapterInvocationError(
+        "unknown",
+        false,
+        observation,
+        "adapter-timeout",
+      );
     }
 
     if (APICallError.isInstance(error)) {
@@ -258,4 +277,114 @@ export async function generateStructured<TOutput>(
 
     throw new AdapterInvocationError("failed", false, observation);
   }
+}
+
+export function streamSynthesis(
+  model: LanguageModel,
+  input: TextStreamAdapterInput,
+  emptyObservation: ModelCallObservation,
+  observe: (step: ObservedModelStep) => ModelCallObservation,
+): TextStreamAdapterResult {
+  let observation = emptyObservation;
+  let failure: unknown;
+  let toolCalls: readonly ModelToolCall[] = [];
+
+  const result = streamText({
+    model,
+    instructions: input.instructions,
+    prompt: input.prompt,
+    maxOutputTokens: input.maxOutputTokens,
+    maxRetries: 0,
+    stopWhen: input.stopWhen,
+    timeout: { totalMs: input.deadlineMs },
+    abortSignal: input.abortSignal,
+    toolChoice: input.toolChoice,
+    tools: input.tools,
+    runtimeContext: input.telemetry,
+    telemetry: {
+      functionId: "model-gateway.stream-synthesis",
+      includeRuntimeContext: {
+        operationAttemptId: true,
+        operationId: true,
+        usageEventId: true,
+      },
+      isEnabled: true,
+      recordInputs: false,
+      recordOutputs: false,
+    },
+    onError({ error }) {
+      failure ??= error;
+    },
+    onStepEnd(step) {
+      observation = observe({
+        finishReason: step.finishReason,
+        modelId: step.model.modelId,
+        providerMetadata: step.providerMetadata,
+        rawFinishReason: step.rawFinishReason,
+        response: step.response,
+        usage: step.usage,
+      });
+    },
+  });
+
+  async function* readTextStream() {
+    try {
+      for await (const delta of result.textStream) {
+        yield delta;
+      }
+
+      toolCalls = (await result.toolResults).map((call) => ({
+        output: call.output,
+        toolCallId: call.toolCallId,
+        toolName: call.toolName,
+      }));
+    } catch (error) {
+      failure ??= error;
+    }
+
+    if (failure !== undefined) {
+      throw toAdapterError(failure, input.abortSignal, observation);
+    }
+  }
+
+  return {
+    observation: () => observation,
+    textStream: readTextStream(),
+    toolCalls: () => toolCalls,
+  };
+}
+
+function toAdapterError(
+  error: unknown,
+  abortSignal: AbortSignal | undefined,
+  observation: ModelCallObservation,
+) {
+  if (abortSignal?.aborted) {
+    return new AdapterInvocationError("cancelled", false, observation);
+  }
+
+  if (isTimeoutAbort(error)) {
+    return new AdapterInvocationError(
+      "unknown",
+      false,
+      observation,
+      "adapter-timeout",
+    );
+  }
+
+  if (APICallError.isInstance(error)) {
+    const diagnosis = diagnoseProviderCall(error);
+
+    if (diagnosis) {
+      return recordProviderFailure(
+        new AdapterInvocationError("failed", error.isRetryable, {
+          ...observation,
+          finishReason: diagnosis.code,
+        }),
+        diagnosis,
+      );
+    }
+  }
+
+  return new AdapterInvocationError("unknown", false, observation);
 }

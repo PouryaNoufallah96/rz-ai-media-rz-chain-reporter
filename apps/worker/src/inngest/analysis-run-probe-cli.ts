@@ -6,6 +6,9 @@ import {
   importCovers,
   importIsAnalysisReady,
   semanticAttemptFinalization,
+  UNIT_PRIMARY_DEADLINE_MS,
+  UNIT_REPAIR_DEADLINE_MS,
+  UNIT_TOTAL_DEADLINE_MS,
   unitInvocationDeadlineMs,
 } from "./analysis-run";
 
@@ -196,10 +199,27 @@ assert.equal(
   ),
   false,
 );
-assert.equal(unitInvocationDeadlineMs(30_000, "primary", 0), 20_000);
-assert.equal(unitInvocationDeadlineMs(30_000, "retry-1", 0), 10_000);
-assert.equal(unitInvocationDeadlineMs(30_000, "fallback", 25_000), 5_000);
-assert.equal(unitInvocationDeadlineMs(30_000, "primary", 30_000), null);
+assert.equal(
+  unitInvocationDeadlineMs(UNIT_TOTAL_DEADLINE_MS, "primary", 0),
+  UNIT_PRIMARY_DEADLINE_MS,
+);
+assert.equal(
+  unitInvocationDeadlineMs(UNIT_TOTAL_DEADLINE_MS, "retry-1", 0),
+  UNIT_REPAIR_DEADLINE_MS,
+);
+assert.equal(
+  unitInvocationDeadlineMs(UNIT_TOTAL_DEADLINE_MS, "fallback", 85_000),
+  5_000,
+);
+assert.equal(
+  unitInvocationDeadlineMs(
+    UNIT_TOTAL_DEADLINE_MS,
+    "primary",
+    UNIT_TOTAL_DEADLINE_MS,
+  ),
+  null,
+);
+assert.equal(unitInvocationDeadlineMs(30_000, "primary", 0), 30_000);
 
 process.stdout.write(
   "analysis run probe passed: model recovery, semantic attempts, partial import readiness and unit deadline\n",

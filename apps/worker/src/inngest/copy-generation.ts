@@ -37,17 +37,18 @@ import {
   settleCopyGeneration,
   settleCopyGenerationUnit,
 } from "@rz-chain-reporter/db/repositories/copy-generation";
+import { ModelGatewayInvocationError } from "@rz-chain-reporter/model-gateway/errors";
+import {
+  MAX_OUTPUT_TOKENS,
+  type ModelGateway,
+} from "@rz-chain-reporter/model-gateway/gateway";
 import { invoke, NonRetriableError } from "inngest";
 import { z } from "zod";
 import { fetchArticle } from "../articles/fetcher";
 import type { ArticleBindings, ArticleFetcher } from "../articles/types";
 import { workerLogger } from "../logging/logger";
-import { ModelGatewayInvocationError } from "../model-gateway/errors";
-import {
-  createModelGateway,
-  MAX_OUTPUT_TOKENS,
-  type ModelGateway,
-} from "../model-gateway/gateway";
+
+import { createWorkerModelGateway } from "../model-gateway/worker-gateway";
 import { resolveArtifactRoot } from "../runtime/artifact-root";
 import { workerEnv } from "../runtime/env";
 import {
@@ -919,7 +920,7 @@ export function createCopyGenerationFunctions(
   client: WorkerInngestClient,
   runtime: WorkerRuntime,
   gatewayFactory: () => ModelGateway = () =>
-    createModelGateway({
+    createWorkerModelGateway({
       bindings: {
         OLLAMA_BASE_URL: workerEnv.OLLAMA_BASE_URL,
         OPENROUTER_API_KEY: workerEnv.OPENROUTER_API_KEY,

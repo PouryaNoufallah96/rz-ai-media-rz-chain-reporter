@@ -37,6 +37,7 @@ catalog:
   "@types/react-dom": 19.2.4
   tailwindcss: 4.3.3
   ai: 7.0.79
+  "@ai-sdk/react": 4.0.82
   "@ai-sdk/openai-compatible": 3.0.31
   "@openrouter/ai-sdk-provider": 3.0.0
   "@opentelemetry/api": 1.9.1
@@ -58,6 +59,7 @@ catalog:
 minimumReleaseAgeExclude:
   - '@ai-sdk/gateway@4.0.64'
   - ai@7.0.79
+  - '@ai-sdk/react@4.0.82'
   - inngest@4.18.1
   - shadcn@4.18.0
 patchedDependencies:

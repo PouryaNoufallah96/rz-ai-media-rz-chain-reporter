@@ -15,12 +15,6 @@ import {
 } from "@rz-chain-reporter/db/repositories/ai-usage-event";
 
 import {
-  assertAppliedIdentity,
-  type InstallationIdentity,
-  InstallationIdentityError,
-} from "../identity/assert";
-import { workerLogger } from "../logging/logger";
-import {
   AdapterInvocationError,
   ImagePreparationError,
   ModelBindingError,
@@ -37,11 +31,13 @@ import type {
   ModelAdapter,
   ModelBindings,
   ModelCallObservation,
+  ModelToolCall,
   PreparedImageResult,
   RemoteModelAdapter,
   StructuredAdapterResult,
   StructuredModelInvocation,
   StructuredModelResult,
+  TextStreamModelInvocation,
 } from "./types";
 import { readProviderFailure } from "./usage";
 
@@ -52,21 +48,39 @@ const MAX_IMAGE_PROMPT_LENGTH = 48_000;
 export const MAX_OUTPUT_TOKENS = 8_192;
 const MAX_PROMPT_LENGTH = 24_000;
 
+export type TextStreamModelResult = {
+  textStream: AsyncIterable<string>;
+  toolCalls: () => readonly ModelToolCall[];
+  usageEventId: string;
+};
+
+export type ModelGatewayLogger = {
+  warn(event: string, fields: Record<string, string | number>): void;
+};
+
 export type ModelGateway = {
   embedMany(input: EmbeddingModelInvocation): Promise<EmbeddingModelResult>;
   invokeImage?: (input: ImageModelInvocation) => Promise<ImageModelResult>;
   invokeStructured<TOutput>(
     input: StructuredModelInvocation<TOutput>,
   ): Promise<StructuredModelResult<TOutput>>;
+  streamSynthesis?: (
+    input: TextStreamModelInvocation,
+  ) => Promise<TextStreamModelResult>;
 };
+
+// Consumers hold `ModelGateway`, whose optional members let probe fixtures stay partial.
+export type ModelGatewayImplementation = ModelGateway &
+  Required<Pick<ModelGateway, "invokeImage" | "streamSynthesis">>;
 
 export function createModelGateway(options: {
   adapters?: { local?: ModelAdapter; remote?: RemoteModelAdapter };
+  assertTemplateCurrent: (workspaceId: string) => Promise<void>;
   bindings: ModelBindings;
   executor: Executor;
-  identity: InstallationIdentity;
+  logger: ModelGatewayLogger;
   template: CustomerTemplate;
-}): ModelGateway {
+}): ModelGatewayImplementation {
   let localAdapter = options.adapters?.local;
   let remoteAdapter = options.adapters?.remote;
 
@@ -79,11 +93,7 @@ export function createModelGateway(options: {
         input.invocationKey,
       );
 
-      await assertTemplateCurrent(
-        options.executor,
-        options.identity,
-        input.workspaceId,
-      );
+      await assertTemplateCurrent(options, input.workspaceId);
 
       let adapter: ModelAdapter;
       if (route.backend === "remote") {
@@ -125,6 +135,7 @@ export function createModelGateway(options: {
         );
         throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
           ambiguous: replayStatus === "pending" || replayStatus === "unknown",
+          reason: "usage-slot-replayed",
           usageEventId: pending.event.id,
         });
       }
@@ -171,6 +182,7 @@ export function createModelGateway(options: {
           );
           throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
             ambiguous: true,
+            reason: "result-persistence-failed",
             usageEventId: pending.event.id,
           });
         }
@@ -195,6 +207,7 @@ export function createModelGateway(options: {
       if (finalized.status !== "updated") {
         throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
           ambiguous: true,
+          reason: "usage-finalization-lost",
           usageEventId: pending.event.id,
         });
       }
@@ -212,11 +225,7 @@ export function createModelGateway(options: {
         input.taskKey,
         input.invocationKey,
       );
-      await assertTemplateCurrent(
-        options.executor,
-        options.identity,
-        input.workspaceId,
-      );
+      await assertTemplateCurrent(options, input.workspaceId);
       if (route.backend !== "remote") {
         throw new ModelBindingError(
           "image generation requires a remote backend",
@@ -248,6 +257,7 @@ export function createModelGateway(options: {
       if (!pending.inserted) {
         throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
           ambiguous: true,
+          reason: "usage-slot-replayed",
           usageEventId: pending.event.id,
         });
       }
@@ -262,7 +272,7 @@ export function createModelGateway(options: {
         .catch(async (error: unknown) => {
           const failure = readProviderFailure(error);
           if (failure) {
-            workerLogger.warn("model-gateway.image-failed", {
+            options.logger.warn("model-gateway.image-failed", {
               attemptId: input.operationAttemptId,
               invocationKey: input.invocationKey,
               operationId: input.operationId,
@@ -323,6 +333,7 @@ export function createModelGateway(options: {
             invocationClaimFence(input),
           );
           throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+            reason: "result-persistence-failed",
             usageEventId: pending.event.id,
           });
         }
@@ -335,6 +346,7 @@ export function createModelGateway(options: {
         );
         throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
           ambiguous: true,
+          reason: "result-persistence-failed",
           usageEventId: pending.event.id,
         });
       }
@@ -373,6 +385,7 @@ export function createModelGateway(options: {
             invocationClaimFence(input),
           );
           throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+            reason: "result-persistence-failed",
             usageEventId: pending.event.id,
           });
         }
@@ -385,6 +398,7 @@ export function createModelGateway(options: {
         );
         throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
           ambiguous: true,
+          reason: "result-persistence-failed",
           usageEventId: pending.event.id,
         });
       }
@@ -399,11 +413,7 @@ export function createModelGateway(options: {
         input.invocationKey,
       );
 
-      await assertTemplateCurrent(
-        options.executor,
-        options.identity,
-        input.workspaceId,
-      );
+      await assertTemplateCurrent(options, input.workspaceId);
 
       let adapter: ModelAdapter;
       if (route.backend === "remote") {
@@ -448,6 +458,7 @@ export function createModelGateway(options: {
         );
         throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
           ambiguous: replayStatus === "pending" || replayStatus === "unknown",
+          reason: "usage-slot-replayed",
           usageEventId: pending.event.id,
         });
       }
@@ -487,6 +498,7 @@ export function createModelGateway(options: {
               invocationClaimFence(input),
             );
             throw new ModelGatewayInvocationError("STRUCTURED_OUTPUT_INVALID", {
+              reason: "structured-output-invalid",
               usageEventId: pending.event.id,
             });
           }
@@ -528,13 +540,157 @@ export function createModelGateway(options: {
         );
         throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
           ambiguous: true,
+          reason: "result-persistence-failed",
           usageEventId: pending.event.id,
         });
       }
 
       return { output: generated.output, usageEventId: pending.event.id };
     },
+
+    async streamSynthesis(input) {
+      assertSynthesisBounds(input);
+      const { route, taskKey } = resolveModelTask(
+        options.template,
+        input.taskKey,
+        input.invocationKey,
+      );
+
+      await assertTemplateCurrent(options, input.workspaceId);
+
+      if (route.backend !== "remote") {
+        throw new ModelBindingError(
+          "streaming synthesis requires a remote backend",
+        );
+      }
+
+      remoteAdapter ??= createBoundRemoteAdapter(options.bindings);
+
+      if (!remoteAdapter.streamText) {
+        throw new ModelBindingError(
+          `model task "${taskKey}" selects a backend without a streaming adapter`,
+        );
+      }
+
+      const streamAdapterText = remoteAdapter.streamText.bind(remoteAdapter);
+      const pending = await insertPendingUsage(
+        options.executor,
+        input.workspaceId,
+        {
+          apiKind: "chat",
+          backend: route.backend,
+          invocationKey: input.invocationKey,
+          operationAttemptId: input.operationAttemptId,
+          operationId: input.operationId,
+          providerGateway: "openrouter",
+          requestedModel: route.model,
+          taskKey,
+        },
+      );
+
+      if (!pending.inserted) {
+        throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+          ambiguous: true,
+          reason: "usage-slot-replayed",
+          usageEventId: pending.event.id,
+        });
+      }
+
+      const streamed = streamAdapterText({
+        abortSignal: input.abortSignal,
+        deadlineMs: input.deadlineMs,
+        instructions: input.instructions,
+        maxOutputTokens: input.maxOutputTokens,
+        model: route.model,
+        prompt: input.prompt,
+        stopWhen: input.stopWhen,
+        toolChoice: input.toolChoice,
+        tools: input.tools,
+        telemetry: {
+          operationAttemptId: input.operationAttemptId,
+          operationId: input.operationId,
+          usageEventId: pending.event.id,
+        },
+      });
+
+      // A cancelled response returns the generator early, so settlement lives in
+      // `finally`; otherwise the usage row would stay pending forever.
+      // A cancelled response returns the generator early, so `finally` settles
+      // the row; otherwise an abandoned stream would leave usage pending forever.
+      async function* settleWhileStreaming() {
+        let settled = false;
+
+        try {
+          yield* streamed.textStream;
+          settled = true;
+
+          const finalized = await finalizeUsage(
+            options.executor,
+            input.workspaceId,
+            {
+              id: pending.event.id,
+              status: "succeeded",
+              ...streamed.observation(),
+            },
+          );
+
+          if (finalized.status !== "updated") {
+            throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+              ambiguous: true,
+              reason: "usage-finalization-lost",
+              usageEventId: pending.event.id,
+            });
+          }
+        } catch (error) {
+          if (settled) {
+            throw error;
+          }
+
+          settled = true;
+          await failInvocation(
+            options.executor,
+            input.workspaceId,
+            pending.event.id,
+            error,
+          );
+        } finally {
+          if (!settled) {
+            settled = true;
+            await finalizeUsage(options.executor, input.workspaceId, {
+              id: pending.event.id,
+              status: "cancelled",
+              ...streamed.observation(),
+            });
+          }
+        }
+      }
+
+      return {
+        textStream: settleWhileStreaming(),
+        toolCalls: () => streamed.toolCalls(),
+        usageEventId: pending.event.id,
+      };
+    },
   };
+}
+
+function assertSynthesisBounds(input: TextStreamModelInvocation) {
+  if (
+    input.prompt.length === 0 ||
+    input.prompt.length > MAX_PROMPT_LENGTH ||
+    input.instructions.length === 0 ||
+    input.instructions.length > MAX_INSTRUCTIONS_LENGTH ||
+    !Number.isInteger(input.maxOutputTokens) ||
+    input.maxOutputTokens < 1 ||
+    input.maxOutputTokens > MAX_OUTPUT_TOKENS ||
+    !Number.isInteger(input.deadlineMs) ||
+    input.deadlineMs < 1 ||
+    input.deadlineMs > MAX_DEADLINE_MS
+  ) {
+    throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+      reason: "invocation-bounds",
+    });
+  }
 }
 
 async function finalizeDefiniteImageFailure(
@@ -553,6 +709,7 @@ async function finalizeDefiniteImageFailure(
   if (finalized.status !== "updated") {
     throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
       ambiguous: true,
+      reason: "usage-finalization-lost",
       usageEventId,
     });
   }
@@ -590,6 +747,7 @@ async function finalizeStructuredFailure(
   } catch {
     throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
       ambiguous: true,
+      reason: "usage-finalization-lost",
       usageEventId,
     });
   }
@@ -638,23 +796,15 @@ function createBoundLocalAdapter(bindings: ModelBindings) {
 }
 
 async function assertTemplateCurrent(
-  executor: Executor,
-  identity: InstallationIdentity,
+  options: { assertTemplateCurrent: (workspaceId: string) => Promise<void> },
   workspaceId: string,
 ) {
   try {
-    const current = await assertAppliedIdentity(executor, identity);
-    if (current.workspaceId !== workspaceId) {
-      throw new ModelGatewayInvocationError("TEMPLATE_DRIFT");
-    }
-  } catch (error) {
-    if (
-      error instanceof InstallationIdentityError ||
-      error instanceof ModelGatewayInvocationError
-    ) {
-      throw new ModelGatewayInvocationError("TEMPLATE_DRIFT");
-    }
-    throw error;
+    await options.assertTemplateCurrent(workspaceId);
+  } catch {
+    throw new ModelGatewayInvocationError("TEMPLATE_DRIFT", {
+      reason: "template-drift",
+    });
   }
 }
 
@@ -672,7 +822,9 @@ function assertInvocationBounds<TOutput>(
     input.deadlineMs < 1 ||
     input.deadlineMs > MAX_DEADLINE_MS
   ) {
-    throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED");
+    throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+      reason: "invocation-bounds",
+    });
   }
 }
 
@@ -688,7 +840,9 @@ function assertEmbeddingBounds(input: EmbeddingModelInvocation) {
     input.deadlineMs < 1 ||
     input.deadlineMs > MAX_DEADLINE_MS
   ) {
-    throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED");
+    throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+      reason: "invocation-bounds",
+    });
   }
 }
 
@@ -705,7 +859,9 @@ function assertImageBounds(input: ImageModelInvocation) {
         !referenceImageMimeTypeSchema.safeParse(input.reference.mimeType)
           .success))
   ) {
-    throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED");
+    throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+      reason: "invocation-bounds",
+    });
   }
 }
 
@@ -726,6 +882,7 @@ async function failInvocation(
     );
     throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
       ambiguous: true,
+      reason: "unexpected-error",
       usageEventId,
     });
   }
@@ -743,6 +900,7 @@ async function failInvocation(
       : "MODEL_INVOCATION_FAILED",
     {
       ambiguous: error.kind === "unknown",
+      reason: error.reason,
       retryable: error.retryable && error.kind !== "unknown",
       usageEventId,
     },
@@ -766,6 +924,7 @@ async function finalizeAdapterFailure(
             ? "unknown"
             : "failed",
       ...error.observation,
+      finishReason: error.observation.finishReason ?? error.reason,
       claimFence,
     });
 
@@ -777,6 +936,7 @@ async function finalizeAdapterFailure(
   } catch {
     throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
       ambiguous: true,
+      reason: "usage-finalization-lost",
       usageEventId,
     });
   }
@@ -806,6 +966,7 @@ async function finalizeUnknown(
   } catch {
     throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
       ambiguous: true,
+      reason: "usage-finalization-lost",
       usageEventId,
     });
   }

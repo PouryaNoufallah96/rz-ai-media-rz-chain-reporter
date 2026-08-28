@@ -1,10 +1,9 @@
 import { createHash } from "node:crypto";
 import { REFERENCE_IMAGE_MIME_TYPES } from "@rz-chain-reporter/contracts";
+import { ImagePreparationError } from "@rz-chain-reporter/model-gateway/errors";
 import type { Storage } from "@rz-chain-reporter/storage";
 import { storageFromBindings } from "@rz-chain-reporter/storage";
 import sharp from "sharp";
-
-import { ImagePreparationError } from "../model-gateway/errors";
 import { workerEnv } from "../runtime/env";
 
 const MAX_PROVIDER_IMAGE_BYTES = 16 * 1024 * 1024;

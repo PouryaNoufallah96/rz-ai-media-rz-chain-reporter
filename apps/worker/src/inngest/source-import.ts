@@ -44,18 +44,18 @@ import {
   sourceImportProgress,
 } from "@rz-chain-reporter/db/repositories/source-import";
 import { operation } from "@rz-chain-reporter/db/schema/operation";
+import { ModelGatewayInvocationError } from "@rz-chain-reporter/model-gateway/errors";
+import { resolveModelTask } from "@rz-chain-reporter/model-gateway/task";
 import { cosineSimilarity } from "ai";
 import { and, eq, sql } from "drizzle-orm";
 import { invoke, NonRetriableError, RetryAfterError } from "inngest";
 import { z } from "zod";
-
 import { fetchArticle } from "../articles/fetcher";
 import { EXTRACT_MAX_CHARS } from "../articles/types";
 import { SafeHttpError } from "../fetch/safe-http";
-import { workerLogger } from "../logging/logger";
-import { ModelGatewayInvocationError } from "../model-gateway/errors";
-import { createModelGateway } from "../model-gateway/gateway";
-import { resolveModelTask } from "../model-gateway/task";
+import { type WorkerLogFields, workerLogger } from "../logging/logger";
+
+import { createWorkerModelGateway } from "../model-gateway/worker-gateway";
 import { workerEnv } from "../runtime/env";
 import { fetchSource } from "../sources/fetcher";
 import {
@@ -86,34 +86,62 @@ const SOURCE_CHILD_INVOKE_TIMEOUT = "35s";
 const ENRICH_CHILD_RETRIES = 1;
 const ENRICH_CHILD_FINISH_TIMEOUT = "6m";
 const PARENT_RETRIES = 2;
-const SOURCE_CONCURRENCY = 6;
 const SOURCE_HOST_CONCURRENCY = 2;
-const ENRICH_CONCURRENCY = 6;
+const BULK_CONCURRENCY = 3;
+const BULK_CONCURRENCY_KEY = '"source-import-bulk"';
 const TELEGRAM_HOST = "t.me";
 const EXTRACT_POLICY_VERSION = "extract-v1";
 
+type StepContext = Pick<
+  WorkerLogFields,
+  "attemptId" | "operationId" | "sourceId" | "sourceImportId" | "workspaceId"
+>;
+
 // inngest/function.failed may carry only this message; keep it a stable code.
 export class SourceImportError extends Error {
-  constructor(code: ErrorCode) {
-    super(code);
+  constructor(code: ErrorCode, options?: ErrorOptions) {
+    super(code, options);
     this.name = "SourceImportError";
   }
 }
 
-function failureCodeOf(value: unknown): ErrorCode {
+function carriedCodeOf(value: unknown): ErrorCode | null {
   const message = value instanceof Error ? value.message : String(value ?? "");
   const parsed = errorCodeSchema.safeParse(message);
-  return parsed.success ? parsed.data : "INTERNAL_SERVER_ERROR";
+  return parsed.success ? parsed.data : null;
 }
 
-async function coded<T>(run: () => Promise<T>): Promise<T> {
+function failureCodeOf(value: unknown): ErrorCode {
+  return carriedCodeOf(value) ?? "INTERNAL_SERVER_ERROR";
+}
+
+async function coded<T>(
+  context: StepContext,
+  run: () => Promise<T>,
+): Promise<T> {
   try {
     return await run();
   } catch (error) {
-    const code = failureCodeOf(error);
+    if (error instanceof SourceImportError) {
+      throw error;
+    }
+    // A step boundary rehydrates the child error as a plain Error, so the
+    // carried code is the only identity left; it also means we already logged.
+    const carried = carriedCodeOf(error);
+    if (carried !== null) {
+      if (error instanceof NonRetriableError) {
+        throw error;
+      }
+      throw new SourceImportError(carried, { cause: error });
+    }
+    workerLogger.error("worker.source-import.step-failed", {
+      ...context,
+      errorCode: "INTERNAL_SERVER_ERROR",
+      reason: error instanceof Error ? error.name : "unknown",
+    });
     throw error instanceof NonRetriableError
-      ? new NonRetriableError(code)
-      : new SourceImportError(code);
+      ? new NonRetriableError("INTERNAL_SERVER_ERROR", { cause: error })
+      : new SourceImportError("INTERNAL_SERVER_ERROR", { cause: error });
   }
 }
 
@@ -664,7 +692,7 @@ export function createSourceImportFunctions(
   runtime: WorkerRuntime,
 ) {
   const gateway = () =>
-    createModelGateway({
+    createWorkerModelGateway({
       bindings: {
         OLLAMA_BASE_URL: workerEnv.OLLAMA_BASE_URL,
         OPENROUTER_API_KEY: workerEnv.OPENROUTER_API_KEY,
@@ -678,7 +706,11 @@ export function createSourceImportFunctions(
     {
       id: "source-import-source",
       concurrency: [
-        { limit: SOURCE_CONCURRENCY },
+        {
+          limit: BULK_CONCURRENCY,
+          key: BULK_CONCURRENCY_KEY,
+          scope: "account",
+        },
         {
           limit: SOURCE_HOST_CONCURRENCY,
           key: "event.data.concurrencyKey",
@@ -690,185 +722,213 @@ export function createSourceImportFunctions(
       onFailure: async ({ event, step }) => {
         const input = sourceUnitSchema.parse(event.data.event.data);
         await step.run("settle-failed-source", () =>
-          coded(async () => {
-            await assertWorkspace(runtime, input.workspaceId);
-            const imported = await findSourceImportByOperationId(
-              runtime.db,
-              input.workspaceId,
-              input.operationId,
-            );
-            if (!imported) {
-              throw new NonRetriableError("NOT_FOUND");
-            }
-            await settleSourceImportSource(runtime.db, input.workspaceId, {
-              sourceImportId: imported.id,
+          coded(
+            {
+              operationId: input.operationId,
               sourceId: input.sourceId,
-              outcome: "failed_terminal",
-            });
-          }),
+              workspaceId: input.workspaceId,
+            },
+            async () => {
+              await assertWorkspace(runtime, input.workspaceId);
+              const imported = await findSourceImportByOperationId(
+                runtime.db,
+                input.workspaceId,
+                input.operationId,
+              );
+              if (!imported) {
+                throw new NonRetriableError("NOT_FOUND");
+              }
+              await settleSourceImportSource(runtime.db, input.workspaceId, {
+                sourceImportId: imported.id,
+                sourceId: input.sourceId,
+                outcome: "failed_terminal",
+              });
+            },
+          ),
         );
       },
     },
     async ({ attempt, event, step }) =>
-      coded(() =>
-        step.run("fetch-source", () =>
-          coded(async () => {
-            const { operationId, sourceId, workspaceId } = event.data;
-            await assertWorkspace(runtime, workspaceId);
-            const imported = await findSourceImportByOperationId(
-              runtime.db,
-              workspaceId,
-              operationId,
-            );
-            if (!imported) {
-              throw new NonRetriableError("NOT_FOUND");
-            }
-            const unit = await findSourceImportSourceUnit(
-              runtime.db,
-              workspaceId,
-              { sourceImportId: imported.id, sourceId },
-            );
-            if (!unit) {
-              throw new NonRetriableError("NOT_FOUND");
-            }
-            if (unit.outcome !== "pending") {
-              return { outcome: unit.outcome, sourceId };
-            }
-
-            const settle = async (
-              outcome: SourceFetchOutcome,
-              reason: SourceFetchReason | null,
-              counts?: {
-                admittedCount: number;
-                etag: string | null;
-                fetchedCount: number;
-                lastModified: string | null;
-                startedAt: Date;
+      coded(
+        {
+          operationId: event.data.operationId,
+          sourceId: event.data.sourceId,
+          workspaceId: event.data.workspaceId,
+        },
+        () =>
+          step.run("fetch-source", () =>
+            coded(
+              {
+                operationId: event.data.operationId,
+                sourceId: event.data.sourceId,
+                workspaceId: event.data.workspaceId,
               },
-            ) => {
-              await settleSourceImportSource(runtime.db, workspaceId, {
-                sourceImportId: imported.id,
-                sourceId,
-                outcome,
-                reason,
-                etag: counts?.etag ?? null,
-                lastModified: counts?.lastModified ?? null,
-                fetchedCount: counts?.fetchedCount ?? 0,
-                admittedCount: counts?.admittedCount ?? 0,
-                startedAt: counts?.startedAt ?? null,
-              });
-              workerLogger.info("worker.source-import.source-settled", {
-                admittedCount: counts?.admittedCount ?? 0,
-                fetchedCount: counts?.fetchedCount ?? 0,
-                host: event.data.host,
-                outcome,
-                sourceId,
-                sourceImportId: imported.id,
-              });
-              return { outcome, sourceId };
-            };
+              async () => {
+                const { operationId, sourceId, workspaceId } = event.data;
+                await assertWorkspace(runtime, workspaceId);
+                const imported = await findSourceImportByOperationId(
+                  runtime.db,
+                  workspaceId,
+                  operationId,
+                );
+                if (!imported) {
+                  throw new NonRetriableError("NOT_FOUND");
+                }
+                const unit = await findSourceImportSourceUnit(
+                  runtime.db,
+                  workspaceId,
+                  { sourceImportId: imported.id, sourceId },
+                );
+                if (!unit) {
+                  throw new NonRetriableError("NOT_FOUND");
+                }
+                if (unit.outcome !== "pending") {
+                  return { outcome: unit.outcome, sourceId };
+                }
 
-            const deadline = await readImportDeadline(
-              runtime.db,
-              workspaceId,
-              operationId,
-            );
-            if (Date.now() > deadline) {
-              return settle("timed_out", "deadline");
-            }
-            if (!unit.enabled || unit.deletedAt !== null) {
-              return settle("skipped", "disabled_at_run_time");
-            }
+                const settle = async (
+                  outcome: SourceFetchOutcome,
+                  reason: SourceFetchReason | null,
+                  counts?: {
+                    admittedCount: number;
+                    etag: string | null;
+                    fetchedCount: number;
+                    lastModified: string | null;
+                    startedAt: Date;
+                  },
+                ) => {
+                  await settleSourceImportSource(runtime.db, workspaceId, {
+                    sourceImportId: imported.id,
+                    sourceId,
+                    outcome,
+                    reason,
+                    etag: counts?.etag ?? null,
+                    lastModified: counts?.lastModified ?? null,
+                    fetchedCount: counts?.fetchedCount ?? 0,
+                    admittedCount: counts?.admittedCount ?? 0,
+                    startedAt: counts?.startedAt ?? null,
+                  });
+                  workerLogger.info("worker.source-import.source-settled", {
+                    admittedCount: counts?.admittedCount ?? 0,
+                    fetchedCount: counts?.fetchedCount ?? 0,
+                    host: event.data.host,
+                    outcome,
+                    sourceId,
+                    sourceImportId: imported.id,
+                  });
+                  return { outcome, sourceId };
+                };
 
-            const startedAt = new Date();
-            let fetched: Awaited<ReturnType<typeof fetchSource>>;
-            try {
-              fetched = await fetchSource({
-                contentLocale: unit.contentLocale,
-                endpoint: unit.endpoint,
-                etag: unit.etag,
-                lastModified: unit.lastModified,
-                maxItems: runtime.template.acquisition.maxItemsPerSource,
-                name: unit.name,
-                origin: unit.origin,
-                timeoutMs: SOURCE_FETCH_TIMEOUT_MS,
-              });
-            } catch (error) {
-              if (!(error instanceof SafeHttpError)) {
-                throw error;
-              }
-              const mapped = SOURCE_FETCH_FAILURES[error.reason];
-              if (!mapped.retryable || attempt >= SOURCE_CHILD_RETRIES) {
-                await settle(mapped.outcome, mapped.reason, {
-                  admittedCount: 0,
-                  etag: unit.etag,
-                  fetchedCount: 0,
-                  lastModified: unit.lastModified,
+                const deadline = await readImportDeadline(
+                  runtime.db,
+                  workspaceId,
+                  operationId,
+                );
+                if (Date.now() > deadline) {
+                  return settle("timed_out", "deadline");
+                }
+                if (!unit.enabled || unit.deletedAt !== null) {
+                  return settle("skipped", "disabled_at_run_time");
+                }
+
+                const startedAt = new Date();
+                let fetched: Awaited<ReturnType<typeof fetchSource>>;
+                try {
+                  fetched = await fetchSource({
+                    contentLocale: unit.contentLocale,
+                    endpoint: unit.endpoint,
+                    etag: unit.etag,
+                    lastModified: unit.lastModified,
+                    maxItems: runtime.template.acquisition.maxItemsPerSource,
+                    name: unit.name,
+                    origin: unit.origin,
+                    timeoutMs: SOURCE_FETCH_TIMEOUT_MS,
+                  });
+                } catch (error) {
+                  if (!(error instanceof SafeHttpError)) {
+                    throw error;
+                  }
+                  const mapped = SOURCE_FETCH_FAILURES[error.reason];
+                  if (!mapped.retryable || attempt >= SOURCE_CHILD_RETRIES) {
+                    await settle(mapped.outcome, mapped.reason, {
+                      admittedCount: 0,
+                      etag: unit.etag,
+                      fetchedCount: 0,
+                      lastModified: unit.lastModified,
+                      startedAt,
+                    });
+                  }
+                  if (!mapped.retryable) {
+                    return { outcome: mapped.outcome, sourceId };
+                  }
+                  throw error.reason === "retry_after"
+                    ? new RetryAfterError(
+                        "TRANSIENT_CONFLICT",
+                        error.retryAfterSeconds === null
+                          ? DEFAULT_RETRY_AFTER
+                          : `${error.retryAfterSeconds}s`,
+                      )
+                    : new SourceImportError("TRANSIENT_CONFLICT");
+                }
+
+                if (fetched.outcome === "not_modified") {
+                  if (unit.priorSourceImportId === null) {
+                    throw new Error(
+                      "not-modified source resolved no prior import",
+                    );
+                  }
+                  const reused = await reuseSourceImportItems(
+                    runtime.db,
+                    workspaceId,
+                    {
+                      sourceId,
+                      sourceImportId: imported.id,
+                      priorSourceImportId: unit.priorSourceImportId,
+                    },
+                  );
+                  return settle(fetched.outcome, fetched.reason, {
+                    admittedCount: reused.admittedCount,
+                    etag: fetched.etag ?? unit.etag,
+                    fetchedCount: 0,
+                    lastModified: fetched.lastModified ?? unit.lastModified,
+                    startedAt,
+                  });
+                }
+
+                const persisted = await persistSourceImportItems(
+                  runtime.db,
+                  workspaceId,
+                  {
+                    sourceImportId: imported.id,
+                    sourceId,
+                    origin: unit.origin,
+                    items: fetched.items,
+                  },
+                );
+
+                return settle(fetched.outcome, fetched.reason, {
+                  admittedCount: persisted.admittedCount,
+                  etag: fetched.etag ?? unit.etag,
+                  fetchedCount: fetched.items.length,
+                  lastModified: fetched.lastModified ?? unit.lastModified,
                   startedAt,
                 });
-              }
-              if (!mapped.retryable) {
-                return { outcome: mapped.outcome, sourceId };
-              }
-              throw error.reason === "retry_after"
-                ? new RetryAfterError(
-                    "TRANSIENT_CONFLICT",
-                    error.retryAfterSeconds === null
-                      ? DEFAULT_RETRY_AFTER
-                      : `${error.retryAfterSeconds}s`,
-                  )
-                : new SourceImportError("TRANSIENT_CONFLICT");
-            }
-
-            if (fetched.outcome === "not_modified") {
-              if (unit.priorSourceImportId === null) {
-                throw new Error("not-modified source resolved no prior import");
-              }
-              const reused = await reuseSourceImportItems(
-                runtime.db,
-                workspaceId,
-                {
-                  sourceId,
-                  sourceImportId: imported.id,
-                  priorSourceImportId: unit.priorSourceImportId,
-                },
-              );
-              return settle(fetched.outcome, fetched.reason, {
-                admittedCount: reused.admittedCount,
-                etag: fetched.etag ?? unit.etag,
-                fetchedCount: 0,
-                lastModified: fetched.lastModified ?? unit.lastModified,
-                startedAt,
-              });
-            }
-
-            const persisted = await persistSourceImportItems(
-              runtime.db,
-              workspaceId,
-              {
-                sourceImportId: imported.id,
-                sourceId,
-                origin: unit.origin,
-                items: fetched.items,
               },
-            );
-
-            return settle(fetched.outcome, fetched.reason, {
-              admittedCount: persisted.admittedCount,
-              etag: fetched.etag ?? unit.etag,
-              fetchedCount: fetched.items.length,
-              lastModified: fetched.lastModified ?? unit.lastModified,
-              startedAt,
-            });
-          }),
-        ),
+            ),
+          ),
       ),
   );
 
   const enrichFunction = client.createFunction(
     {
       id: "source-import-enrich",
-      concurrency: [{ limit: ENRICH_CONCURRENCY }],
+      concurrency: [
+        {
+          limit: BULK_CONCURRENCY,
+          key: BULK_CONCURRENCY_KEY,
+          scope: "account",
+        },
+      ],
       retries: ENRICH_CHILD_RETRIES,
       timeouts: { finish: ENRICH_CHILD_FINISH_TIMEOUT },
       triggers: [
@@ -878,37 +938,44 @@ export function createSourceImportFunctions(
       onFailure: async ({ event, step }) => {
         const input = enrichUnitSchema.parse(event.data.event.data);
         const reconciled = await step.run("settle-failed-enrichment", () =>
-          coded(async () => {
-            await assertWorkspace(runtime, input.workspaceId);
-            const imported = await findSourceImportByOperationId(
-              runtime.db,
-              input.workspaceId,
-              input.operationId,
-            );
-            if (!imported) {
-              throw new NonRetriableError("NOT_FOUND");
-            }
-            await settleEnrichmentAttemptAndUnit(
-              runtime.db,
-              input.workspaceId,
-              {
-                attemptId: input.operationAttemptId,
-                enrichmentId: null,
-                failureCode: "INTERNAL_SERVER_ERROR",
-                outcome: "failed",
-                reason: null,
-                sourceImportId: imported.id,
-                sourceItemRevisionId: input.sourceItemRevisionId,
-              },
-            );
-            const completion = await settleCompletedSourceImport(
-              runtime,
-              input.workspaceId,
-              input.operationId,
-              imported.id,
-            );
-            return { completion, sourceImportId: imported.id };
-          }),
+          coded(
+            {
+              attemptId: input.operationAttemptId,
+              operationId: input.operationId,
+              workspaceId: input.workspaceId,
+            },
+            async () => {
+              await assertWorkspace(runtime, input.workspaceId);
+              const imported = await findSourceImportByOperationId(
+                runtime.db,
+                input.workspaceId,
+                input.operationId,
+              );
+              if (!imported) {
+                throw new NonRetriableError("NOT_FOUND");
+              }
+              await settleEnrichmentAttemptAndUnit(
+                runtime.db,
+                input.workspaceId,
+                {
+                  attemptId: input.operationAttemptId,
+                  enrichmentId: null,
+                  failureCode: "INTERNAL_SERVER_ERROR",
+                  outcome: "failed",
+                  reason: null,
+                  sourceImportId: imported.id,
+                  sourceItemRevisionId: input.sourceItemRevisionId,
+                },
+              );
+              const completion = await settleCompletedSourceImport(
+                runtime,
+                input.workspaceId,
+                input.operationId,
+                imported.id,
+              );
+              return { completion, sourceImportId: imported.id };
+            },
+          ),
         );
         if (reconciled.completion.result) {
           await publishOperationStatus(
@@ -930,376 +997,419 @@ export function createSourceImportFunctions(
       },
     },
     async ({ event, step }) =>
-      coded(async () => {
-        const {
-          operationAttemptId,
-          operationId,
-          sourceItemRevisionId,
-          workspaceId,
-        } = event.data;
-        const allocated = await step.run("allocate-attempt", () =>
-          coded(async () => {
-            await assertWorkspace(runtime, workspaceId);
-            const imported = await findSourceImportByOperationId(
-              runtime.db,
-              workspaceId,
-              operationId,
-            );
-            if (!imported) {
-              throw new NonRetriableError("NOT_FOUND");
-            }
-            const attempt = await allocateOperationAttemptWithId(
-              runtime.db,
-              workspaceId,
-              operationId,
-              operationAttemptId,
-            );
-            if (!attempt) {
-              throw new NonRetriableError("NOT_FOUND");
-            }
-            return { attemptId: attempt.id, sourceImportId: imported.id };
-          }),
-        );
-
-        const result = await step.run("enrich-unit", () =>
-          coded(async () => {
-            await assertWorkspace(runtime, workspaceId);
-            const { attemptId, sourceImportId } = allocated;
-
-            const settle = async (
-              outcome: EnrichmentOutcome,
-              reason: EnrichmentReason | null,
-              enrichmentId: string | null,
-              adapter?: string,
-              failureCode?: ErrorCode,
-            ) => {
-              await settleEnrichmentAttemptAndUnit(runtime.db, workspaceId, {
-                attemptId,
-                enrichmentId,
-                failureCode,
-                outcome,
-                reason,
-                sourceImportId,
-                sourceItemRevisionId,
-              });
-              workerLogger.info("worker.source-import.enrich-settled", {
-                adapter,
-                outcome,
-                sourceImportId,
-              });
-              return { outcome, sourceItemRevisionId };
-            };
-
-            const completed = await findSourceItemEnrichmentByAttempt(
-              runtime.db,
-              workspaceId,
-              attemptId,
-            );
-            if (completed) {
-              return settle("succeeded", null, completed.id);
-            }
-
-            const unit = await findEnrichmentUnit(runtime.db, workspaceId, {
-              sourceImportId,
-              sourceItemRevisionId,
-            });
-            if (!unit) {
-              throw new NonRetriableError("NOT_FOUND");
-            }
-            if (unit.enrichmentOutcome !== "pending") {
-              return settle(unit.enrichmentOutcome ?? "skipped", null, null);
-            }
-
-            const deadline = await readImportDeadline(
-              runtime.db,
-              workspaceId,
-              operationId,
-            );
-            if (Date.now() > deadline) {
-              return settle("skipped", "deadline", null);
-            }
-
-            const task = runtime.template.models?.tasks["enrichment-brief"];
-            if (!task) {
-              throw new NonRetriableError("TEMPLATE_DRIFT");
-            }
-            const hasFallback = task.fallback !== undefined;
-            const slots = await findAttemptUsageSlots(
-              runtime.db,
-              workspaceId,
-              attemptId,
-            );
-            const fallbackStatus = usageStatusOf(slots, "fallback");
-            if (fallbackStatus !== undefined) {
-              return settle(
-                enrichmentOutcomeFromUsage(fallbackStatus),
-                null,
-                null,
-              );
-            }
-            const retryStatus = usageStatusOf(slots, "retry-1");
-            if (
-              retryStatus === "pending" ||
-              retryStatus === "unknown" ||
-              retryStatus === "succeeded"
-            ) {
-              return settle(
-                enrichmentOutcomeFromUsage(retryStatus),
-                null,
-                null,
-              );
-            }
-            const primaryStatus = usageStatusOf(slots, "primary");
-            if (
-              primaryStatus === "pending" ||
-              primaryStatus === "unknown" ||
-              primaryStatus === "succeeded"
-            ) {
-              return settle(
-                enrichmentOutcomeFromUsage(primaryStatus),
-                null,
-                null,
-              );
-            }
-            if (
-              !hasFallback &&
-              (retryStatus === "failed" ||
-                retryStatus === "cancelled" ||
-                primaryStatus === "cancelled")
-            ) {
-              return settle("failed", null, null);
-            }
-
-            const primaryPolicyVersion = briefPolicyVersion(runtime, "primary");
-            const prior = await findRevisionEnrichment(
-              runtime.db,
-              workspaceId,
-              {
-                sourceItemRevisionId,
-                extractPolicy: EXTRACT_POLICY_VERSION,
-              },
-            );
-            const freshUntil =
-              (prior?.createdAt.getTime() ?? 0) +
-              runtime.template.enrichment.freshnessHours * 3_600_000;
-            if (
-              prior &&
-              prior.policyVersion === primaryPolicyVersion &&
-              Date.now() < freshUntil
-            ) {
-              return settle("succeeded", null, prior.id, prior.adapter);
-            }
-
-            let page =
-              prior && prior.policyVersion !== primaryPolicyVersion
-                ? {
-                    adapter: prior.adapter,
-                    fallbackReason: prior.fallbackReason,
-                    extract: prior.extract,
-                    pageContentHash: prior.pageContentHash,
-                  }
-                : null;
-            if (!page) {
-              const fetched = await fetchArticle(
-                {
-                  endpointOrigin: new URL(unit.endpoint).origin,
-                  feedContent: unit.summary,
-                  mode: unit.articleFetchMode ?? "direct",
-                  timeoutMs: ARTICLE_FETCH_TIMEOUT_MS,
-                  url: unit.canonicalUrl,
-                },
-                { FIRECRAWL_API_KEY: workerEnv.FIRECRAWL_API_KEY },
-              );
-              if (fetched.adapter === null) {
-                return settle(
-                  fetched.reason === "off_origin" ||
-                    fetched.reason === "deadline"
-                    ? "skipped"
-                    : "failed",
-                  fetched.reason,
-                  null,
-                );
-              }
-              const extract = fetched.text.slice(0, EXTRACT_MAX_CHARS);
-              page = {
-                adapter: fetched.adapter,
-                fallbackReason: fetched.fallbackReason,
-                extract,
-                pageContentHash: createHash("sha256")
-                  .update(extract)
-                  .digest("hex"),
-              };
-            }
-
-            const article = page;
-            const succeeded = {
-              outcome: "succeeded" as const,
-              sourceItemRevisionId,
-            };
-
-            const failBrief = (error: ModelGatewayInvocationError) =>
-              settle(
-                error.ambiguous ? "unknown" : "failed",
-                error.code === "STRUCTURED_OUTPUT_INVALID"
-                  ? "brief_invalid"
-                  : null,
-                null,
-                article.adapter,
-                error.code,
-              );
-
-            const invokeBrief = async (invocationKey: InvocationKey) => {
-              const policyVersion = briefPolicyVersion(runtime, invocationKey);
-              const reusable = await findSourceItemEnrichment(
-                runtime.db,
-                workspaceId,
-                {
-                  sourceItemRevisionId,
-                  policyVersion,
-                  pageContentHash: article.pageContentHash,
-                },
-              );
-              if (reusable) {
-                await settle("succeeded", null, reusable.id, reusable.adapter);
-                return null;
-              }
-              try {
-                await gateway().invokeStructured({
-                  deadlineMs: BRIEF_DEADLINE_MS,
-                  invocationKey,
-                  maxOutputTokens: BRIEF_MAX_OUTPUT_TOKENS,
-                  operationAttemptId: attemptId,
+      coded(
+        {
+          attemptId: event.data.operationAttemptId,
+          operationId: event.data.operationId,
+          workspaceId: event.data.workspaceId,
+        },
+        async () => {
+          const {
+            operationAttemptId,
+            operationId,
+            sourceItemRevisionId,
+            workspaceId,
+          } = event.data;
+          const allocated = await step.run("allocate-attempt", () =>
+            coded(
+              { attemptId: operationAttemptId, operationId, workspaceId },
+              async () => {
+                await assertWorkspace(runtime, workspaceId);
+                const imported = await findSourceImportByOperationId(
+                  runtime.db,
+                  workspaceId,
                   operationId,
-                  outputName: "source_item_brief",
-                  persistResult: async (tx, output) => {
-                    const enrichmentId = await insertSourceItemEnrichment(
-                      tx,
-                      workspaceId,
-                      {
-                        sourceItemRevisionId,
-                        operationAttemptId: attemptId,
-                        policyVersion,
-                        adapter: article.adapter,
-                        fallbackReason: article.fallbackReason,
-                        pageContentHash: article.pageContentHash,
-                        extract: article.extract,
-                        brief: output,
-                        providerRequestId: null,
-                      },
-                    );
-                    await settleOperationAttempt(tx, workspaceId, {
-                      id: attemptId,
-                      outcome: "succeeded",
-                    });
-                    await settleSourceImportUnit(tx, workspaceId, {
+                );
+                if (!imported) {
+                  throw new NonRetriableError("NOT_FOUND");
+                }
+                const attempt = await allocateOperationAttemptWithId(
+                  runtime.db,
+                  workspaceId,
+                  operationId,
+                  operationAttemptId,
+                );
+                if (!attempt) {
+                  throw new NonRetriableError("NOT_FOUND");
+                }
+                return { attemptId: attempt.id, sourceImportId: imported.id };
+              },
+            ),
+          );
+
+          const result = await step.run("enrich-unit", () =>
+            coded(
+              {
+                attemptId: allocated.attemptId,
+                operationId,
+                sourceImportId: allocated.sourceImportId,
+                workspaceId,
+              },
+              async () => {
+                await assertWorkspace(runtime, workspaceId);
+                const { attemptId, sourceImportId } = allocated;
+
+                const settle = async (
+                  outcome: EnrichmentOutcome,
+                  reason: EnrichmentReason | null,
+                  enrichmentId: string | null,
+                  adapter?: string,
+                  failureCode?: ErrorCode,
+                ) => {
+                  await settleEnrichmentAttemptAndUnit(
+                    runtime.db,
+                    workspaceId,
+                    {
+                      attemptId,
+                      enrichmentId,
+                      failureCode,
+                      outcome,
+                      reason,
                       sourceImportId,
                       sourceItemRevisionId,
-                      outcome: "succeeded",
-                      enrichmentId,
-                    });
-                  },
-                  prompt: briefPrompt(unit.title, article.extract),
-                  schema: briefSchema,
-                  taskKey: "enrichment-brief",
+                    },
+                  );
+                  workerLogger.info("worker.source-import.enrich-settled", {
+                    adapter,
+                    outcome,
+                    sourceImportId,
+                  });
+                  return { outcome, sourceItemRevisionId };
+                };
+
+                const completed = await findSourceItemEnrichmentByAttempt(
+                  runtime.db,
                   workspaceId,
-                });
-              } catch (error) {
-                if (!(error instanceof ModelGatewayInvocationError)) {
-                  throw error;
+                  attemptId,
+                );
+                if (completed) {
+                  return settle("succeeded", null, completed.id);
                 }
-                return error;
-              }
-              workerLogger.info("worker.source-import.enrich-settled", {
-                adapter: article.adapter,
-                outcome: "succeeded",
-                sourceImportId,
-              });
-              return null;
-            };
 
-            const openFallback = async (
-              prior?: ModelGatewayInvocationError,
-            ) => {
-              if (!hasFallback) {
-                return prior
-                  ? failBrief(prior)
-                  : settle("failed", null, null, article.adapter);
-              }
-              const fallbackError = await invokeBrief("fallback");
-              return fallbackError ? failBrief(fallbackError) : succeeded;
-            };
+                const unit = await findEnrichmentUnit(runtime.db, workspaceId, {
+                  sourceImportId,
+                  sourceItemRevisionId,
+                });
+                if (!unit) {
+                  throw new NonRetriableError("NOT_FOUND");
+                }
+                if (unit.enrichmentOutcome !== "pending") {
+                  return settle(
+                    unit.enrichmentOutcome ?? "skipped",
+                    null,
+                    null,
+                  );
+                }
 
-            const recover = async (
-              error: ModelGatewayInvocationError,
-              retrySlotUsed: boolean,
-            ) => {
-              const decision = decideBriefRecovery(error, retrySlotUsed);
-              if (decision === "unknown") {
-                return failBrief(error);
-              }
-              if (decision === "fallback") {
-                return openFallback(error);
-              }
+                const deadline = await readImportDeadline(
+                  runtime.db,
+                  workspaceId,
+                  operationId,
+                );
+                if (Date.now() > deadline) {
+                  return settle("skipped", "deadline", null);
+                }
 
-              const retried = await invokeBrief("retry-1");
-              if (!retried) {
-                return succeeded;
-              }
-              return recover(retried, true);
-            };
+                const task = runtime.template.models?.tasks["enrichment-brief"];
+                if (!task) {
+                  throw new NonRetriableError("TEMPLATE_DRIFT");
+                }
+                const hasFallback = task.fallback !== undefined;
+                const slots = await findAttemptUsageSlots(
+                  runtime.db,
+                  workspaceId,
+                  attemptId,
+                );
+                const fallbackStatus = usageStatusOf(slots, "fallback");
+                if (fallbackStatus !== undefined) {
+                  return settle(
+                    enrichmentOutcomeFromUsage(fallbackStatus),
+                    null,
+                    null,
+                  );
+                }
+                const retryStatus = usageStatusOf(slots, "retry-1");
+                if (
+                  retryStatus === "pending" ||
+                  retryStatus === "unknown" ||
+                  retryStatus === "succeeded"
+                ) {
+                  return settle(
+                    enrichmentOutcomeFromUsage(retryStatus),
+                    null,
+                    null,
+                  );
+                }
+                const primaryStatus = usageStatusOf(slots, "primary");
+                if (
+                  primaryStatus === "pending" ||
+                  primaryStatus === "unknown" ||
+                  primaryStatus === "succeeded"
+                ) {
+                  return settle(
+                    enrichmentOutcomeFromUsage(primaryStatus),
+                    null,
+                    null,
+                  );
+                }
+                if (
+                  !hasFallback &&
+                  (retryStatus === "failed" ||
+                    retryStatus === "cancelled" ||
+                    primaryStatus === "cancelled")
+                ) {
+                  return settle("failed", null, null);
+                }
 
-            const nextInvocation = nextBriefInvocationAfterRecordedFailure({
-              primary: primaryStatus,
-              retry: retryStatus,
-            });
-            if (nextInvocation === "fallback") {
-              return openFallback();
-            }
-            if (nextInvocation === "retry-1") {
-              const repaired = await invokeBrief("retry-1");
-              return repaired ? recover(repaired, true) : succeeded;
-            }
+                const primaryPolicyVersion = briefPolicyVersion(
+                  runtime,
+                  "primary",
+                );
+                const prior = await findRevisionEnrichment(
+                  runtime.db,
+                  workspaceId,
+                  {
+                    sourceItemRevisionId,
+                    extractPolicy: EXTRACT_POLICY_VERSION,
+                  },
+                );
+                const freshUntil =
+                  (prior?.createdAt.getTime() ?? 0) +
+                  runtime.template.enrichment.freshnessHours * 3_600_000;
+                if (
+                  prior &&
+                  prior.policyVersion === primaryPolicyVersion &&
+                  Date.now() < freshUntil
+                ) {
+                  return settle("succeeded", null, prior.id, prior.adapter);
+                }
 
-            if (primaryStatus === undefined) {
-              const error = await invokeBrief("primary");
-              if (!error) {
-                return succeeded;
-              }
-              return recover(error, false);
-            }
+                let page =
+                  prior && prior.policyVersion !== primaryPolicyVersion
+                    ? {
+                        adapter: prior.adapter,
+                        fallbackReason: prior.fallbackReason,
+                        extract: prior.extract,
+                        pageContentHash: prior.pageContentHash,
+                      }
+                    : null;
+                if (!page) {
+                  const fetched = await fetchArticle(
+                    {
+                      endpointOrigin: new URL(unit.endpoint).origin,
+                      feedContent: unit.summary,
+                      mode: unit.articleFetchMode ?? "direct",
+                      timeoutMs: ARTICLE_FETCH_TIMEOUT_MS,
+                      url: unit.canonicalUrl,
+                    },
+                    { FIRECRAWL_API_KEY: workerEnv.FIRECRAWL_API_KEY },
+                  );
+                  if (fetched.adapter === null) {
+                    return settle(
+                      fetched.reason === "off_origin" ||
+                        fetched.reason === "deadline"
+                        ? "skipped"
+                        : "failed",
+                      fetched.reason,
+                      null,
+                    );
+                  }
+                  const extract = fetched.text.slice(0, EXTRACT_MAX_CHARS);
+                  page = {
+                    adapter: fetched.adapter,
+                    fallbackReason: fetched.fallbackReason,
+                    extract,
+                    pageContentHash: createHash("sha256")
+                      .update(extract)
+                      .digest("hex"),
+                  };
+                }
 
-            return openFallback();
-          }),
-        );
-        const completion = await step.run("settle-completed-import", () =>
-          coded(() =>
-            settleCompletedSourceImport(
-              runtime,
-              workspaceId,
-              operationId,
-              allocated.sourceImportId,
+                const article = page;
+                const succeeded = {
+                  outcome: "succeeded" as const,
+                  sourceItemRevisionId,
+                };
+
+                const failBrief = (error: ModelGatewayInvocationError) =>
+                  settle(
+                    error.ambiguous ? "unknown" : "failed",
+                    error.code === "STRUCTURED_OUTPUT_INVALID"
+                      ? "brief_invalid"
+                      : null,
+                    null,
+                    article.adapter,
+                    error.code,
+                  );
+
+                const invokeBrief = async (invocationKey: InvocationKey) => {
+                  const policyVersion = briefPolicyVersion(
+                    runtime,
+                    invocationKey,
+                  );
+                  const reusable = await findSourceItemEnrichment(
+                    runtime.db,
+                    workspaceId,
+                    {
+                      sourceItemRevisionId,
+                      policyVersion,
+                      pageContentHash: article.pageContentHash,
+                    },
+                  );
+                  if (reusable) {
+                    await settle(
+                      "succeeded",
+                      null,
+                      reusable.id,
+                      reusable.adapter,
+                    );
+                    return null;
+                  }
+                  try {
+                    await gateway().invokeStructured({
+                      deadlineMs: BRIEF_DEADLINE_MS,
+                      invocationKey,
+                      maxOutputTokens: BRIEF_MAX_OUTPUT_TOKENS,
+                      operationAttemptId: attemptId,
+                      operationId,
+                      outputName: "source_item_brief",
+                      persistResult: async (tx, output) => {
+                        const enrichmentId = await insertSourceItemEnrichment(
+                          tx,
+                          workspaceId,
+                          {
+                            sourceItemRevisionId,
+                            operationAttemptId: attemptId,
+                            policyVersion,
+                            adapter: article.adapter,
+                            fallbackReason: article.fallbackReason,
+                            pageContentHash: article.pageContentHash,
+                            extract: article.extract,
+                            brief: output,
+                            providerRequestId: null,
+                          },
+                        );
+                        await settleOperationAttempt(tx, workspaceId, {
+                          id: attemptId,
+                          outcome: "succeeded",
+                        });
+                        await settleSourceImportUnit(tx, workspaceId, {
+                          sourceImportId,
+                          sourceItemRevisionId,
+                          outcome: "succeeded",
+                          enrichmentId,
+                        });
+                      },
+                      prompt: briefPrompt(unit.title, article.extract),
+                      schema: briefSchema,
+                      taskKey: "enrichment-brief",
+                      workspaceId,
+                    });
+                  } catch (error) {
+                    if (!(error instanceof ModelGatewayInvocationError)) {
+                      throw error;
+                    }
+                    return error;
+                  }
+                  workerLogger.info("worker.source-import.enrich-settled", {
+                    adapter: article.adapter,
+                    outcome: "succeeded",
+                    sourceImportId,
+                  });
+                  return null;
+                };
+
+                const openFallback = async (
+                  prior?: ModelGatewayInvocationError,
+                ) => {
+                  if (!hasFallback) {
+                    return prior
+                      ? failBrief(prior)
+                      : settle("failed", null, null, article.adapter);
+                  }
+                  const fallbackError = await invokeBrief("fallback");
+                  return fallbackError ? failBrief(fallbackError) : succeeded;
+                };
+
+                const recover = async (
+                  error: ModelGatewayInvocationError,
+                  retrySlotUsed: boolean,
+                ) => {
+                  const decision = decideBriefRecovery(error, retrySlotUsed);
+                  if (decision === "unknown") {
+                    return failBrief(error);
+                  }
+                  if (decision === "fallback") {
+                    return openFallback(error);
+                  }
+
+                  const retried = await invokeBrief("retry-1");
+                  if (!retried) {
+                    return succeeded;
+                  }
+                  return recover(retried, true);
+                };
+
+                const nextInvocation = nextBriefInvocationAfterRecordedFailure({
+                  primary: primaryStatus,
+                  retry: retryStatus,
+                });
+                if (nextInvocation === "fallback") {
+                  return openFallback();
+                }
+                if (nextInvocation === "retry-1") {
+                  const repaired = await invokeBrief("retry-1");
+                  return repaired ? recover(repaired, true) : succeeded;
+                }
+
+                if (primaryStatus === undefined) {
+                  const error = await invokeBrief("primary");
+                  if (!error) {
+                    return succeeded;
+                  }
+                  return recover(error, false);
+                }
+
+                return openFallback();
+              },
             ),
-          ),
-        );
-        if (completion.result) {
-          await publishOperationStatus(
+          );
+          const completion = await step.run("settle-completed-import", () =>
+            coded(
+              {
+                operationId,
+                sourceImportId: allocated.sourceImportId,
+                workspaceId,
+              },
+              () =>
+                settleCompletedSourceImport(
+                  runtime,
+                  workspaceId,
+                  operationId,
+                  allocated.sourceImportId,
+                ),
+            ),
+          );
+          if (completion.result) {
+            await publishOperationStatus(
+              step,
+              workspaceId,
+              {
+                lifecycle: completion.result.lifecycle,
+                operationId,
+                operationVersion: completion.result.version,
+              },
+              "worker.source-import.realtime-unavailable",
+            );
+          }
+          await notifySourcesAndUsageChanged(
             step,
             workspaceId,
-            {
-              lifecycle: completion.result.lifecycle,
-              operationId,
-              operationVersion: completion.result.version,
-            },
-            "worker.source-import.realtime-unavailable",
+            completion.status === "settled" ? "settled" : "enriching",
           );
-        }
-        await notifySourcesAndUsageChanged(
-          step,
-          workspaceId,
-          completion.status === "settled" ? "settled" : "enriching",
-        );
-        return result;
-      }),
+          return result;
+        },
+      ),
   );
 
   const parentFunction = client.createFunction(
@@ -1312,7 +1422,7 @@ export function createSourceImportFunctions(
         const failureCode = failureCodeOf(event.data.error.message);
         try {
           await step.run("settle-failed-import", () =>
-            coded(async () => {
+            coded({ operationId, workspaceId }, async () => {
               await assertWorkspace(runtime, workspaceId);
               await settleOperationAttempt(runtime.db, workspaceId, {
                 failureCode,
@@ -1339,232 +1449,284 @@ export function createSourceImportFunctions(
       },
     },
     async ({ event, step }) =>
-      coded(async () => {
-        const { operationId, workspaceId } = event.data;
-        const claim = await step.run("claim-operation", () =>
-          coded(async () => {
-            await assertWorkspace(runtime, workspaceId);
-            return claimSourceImport(runtime.db, workspaceId, operationId);
-          }),
-        );
-        if (claim.status === "settled") {
-          await notifySourcesAndUsageChanged(step, workspaceId, "replayed");
-          return { operationId, replayed: true };
-        }
-        if (claim.templateFingerprint !== runtime.identity.fingerprint) {
-          throw new NonRetriableError("TEMPLATE_DRIFT");
-        }
-
-        await notifySourcesChanged(step, workspaceId, "running");
-
-        await publishOperationStatus(
-          step,
-          workspaceId,
-          {
-            lifecycle: "running",
-            operationId,
-            operationVersion: claim.operationVersion,
-          },
-          "worker.source-import.realtime-unavailable",
-        );
-
-        const sources = await step.run("load-import-sources", () =>
-          coded(async () => {
-            await assertWorkspace(runtime, workspaceId);
-            const pending = await listSourceImportSources(
-              runtime.db,
-              workspaceId,
-              claim.sourceImportId,
-            );
-            return pending.map((entry) => ({
-              concurrencyKey: sourceFetchConcurrencyKey({
-                host: hostOf(entry),
-                sourceId: entry.sourceId,
-              }),
-              host: hostOf(entry),
-              key: entry.key,
-              sourceId: entry.sourceId,
-            }));
-          }),
-        );
-
-        await Promise.all(
-          sources.map((entry) =>
-            step
-              .invoke(`fetch-source-${entry.key}`, {
-                function: sourceFunction,
-                data: {
-                  host: entry.host,
-                  concurrencyKey: entry.concurrencyKey,
-                  operationId,
-                  sourceId: entry.sourceId,
-                  workspaceId,
-                },
-                timeout: SOURCE_CHILD_INVOKE_TIMEOUT,
-              })
-              .catch(() =>
-                step.run(`reconcile-source-${entry.key}`, () =>
-                  coded(async () => {
-                    const imported = await findSourceImportByOperationId(
-                      runtime.db,
-                      workspaceId,
-                      operationId,
-                    );
-                    if (!imported) {
-                      throw new NonRetriableError("NOT_FOUND");
-                    }
-                    const persisted = await findSourceImportSourceUnit(
-                      runtime.db,
-                      workspaceId,
-                      {
-                        sourceImportId: imported.id,
-                        sourceId: entry.sourceId,
-                      },
-                    );
-                    if (!persisted || persisted.outcome === "pending") {
-                      throw new SourceImportError("TRANSIENT_CONFLICT");
-                    }
-                    return { outcome: persisted.outcome };
-                  }),
-                ),
-              ),
-          ),
-        );
-
-        const embeddingAttemptId =
-          claim.orderingMode === "keywords" &&
-          claim.topics.length > 0 &&
-          sources.some((entry) => entry.host === TELEGRAM_HOST)
-            ? await step.run("allocate-embedding-attempt", () =>
-                coded(async () => {
-                  await assertWorkspace(runtime, workspaceId);
-                  const attempt = await allocateOperationAttemptWithId(
-                    runtime.db,
-                    workspaceId,
-                    operationId,
-                    sourceImportAttemptId(operationId, "embedding"),
-                  );
-                  if (!attempt) {
-                    throw new NonRetriableError("NOT_FOUND");
-                  }
-                  await recordSourceImportEmbedding(runtime.db, workspaceId, {
-                    sourceImportId: claim.sourceImportId,
-                    embeddingAttemptId: attempt.id,
-                  });
-                  return attempt.id;
-                }),
-              )
-            : null;
-
-        const ordering = await step.run("admit-and-order", () =>
-          coded(async () => {
-            await assertWorkspace(runtime, workspaceId);
-            return admitAndOrder(runtime, workspaceId, {
-              claimedAt: Date.parse(claim.claimedAt),
-              embeddingAttemptId,
-              enrichmentEnabled: claim.enrichmentEnabled,
-              gateway: gateway(),
-              operationId,
-              orderingMode: claim.orderingMode,
-              sourceImportId: claim.sourceImportId,
-              topics: claim.topics,
-              windowHours: claim.windowHours,
-            });
-          }),
-        );
-
-        const enrichmentEvents = ordering.plannedRevisionIds.map((revisionId) =>
-          durableEvents.sourceImportEnrichmentRequested.create(
-            {
-              operationAttemptId: sourceImportAttemptId(
-                operationId,
-                revisionId,
-              ),
-              operationId,
-              schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
-              sourceItemRevisionId: revisionId,
-              workspaceId,
-            },
-            { id: `source-import-enrichment:${operationId}:${revisionId}` },
-          ),
-        );
-        await Promise.all(enrichmentEvents.map((event) => event.validate()));
-        const readyEvent = durableEvents.sourceImportReady.create(
-          {
-            operationId,
-            schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
-            workspaceId,
-          },
-          { id: `source-import-ready:${operationId}` },
-        );
-        await readyEvent.validate();
-
-        await step.run("commit-enriching-stage", () =>
-          coded(() =>
-            settleSourceImport(runtime.db, workspaceId, {
-              sourceImportId: claim.sourceImportId,
-              stage: "enriching",
+      coded(
+        {
+          operationId: event.data.operationId,
+          workspaceId: event.data.workspaceId,
+        },
+        async () => {
+          const { operationId, workspaceId } = event.data;
+          const claim = await step.run("claim-operation", () =>
+            coded({ operationId, workspaceId }, async () => {
+              await assertWorkspace(runtime, workspaceId);
+              return claimSourceImport(runtime.db, workspaceId, operationId);
             }),
-          ),
-        );
-        await step.sendEvent("publish-source-import-ready", readyEvent);
-        if (enrichmentEvents.length > 0) {
-          await step.sendEvent(
-            "dispatch-source-import-enrichment",
-            enrichmentEvents,
           );
-        }
-        const readyNotification = await notifySourcesAndUsageChanged(
-          step,
-          workspaceId,
-          "enriching",
-        );
+          if (claim.status === "settled") {
+            await notifySourcesAndUsageChanged(step, workspaceId, "replayed");
+            return { operationId, replayed: true };
+          }
+          if (claim.templateFingerprint !== runtime.identity.fingerprint) {
+            throw new NonRetriableError("TEMPLATE_DRIFT");
+          }
 
-        const completion = await step.run("settle-completed-import", () =>
-          coded(() =>
-            settleCompletedSourceImport(
-              runtime,
-              workspaceId,
-              operationId,
-              claim.sourceImportId,
-            ),
-          ),
-        );
+          await notifySourcesChanged(step, workspaceId, "running");
 
-        if (completion.result) {
-          workerLogger.info("worker.source-import.settled", {
-            operationId,
-            outcome: completion.result.lifecycle,
-            sourceImportId: claim.sourceImportId,
-          });
           await publishOperationStatus(
             step,
             workspaceId,
             {
-              lifecycle: completion.result.lifecycle,
+              lifecycle: "running",
               operationId,
-              operationVersion: completion.result.version,
+              operationVersion: claim.operationVersion,
             },
             "worker.source-import.realtime-unavailable",
           );
-        }
-        const notification =
-          completion.status === "settled"
-            ? await notifySourcesAndUsageChanged(step, workspaceId, "settled")
-            : readyNotification;
 
-        return {
-          cacheInvalidation: notification.cacheInvalidation,
-          lifecycle:
-            completion.result?.lifecycle ??
-            (completion.status === "settled" ? "succeeded" : "running"),
-          operationId,
-          orderingDegradedCode: ordering.orderingDegradedCode,
-          orderedCount: ordering.orderedCount,
-          unitsPlanned: ordering.plannedRevisionIds.length,
-          usageRealtimePublished: notification.usageRealtimePublished,
-        };
-      }),
+          const sources = await step.run("load-import-sources", () =>
+            coded(
+              {
+                operationId,
+                sourceImportId: claim.sourceImportId,
+                workspaceId,
+              },
+              async () => {
+                await assertWorkspace(runtime, workspaceId);
+                const pending = await listSourceImportSources(
+                  runtime.db,
+                  workspaceId,
+                  claim.sourceImportId,
+                );
+                return pending.map((entry) => ({
+                  concurrencyKey: sourceFetchConcurrencyKey({
+                    host: hostOf(entry),
+                    sourceId: entry.sourceId,
+                  }),
+                  host: hostOf(entry),
+                  key: entry.key,
+                  sourceId: entry.sourceId,
+                }));
+              },
+            ),
+          );
+
+          await Promise.all(
+            sources.map((entry) =>
+              step
+                .invoke(`fetch-source-${entry.key}`, {
+                  function: sourceFunction,
+                  data: {
+                    host: entry.host,
+                    concurrencyKey: entry.concurrencyKey,
+                    operationId,
+                    sourceId: entry.sourceId,
+                    workspaceId,
+                  },
+                  timeout: SOURCE_CHILD_INVOKE_TIMEOUT,
+                })
+                .catch(() =>
+                  step.run(`reconcile-source-${entry.key}`, () =>
+                    coded(
+                      {
+                        operationId,
+                        sourceId: entry.sourceId,
+                        sourceImportId: claim.sourceImportId,
+                        workspaceId,
+                      },
+                      async () => {
+                        const imported = await findSourceImportByOperationId(
+                          runtime.db,
+                          workspaceId,
+                          operationId,
+                        );
+                        if (!imported) {
+                          throw new NonRetriableError("NOT_FOUND");
+                        }
+                        const persisted = await findSourceImportSourceUnit(
+                          runtime.db,
+                          workspaceId,
+                          {
+                            sourceImportId: imported.id,
+                            sourceId: entry.sourceId,
+                          },
+                        );
+                        if (!persisted || persisted.outcome === "pending") {
+                          throw new SourceImportError("TRANSIENT_CONFLICT");
+                        }
+                        return { outcome: persisted.outcome };
+                      },
+                    ),
+                  ),
+                ),
+            ),
+          );
+
+          const embeddingAttemptId =
+            claim.orderingMode === "keywords" &&
+            claim.topics.length > 0 &&
+            sources.some((entry) => entry.host === TELEGRAM_HOST)
+              ? await step.run("allocate-embedding-attempt", () =>
+                  coded(
+                    {
+                      operationId,
+                      sourceImportId: claim.sourceImportId,
+                      workspaceId,
+                    },
+                    async () => {
+                      await assertWorkspace(runtime, workspaceId);
+                      const attempt = await allocateOperationAttemptWithId(
+                        runtime.db,
+                        workspaceId,
+                        operationId,
+                        sourceImportAttemptId(operationId, "embedding"),
+                      );
+                      if (!attempt) {
+                        throw new NonRetriableError("NOT_FOUND");
+                      }
+                      await recordSourceImportEmbedding(
+                        runtime.db,
+                        workspaceId,
+                        {
+                          sourceImportId: claim.sourceImportId,
+                          embeddingAttemptId: attempt.id,
+                        },
+                      );
+                      return attempt.id;
+                    },
+                  ),
+                )
+              : null;
+
+          const ordering = await step.run("admit-and-order", () =>
+            coded(
+              {
+                operationId,
+                sourceImportId: claim.sourceImportId,
+                workspaceId,
+              },
+              async () => {
+                await assertWorkspace(runtime, workspaceId);
+                return admitAndOrder(runtime, workspaceId, {
+                  claimedAt: Date.parse(claim.claimedAt),
+                  embeddingAttemptId,
+                  enrichmentEnabled: claim.enrichmentEnabled,
+                  gateway: gateway(),
+                  operationId,
+                  orderingMode: claim.orderingMode,
+                  sourceImportId: claim.sourceImportId,
+                  topics: claim.topics,
+                  windowHours: claim.windowHours,
+                });
+              },
+            ),
+          );
+
+          const enrichmentEvents = ordering.plannedRevisionIds.map(
+            (revisionId) =>
+              durableEvents.sourceImportEnrichmentRequested.create(
+                {
+                  operationAttemptId: sourceImportAttemptId(
+                    operationId,
+                    revisionId,
+                  ),
+                  operationId,
+                  schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+                  sourceItemRevisionId: revisionId,
+                  workspaceId,
+                },
+                { id: `source-import-enrichment:${operationId}:${revisionId}` },
+              ),
+          );
+          await Promise.all(enrichmentEvents.map((event) => event.validate()));
+          const readyEvent = durableEvents.sourceImportReady.create(
+            {
+              operationId,
+              schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+              workspaceId,
+            },
+            { id: `source-import-ready:${operationId}` },
+          );
+          await readyEvent.validate();
+
+          await step.run("commit-enriching-stage", () =>
+            coded(
+              {
+                operationId,
+                sourceImportId: claim.sourceImportId,
+                workspaceId,
+              },
+              () =>
+                settleSourceImport(runtime.db, workspaceId, {
+                  sourceImportId: claim.sourceImportId,
+                  stage: "enriching",
+                }),
+            ),
+          );
+          await step.sendEvent("publish-source-import-ready", readyEvent);
+          if (enrichmentEvents.length > 0) {
+            await step.sendEvent(
+              "dispatch-source-import-enrichment",
+              enrichmentEvents,
+            );
+          }
+          const readyNotification = await notifySourcesAndUsageChanged(
+            step,
+            workspaceId,
+            "enriching",
+          );
+
+          const completion = await step.run("settle-completed-import", () =>
+            coded(
+              {
+                operationId,
+                sourceImportId: claim.sourceImportId,
+                workspaceId,
+              },
+              () =>
+                settleCompletedSourceImport(
+                  runtime,
+                  workspaceId,
+                  operationId,
+                  claim.sourceImportId,
+                ),
+            ),
+          );
+
+          if (completion.result) {
+            workerLogger.info("worker.source-import.settled", {
+              operationId,
+              outcome: completion.result.lifecycle,
+              sourceImportId: claim.sourceImportId,
+            });
+            await publishOperationStatus(
+              step,
+              workspaceId,
+              {
+                lifecycle: completion.result.lifecycle,
+                operationId,
+                operationVersion: completion.result.version,
+              },
+              "worker.source-import.realtime-unavailable",
+            );
+          }
+          const notification =
+            completion.status === "settled"
+              ? await notifySourcesAndUsageChanged(step, workspaceId, "settled")
+              : readyNotification;
+
+          return {
+            cacheInvalidation: notification.cacheInvalidation,
+            lifecycle:
+              completion.result?.lifecycle ??
+              (completion.status === "settled" ? "succeeded" : "running"),
+            operationId,
+            orderingDegradedCode: ordering.orderingDegradedCode,
+            orderedCount: ordering.orderedCount,
+            unitsPlanned: ordering.plannedRevisionIds.length,
+            usageRealtimePublished: notification.usageRealtimePublished,
+          };
+        },
+      ),
   );
 
   return [parentFunction, sourceFunction, enrichFunction];
@@ -1586,7 +1748,7 @@ type OrderingInput = {
   claimedAt: number;
   embeddingAttemptId: string | null;
   enrichmentEnabled: boolean;
-  gateway: ReturnType<typeof createModelGateway>;
+  gateway: ReturnType<typeof createWorkerModelGateway>;
   operationId: string;
   orderingMode: TelegramOrderingMode;
   sourceImportId: string;
@@ -1622,11 +1784,11 @@ async function admitAndOrder(
     telegram,
   );
   const ordered = telegramOrder.entries;
+  const rss = dated
+    .filter((candidate) => candidate.origin === "rss")
+    .sort(byLatest);
   const planned = input.enrichmentEnabled
-    ? dated
-        .filter((candidate) => candidate.origin === "rss")
-        .sort(byLatest)
-        .slice(0, runtime.template.enrichment.maxItemsPerImport)
+    ? rss.slice(0, runtime.template.enrichment.maxItemsPerImport)
     : [];
 
   await demoteSourceImportItems(
@@ -1647,11 +1809,12 @@ async function admitAndOrder(
         keywordScore: entry.keywordScore,
         enrichmentOutcome: null,
       })),
-      ...planned.map((candidate, position) => ({
+      ...rss.map((candidate, position) => ({
         sourceItemId: candidate.sourceItemId,
         rank: position + 1,
         keywordScore: null,
-        enrichmentOutcome: "pending" as const,
+        enrichmentOutcome:
+          position < planned.length ? ("pending" as const) : null,
       })),
     ],
   );
