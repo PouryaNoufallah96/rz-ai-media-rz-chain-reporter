@@ -1,0 +1,198 @@
+{
+  "publishing": {
+    "table": {
+      "loading": "در حال بارگذاری سوابق انتشار",
+      "updating": "در حال به‌روزرسانی…"
+    },
+    "pager": {
+      "latest": "بازگشت به جدیدترین",
+      "newer": "جدیدتر",
+      "older": "قدیمی‌تر"
+    },
+    "freshness": {
+      "current": "به‌روزرسانی زنده فعال است",
+      "reconnecting": "در حال اتصال دوباره به به‌روزرسانی زنده…",
+      "stale": "به‌روزرسانی زنده تأیید نشده",
+      "unavailable": "به‌روزرسانی زنده در دسترس نیست",
+      "refresh": "تازه‌سازی",
+      "refreshing": "در حال تازه‌سازی…"
+    },
+    "ticket": {
+      "title": "برگه انتشار",
+      "save": "ذخیره",
+      "saved": "ذخیره‌شده",
+      "restore": "بازیابی",
+      "pending": "در حال انجام…",
+      "more": "بیشتر"
+    },
+    "approval": {
+      "approved": "تأییدشده برای انتشار",
+      "unapproved": "تأیید نشده",
+      "action": "تأیید بازبینی {n, number}",
+      "needsRevision": "ابتدا بازبینی بسازید",
+      "dirty": "پیش از تأیید یا انتشار، ویرایش‌هایتان را ذخیره کنید."
+    },
+    "readiness": {
+      "copy": "سقف متن {n, number}",
+      "payload": "{method}: {n, number} / {maximum, number}",
+      "mediaOptional": "رسانه قابل انتشار یا مسیر فقط متن",
+      "mediaRequired": "رسانه قابل انتشار الزامی است",
+      "publishing": "انتشار فعال است",
+      "environmentPaused": "توقف محیطی فعال",
+      "destination": "مقصد متصل",
+      "delivery": {
+        "available": "جایگاه انتشار آماده است",
+        "confirmed": "قبلاً منتشر شده — تحویل تأیید شده است",
+        "inProgress": "انتشار دیگری در جریان است",
+        "recovery": "تحویل نامشخص است — تطبیق لازم است"
+      },
+      "telegramPhotoOverflow": "این کپشن برای عکس تلگرام بیش از حد طولانی است. بازبینی را کوتاه و ذخیره کنید، یا تصویر آن را حذف کنید تا از سقف بلندترِ فقط متن استفاده شود."
+    },
+    "destination": {
+      "label": "حساب مقصد",
+      "retryLabel": "مقصد تلاش دوباره",
+      "disabled": "غیرفعال",
+      "unbound": "متصل‌نشده",
+      "none": "مقصد نگاشت‌شده واجد شرایط نیست",
+      "key": "کلید مقصد"
+    },
+    "mode": {
+      "label": "شیوه ارسال",
+      "direct": "مستقیم",
+      "schedule": "زمان‌بندی"
+    },
+    "schedule": {
+      "time": "تاریخ و زمان نصب",
+      "rescheduleTime": "تاریخ و زمان جدید نصب"
+    },
+    "confirm": {
+      "review": "بازبینی و تأیید",
+      "title": "تأیید انتشار",
+      "description": "بازبینی {n, number} · {platform} · {account} · {shape} · {delivery}. انتشار فقط پس از تأیید تحویل کامل می‌شود.",
+      "immediate": "ارسال برای انتشار همین حالا",
+      "mediaShape": "رسانه و متن",
+      "textShape": "فقط متن",
+      "cancel": "انصراف",
+      "publish": "صف انتشار",
+      "schedule": "ساخت زمان‌بندی",
+      "continue": "ادامه"
+    },
+    "handoff": {
+      "queued": "درخواست انتشار در صف قرار گرفت",
+      "operation": "عملیات",
+      "openOperation": "باز کردن عملیات"
+    },
+    "error": {
+      "command": "انجام این کار تأیید نشد. پیش از تلاش دوباره تازه‌سازی کنید."
+    },
+    "lifecycle": {
+      "available": "آماده",
+      "reserved": "رزرو شده",
+      "effect_claimed": "اثر دریافت شده",
+      "delivery_unknown": "تحویل نامشخص",
+      "confirmed": "تأیید شده",
+      "scheduled": "زمان‌بندی شده",
+      "cancelled": "لغو شده",
+      "rescheduled": "زمان‌بندی دوباره",
+      "completed": "تکمیل شده",
+      "failed": "شکست قطعی",
+      "missed_requires_confirmation": "از دست رفته — نیازمند تأیید"
+    },
+    "activity": {
+      "not_due": "ثبت فعالیت هنوز لازم نیست",
+      "pending": "ثبت فعالیت در انتظار",
+      "failed": "ثبت فعالیت ناموفق",
+      "recorded": "فعالیت ثبت شد"
+    },
+    "reconciliation": {
+      "explanation": "ممکن است اثر خارجی رخ داده باشد. پیش از تلاش دوباره تطبیق دهید.",
+      "ticket": "برگه تطبیق",
+      "facts": "بازبینی {n, number} · {platform} · {account}",
+      "providerResult": "نتیجه ارائه‌دهنده",
+      "checkpoint": "نقطه بررسی",
+      "openDesk": "باز کردن میز تطبیق",
+      "attested_delivered": "اپراتور تحویل را گواهی کرد",
+      "attested_not_delivered": "اپراتور عدم تحویل را گواهی کرد",
+      "reconciled_delivered": "شواهد ارائه‌دهنده به‌عنوان تحویل‌شده تطبیق شد",
+      "reconciled_not_delivered": "شواهد ارائه‌دهنده به‌عنوان تحویل‌نشده تطبیق شد"
+    },
+    "saved": {
+      "title": "کارت‌های ذخیره‌شده",
+      "subtitle": "نشانگرهای خصوصی بازبینی برای ادامه کار تحریریه بدون تغییر وضعیت انتشار.",
+      "ledger": "دفتر کارت‌های ذخیره‌شده",
+      "caption": "کارت‌های ذخیره‌شده بر اساس جدیدترین ذخیره",
+      "empty": "کارت ذخیره‌شده‌ای با این نما تطابق ندارد.",
+      "filter": "وضعیت ذخیره",
+      "filterState": {
+        "active": "فعال",
+        "discarded": "کنارگذاشته",
+        "all": "همه"
+      },
+      "columns": {
+        "time": "ذخیره",
+        "card": "برند / پلتفرم",
+        "revision": "بازبینی",
+        "state": "وضعیت",
+        "action": "عمل"
+      },
+      "revision": "بازبینی {n, number}",
+      "noRevision": "بدون بازبینی",
+      "active": "ذخیره‌شده",
+      "discarded": "کنارگذاشته",
+      "reopen": "باز کردن",
+      "restore": "بازیابی",
+      "discard": "کنار گذاشتن",
+      "confirmTitle": "تأیید تغییر کارت ذخیره‌شده",
+      "confirmDescription": "این کار فقط کارت‌های ذخیره‌شدهٔ شما را تغییر می‌دهد و چیزی منتشر نمی‌کند."
+    },
+    "desk": {
+      "title": "دفتر ارسال",
+      "subtitle": "واقعیت‌های زمان‌بندی‌شده، تأییدشده و مبهم ارسال خارجی از PostgreSQL.",
+      "ledger": "تاریخچه انتشار",
+      "caption": "سوابق انتشار با ترتیب ثابت کلیدمحور",
+      "empty": "رکوردی با این نما تطابق ندارد.",
+      "views": "نماهای انتشار",
+      "columns": {
+        "scheduledTime": "زمان برنامه‌ریزی · {timeZone}",
+        "recordedTime": "زمان ثبت · {timeZone}",
+        "destination": "مقصد",
+        "platform": "پلتفرم",
+        "revision": "بازبینی",
+        "state": "وضعیت",
+        "action": "عمل بازیابی"
+      },
+      "confirmDescription": "این عمل از نسخه پایدار فعلی استفاده می‌کند. موفقیت خارجی فقط پس از تسویه نمایش داده می‌شود.",
+      "confirmRecordDescription": "بازبینی {n, number} · {platform} · {account}. این عمل از نسخه پایدار فعلی استفاده می‌کند و موفقیت خارجی را القا نمی‌کند.",
+      "confirmRescheduleDescription": "بازبینی {n, number} · {platform} · {account}. این زمان‌بندی با {instant} · {timeZone} جایگزین می‌شود. این عمل از نسخه پایدار فعلی استفاده می‌کند و موفقیت خارجی را القا نمی‌کند."
+    },
+    "view": {
+      "scheduled": "زمان‌بندی‌شده",
+      "published": "منتشرشده",
+      "reconciliation": "تطبیق"
+    },
+    "platform": {
+      "telegram": "تلگرام",
+      "x": "ایکس",
+      "instagram": "اینستاگرام"
+    },
+    "pause": {
+      "active": "انتشار فعال",
+      "paused": "انتشار متوقف",
+      "environment": "اجباری از محیط استقرار",
+      "pause": "توقف",
+      "resume": "ادامه"
+    },
+    "action": {
+      "pause": "توقف انتشار",
+      "resume": "ادامه انتشار",
+      "cancel": "لغو زمان‌بندی",
+      "recover": "اکنون منتشر کن",
+      "publishNow": "اکنون منتشر کن",
+      "reschedule": "زمان‌بندی دوباره",
+      "retry": "تلاش دوباره",
+      "reconcile": "اکنون تطبیق بده",
+      "attestDelivered": "گواهی تحویل",
+      "attestNotDelivered": "گواهی عدم تحویل"
+    }
+  }
+}

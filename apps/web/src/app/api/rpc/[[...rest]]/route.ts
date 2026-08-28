@@ -1,12 +1,30 @@
 import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
 import { SimpleCsrfProtectionHandlerPlugin } from "@orpc/server/plugins";
 import { problemResponse, withRequestId } from "@rz-chain-reporter/api/request";
+import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
+import { revalidateTag } from "next/cache";
 import type { NextRequest } from "next/server";
 import { MAX_RPC_MULTIPART_BODY_BYTES } from "@/lib/payload-limits";
 import { createInstallationContext } from "@/server/rpc/context";
 import { appRouter } from "@/server/rpc/routers/index";
 
 const rpcHandler = new RPCHandler(appRouter, {
+  clientInterceptors: [
+    async ({ path, context, next }) => {
+      const result = await next();
+      if (
+        path.length === 2 &&
+        path[0] === "editorial" &&
+        path[1] === "updateDraftRevision"
+      ) {
+        revalidateTag(
+          workspaceCacheTag(await context.getWorkspaceId(), "drafts"),
+          { expire: 0 },
+        );
+      }
+      return result;
+    },
+  ],
   plugins: [
     new SimpleCsrfProtectionHandlerPlugin(),
     new BodyLimitPlugin({ maxBodySize: MAX_RPC_MULTIPART_BODY_BYTES }),

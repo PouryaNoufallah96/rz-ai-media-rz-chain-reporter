@@ -1,0 +1,117 @@
+{
+  "account": {
+    "title": "Account",
+    "subtitle": "Your operator profile, recent work, schedules, and saved cards.",
+    "loading": "Loading account desk",
+    "profile": {
+      "title": "Operator profile",
+      "name": "Name",
+      "email": "Email",
+      "createdAt": "Operator since"
+    },
+    "metrics": {
+      "title": "Workspace facts",
+      "generated": "Workspace generated drafts",
+      "scheduled": "Workspace scheduled",
+      "saved": "Your saved"
+    },
+    "brands": {
+      "title": "Media brands",
+      "generated": "Generated",
+      "scheduled": "Scheduled",
+      "saved": "Saved"
+    },
+    "platform": {
+      "telegram": "Telegram",
+      "x": "X",
+      "instagram": "Instagram"
+    },
+    "activity": {
+      "title": "Your recent activity",
+      "latest": "Latest {n, number}",
+      "snapshot": "Recent activity snapshot",
+      "showAll": "Show all {n, number} recent events",
+      "showLess": "Show less",
+      "empty": "No operator activity has been recorded yet.",
+      "global": "Workspace publishing",
+      "events": {
+        "saved_card": {
+          "saved": "Saved a card",
+          "discarded": "Discarded a saved card",
+          "restored": "Restored a saved card"
+        },
+        "approval": {
+          "granted": "Approved a draft"
+        },
+        "schedule": {
+          "created": "Created a schedule",
+          "cancelled": "Cancelled a schedule",
+          "rescheduled": "Rescheduled a publication",
+          "missed": "Recorded a missed schedule"
+        },
+        "publication": {
+          "requested": "Requested publication",
+          "confirmed": "Confirmed publication",
+          "failed": "Publication failed",
+          "delivery_unknown": "Publication delivery is unknown",
+          "reconciled_delivered": "Reconciled as delivered",
+          "reconciled_not_delivered": "Reconciled as not delivered",
+          "telegram_attested_delivered": "Attested Telegram delivery",
+          "telegram_attested_not_delivered": "Attested Telegram non-delivery"
+        },
+        "publishing": {
+          "paused": "Paused publishing",
+          "resumed": "Resumed publishing"
+        }
+      }
+    },
+    "topics": {
+      "title": "Recent topics",
+      "empty": "No recent operator topics."
+    },
+    "scheduled": {
+      "title": "Schedule history",
+      "description": "Recent schedules, including completed and changed entries.",
+      "viewAll": "Open schedule desk",
+      "more": "More schedule history",
+      "showMore": "Show {n, number} more schedules",
+      "showLess": "Show fewer schedules",
+      "empty": "No scheduled cards in this view.",
+      "open": "Open scheduled card",
+      "destination": "Destination",
+      "scheduledFor": "Scheduled for {timeZone}"
+    },
+    "saved": {
+      "title": "Saved cards",
+      "list": "Saved cards in this page",
+      "empty": "No saved cards match this view.",
+      "open": "Open saved card",
+      "filter": "Saved state",
+      "filterState": {
+        "active": "Active",
+        "discarded": "Discarded",
+        "all": "All"
+      },
+      "active": "Saved",
+      "discarded": "Discarded",
+      "latest": "Back to latest",
+      "newer": "Newer",
+      "older": "Older",
+      "updating": "Updating saved cards"
+    },
+    "card": {
+      "noHeadline": "No revision headline",
+      "noBody": "No revision copy yet.",
+      "image": "Image attached",
+      "textOnly": "Text only",
+      "revision": "Revision {n, number}"
+    },
+    "links": {
+      "title": "Workspace tools",
+      "usage": "Usage",
+      "sources": "Sources",
+      "installation": "Installation",
+      "schedule": "Schedule"
+    }
+  }
+}

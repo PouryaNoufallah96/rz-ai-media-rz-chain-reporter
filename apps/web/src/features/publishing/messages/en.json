@@ -1,0 +1,194 @@
+{
+  "publishing": {
+    "table": {
+      "loading": "Loading publishing records",
+      "updating": "Updating…"
+    },
+    "pager": { "latest": "Back to latest", "newer": "Newer", "older": "Older" },
+    "freshness": {
+      "current": "Live updates active",
+      "reconnecting": "Reconnecting live updates…",
+      "stale": "Live updates not confirmed",
+      "unavailable": "Live updates unavailable",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…"
+    },
+    "ticket": {
+      "title": "Publishing ticket",
+      "save": "Save",
+      "saved": "Saved",
+      "restore": "Restore",
+      "pending": "Working…",
+      "more": "More"
+    },
+    "approval": {
+      "approved": "Approved for publishing",
+      "unapproved": "Not approved",
+      "action": "Approve revision {n, number}",
+      "needsRevision": "Create a revision first",
+      "dirty": "Save your edits before approving or publishing."
+    },
+    "readiness": {
+      "copy": "copy ceiling {n, number}",
+      "payload": "{method}: {n, number} / {maximum, number}",
+      "mediaOptional": "publishable media or text-only path",
+      "mediaRequired": "publishable media required",
+      "publishing": "publishing enabled",
+      "environmentPaused": "environment pause active",
+      "destination": "destination bound",
+      "delivery": {
+        "available": "publication slot available",
+        "confirmed": "already published — delivery confirmed",
+        "inProgress": "publication already in progress",
+        "recovery": "delivery unknown — reconciliation required"
+      },
+      "telegramPhotoOverflow": "This caption is too long for a Telegram photo. Shorten and save the revision, or remove its image to use the longer text-only limit."
+    },
+    "destination": {
+      "label": "Destination account",
+      "retryLabel": "Retry destination",
+      "disabled": "disabled",
+      "unbound": "unbound",
+      "none": "No eligible mapped destination",
+      "key": "Destination key"
+    },
+    "mode": {
+      "label": "Delivery mode",
+      "direct": "Direct",
+      "schedule": "Schedule"
+    },
+    "schedule": {
+      "time": "Installation date and time",
+      "rescheduleTime": "New installation date and time"
+    },
+    "confirm": {
+      "review": "Review and confirm",
+      "title": "Confirm publishing",
+      "description": "Revision {n, number} · {platform} · {account} · {shape} · {delivery}. Publishing is complete only when delivery is confirmed.",
+      "immediate": "send for publishing now",
+      "mediaShape": "media + text",
+      "textShape": "text only",
+      "cancel": "Cancel",
+      "publish": "Queue publish",
+      "schedule": "Create schedule",
+      "continue": "Continue"
+    },
+    "handoff": {
+      "queued": "Queued for publishing",
+      "operation": "Operation",
+      "openOperation": "Open operation"
+    },
+    "error": {
+      "command": "This action could not be confirmed. Refresh before trying again."
+    },
+    "lifecycle": {
+      "available": "Available",
+      "reserved": "Reserved",
+      "effect_claimed": "Effect claimed",
+      "delivery_unknown": "Delivery unknown",
+      "confirmed": "Confirmed",
+      "scheduled": "Scheduled",
+      "cancelled": "Cancelled",
+      "rescheduled": "Rescheduled",
+      "completed": "Completed",
+      "failed": "Definite failure",
+      "missed_requires_confirmation": "Missed — confirmation required"
+    },
+    "activity": {
+      "not_due": "Activity record not due",
+      "pending": "Activity record pending",
+      "failed": "Activity record failed",
+      "recorded": "Activity recorded"
+    },
+    "reconciliation": {
+      "explanation": "The external effect may have happened. Reconcile before any retry.",
+      "ticket": "Reconciliation ticket",
+      "facts": "Revision {n, number} · {platform} · {account}",
+      "providerResult": "Provider result",
+      "checkpoint": "Checkpoint",
+      "openDesk": "Open reconciliation desk",
+      "attested_delivered": "Operator attested delivered",
+      "attested_not_delivered": "Operator attested not delivered",
+      "reconciled_delivered": "Provider evidence reconciled as delivered",
+      "reconciled_not_delivered": "Provider evidence reconciled as not delivered"
+    },
+    "saved": {
+      "title": "Saved cards",
+      "subtitle": "Private revision pointers for resuming editorial work without changing publication state.",
+      "ledger": "Saved-card ledger",
+      "caption": "Saved cards ordered by most recent save",
+      "empty": "No saved cards match this view.",
+      "filter": "Saved state",
+      "filterState": {
+        "active": "Active",
+        "discarded": "Discarded",
+        "all": "All"
+      },
+      "columns": {
+        "time": "Saved",
+        "card": "Brand / platform",
+        "revision": "Revision",
+        "state": "State",
+        "action": "Action"
+      },
+      "revision": "Revision {n, number}",
+      "noRevision": "No revision",
+      "active": "Saved",
+      "discarded": "Discarded",
+      "reopen": "Reopen",
+      "restore": "Restore",
+      "discard": "Discard",
+      "confirmTitle": "Confirm saved-card change",
+      "confirmDescription": "This only changes your saved cards. It does not publish anything."
+    },
+    "desk": {
+      "title": "Dispatch ledger",
+      "subtitle": "Scheduled, confirmed, and ambiguous external delivery facts from PostgreSQL.",
+      "ledger": "Publishing history",
+      "caption": "Publishing records in fixed keyset order",
+      "empty": "No records match this view.",
+      "views": "Publishing views",
+      "columns": {
+        "scheduledTime": "Scheduled time · {timeZone}",
+        "recordedTime": "Recorded time · {timeZone}",
+        "destination": "Destination",
+        "platform": "Platform",
+        "revision": "Revision",
+        "state": "State",
+        "action": "Recovery action"
+      },
+      "confirmDescription": "This action uses the current persisted version. External success is shown only after settlement.",
+      "confirmRecordDescription": "Revision {n, number} · {platform} · {account}. This uses the current persisted version and does not imply external success.",
+      "confirmRescheduleDescription": "Revision {n, number} · {platform} · {account}. Replace this schedule with {instant} · {timeZone}. This uses the current persisted version and does not imply external success."
+    },
+    "view": {
+      "scheduled": "Scheduled",
+      "published": "Published",
+      "reconciliation": "Reconciliation"
+    },
+    "platform": {
+      "telegram": "Telegram",
+      "x": "X",
+      "instagram": "Instagram"
+    },
+    "pause": {
+      "active": "Publishing active",
+      "paused": "Publishing paused",
+      "environment": "Forced by deployment environment",
+      "pause": "Pause",
+      "resume": "Resume"
+    },
+    "action": {
+      "pause": "Pause publishing",
+      "resume": "Resume publishing",
+      "cancel": "Cancel schedule",
+      "recover": "Publish now",
+      "publishNow": "Publish now",
+      "reschedule": "Reschedule",
+      "retry": "Retry",
+      "reconcile": "Reconcile now",
+      "attestDelivered": "Attest delivered",
+      "attestNotDelivered": "Attest not delivered"
+    }
+  }
+}

@@ -7,8 +7,8 @@
     "route": {
       "localeEn": "English",
       "localeFa": "Persian",
-      "queued": "Draft {id} queued",
-      "existing": "Existing draft {id} focused",
+      "queued": "Draft queued",
+      "existing": "Existing draft opened",
       "error": {
         "invalid": "Review the card and try again.",
         "notFound": "This card is no longer available.",
@@ -23,6 +23,9 @@
       "lane": "{brand} · {platform}",
       "count": "{n, number} draft(s)",
       "empty": "No draft routed to this lane",
+      "placeholder": "Ready for routed drafts",
+      "moveEarlier": "Move {title} earlier",
+      "moveLater": "Move {title} later",
       "position": "position {n, number}",
       "units": "{completed, number} of {total, number} copy units complete",
       "drag": "Reorder {title}",
@@ -51,10 +54,22 @@
     "cardSheet": {
       "close": "Close draft",
       "title": "Card sheet",
-      "description": "{brand} · {platform}. Inspect candidates, append immutable revisions, and start copy work.",
+      "loading": "Loading draft…",
+      "description": "{brand} · {platform}. Review candidates, select revisions, and edit copy.",
+      "unavailable": {
+        "title": "Draft unavailable",
+        "description": "This draft is no longer available.",
+        "body": "It may have been deleted or the link may be outdated. Close this sheet and choose another card.",
+        "dismiss": "Close sheet"
+      },
+      "origin": {
+        "title": "Origin",
+        "platform": "Current platform: {platform}"
+      },
       "candidates": "Generated candidates",
       "candidatesEmpty": "No successful candidates yet.",
       "candidateMeta": "{locale} · {model}",
+      "more": "More",
       "history": "Revision history",
       "historyEmpty": "No revision yet. Use a generated candidate first.",
       "revision": "Revision {n, number}",
@@ -98,16 +113,16 @@
         "hashtagPlaceholder": "#tag"
       },
       "stale": {
-        "title": "Newer revision available",
-        "description": "Your local values are preserved. Rebase to keep them on top of the newer revision, or discard them.",
-        "reload": "Discard my changes",
-        "arrived": "Revision {n, number} was created by {author} at {time} while you were editing.",
-        "rebase": "Rebase onto latest",
-        "blocked": "Rebase onto the newer revision or discard your changes before saving."
+        "title": "This draft changed elsewhere",
+        "description": "Your unsaved edits are still here. Keep them, or use the saved version and discard them.",
+        "reload": "Use saved version",
+        "arrived": "Selected saved version: {n, number}, created by {author} at {time}.",
+        "rebase": "Keep my edits",
+        "blocked": "Choose whether to keep your edits or use the saved version before saving."
       },
       "discard": {
-        "title": "Discard local draft changes?",
-        "description": "Your unsaved headline, body, hashtags, and content-language choice will be lost.",
+        "title": "Discard unsaved changes?",
+        "description": "Your unsaved changes to the headline, body, hashtags, and language will be lost.",
         "confirm": "Discard changes",
         "cancel": "Keep editing",
         "pending": "Discarding"
@@ -116,7 +131,7 @@
         "headline": "Add a headline.",
         "body": "Add the draft body.",
         "hashtags": "Add the required ordered hashtags.",
-        "conflict": "A newer revision exists. Your local values were preserved.",
+        "conflict": "This draft changed elsewhere. Your edits are still here. Refresh to load the saved version.",
         "operationInProgress": "Copy work is already in progress for this draft.",
         "templateDrift": "The customer template changed. Reload the app, then use Regenerate to create copy under the current policy.",
         "unknown": "The draft could not be updated. Review the fields and try again.",
@@ -128,7 +143,8 @@
         "referenceConflict": "That reference image is already used by another draft."
       },
       "imageAttached": "This image is attached to the current revision.",
-      "imageNotAttached": "This image belongs to an older revision and was not attached.",
+      "imageNotAttached": "This image is ready to use but is not selected.",
+      "imageUse": "Use image",
       "imageAlt": "{brand} generated image: {headline}",
       "imageRemove": "Remove image",
       "imageReference": "Reference image (optional)",
@@ -142,14 +158,22 @@
         "failed": "{file} could not be uploaded. Use a JPEG, PNG or WebP image."
       },
       "rebase": {
-        "title": "You and the newer revision changed these fields. Choose one value for each.",
-        "mine": "Keep my value",
-        "theirs": "Use revision {n, number}",
-        "apply": "Apply rebase"
+        "title": "These fields changed both here and elsewhere. Choose what to keep for each.",
+        "mine": "Keep my edit",
+        "theirs": "Use saved version {n, number}",
+        "apply": "Use these choices"
       },
       "imageReferenceClear": "Remove",
       "imageReferenceRemove": "Remove reference image {file}",
-      "imageRemoveBlocked": "Save or discard your draft edits before removing the image from this revision."
+      "imageFinalUpload": "Operator-final image",
+      "imageFinalUploadHint": "Upload a publishable image, wait for verification, then explicitly select it on this revision.",
+      "imageFinalSelect": "Select verified final",
+      "imageRemoveBlocked": "Save or discard your draft edits before changing the image for this revision.",
+      "switch": {
+        "title": "Discard edits and switch?",
+        "confirm": "Discard and switch",
+        "pending": "Switching…"
+      }
     },
     "run": {
       "title": "Run",
@@ -222,6 +246,7 @@
       },
       "start": "Start run",
       "starting": "Starting…",
+      "newWorkspace": "New workspace",
       "cancel": "Cancel run",
       "cancelConfirm": {
         "title": "Cancel this run?",
@@ -236,22 +261,32 @@
         "loaded": "Previous run loaded.",
         "partial": "Previous run loaded. {n, number} option(s) no longer available.",
         "none": "No compatible previous run",
-        "from": "from run {id}"
+        "from": "Loaded from the previous run"
       },
       "selector": {
         "label": "Run",
-        "latest": "Your latest run",
-        "option": "{kind} · {id} · {actor} · {time}",
-        "viewing": "Viewing run {id}.",
-        "you": "You"
+        "latest": "Choose a run",
+        "option": "{kind} · {actor} · {time}",
+        "viewing": "Viewing a historical run.",
+        "you": "You",
+        "recent": "Recent runs"
       },
       "templateChanged": {
         "tag": "template changed",
-        "detail": "This run used template {was}; the installation now uses {now}."
+        "detail": "This run used template {was}; the installation now uses {now}.",
+        "notice": "This historical run used an earlier installation configuration."
       },
       "empty": {
         "title": "No runs yet",
         "hint": "Start a run to fill the lanes"
+      },
+      "fresh": {
+        "title": "Fresh workspace",
+        "hint": "Configure the next analysis. Earlier runs remain under Recent runs."
+      },
+      "unavailable": {
+        "title": "Run unavailable",
+        "hint": "This run no longer exists or is outside this workspace. Start a new workspace or choose a recent run."
       },
       "announce": {
         "started": "Run started.",
@@ -262,7 +297,10 @@
       },
       "progress": {
         "elapsed": "elapsed {duration}",
-        "last": "last progress {when}"
+        "last": "last progress {when}",
+        "fetched": "Fetched",
+        "admitted": "Admitted",
+        "output": "Output"
       }
     },
     "provenance": {
@@ -352,11 +390,13 @@
       "contentLocale": "Content locale",
       "disposition": "Filter outcome",
       "duplicate": "Duplicate",
+      "hidePreview": "Hide preview",
       "link": "Source link",
       "platform": "Suggested platform",
       "publishedAt": "Published",
       "reason": "Reason",
       "reasoning": "Reasoning",
+      "showPreview": "Show preview",
       "source": "Source",
       "summary": "Preview"
     },
@@ -398,7 +438,9 @@
         "tag": "limited guidance"
       },
       "board": {
-        "zone": "Board"
+        "zone": "Board",
+        "noBrands": "Select a media brand to open its rail.",
+        "rail": "{brand} content rail"
       },
       "model": {
         "title": "{model} · {brand}",

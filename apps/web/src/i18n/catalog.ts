@@ -1,6 +1,8 @@
 import type { Locale } from "@rz-chain-reporter/i18n";
 import { cacheLife } from "next/cache";
 
+import accountEn from "@/features/account/messages/en.json";
+import accountFa from "@/features/account/messages/fa.json";
 import authEn from "@/features/auth/messages/en.json";
 import authFa from "@/features/auth/messages/fa.json";
 import editorialEn from "@/features/editorial/messages/en.json";
@@ -11,6 +13,8 @@ import landingEn from "@/features/landing/messages/en.json";
 import landingFa from "@/features/landing/messages/fa.json";
 import operationsEn from "@/features/operations/messages/en.json";
 import operationsFa from "@/features/operations/messages/fa.json";
+import publishingEn from "@/features/publishing/messages/en.json";
+import publishingFa from "@/features/publishing/messages/fa.json";
 import sharedEn from "@/features/shared/messages/en.json";
 import sharedFa from "@/features/shared/messages/fa.json";
 import sourcesEn from "@/features/sources/messages/en.json";
@@ -20,22 +24,26 @@ import usageFa from "@/features/usage/messages/fa.json";
 
 const CATALOGS = {
   en: {
+    ...accountEn,
     ...sharedEn,
     ...authEn,
     ...editorialEn,
     ...installationEn,
     ...landingEn,
     ...operationsEn,
+    ...publishingEn,
     ...sourcesEn,
     ...usageEn,
   },
   fa: {
+    ...accountFa,
     ...sharedFa,
     ...authFa,
     ...editorialFa,
     ...installationFa,
     ...landingFa,
     ...operationsFa,
+    ...publishingFa,
     ...sourcesFa,
     ...usageFa,
   },
