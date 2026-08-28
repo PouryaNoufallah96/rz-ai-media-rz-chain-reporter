@@ -52,7 +52,7 @@ export function SavedTable({
       cell: ({ row }) => {
         const savedAt = new Date(row.original.savedAt.valueOf());
         return (
-          <time className="font-mono text-xs" dateTime={savedAt.toISOString()}>
+          <time className="text-xs" dateTime={savedAt.toISOString()}>
             {format.dateTime(savedAt, {
               dateStyle: "short",
               timeStyle: "short",
@@ -65,7 +65,7 @@ export function SavedTable({
       id: "identity",
       header: t("saved.columns.card"),
       cell: ({ row }) => (
-        <span className="grid">
+        <span className="grid min-w-44 gap-1">
           <strong>{row.original.brandName}</strong>
           <span className="text-muted-foreground text-xs">
             <Bdi>{row.original.platform}</Bdi> ·{" "}
@@ -98,7 +98,7 @@ export function SavedTable({
         <span className="sr-only">{t("saved.columns.action")}</span>
       ),
       cell: ({ row }) => (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-2">
           <Button
             nativeButton={false}
             render={
@@ -144,7 +144,7 @@ export function SavedTable({
   };
   return (
     <section className="mt-6" aria-labelledby="saved-ledger-title">
-      <div className="mb-3 flex flex-wrap items-end gap-2">
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3 sm:p-4">
         <LabeledSelect
           label={t("saved.filter")}
           onValueChange={(state) =>
@@ -160,10 +160,7 @@ export function SavedTable({
           <PublishingFreshness />
         </div>
       </div>
-      <h2
-        className="ticket-label border-b border-dashed pb-2"
-        id="saved-ledger-title"
-      >
+      <h2 className="font-medium text-sm" id="saved-ledger-title">
         {t("saved.ledger")}
       </h2>
       <CoreDataTable

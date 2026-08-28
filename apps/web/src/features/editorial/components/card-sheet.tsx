@@ -13,9 +13,20 @@ import {
   REFERENCE_IMAGE_KIND,
   REFERENCE_IMAGE_MIME_TYPES,
 } from "@rz-chain-reporter/contracts";
+import { DIRECTION } from "@rz-chain-reporter/i18n";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@rz-chain-reporter/ui/components/alert";
 import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@rz-chain-reporter/ui/components/collapsible";
 import {
   Field,
   FieldDescription,
@@ -38,7 +49,16 @@ import {
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
 import { Textarea } from "@rz-chain-reporter/ui/components/textarea";
-import { CheckIcon, XIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  DownloadIcon,
+  HistoryIcon,
+  ImageIcon,
+  RefreshCwIcon,
+  RotateCcwIcon,
+  XIcon,
+} from "lucide-react";
 import Image from "next/image";
 import {
   NextIntlClientProvider,
@@ -192,7 +212,7 @@ export function CardSheet({
       <Sheet onOpenChange={requestOpenChange} open={open}>
         <SheetContent
           aria-busy={loading || undefined}
-          className="w-full sm:w-[min(760px,100vw)]"
+          className="w-full gap-5 max-[599px]:rounded-t-xl sm:w-[min(960px,100vw)] sm:p-5"
           closeLabel={t("cardSheet.close")}
           finalFocus={() =>
             finalFocus?.isConnected
@@ -201,7 +221,7 @@ export function CardSheet({
           }
           side={narrow ? "block-end" : "inline-end"}
         >
-          <SheetHeader className="border-border border-b border-dashed pb-3">
+          <SheetHeader className="border-border border-b pe-12 pb-4">
             <SheetTitle>{t("cardSheet.title")}</SheetTitle>
             <SheetDescription aria-live="polite">
               {loading
@@ -234,7 +254,7 @@ export function CardSheet({
               />
             </>
           ) : (
-            <div className="grid gap-2 border border-border border-dashed p-4">
+            <div className="grid gap-2 rounded-xl border border-border bg-muted/40 p-5">
               <strong>{t("cardSheet.unavailable.title")}</strong>
               <p className="text-muted-foreground">
                 {t("cardSheet.unavailable.body")}
@@ -355,7 +375,7 @@ function OriginFacts({ card }: { card: PlatformDraftCard }) {
   return (
     <section
       aria-labelledby={`draft-origin-${card.id}`}
-      className="grid gap-3 border border-border border-dashed p-3"
+      className="grid gap-3 rounded-xl border border-border bg-card p-4"
     >
       <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-2">
         <h3 className="ticket-label" id={`draft-origin-${card.id}`}>
@@ -367,7 +387,7 @@ function OriginFacts({ card }: { card: PlatformDraftCard }) {
           })}
         </span>
       </div>
-      <dl className="grid gap-2 text-xs sm:grid-cols-2">
+      <dl className="@container grid gap-3 text-xs">
         {facts?.sourceName ? (
           <OriginFact label={t("detail.source")}>
             <Bdi>{facts.sourceName}</Bdi>
@@ -405,7 +425,7 @@ function OriginFacts({ card }: { card: PlatformDraftCard }) {
           </OriginFact>
         ) : null}
         {facts?.canonicalUrl ? (
-          <OriginFact className="sm:col-span-2" label={t("detail.link")}>
+          <OriginFact label={t("detail.link")}>
             <a
               className="wrap-anywhere font-mono underline underline-offset-2"
               href={facts.canonicalUrl}
@@ -419,19 +439,19 @@ function OriginFacts({ card }: { card: PlatformDraftCard }) {
           </OriginFact>
         ) : null}
         {facts?.summary ? (
-          <OriginFact className="sm:col-span-2" label={t("detail.summary")}>
+          <OriginFact label={t("detail.summary")}>
             <ExpandablePreview>{facts.summary}</ExpandablePreview>
           </OriginFact>
         ) : null}
         {facts?.reasoning ? (
-          <OriginFact className="sm:col-span-2" label={t("detail.reasoning")}>
+          <OriginFact label={t("detail.reasoning")}>
             <Bdi className="block text-start" dir="auto">
               {facts.reasoning}
             </Bdi>
           </OriginFact>
         ) : null}
         {facts?.promoAngle ? (
-          <OriginFact className="sm:col-span-2" label={t("promo.angle")}>
+          <OriginFact label={t("promo.angle")}>
             <Bdi className="block text-start" dir="auto">
               {facts.promoAngle}
             </Bdi>
@@ -444,19 +464,15 @@ function OriginFacts({ card }: { card: PlatformDraftCard }) {
 
 function OriginFact({
   children,
-  className,
   label,
 }: {
   children: ReactNode;
-  className?: string;
   label: string;
 }) {
   return (
-    <div
-      className={`grid grid-cols-[auto_1fr] gap-2 border-border border-b border-dashed pb-1 ${className ?? ""}`}
-    >
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0">{children}</dd>
+    <div className="grid @sm:grid-cols-[8rem_minmax(0,1fr)] gap-x-4 gap-y-1">
+      <dt className="wrap-anywhere text-muted-foreground">{label}</dt>
+      <dd className="wrap-anywhere min-w-0">{children}</dd>
     </div>
   );
 }
@@ -754,8 +770,8 @@ function CardSheetBody(props: CardSheetBodyProps) {
   const rootError = form.formState.errors.root?.server?.message;
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] [&_button]:max-[599px]:min-h-11">
-        <aside className="grid min-w-0 content-start gap-4 sm:max-h-[calc(100dvh-8rem)] sm:overflow-y-auto sm:pe-2">
+      <div className="grid items-start gap-5 min-[900px]:grid-cols-[minmax(0,0.32fr)_minmax(0,0.68fr)] [&_button]:max-[599px]:min-h-11">
+        <aside className="grid min-w-0 content-start gap-4">
           <CopyControls
             card={card}
             disabled={busy}
@@ -814,22 +830,39 @@ function CardSheetBody(props: CardSheetBodyProps) {
             stale={stale}
             updatePending={busy}
           />
-          <details className="border border-border border-dashed p-3">
-            <summary className="ticket-label cursor-pointer select-none">
+          <Collapsible className="rounded-xl border border-border bg-card">
+            <CollapsibleTrigger
+              render={
+                <Button
+                  className="group h-12 w-full justify-start px-4"
+                  variant="ghost"
+                />
+              }
+            >
+              <ImageIcon aria-hidden="true" />
               {t("cardSheet.image")}
-            </summary>
-            <ImageControls
-              active={active}
-              card={card}
-              editorDirty={dirty || stale}
-              form={form}
-              key={active?.id ?? "no-active-revision"}
-              onAdopt={adoptImage}
-              onPendingChange={onPendingChange}
-              onRemove={removeImage}
-              revisionPending={busy}
-            />
-          </details>
+              <ChevronDownIcon
+                className="ms-auto transition-transform group-data-panel-open:rotate-180"
+                aria-hidden="true"
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent
+              className="px-4 pb-4 data-closed:hidden"
+              keepMounted
+            >
+              <ImageControls
+                active={active}
+                card={card}
+                editorDirty={dirty || stale}
+                form={form}
+                key={active?.id ?? "no-active-revision"}
+                onAdopt={adoptImage}
+                onPendingChange={onPendingChange}
+                onRemove={removeImage}
+                revisionPending={busy}
+              />
+            </CollapsibleContent>
+          </Collapsible>
           <NextIntlClientProvider
             locale={locale}
             messages={locale === "fa" ? publishingFa : publishingEn}
@@ -929,18 +962,20 @@ function StaleBanner({
     false;
 
   return (
-    <div className="border border-working p-3" role="status">
-      <strong>{t("cardSheet.stale.title")}</strong>
-      {active ? (
-        <p>
-          {t("cardSheet.stale.arrived", {
-            author: active.authorName,
-            n: active.revisionNumber,
-            time: format.dateTime(active.createdAt, { timeStyle: "short" }),
-          })}
-        </p>
-      ) : null}
-      <p>{t("cardSheet.stale.description")}</p>
+    <Alert className="gap-2 p-4" role="status" variant="working">
+      <AlertTitle>{t("cardSheet.stale.title")}</AlertTitle>
+      <AlertDescription>
+        {active ? (
+          <p>
+            {t("cardSheet.stale.arrived", {
+              author: active.authorName,
+              n: active.revisionNumber,
+              time: format.dateTime(active.createdAt, { timeStyle: "short" }),
+            })}
+          </p>
+        ) : null}
+        <p>{t("cardSheet.stale.description")}</p>
+      </AlertDescription>
       {rebase === null ? (
         <div className="mt-2 flex flex-wrap gap-2">
           <Button
@@ -965,7 +1000,7 @@ function StaleBanner({
           <p className="ticket-label">{t("cardSheet.rebase.title")}</p>
           {rebase.conflicts.map((field) => (
             <fieldset
-              className="grid gap-1 border border-border p-2"
+              className="grid gap-2 rounded-lg border border-border bg-card p-3"
               key={field}
             >
               <legend className="ticket-label px-1">
@@ -1008,7 +1043,7 @@ function StaleBanner({
           </div>
         </div>
       )}
-    </div>
+    </Alert>
   );
 }
 
@@ -1026,7 +1061,7 @@ function RebaseChoice({
   return (
     <Button
       aria-pressed={selected}
-      className="grid h-auto w-full justify-normal gap-1 whitespace-normal p-2 text-start data-selected:border-ring data-selected:ring-2 data-selected:ring-ring"
+      className="grid h-auto w-full justify-normal gap-1 whitespace-normal p-2 text-start data-selected:border-primary/40 data-selected:bg-accent data-selected:ring-1 data-selected:ring-primary/30"
       data-selected={selected || undefined}
       onClick={onSelect}
       type="button"
@@ -1160,7 +1195,7 @@ function ImageControls({
   };
 
   return (
-    <div className="mt-3 grid gap-2">
+    <div className="mt-1 grid gap-4">
       <p
         aria-live="polite"
         className={
@@ -1232,26 +1267,36 @@ function ImageControls({
         <p className="text-destructive text-sm">{t("cardSheet.imageFailed")}</p>
       ) : null}
       {finalMediaAssetIds.map((final) => (
-        <div className="grid gap-2" key={final}>
+        <div
+          className="grid gap-3 rounded-lg border border-border p-3"
+          key={final}
+        >
           <Image
             alt={t("cardSheet.imageAlt", {
               brand: card.brandName,
               headline: active?.headline ?? card.originTitle,
             })}
-            className="h-auto w-full border border-border"
+            className="h-auto w-full rounded-lg border border-border"
             height={1350}
             sizes="(max-width: 639px) 100vw, 62vw"
             src={`/api/media/${final}`}
             unoptimized
             width={1080}
           />
-          <a
-            className="text-sm underline underline-offset-4"
-            download
-            href={`/api/media/${final}?download=1`}
+          <Button
+            nativeButton={false}
+            render={
+              <a
+                aria-label={t("cardSheet.imageDownload")}
+                download
+                href={`/api/media/${final}?download=1`}
+              />
+            }
+            variant="outline"
           >
+            <DownloadIcon aria-hidden="true" />
             {t("cardSheet.imageDownload")}
-          </a>
+          </Button>
           <p className="text-muted-foreground text-sm">
             {selectedFinalMediaAssetId === final
               ? t("cardSheet.imageAttached")
@@ -1577,7 +1622,7 @@ function SelectableItem({
   return (
     <Button
       aria-pressed={selected}
-      className="grid h-auto w-full justify-normal gap-1 whitespace-normal p-2 text-start data-selected:border-ring data-selected:ring-2 data-selected:ring-ring data-selected:forced-colors:border-[HighlightText] data-selected:forced-colors:bg-[Highlight] data-selected:forced-colors:text-[HighlightText] data-selected:forced-colors:[&_.text-muted-foreground]:text-[HighlightText]"
+      className="grid h-auto w-full justify-normal gap-1 whitespace-normal p-2 text-start data-selected:border-primary/40 data-selected:bg-accent data-selected:ring-1 data-selected:ring-primary/30 data-selected:forced-colors:border-[HighlightText] data-selected:forced-colors:bg-[Highlight] data-selected:forced-colors:text-[HighlightText] data-selected:forced-colors:[&_.text-muted-foreground]:text-[HighlightText]"
       data-selected={selected || undefined}
       disabled={disabled}
       onClick={onSelect}
@@ -1626,7 +1671,10 @@ function CandidateHistory({
 
   return (
     <>
-      <section aria-labelledby={`candidates-${card.id}`}>
+      <section
+        aria-labelledby={`candidates-${card.id}`}
+        className="rounded-xl border border-border bg-card p-3"
+      >
         <h3 className="ticket-label" id={`candidates-${card.id}`}>
           {t("cardSheet.candidates")}
         </h3>
@@ -1656,43 +1704,57 @@ function CandidateHistory({
           </ul>
         )}
       </section>
-      <details className="border border-border border-dashed p-2">
-        <summary className="min-h-8 cursor-pointer content-center text-muted-foreground text-xs">
+      <Collapsible className="rounded-xl border border-border bg-card">
+        <CollapsibleTrigger
+          render={
+            <Button
+              className="group w-full justify-start px-3"
+              variant="ghost"
+            />
+          }
+        >
+          <HistoryIcon aria-hidden="true" />
           {t("cardSheet.more")}
-        </summary>
-        <section aria-labelledby={`history-${card.id}`} className="pt-3">
-          <h3 className="ticket-label" id={`history-${card.id}`}>
-            {t("cardSheet.history")}
-          </h3>
-          {card.revisions.length === 0 ? (
-            <p className="mt-2 text-muted-foreground">
-              {t("cardSheet.historyEmpty")}
-            </p>
-          ) : (
-            <ol className="mt-2 grid gap-2">
-              {card.revisions.map((revision) => (
-                <li id={`revision-history-${revision.id}`} key={revision.id}>
-                  <SelectableItem
-                    contentLocale={revision.contentLocale}
-                    disabled={disabled}
-                    label={t("cardSheet.revision", {
-                      n: revision.revisionNumber,
-                    })}
-                    meta={t("cardSheet.revisionMeta", {
-                      author: revision.authorName,
-                      locale: revision.contentLocale,
-                    })}
-                    onSelect={() => onSelectRevision(revision.id)}
-                    preview={revision.headline}
-                    selected={selectedRevisionId === revision.id}
-                    time={at(revision.createdAt)}
-                  />
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
-      </details>
+          <ChevronDownIcon
+            className="ms-auto transition-transform group-data-panel-open:rotate-180"
+            aria-hidden="true"
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="p-3 pt-1 data-closed:hidden" keepMounted>
+          <section aria-labelledby={`history-${card.id}`}>
+            <h3 className="ticket-label" id={`history-${card.id}`}>
+              {t("cardSheet.history")}
+            </h3>
+            {card.revisions.length === 0 ? (
+              <p className="mt-2 text-muted-foreground">
+                {t("cardSheet.historyEmpty")}
+              </p>
+            ) : (
+              <ol className="mt-2 grid gap-2">
+                {card.revisions.map((revision) => (
+                  <li id={`revision-history-${revision.id}`} key={revision.id}>
+                    <SelectableItem
+                      contentLocale={revision.contentLocale}
+                      disabled={disabled}
+                      label={t("cardSheet.revision", {
+                        n: revision.revisionNumber,
+                      })}
+                      meta={t("cardSheet.revisionMeta", {
+                        author: revision.authorName,
+                        locale: revision.contentLocale,
+                      })}
+                      onSelect={() => onSelectRevision(revision.id)}
+                      preview={revision.headline}
+                      selected={selectedRevisionId === revision.id}
+                      time={at(revision.createdAt)}
+                    />
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        </CollapsibleContent>
+      </Collapsible>
     </>
   );
 }
@@ -1726,12 +1788,16 @@ function ContentPreview({
       </h3>
       {content ? (
         <article
-          className="mt-2 grid gap-2 border border-border p-3"
-          dir={content.contentLocale === "fa" ? "rtl" : "ltr"}
+          className="mt-2 grid gap-3 rounded-xl border border-border bg-card p-4"
+          dir={DIRECTION[content.contentLocale]}
           lang={content.contentLocale}
         >
-          <strong>{content.headline}</strong>
-          <p className="whitespace-pre-wrap">{content.body}</p>
+          <strong className="wrap-anywhere text-sm/relaxed">
+            {content.headline}
+          </strong>
+          <p className="wrap-anywhere whitespace-pre-wrap text-sm/relaxed">
+            {content.body}
+          </p>
           <HashtagChips hashtags={content.hashtags} />
           {action ? (
             <Button
@@ -1828,7 +1894,7 @@ function HashtagField({
             <FieldCaption htmlFor={controlId}>
               {t("cardSheet.editor.hashtags")}
             </FieldCaption>
-            <InputGroup className="max-w-64">
+            <InputGroup className="w-full">
               <InputGroupInput
                 {...controlProps}
                 onBlur={field.onBlur}
@@ -1866,7 +1932,7 @@ function HashtagField({
               {hashtags.map((hashtag, index) => (
                 <li key={hashtag}>
                   <Badge
-                    className="h-6 gap-1 overflow-visible py-0 ps-2 pe-0.5 data-locked:pe-2"
+                    className="h-auto min-h-6 gap-1 overflow-visible py-0 ps-2 pe-0.5 data-locked:pe-2"
                     data-locked={index === 0 || undefined}
                     variant="secondary"
                   >
@@ -1956,19 +2022,23 @@ function RevisionEditor({
       {active ? (
         <form
           aria-busy={updatePending}
-          className="grid gap-3"
+          className="grid gap-4 rounded-xl border border-border bg-card p-4"
           onSubmit={onSubmit}
         >
           <fieldset disabled={updatePending || disabled}>
             <FieldGroup className="gap-3">
               <FormInputField
                 control={form.control}
+                dir={DIRECTION[contentLocale]}
+                lang={contentLocale}
                 label={t("cardSheet.editor.headline")}
                 name="headline"
                 resolveError={resolveError}
               />
               <FormTextareaField
                 control={form.control}
+                dir={DIRECTION[contentLocale]}
+                lang={contentLocale}
                 label={t("cardSheet.editor.body")}
                 name="body"
                 resolveError={resolveError}
@@ -2127,40 +2197,43 @@ function CopyControls({
     <section
       aria-busy={pending}
       aria-labelledby={`copy-actions-${card.id}`}
-      className="grid gap-2 border border-border border-dashed p-3"
+      className="grid gap-3 rounded-xl border border-border bg-card p-3"
     >
       <h3 className="ticket-label" id={`copy-actions-${card.id}`}>
         {t("cardSheet.copyActions")}
       </h3>
       <div className="grid gap-2">
         <Button
-          className="h-auto min-h-8 whitespace-normal py-1.5"
+          className="h-auto min-h-8 justify-start whitespace-normal py-1.5"
           disabled={disabled || pending || nonterminal || !card.generation}
           onClick={() => run("regenerate")}
           type="button"
           variant="outline"
         >
+          <RotateCcwIcon aria-hidden="true" />
           {t("cardSheet.regenerate")}
         </Button>
         {card.sourceKind === "rss" ? (
           <Button
-            className="h-auto min-h-8 whitespace-normal py-1.5"
+            className="h-auto min-h-8 justify-start whitespace-normal py-1.5"
             disabled={disabled || pending || nonterminal || !card.generation}
             onClick={() => run("refresh_article")}
             type="button"
             variant="outline"
           >
+            <RefreshCwIcon aria-hidden="true" />
             {t("cardSheet.refreshArticle")}
           </Button>
         ) : null}
         {failedUnits > 0 ? (
           <Button
-            className="h-auto min-h-8 whitespace-normal py-1.5"
+            className="h-auto min-h-8 justify-start whitespace-normal py-1.5"
             disabled={disabled || pending || nonterminal}
             onClick={() => run("retry_failed")}
             type="button"
             variant="outline"
           >
+            <RotateCcwIcon aria-hidden="true" />
             {t("cardSheet.retryFailed", { n: failedUnits })}
           </Button>
         ) : null}

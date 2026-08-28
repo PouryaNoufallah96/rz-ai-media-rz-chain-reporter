@@ -28,7 +28,7 @@ export function LocaleSwitch() {
       }}
       size="icon"
       type="button"
-      variant="outline"
+      variant="ghost"
     >
       <LanguagesIcon aria-hidden="true" />
     </Button>

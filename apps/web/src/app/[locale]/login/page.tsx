@@ -7,7 +7,10 @@ import { Localized } from "@/i18n/client";
 
 export default function LoginPage() {
   return (
-    <main id="main-content">
+    <main
+      className="flex items-center justify-center px-5 py-12 sm:py-20"
+      id="main-content"
+    >
       <Suspended data={requireGuest} fallback={null}>
         {() => null}
       </Suspended>

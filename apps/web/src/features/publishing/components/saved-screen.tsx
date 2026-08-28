@@ -20,8 +20,10 @@ export function SavedScreen({
     >
       {(t) => (
         <>
-          <h1 className="mt-2 font-semibold text-3xl">{t("saved.title")}</h1>
-          <p className="mt-3 max-w-3xl text-muted-foreground">
+          <h1 className="font-semibold text-2xl tracking-display">
+            {t("saved.title")}
+          </h1>
+          <p className="mt-2 max-w-3xl text-muted-foreground text-sm/relaxed">
             {t("saved.subtitle")}
           </p>
           <Suspended

@@ -6,14 +6,19 @@ import {
 } from "@rz-chain-reporter/contracts";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
-import { Input } from "@rz-chain-reporter/ui/components/input";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@rz-chain-reporter/ui/components/collapsible";
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
+import { ChevronDownIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { StateMark } from "@/components/common/state-mark";
-import { FieldCaption, LabeledSelect } from "@/components/form/form-field";
+import { LabeledSelect } from "@/components/form/form-field";
 import type { PlatformDraftCard } from "@/features/editorial/schemas/drafts";
 import { focusOperation } from "@/features/operations/lib/focus-operation";
 import { useAction } from "@/hooks/use-action";
@@ -33,6 +38,7 @@ import {
   validFutureLocalTime,
   zonedLocalDate,
 } from "../lib/installation-time";
+import { PublishingDateTimePicker } from "./publishing-date-time-picker";
 import { PublishingFreshness } from "./publishing-freshness";
 
 function usePublishingTicket({
@@ -242,6 +248,7 @@ function usePublishingTicket({
     restore,
     save,
     savedIntent,
+    scheduledAt,
     scheduleFact,
     setConfirming,
     setDestinationAccountId,
@@ -291,6 +298,7 @@ export function PublishingTicket({
     restore,
     save,
     savedIntent,
+    scheduledAt,
     scheduleFact,
     setConfirming,
     setDestinationAccountId,
@@ -304,7 +312,7 @@ export function PublishingTicket({
   return (
     <section
       aria-labelledby={`publishing-ticket-${card.id}`}
-      className="border border-border border-dashed p-3"
+      className="rounded-xl border border-border bg-card p-4"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="ticket-label" id={`publishing-ticket-${card.id}`}>
@@ -335,7 +343,7 @@ export function PublishingTicket({
                 ? t("saved.restore")
                 : t("ticket.save")}
           </Button>
-          <span className="flex items-center gap-1 text-sm">
+          <span className="flex items-start gap-2 text-sm">
             <StateMark state={approved ? "succeeded" : "queued"} />
             {approved ? t("approval.approved") : t("approval.unapproved")}
           </span>
@@ -402,20 +410,21 @@ export function PublishingTicket({
         />
         {mode === "schedule" ? (
           <div className="grid gap-1">
-            <FieldCaption htmlFor={`publishing-time-${card.id}`}>
-              {t("schedule.time")}
-            </FieldCaption>
-            <Input
+            <PublishingDateTimePicker
               disabled={disabled}
               id={`publishing-time-${card.id}`}
+              label={t("schedule.time")}
               min={minimumLocalTime(timeZone)}
-              onChange={(event) => setLocalTime(event.currentTarget.value)}
-              type="datetime-local"
+              invalid={
+                Boolean(localTime) && !validFutureLocalTime(localTime, timeZone)
+              }
+              onValueChange={setLocalTime}
+              timeZone={timeZone}
               value={localTime}
             />
-            {localTime ? (
+            {scheduledAt ? (
               <p className="text-muted-foreground text-xs">
-                {format.dateTime(zonedLocalDate(localTime, timeZone) ?? 0, {
+                {format.dateTime(scheduledAt, {
                   dateStyle: "full",
                   timeStyle: "long",
                   timeZone,
@@ -520,7 +529,7 @@ function PublishingReadiness({
 }) {
   const t = useTranslations(PUBLISHING_NAMESPACE);
   return (
-    <div className="grid gap-2 border-border border-y border-dashed py-3 text-sm sm:grid-cols-2">
+    <div className="grid gap-3 rounded-lg bg-muted/50 p-3 text-xs/relaxed sm:grid-cols-2">
       <Readiness
         ok={payload.status === "ready"}
         text={t("readiness.payload", {
@@ -579,7 +588,7 @@ function Readiness({
   text: string;
 }) {
   return (
-    <span className="flex items-center gap-1">
+    <span className="flex items-start gap-2">
       <StateMark state={state ?? (ok ? "succeeded" : "failed")} />
       {text}
     </span>
@@ -602,10 +611,10 @@ function PublicationFact({ card }: { card: PlatformDraftCard }) {
   );
   return (
     <div
-      className="grid gap-2 border border-working bg-working/10 p-3 text-sm"
+      className="grid gap-2 rounded-lg border border-working/40 bg-working/10 p-3 text-sm"
       role="status"
     >
-      <span className="flex items-center gap-1 font-medium text-working">
+      <span className="flex items-start gap-2 font-medium text-working">
         <StateMark state="unknown" />
         {t("reconciliation.ticket")}
       </span>
@@ -620,12 +629,18 @@ function PublicationFact({ card }: { card: PlatformDraftCard }) {
         {t(`lifecycle.${publication.lifecycle}`)} ·{" "}
         {t(`activity.${publication.activityStatus}`)}
       </p>
-      <Link
-        className="min-h-11 content-center justify-self-start underline underline-offset-4 sm:min-h-0"
-        href={{ pathname: "/schedule", query: { view: "reconciliation" } }}
+      <Button
+        className="justify-self-start max-sm:min-h-11"
+        nativeButton={false}
+        render={
+          <Link
+            href={{ pathname: "/schedule", query: { view: "reconciliation" } }}
+          />
+        }
+        variant="outline"
       >
         {t("reconciliation.openDesk")}
-      </Link>
+      </Button>
     </div>
   );
 }
@@ -650,60 +665,71 @@ function PublishingMore({
   if (!hasDetails) return null;
 
   return (
-    <details className="border border-border border-dashed p-2">
-      <summary className="min-h-8 cursor-pointer content-center text-muted-foreground text-xs">
+    <Collapsible className="rounded-lg border border-border">
+      <CollapsibleTrigger
+        render={
+          <Button className="group w-full justify-between" variant="ghost" />
+        }
+      >
         {t("ticket.more")}
-      </summary>
-      <dl className="grid gap-2 pt-3 text-xs">
-        {destination ? (
-          <div className="grid gap-1">
-            <dt className="text-muted-foreground">{t("destination.key")}</dt>
-            <dd>
-              <Bdi className="font-mono">{destination.key}</Bdi>
-            </dd>
-          </div>
+        <ChevronDownIcon
+          className="transition-transform group-data-panel-open:rotate-180"
+          aria-hidden="true"
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="p-3 pt-1 data-closed:hidden" keepMounted>
+        <dl className="grid gap-3 text-xs">
+          {destination ? (
+            <div className="grid gap-1">
+              <dt className="text-muted-foreground">{t("destination.key")}</dt>
+              <dd>
+                <Bdi className="font-mono">{destination.key}</Bdi>
+              </dd>
+            </div>
+          ) : null}
+          {publication?.confirmedProviderResultId ? (
+            <div className="grid gap-1">
+              <dt className="text-muted-foreground">
+                {t("reconciliation.providerResult")}
+              </dt>
+              <dd>
+                <Bdi className="font-mono">
+                  {publication.confirmedProviderResultId}
+                </Bdi>
+              </dd>
+            </div>
+          ) : null}
+          {publication?.checkpointId && publication.checkpointKind ? (
+            <div className="grid gap-1">
+              <dt className="text-muted-foreground">
+                {t("reconciliation.checkpoint")}
+              </dt>
+              <dd>
+                <Bdi className="font-mono">
+                  {publication.checkpointKind} ·{" "}
+                  {publication.checkpointReferenceId ??
+                    publication.checkpointId}
+                </Bdi>
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+        {publication?.activeOperationId ? (
+          <Button
+            className="mt-3"
+            onClick={() => focusOperation(publication.activeOperationId ?? "")}
+            size="xs"
+            type="button"
+            variant="outline"
+          >
+            {t("handoff.openOperation")} ·{" "}
+            <Bdi className="font-mono">
+              {publication.activeOperationId.slice(0, 8)}
+            </Bdi>
+          </Button>
         ) : null}
-        {publication?.confirmedProviderResultId ? (
-          <div className="grid gap-1">
-            <dt className="text-muted-foreground">
-              {t("reconciliation.providerResult")}
-            </dt>
-            <dd>
-              <Bdi className="font-mono">
-                {publication.confirmedProviderResultId}
-              </Bdi>
-            </dd>
-          </div>
-        ) : null}
-        {publication?.checkpointId && publication.checkpointKind ? (
-          <div className="grid gap-1">
-            <dt className="text-muted-foreground">
-              {t("reconciliation.checkpoint")}
-            </dt>
-            <dd>
-              <Bdi className="font-mono">
-                {publication.checkpointKind} ·{" "}
-                {publication.checkpointReferenceId ?? publication.checkpointId}
-              </Bdi>
-            </dd>
-          </div>
-        ) : null}
-      </dl>
-      {publication?.activeOperationId ? (
-        <Button
-          className="mt-3"
-          onClick={() => focusOperation(publication.activeOperationId ?? "")}
-          size="xs"
-          type="button"
-          variant="outline"
-        >
-          {t("handoff.openOperation")} ·{" "}
-          <Bdi className="font-mono">
-            {publication.activeOperationId.slice(0, 8)}
-          </Bdi>
-        </Button>
-      ) : null}
-    </details>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

@@ -1,3 +1,4 @@
+import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import type { ReactNode } from "react";
 
 export function ProvenanceLine({
@@ -8,7 +9,7 @@ export function ProvenanceLine({
   segments: readonly string[];
 }) {
   return (
-    <span className="wrap-anywhere line-clamp-3 block font-mono text-muted-foreground text-xs tabular-nums">
+    <span className="wrap-anywhere line-clamp-3 block text-muted-foreground text-xs tabular-nums">
       {segments.join(" · ")}
       {children}
     </span>
@@ -17,9 +18,9 @@ export function ProvenanceLine({
 
 export function MutedTag({ children }: { children: ReactNode }) {
   return (
-    <span className="ms-2 border border-border border-dashed px-1">
+    <Badge className="ms-1.5 whitespace-normal font-normal" variant="secondary">
       {children}
-    </span>
+    </Badge>
   );
 }
 

@@ -1,4 +1,5 @@
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
+import { Layers2Icon } from "lucide-react";
 import { Suspense } from "react";
 import { UrlDataBoundary } from "@/components/fetcher/suspended";
 import { getSession } from "@/features/auth/api/server/session";
@@ -11,12 +12,11 @@ import { SHARED_NAMESPACE } from "@/features/shared/constants";
 import { Localized } from "@/i18n/client";
 import { Link } from "@/i18n/navigation";
 import { getT } from "@/i18n/server";
+import { customerProductName } from "@/lib/customer-template.server";
 
 import { LocaleSwitch } from "./locale-switch";
 import { ModeToggle } from "./mode-toggle";
-
-const NAV_LINK_CLASS =
-  "inline-flex items-center underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-sm:min-h-11";
+import { PrimaryNav } from "./primary-nav";
 
 async function ResolvedUserMenu() {
   const session = await getSession();
@@ -35,26 +35,38 @@ export default async function Header() {
   const t = await getT(SHARED_NAMESPACE);
 
   return (
-    <header className="relative min-w-0 border-b">
+    <header className="relative min-w-0 border-b bg-card">
       <a
         className="sr-only z-50 bg-background px-3 py-2 focus:not-sr-only focus:absolute focus:inset-s-2 focus:top-2"
         href="#main-content"
       >
         {t("header.skipToContent")}
       </a>
-      <div className="flex min-w-0 flex-col gap-2 px-2 py-2 xl:flex-row xl:items-center xl:justify-between xl:gap-4">
-        <nav
-          aria-label={t("header.primaryNav")}
-          className="flex min-w-0 items-center gap-3 text-sm sm:text-base"
+      <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 sm:px-6">
+        <Link
+          aria-label={t("header.home")}
+          className="flex min-h-9 min-w-0 items-center gap-2.5 rounded-md font-semibold text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:flex-1"
+          href="/"
         >
-          <Link className={NAV_LINK_CLASS} href="/dashboard">
-            {t("header.multiMedia")}
-          </Link>
-          <Link className={NAV_LINK_CLASS} href="/account">
-            {t("header.account")}
-          </Link>
-        </nav>
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          <Layers2Icon
+            aria-hidden="true"
+            className="size-5 shrink-0 text-primary"
+          />
+          <span className="truncate">{customerProductName}</span>
+        </Link>
+        <div className="order-last w-full border-t pt-1 sm:order-0 sm:w-auto sm:border-0 sm:pt-0">
+          <UrlDataBoundary
+            fallback={<Skeleton className="h-9 w-72 max-sm:h-11" />}
+          >
+            <PrimaryNav
+              accountLabel={t("header.account")}
+              dashboardLabel={t("header.multiMedia")}
+              label={t("header.primaryNav")}
+              usageLabel={t("header.usage")}
+            />
+          </UrlDataBoundary>
+        </div>
+        <div className="ms-auto flex min-w-0 items-center justify-end gap-1">
           <Localized namespaces={[SHARED_NAMESPACE, OPERATIONS_NAMESPACE]}>
             <OperationsIndicator />
           </Localized>

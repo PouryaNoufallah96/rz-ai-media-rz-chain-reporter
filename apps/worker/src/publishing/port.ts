@@ -158,7 +158,14 @@ export type PublisherRuntime = {
 
 const MAX_AUTOMATIC_PUBLISH_ATTEMPTS = 5;
 export const PROVIDER_REQUEST_TIMEOUT_MS = 30_000;
+export const PROVIDER_MEDIA_UPLOAD_TIMEOUT_MS = 120_000;
 export const PROVIDER_RESPONSE_MAX_BYTES = 512 * 1024;
+
+export function providerRequestTimeoutMs(init?: RequestInit) {
+  return init?.body instanceof FormData
+    ? PROVIDER_MEDIA_UPLOAD_TIMEOUT_MS
+    : PROVIDER_REQUEST_TIMEOUT_MS;
+}
 
 const MIN_RETRY_DELAY_MS = 5_000;
 const MAX_RETRY_DELAY_MS = 15 * 60_000;

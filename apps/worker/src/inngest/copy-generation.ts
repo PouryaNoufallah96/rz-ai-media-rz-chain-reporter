@@ -195,7 +195,10 @@ export { assembleCopy };
 
 export type CopyCandidate = z.infer<typeof copyOutputSchema>;
 
-export type CopyCheckFailure = "CONTENT_LOCALE_MISMATCH" | "LENGTH_ABOVE_MAX";
+export type CopyCheckFailure =
+  | "CONTENT_LOCALE_MISMATCH"
+  | "HASHTAGS_BELOW_MIN"
+  | "LENGTH_ABOVE_MAX";
 
 type CopyPublishSource = {
   attribution: string;
@@ -207,6 +210,7 @@ type CopyNormalizationInput = {
   emojiGraphemeCap: number;
   maximumCharacters: number;
   maximumHashtags: number;
+  minimumHashtags: number;
   requestedContentLocale: ContentLocale;
   source: CopyPublishSource;
 };
@@ -214,11 +218,12 @@ type CopyNormalizationInput = {
 const COPY_CHECK_CORRECTION: Record<CopyCheckFailure, string> = {
   CONTENT_LOCALE_MISMATCH:
     "rewrite the headline and body in the requested content language",
+  HASHTAGS_BELOW_MIN:
+    "add topic hashtags until the required final total; do not return the canonical hashtag",
   LENGTH_ABOVE_MAX:
-    "shorten the assembled copy to the middle of the character window",
+    "shorten the body to fit the character window and keep the required hashtags",
 };
 
-const COPY_FIT_TARGET_RATIO = 0.9;
 const HASHTAG_SPLIT = /[\s#]+/u;
 const HASHTAG_EDGE = /^[^\p{L}\p{N}_]+|[^\p{L}\p{N}_]+$/gu;
 const EMOJI_GRAPHEME = /\p{Extended_Pictographic}/u;
@@ -257,6 +262,9 @@ export function normalizeCopyCandidate(
   const failures: CopyCheckFailure[] = [];
   if (!fitted || publishPayload.status !== "ready") {
     failures.push("LENGTH_ABOVE_MAX");
+  }
+  if (normalized.hashtags.length < input.minimumHashtags) {
+    failures.push("HASHTAGS_BELOW_MIN");
   }
   if (
     !copyMatchesContentLocale(input.requestedContentLocale, {
@@ -369,20 +377,20 @@ function fitPlatformLength(
     PLATFORM_COPY_HARD_MAX[platform],
   );
   if (fitsPlatform(platform, candidate, maximum, input)) return candidate;
-  const target = Math.floor(maximum * COPY_FIT_TARGET_RATIO);
+  const floor = Math.max(
+    1,
+    Math.min(candidate.hashtags.length, input.minimumHashtags),
+  );
   let hashtags = [...candidate.hashtags];
-  while (
-    hashtags.length > 1 &&
-    !fitsPlatform(platform, { ...candidate, hashtags }, target, input)
-  ) {
+  while (hashtags.length >= floor) {
+    const current = { ...candidate, hashtags };
+    if (fitsPlatform(platform, current, maximum, input)) return current;
+    const body = truncateBody(platform, current, maximum, input);
+    if (body !== null) return { ...current, body };
+    if (hashtags.length === floor) return null;
     hashtags = hashtags.slice(0, -1);
   }
-  const trimmed = { ...candidate, hashtags };
-  if (fitsPlatform(platform, trimmed, target, input)) return trimmed;
-  const body =
-    truncateBody(platform, trimmed, target, input) ??
-    truncateBody(platform, trimmed, maximum, input);
-  return body === null ? null : { ...trimmed, body };
+  return null;
 }
 
 function truncateBody(
@@ -813,6 +821,7 @@ export async function executeCopyGenerationUnit(
             emojiGraphemeCap: policy.emojiGraphemeCap,
             maximumCharacters: policy.assembledCharacters.max,
             maximumHashtags: policy.hashtags.max,
+            minimumHashtags: policy.hashtags.min,
             requestedContentLocale: context.requestedContentLocale,
             source: sourceAttribution,
           });

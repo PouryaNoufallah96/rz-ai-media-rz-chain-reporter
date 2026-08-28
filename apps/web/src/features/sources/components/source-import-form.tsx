@@ -7,7 +7,13 @@ import {
 } from "@rz-chain-reporter/contracts";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
+import { Card } from "@rz-chain-reporter/ui/components/card";
 import { Checkbox } from "@rz-chain-reporter/ui/components/checkbox";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@rz-chain-reporter/ui/components/collapsible";
 import {
   FieldDescription,
   FieldGroup,
@@ -23,7 +29,7 @@ import {
   InputGroupInput,
 } from "@rz-chain-reporter/ui/components/input-group";
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
-import { XIcon } from "lucide-react";
+import { ChevronDownIcon, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import {
@@ -37,10 +43,10 @@ import type { z } from "zod";
 
 import {
   FieldCaption,
-  FormCheckboxField,
   FormField,
   FormRootError,
   FormSelectField,
+  FormSwitchField,
 } from "@/components/form/form-field";
 import { useFallbackErrorMessage } from "@/components/form/use-error-message";
 import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
@@ -137,44 +143,46 @@ export function SourceImportForm({
   });
 
   return (
-    <section aria-labelledby={titleId} className="border border-border p-4">
-      <h2 className="ticket-label border-b border-dashed pb-2" id={titleId}>
-        {t("import.title")}
-      </h2>
-      <form
-        aria-busy={isPending}
-        className="mt-3"
-        noValidate
-        onSubmit={onSubmit}
-      >
-        <FieldGroup>
-          <SourceSelection
-            control={control}
-            disabled={isPending}
-            enrichmentEnabled={imports.defaults.enrichmentEnabled}
-            recentTopics={imports.recentTopics}
-            resolveError={resolveError}
-            selectable={selectable}
-          />
-          <RecencyField
-            control={control}
-            disabled={isPending}
-            resolveError={resolveError}
-          />
-          <FormRootError
-            message={
-              errors.root?.server
-                ? resolveError(errors.root.server.message)
-                : undefined
-            }
-          />
-          <StartImportControl
-            control={control}
-            isPending={isPending}
-            startHintId={startHintId}
-          />
-        </FieldGroup>
-      </form>
+    <section aria-labelledby={titleId} className="min-w-0">
+      <Card className="gap-0 border p-4 ring-0 sm:p-5">
+        <h2 className="border-b pb-3 font-medium text-sm" id={titleId}>
+          {t("import.title")}
+        </h2>
+        <form
+          aria-busy={isPending}
+          className="mt-4"
+          noValidate
+          onSubmit={onSubmit}
+        >
+          <FieldGroup>
+            <SourceSelection
+              control={control}
+              disabled={isPending}
+              enrichmentEnabled={imports.defaults.enrichmentEnabled}
+              recentTopics={imports.recentTopics}
+              resolveError={resolveError}
+              selectable={selectable}
+            />
+            <RecencyField
+              control={control}
+              disabled={isPending}
+              resolveError={resolveError}
+            />
+            <FormRootError
+              message={
+                errors.root?.server
+                  ? resolveError(errors.root.server.message)
+                  : undefined
+              }
+            />
+            <StartImportControl
+              control={control}
+              isPending={isPending}
+              startHintId={startHintId}
+            />
+          </FieldGroup>
+        </form>
+      </Card>
     </section>
   );
 }
@@ -204,7 +212,7 @@ function StartImportControl({
   const hasSelection = field.value.length > 0;
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3 border-t pt-4">
       <Button
         aria-describedby={startHintId}
         disabled={isPending || !hasSelection}
@@ -258,7 +266,7 @@ function SourceSelection({
           return (
             <>
               <FieldLegend
-                className="ticket-label mb-0"
+                className="ticket-label"
                 id={controlId}
                 variant="label"
               >
@@ -286,73 +294,91 @@ function SourceSelection({
                   return (
                     <section
                       aria-labelledby={headingId}
-                      className="grid gap-1"
+                      className="min-w-0"
                       key={origin}
                     >
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <h3
-                          className="flex min-w-0 items-baseline gap-2"
-                          id={headingId}
-                        >
-                          <span className="ticket-label">
-                            {t(`catalog.kind.${origin}`)}
-                          </span>
-                          <span className="font-mono text-muted-foreground text-xs tabular-nums">
-                            {t("import.sourcesHint", {
-                              m: kindIds.length,
-                              n: selectedCount,
-                            })}
-                          </span>
-                        </h3>
-                        <Button
-                          aria-pressed={allSelected}
-                          className="shrink-0 border border-input bg-background aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary"
-                          disabled={disabled}
-                          onClick={() => {
-                            const next = new Set(selected);
-                            for (const id of kindIds) {
-                              if (allSelected) next.delete(id);
-                              else next.add(id);
-                            }
-                            field.onChange([...next]);
-                          }}
-                          size="xs"
-                          type="button"
-                          variant="ghost"
-                        >
-                          {t(
-                            allSelected
-                              ? "import.selectNone"
-                              : "import.selectAll",
-                          )}
-                        </Button>
-                      </div>
-                      <ul className="max-h-40 overflow-y-auto border border-border border-dashed px-2 py-1">
-                        {entries.map((entry) => (
-                          <li
-                            className="flex items-center gap-2 py-0.5"
-                            key={entry.id}
-                          >
-                            <Checkbox
-                              checked={selected.has(entry.id)}
-                              disabled={disabled}
-                              id={`${controlId}-${entry.id}`}
-                              onCheckedChange={(checked) => {
-                                const next = new Set(selected);
-                                if (checked === true) next.add(entry.id);
-                                else next.delete(entry.id);
-                                field.onChange([...next]);
-                              }}
-                            />
-                            <FieldLabel
-                              className="min-w-0 truncate font-normal"
-                              htmlFor={`${controlId}-${entry.id}`}
+                      <Collapsible
+                        defaultOpen
+                        className="rounded-lg border bg-muted/20"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 p-2">
+                          <h3 className="min-w-0" id={headingId}>
+                            <CollapsibleTrigger
+                              render={
+                                <Button
+                                  className="group h-auto flex-wrap justify-start"
+                                  size="xs"
+                                  variant="ghost"
+                                />
+                              }
                             >
-                              <Bdi>{entry.name}</Bdi>
-                            </FieldLabel>
-                          </li>
-                        ))}
-                      </ul>
+                              <ChevronDownIcon className="transition-transform group-data-panel-open:rotate-180" />
+                              <span className="ticket-label">
+                                {t(`catalog.kind.${origin}`)}
+                              </span>
+                              <span className="text-muted-foreground text-xs tabular-nums">
+                                {t("import.sourcesHint", {
+                                  m: kindIds.length,
+                                  n: selectedCount,
+                                })}
+                              </span>
+                            </CollapsibleTrigger>
+                          </h3>
+                          <Button
+                            aria-pressed={allSelected}
+                            className="shrink-0"
+                            disabled={disabled}
+                            onClick={() => {
+                              const next = new Set(selected);
+                              for (const id of kindIds) {
+                                if (allSelected) next.delete(id);
+                                else next.add(id);
+                              }
+                              field.onChange([...next]);
+                            }}
+                            size="xs"
+                            type="button"
+                            variant={allSelected ? "secondary" : "outline"}
+                          >
+                            {t(
+                              allSelected
+                                ? "import.selectNone"
+                                : "import.selectAll",
+                            )}
+                          </Button>
+                        </div>
+                        <CollapsibleContent
+                          keepMounted
+                          className="data-closed:hidden"
+                        >
+                          <ul className="max-h-44 overflow-y-auto border-t px-3 py-2">
+                            {entries.map((entry) => (
+                              <li
+                                className="flex min-h-9 items-center gap-2 py-1"
+                                key={entry.id}
+                              >
+                                <Checkbox
+                                  checked={selected.has(entry.id)}
+                                  disabled={disabled}
+                                  id={`${controlId}-${entry.id}`}
+                                  onCheckedChange={(checked) => {
+                                    const next = new Set(selected);
+                                    if (checked === true) next.add(entry.id);
+                                    else next.delete(entry.id);
+                                    field.onChange([...next]);
+                                  }}
+                                />
+                                <FieldLabel
+                                  className="min-w-0 truncate font-normal"
+                                  htmlFor={`${controlId}-${entry.id}`}
+                                >
+                                  <Bdi>{entry.name}</Bdi>
+                                </FieldLabel>
+                              </li>
+                            ))}
+                          </ul>
+                        </CollapsibleContent>
+                      </Collapsible>
                     </section>
                   );
                 })
@@ -377,7 +403,8 @@ function SourceSelection({
         </>
       ) : null}
       {includesRss ? (
-        <FormCheckboxField
+        <FormSwitchField
+          className="rounded-lg border bg-muted/20 p-3"
           control={control}
           description={t("import.enrichmentHint", {
             state: t(
@@ -408,21 +435,21 @@ function RecencyField({ control, disabled, resolveError }: FieldProps) {
     >
       {({ field }) => (
         <>
-          <FieldLegend className="ticket-label mb-0" variant="label">
+          <FieldLegend className="ticket-label" variant="label">
             {t("import.recency.label")}
           </FieldLegend>
           <div className="flex flex-wrap gap-1">
             {IMPORT_WINDOW_HOURS.map((hours) => (
               <Button
                 aria-pressed={field.value === hours}
-                className="border border-input bg-background font-mono tabular-nums aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary"
+                className="tabular-nums"
                 disabled={disabled}
                 key={hours}
                 onBlur={field.onBlur}
                 onClick={() => field.onChange(hours)}
                 size="xs"
                 type="button"
-                variant="ghost"
+                variant={field.value === hours ? "secondary" : "outline"}
               >
                 {t(`import.recency.${hours}`)}
               </Button>
@@ -549,10 +576,10 @@ function TopicsField({
               <ul className="flex flex-wrap items-center gap-1">
                 {topics.map((topic) => (
                   <li
-                    className="flex items-center gap-1 border border-input bg-accent ps-2 text-accent-foreground text-xs"
+                    className="flex max-w-full items-center gap-1 rounded-md border bg-muted ps-2 text-xs"
                     key={topic}
                   >
-                    <Bdi>{topic}</Bdi>
+                    <Bdi className="wrap-anywhere">{topic}</Bdi>
                     <Button
                       aria-label={t("import.topicsRemove", { topic })}
                       disabled={disabled}
@@ -612,7 +639,7 @@ function TopicsField({
             </FieldDescription>
             {recentTopics.length > 0 ? (
               <FieldSet className="mt-1 grid gap-1">
-                <FieldLegend className="ticket-label mb-0" variant="label">
+                <FieldLegend className="ticket-label" variant="label">
                   {t("import.recentTopics")}
                 </FieldLegend>
                 <div className="flex flex-wrap gap-1">
@@ -625,7 +652,7 @@ function TopicsField({
                       type="button"
                       variant="outline"
                     >
-                      <Bdi>{topic}</Bdi>
+                      <Bdi className="wrap-anywhere">{topic}</Bdi>
                     </Button>
                   ))}
                 </div>

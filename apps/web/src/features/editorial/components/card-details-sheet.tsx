@@ -39,19 +39,19 @@ export function CardDetailsSheet({
 
   return (
     <SheetContent
-      className="w-full sm:w-[min(760px,100vw)]"
+      className="w-full gap-5 max-[599px]:rounded-t-xl sm:w-[min(760px,100vw)] sm:p-5"
       closeLabel={t("card.close")}
       side={narrow ? "block-end" : "inline-end"}
     >
-      <SheetHeader className="border-border border-b border-dashed pe-10 pb-3">
-        <SheetTitle className="text-sm">
+      <SheetHeader className="border-border border-b pe-12 pb-4">
+        <SheetTitle className="text-base/relaxed">
           <Bdi>{title}</Bdi>
         </SheetTitle>
         <SheetDescription className="sr-only">
           {t("card.description")}
         </SheetDescription>
       </SheetHeader>
-      <dl className="grid gap-2 text-xs">{children}</dl>
+      <dl className="@container grid gap-3 text-xs">{children}</dl>
     </SheetContent>
   );
 }
@@ -64,9 +64,9 @@ function CardDetail({
   label: string;
 }) {
   return (
-    <div className="grid grid-cols-[auto_1fr] gap-2 border-border border-b border-dashed pb-1">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0">{children}</dd>
+    <div className="grid @sm:grid-cols-[8rem_minmax(0,1fr)] gap-x-4 gap-y-1">
+      <dt className="wrap-anywhere text-muted-foreground">{label}</dt>
+      <dd className="wrap-anywhere min-w-0">{children}</dd>
     </div>
   );
 }
@@ -196,9 +196,7 @@ export function TelegramDetails({
         </CardDetail>
       )}
       <CardDetail label={t("detail.disposition")}>
-        <span className="font-mono">
-          {t(`disposition.${card.disposition}`)}
-        </span>
+        {t(`disposition.${card.disposition}`)}
       </CardDetail>
       {card.reason ? (
         <CardDetail label={t("detail.reason")}>

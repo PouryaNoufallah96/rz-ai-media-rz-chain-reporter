@@ -2,8 +2,15 @@
 
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
+import { Card } from "@rz-chain-reporter/ui/components/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@rz-chain-reporter/ui/components/collapsible";
+import { ChevronDownIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId } from "react";
 
 import { StateMark, type StateMarkState } from "@/components/common/state-mark";
 import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
@@ -41,49 +48,58 @@ export function SourceImportRuns({ imports }: { imports: SourceImportsView }) {
   const [current, ...older] = imports.cards;
 
   return (
-    <div className="flex flex-col gap-6">
-      <section aria-labelledby={currentId} className="border border-border p-4">
-        <header className="flex min-w-0 flex-wrap items-center gap-2 border-border border-b border-dashed pb-2">
-          <h2 className="ticket-label" id={currentId}>
-            {t("import.current")}
-          </h2>
-          <SourcesFreshness readAt={imports.readAt} />
-        </header>
-        {current ? (
-          <SourceImportRunCard card={current} />
-        ) : (
-          <div className="mt-3">
-            <p className="text-sm">{t("import.empty.title")}</p>
-            <p className="mt-1 text-muted-foreground text-xs">
-              {t("import.empty.hint")}
-            </p>
+    <div className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:contain-size">
+      <section
+        aria-labelledby={currentId}
+        className="lg:flex lg:max-h-1/2 lg:min-h-0 lg:flex-col lg:only:max-h-none lg:only:flex-1"
+      >
+        <Card className="gap-0 border p-4 ring-0 sm:p-5 lg:min-h-0 lg:flex-1">
+          <header className="flex min-w-0 shrink-0 flex-wrap items-center gap-2 border-b pb-3">
+            <h2 className="ticket-label" id={currentId}>
+              {t("import.current")}
+            </h2>
+            <SourcesFreshness readAt={imports.readAt} />
+          </header>
+          <div className="lg:scrollbar-gutter-stable lg:min-h-0 lg:overflow-y-auto lg:px-1">
+            {current ? (
+              <SourceImportRunCard card={current} />
+            ) : (
+              <div className="mt-3">
+                <p className="text-sm">{t("import.empty.title")}</p>
+                <p className="mt-1 text-muted-foreground text-xs">
+                  {t("import.empty.hint")}
+                </p>
+              </div>
+            )}
           </div>
-        )}
+        </Card>
       </section>
       {older.length > 0 ? (
         <section
           aria-labelledby={recentId}
-          className="border border-border p-4"
+          className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col"
         >
-          <h2
-            className="ticket-label border-b border-dashed pb-2"
-            id={recentId}
-          >
-            {t("import.recent.title")}
-          </h2>
-          <ul>
-            {older.map((card) => (
-              <li
-                className="border-border border-b last:border-b-0"
-                key={card.id}
-              >
-                <SourceImportRunCard card={card} />
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-muted-foreground text-xs">
-            {t("import.recent.hint")}
-          </p>
+          <Card className="gap-0 border p-4 ring-0 sm:p-5 lg:min-h-0 lg:flex-1">
+            <h2
+              className="shrink-0 border-b pb-3 font-medium text-sm"
+              id={recentId}
+            >
+              {t("import.recent.title")}
+            </h2>
+            <ul className="scrollbar-gutter-stable max-h-128 overflow-y-auto px-1 lg:max-h-none lg:min-h-0 lg:flex-1">
+              {older.map((card) => (
+                <li
+                  className="border-border border-b last:border-b-0"
+                  key={card.id}
+                >
+                  <SourceImportRunCard card={card} />
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 shrink-0 text-muted-foreground text-xs/relaxed">
+              {t("import.recent.hint")}
+            </p>
+          </Card>
         </section>
       ) : null}
     </div>
@@ -93,21 +109,16 @@ export function SourceImportRuns({ imports }: { imports: SourceImportsView }) {
 function SourceImportRunCard({ card }: { card: ImportCard }) {
   const format = useFormatter();
   const t = useTranslations(SOURCES_NAMESPACE);
-  const [expanded, setExpanded] = useState(false);
-  const ledgerId = useId();
   const state = cardStateOf(card);
   const shortId = card.operationId.slice(0, SHORT_ID_LENGTH);
 
   return (
-    <div className="py-2">
-      <Button
-        aria-controls={ledgerId}
-        aria-expanded={expanded}
+    <Collapsible className="py-2">
+      <CollapsibleTrigger
+        render={<Button variant="ghost" />}
         aria-label={t("import.toggle", { id: shortId })}
-        className="h-auto w-full min-w-0 items-start justify-start gap-3 whitespace-normal rounded-none px-0 font-normal aria-expanded:bg-transparent"
-        onClick={() => setExpanded((value) => !value)}
+        className="group h-auto w-full min-w-0 items-start justify-start gap-3 whitespace-normal p-2 text-start font-normal"
         type="button"
-        variant="ghost"
       >
         <StateMark
           dispatchExhausted={card.dispatch?.state === "exhausted"}
@@ -129,17 +140,17 @@ function SourceImportRunCard({ card }: { card: ImportCard }) {
           ) : null}
         </span>
         <time
-          className="shrink-0 font-mono text-muted-foreground text-xs tabular-nums"
+          className="shrink-0 text-muted-foreground text-xs tabular-nums"
           dateTime={card.createdAt.toISOString()}
         >
           {format.dateTime(card.createdAt, { timeStyle: "short" })}
         </time>
-      </Button>
-      {expanded ? (
+        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
         <section
           aria-label={t("import.ledger", { id: shortId })}
-          className="ms-6 mt-2 border-border border-s border-dashed ps-2"
-          id={ledgerId}
+          className="mt-2 rounded-lg border bg-muted/30 p-3"
         >
           <p className="ticket-label text-muted-foreground">
             {t(
@@ -156,7 +167,7 @@ function SourceImportRunCard({ card }: { card: ImportCard }) {
           {card.orderingMode === "keywords" &&
           card.embeddingModel &&
           card.embeddingDimension ? (
-            <p className="font-mono text-muted-foreground text-xs">
+            <p className="text-muted-foreground text-xs">
               {t("import.provenance", {
                 dimension: card.embeddingDimension,
                 fingerprint: card.templateFingerprint.slice(0, SHORT_ID_LENGTH),
@@ -170,8 +181,8 @@ function SourceImportRunCard({ card }: { card: ImportCard }) {
             ))}
           </ul>
         </section>
-      ) : null}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -210,7 +221,7 @@ function SourceLine({ line }: { line: SourceImportSourceLine }) {
   ];
 
   return (
-    <li className="border-border border-b border-dashed py-1.5 last:border-b-0">
+    <li className="border-b py-2.5 last:border-b-0">
       <div className="flex flex-wrap items-center gap-2">
         <StateMark state={OUTCOME_MARK[line.outcome]} />
         <span className="min-w-0 flex-1 truncate text-xs">
@@ -229,7 +240,7 @@ function SourceLine({ line }: { line: SourceImportSourceLine }) {
         </span>
         {line.settledAt ? (
           <time
-            className="font-mono text-muted-foreground text-xs tabular-nums"
+            className="text-muted-foreground text-xs tabular-nums"
             dateTime={line.settledAt.toISOString()}
           >
             {format.dateTime(line.settledAt, { timeStyle: "short" })}
@@ -237,7 +248,7 @@ function SourceLine({ line }: { line: SourceImportSourceLine }) {
         ) : null}
       </div>
       {measures.length > 0 ? (
-        <p className="ms-6 font-mono text-muted-foreground text-xs tabular-nums">
+        <p className="ms-6 text-muted-foreground text-xs tabular-nums">
           {measures.join(" · ")}
         </p>
       ) : null}
@@ -311,7 +322,7 @@ function RunCounts({ card }: { card: ImportCard }) {
 
   return (
     <>
-      <span className="font-mono text-muted-foreground text-xs tabular-nums">
+      <span className="text-muted-foreground text-xs tabular-nums">
         {tallies.join(" · ")}
       </span>
       {adapters ? (
@@ -319,7 +330,7 @@ function RunCounts({ card }: { card: ImportCard }) {
           <span className="ticket-label text-muted-foreground">
             {t("import.extract")}
           </span>
-          <span className="font-mono text-muted-foreground text-xs tabular-nums">
+          <span className="text-muted-foreground text-xs tabular-nums">
             {adapters}
           </span>
         </span>

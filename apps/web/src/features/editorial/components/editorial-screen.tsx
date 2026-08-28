@@ -34,7 +34,7 @@ export function EditorialScreen({
     >
       {(t) => (
         <>
-          <h1 className="px-3 pt-4 font-semibold text-3xl sm:px-6">
+          <h1 className="px-3 pt-5 font-semibold text-2xl tracking-display sm:px-6">
             {t("title")}
           </h1>
           <Suspended
@@ -49,7 +49,7 @@ export function EditorialScreen({
                 : [];
               return [workspace, options, catalog, platformDraftLanes] as const;
             }}
-            fallback={<ConfigurationSkeleton />}
+            fallback={<ConfigurationSkeleton label={t("table.loading")} />}
           >
             {([workspace, options, catalog, platformDraftLanes]) => (
               <Localized
@@ -59,7 +59,7 @@ export function EditorialScreen({
                   OPERATIONS_NAMESPACE,
                 ]}
               >
-                <div className="min-w-0 p-3 sm:p-6">
+                <div className="min-w-0 p-3 sm:px-6 sm:pt-4 sm:pb-6">
                   <EditorialCoordinator
                     defaultModelOptionKey={
                       customerEditorial.defaults.models[0] ??
@@ -85,15 +85,25 @@ export function EditorialScreen({
 }
 
 function EditorialHeadingSkeleton() {
-  return <Skeleton className="mt-2 h-9 w-72" />;
+  return <Skeleton className="ms-3 mt-5 h-8 w-56 sm:ms-6" />;
 }
 
-function ConfigurationSkeleton() {
+function ConfigurationSkeleton({ label }: { label: string }) {
   return (
-    <div aria-busy="true" className="p-3 sm:p-6">
-      <div className="grid gap-4 min-[900px]:grid-cols-[minmax(280px,22rem)_1fr]">
-        <Skeleton className="h-96 w-full" />
-        <Skeleton className="h-[30rem] w-full" />
+    <div aria-busy="true" className="min-w-0 p-3 sm:px-6 sm:pt-4 sm:pb-6">
+      <span className="sr-only" role="status">
+        {label}
+      </span>
+      <div className="relative grid min-w-0 grid-cols-[0rem_minmax(0,1fr)] items-start gap-y-3 min-[900px]:grid-cols-[20rem_minmax(0,1fr)] min-[900px]:gap-x-5">
+        <div className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5 min-[900px]:grid-cols-subgrid">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-20 max-sm:h-11" />
+            <Skeleton className="size-8 max-sm:size-11" />
+          </div>
+          <Skeleton className="h-4 w-12" />
+        </div>
+        <Skeleton className="col-start-1 row-start-2 h-96 w-80 max-[899px]:absolute max-[899px]:inset-s-0 max-[899px]:top-0 max-[899px]:z-30 max-[899px]:max-h-[calc(100dvh-10rem)] max-[899px]:max-w-[calc(100vw-2rem)]" />
+        <Skeleton className="col-start-2 row-start-2 h-120 w-full" />
       </div>
     </div>
   );

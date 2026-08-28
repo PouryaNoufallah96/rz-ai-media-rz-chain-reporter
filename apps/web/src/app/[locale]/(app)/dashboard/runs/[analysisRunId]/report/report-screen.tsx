@@ -22,8 +22,6 @@ import { getFormatter, getT } from "@/i18n/server";
 
 const REPORT_COLUMN_COUNT = 8;
 
-// Server module: the slice's `SHORT_ID_LENGTH` lives in the client-only
-// `run-selector`, whose exports reach a Server Component as client references.
 const SHORT_ID_LENGTH = 8;
 
 type Translate = Awaited<ReturnType<typeof getT<typeof EDITORIAL_NAMESPACE>>>;
@@ -43,7 +41,9 @@ export function ReportScreen({
     >
       {([t, format]) => (
         <>
-          <h1 className="mt-2 font-semibold text-3xl">{t("report.title")}</h1>
+          <h1 className="font-semibold text-2xl tracking-display">
+            {t("report.title")}
+          </h1>
           <Suspended
             data={() => readReport(params, searchParams)}
             fallback={<ReportBodySkeleton label={t("table.loading")} />}
@@ -79,15 +79,15 @@ export function ReportScreen({
                   ) : null}
                 </ProvenanceLine>
                 <Button
-                  className="mt-3 ps-0"
+                  className="mt-3 max-sm:min-h-11"
                   nativeButton={false}
                   render={<Link href={`/dashboard?run=${head.id}`} />}
                   size="sm"
-                  variant="link"
+                  variant="outline"
                 >
                   {t("report.back")}
                 </Button>
-                <div className="mt-6 grid gap-6 min-[1200px]:grid-cols-3 min-[600px]:grid-cols-2">
+                <div className="mt-6 grid gap-3 min-[1200px]:grid-cols-3 min-[600px]:grid-cols-2">
                   <FunnelBlock
                     lines={itemFunnel(funnels, format, t)}
                     title={t("funnel.item.title")}
@@ -145,7 +145,7 @@ function ReportBodySkeleton({ label }: { label: string }) {
   return (
     <div aria-busy="true">
       <Skeleton className="mt-3 h-4 w-full max-w-md" />
-      <div className="mt-6 grid gap-6 min-[1200px]:grid-cols-3 min-[600px]:grid-cols-2">
+      <div className="mt-6 grid gap-3 min-[1200px]:grid-cols-3 min-[600px]:grid-cols-2">
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-48 w-full" />

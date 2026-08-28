@@ -67,13 +67,13 @@ export function ReportTable({
     });
 
   return (
-    <section aria-labelledby={titleId} className="mt-10">
-      <h2 className="ticket-label border-b border-dashed pb-2" id={titleId}>
+    <section aria-labelledby={titleId} className="mt-8 grid gap-3">
+      <h2 className="font-semibold text-base" id={titleId}>
         {t("table.title")}
       </h2>
       <form
         aria-label={t("filters.label")}
-        className="mt-3 flex flex-wrap items-end gap-2"
+        className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-3 [&_button]:max-sm:min-h-11"
       >
         <LabeledSelect
           className="w-fit"
@@ -112,7 +112,7 @@ export function ReportTable({
           value={query.semantic}
         />
         <Button
-          className="h-8"
+          className="h-8 max-sm:min-h-11"
           onClick={clearFilters}
           size="sm"
           type="button"
@@ -199,7 +199,7 @@ function ReportEmpty({
   title: string;
 }) {
   return (
-    <Empty>
+    <Empty className="rounded-xl border border-border bg-card py-10">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <FileTextIcon />

@@ -15,12 +15,12 @@ export function SourcesFreshness({ readAt }: { readAt: Date }) {
     <div className="ms-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:flex-none">
         <span
-          className="wrap-break-word min-w-0 font-mono text-muted-foreground text-xs tabular-nums"
+          className="wrap-break-word min-w-0 text-muted-foreground text-xs tabular-nums"
           role="status"
         >
           {t(`transport.${transport}`)}
         </span>
-        <span className="font-mono text-muted-foreground text-xs tabular-nums">
+        <span className="text-muted-foreground text-xs tabular-nums">
           {t("import.asOf", {
             time: format.dateTime(readAt, { timeStyle: "medium" }),
           })}
@@ -32,7 +32,7 @@ export function SourcesFreshness({ readAt }: { readAt: Date }) {
         onClick={refresh}
         size="xs"
         type="button"
-        variant="outline"
+        variant="ghost"
       >
         {t("transport.refresh")}
       </Button>

@@ -1249,6 +1249,7 @@ function candidateFor(
       emojiGraphemeCap: policy.emojiGraphemeCap,
       maximumCharacters: policy.assembledCharacters.max,
       maximumHashtags: policy.hashtags.max,
+      minimumHashtags: policy.hashtags.min,
       requestedContentLocale: "en",
       source: null,
     });
@@ -1281,6 +1282,7 @@ function persianCandidateFor(
       emojiGraphemeCap: policy.emojiGraphemeCap,
       maximumCharacters: policy.assembledCharacters.max,
       maximumHashtags: policy.hashtags.max,
+      minimumHashtags: policy.hashtags.min,
       requestedContentLocale: "fa",
       source: null,
     });
@@ -1309,6 +1311,7 @@ function proveCopyNormalization(
     emojiGraphemeCap: policy.emojiGraphemeCap,
     maximumCharacters: policy.assembledCharacters.max,
     maximumHashtags: policy.hashtags.max,
+    minimumHashtags: policy.hashtags.min,
     requestedContentLocale: "en" as const,
     source: null,
   };
@@ -1352,11 +1355,38 @@ function proveCopyNormalization(
     input,
   );
   assert.equal(truncated.valid, true);
-  assert.deepEqual(truncated.hashtags, [canonical]);
+  assert.deepEqual(truncated.hashtags, [canonical, "#markets", "#flows"]);
   assert.equal(truncated.body.endsWith("flows\u2026"), true);
+  assert.ok(truncated.length <= policy.assembledCharacters.max);
   assert.ok(truncated.length <= X_HARD_MAXIMUM);
-  assert.ok(truncated.length <= Math.floor(X_HARD_MAXIMUM * 0.9));
-  assert.ok(truncated.assembled.endsWith(canonical));
+  assert.ok(truncated.assembled.endsWith("#flows"));
+
+  const belowMin = normalizeCopyCandidate(
+    "x",
+    {
+      body: "Desks reprice risk into the close.",
+      hashtags: [],
+      headline: "Liquidity thins",
+    },
+    input,
+  );
+  assert.equal(belowMin.valid, false);
+  assert.deepEqual(belowMin.failures, ["HASHTAGS_BELOW_MIN"]);
+  assert.deepEqual(belowMin.hashtags, [canonical]);
+
+  const floor = normalizeCopyCandidate(
+    "x",
+    {
+      body: Array.from({ length: 80 }, () => "flows").join(" "),
+      hashtags: ["#markets", "#flows"],
+      headline: "H".repeat(232),
+    },
+    input,
+  );
+  assert.equal(floor.valid, true);
+  assert.deepEqual(floor.hashtags, [canonical, "#markets"]);
+  assert.equal(floor.body.endsWith("\u2026"), true);
+  assert.ok(floor.length <= policy.assembledCharacters.max);
 
   const unfittable = normalizeCopyCandidate(
     "x",
@@ -1374,7 +1404,7 @@ function proveCopyNormalization(
     "telegram",
     {
       body: "Flows \u{1F680} keep \u{1F680} building \u{1F680} into \u{1F680} the close \u{1F680}",
-      hashtags: ["#markets"],
+      hashtags: ["#markets", "#bitcoin"],
       headline: "Momentum holds \u{1F525}",
     },
     {
@@ -1382,6 +1412,7 @@ function proveCopyNormalization(
       emojiGraphemeCap: telegramPolicy.emojiGraphemeCap,
       maximumCharacters: telegramPolicy.assembledCharacters.max,
       maximumHashtags: telegramPolicy.hashtags.max,
+      minimumHashtags: telegramPolicy.hashtags.min,
       requestedContentLocale: "en",
       source: null,
     },
@@ -1405,6 +1436,7 @@ function proveCopyNormalization(
       emojiGraphemeCap: telegramPolicy.emojiGraphemeCap,
       maximumCharacters: telegramPolicy.assembledCharacters.max,
       maximumHashtags: telegramPolicy.hashtags.max,
+      minimumHashtags: telegramPolicy.hashtags.min,
       requestedContentLocale: "en",
       source: telegramSource,
     },
@@ -1423,6 +1455,8 @@ function proveCopyNormalization(
   assert.equal(telegramMedia.valid, true);
   assert.equal(telegramPayload.status, "ready");
   assert.ok(telegramPayload.length <= 1_024);
+  assert.equal(telegramMedia.hashtags[0], canonical);
+  assert.ok(telegramMedia.hashtags.length >= telegramPolicy.hashtags.min);
   assert.match(telegramMedia.assembled, /Read full story/u);
 
   const wrongLocale = normalizeCopyCandidate(
@@ -1441,7 +1475,7 @@ function proveCopyNormalization(
   assert.equal(persian.valid, true);
 
   console.log(
-    `copy-generation execution normalization hashtags-moved=true tag-format=true hashtag-cap=${policy.hashtags.max} body-truncated=true emoji-capped=${telegramPolicy.emojiGraphemeCap} telegram-send-photo=true telegram-source-suffix=true unfittable=rejected status=pass`,
+    `copy-generation execution normalization hashtags-moved=true tag-format=true hashtag-cap=${policy.hashtags.max} hashtag-floor=${policy.hashtags.min} body-truncated=true emoji-capped=${telegramPolicy.emojiGraphemeCap} telegram-send-photo=true telegram-source-suffix=true unfittable=rejected status=pass`,
   );
 }
 
@@ -1775,6 +1809,7 @@ async function runExecutionProbe(probe: CopySourceFixture) {
       emojiGraphemeCap: policy.emojiGraphemeCap,
       maximumCharacters: policy.assembledCharacters.max,
       maximumHashtags: policy.hashtags.max,
+      minimumHashtags: policy.hashtags.min,
       requestedContentLocale: "en",
       source: null,
     });

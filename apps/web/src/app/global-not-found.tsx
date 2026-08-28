@@ -1,10 +1,14 @@
+import "@/index.css";
 import {
   DEFAULT_LOCALE,
   DIRECTION,
   SCRIPT,
   UI_FONT,
 } from "@rz-chain-reporter/i18n";
+import { Button } from "@rz-chain-reporter/ui/components/button";
 import type { Metadata } from "next";
+
+import { geistSans } from "@/lib/fonts";
 
 export const metadata: Metadata = {
   title: "404 — Page not found",
@@ -14,6 +18,7 @@ export const metadata: Metadata = {
 export default function GlobalNotFound() {
   return (
     <html
+      className={geistSans.variable}
       data-script={SCRIPT[DEFAULT_LOCALE]}
       dir={DIRECTION[DEFAULT_LOCALE]}
       lang={DEFAULT_LOCALE}
@@ -23,28 +28,22 @@ export default function GlobalNotFound() {
         } as React.CSSProperties
       }
     >
-      <body
-        style={{
-          alignItems: "center",
-          display: "flex",
-          fontFamily: "system-ui, sans-serif",
-          justifyContent: "center",
-          minHeight: "100vh",
-        }}
-      >
-        <main style={{ maxWidth: "32rem", padding: "1.5rem" }}>
-          <h1 style={{ fontSize: "1.25rem", fontWeight: 600 }}>
+      <body className="flex min-h-svh items-center justify-center bg-background px-5 font-sans text-foreground">
+        <main className="w-full max-w-md rounded-xl border bg-card p-8">
+          <h1 className="font-semibold text-2xl tracking-display">
             Page not found
           </h1>
-          <p style={{ marginTop: "0.75rem" }}>
+          <p className="mt-3 text-muted-foreground text-sm leading-6">
             The page you requested does not exist.
           </p>
-          <a
-            href={`/${DEFAULT_LOCALE}`}
-            style={{ marginTop: "1rem", display: "inline-block" }}
+          <Button
+            className="mt-6"
+            nativeButton={false}
+            render={<a aria-label="Return home" href={`/${DEFAULT_LOCALE}`} />}
+            variant="outline"
           >
             Return home
-          </a>
+          </Button>
         </main>
       </body>
     </html>

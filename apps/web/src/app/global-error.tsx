@@ -1,13 +1,17 @@
 "use client";
 
+import "@/index.css";
 import {
   DEFAULT_LOCALE,
   DIRECTION,
   SCRIPT,
   UI_FONT,
 } from "@rz-chain-reporter/i18n";
+import { Button } from "@rz-chain-reporter/ui/components/button";
 import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
+
+import { geistSans } from "@/lib/fonts";
 
 // Replaces the root layout — no locale or catalog. English-only (ADR 0002).
 export default function GlobalError({
@@ -21,6 +25,7 @@ export default function GlobalError({
 
   return (
     <html
+      className={geistSans.variable}
       data-script={SCRIPT[DEFAULT_LOCALE]}
       dir={DIRECTION[DEFAULT_LOCALE]}
       lang={DEFAULT_LOCALE}
@@ -30,22 +35,21 @@ export default function GlobalError({
         } as React.CSSProperties
       }
     >
-      <body
-        style={{
-          alignItems: "center",
-          display: "flex",
-          fontFamily: "system-ui, sans-serif",
-          justifyContent: "center",
-          minHeight: "100vh",
-        }}
-      >
-        <main style={{ maxWidth: "32rem", padding: "1.5rem" }}>
-          <h1 style={{ fontSize: "1.25rem", fontWeight: 600 }}>
+      <body className="flex min-h-svh items-center justify-center bg-background px-5 font-sans text-foreground">
+        <main className="w-full max-w-md rounded-xl border bg-card p-8">
+          <h1 className="font-semibold text-2xl tracking-display">
             Something went wrong
           </h1>
-          <p style={{ marginTop: "0.75rem" }}>
+          <p className="mt-3 text-muted-foreground text-sm leading-6">
             The application failed to load. Reload the page to try again.
           </p>
+          <Button
+            className="mt-6"
+            onClick={() => window.location.reload()}
+            variant="outline"
+          >
+            Reload page
+          </Button>
         </main>
       </body>
     </html>

@@ -204,11 +204,11 @@
         "selectNone": "None"
       },
       "recency": {
-        "label": "Recency",
         "6": "6 h",
         "12": "12 h",
         "24": "24 h",
-        "48": "48 h"
+        "48": "48 h",
+        "label": "Recency"
       },
       "enrichment": "Fetch full article text",
       "topics": {
@@ -301,6 +301,11 @@
         "fetched": "Fetched",
         "admitted": "Admitted",
         "output": "Output"
+      },
+      "search": {
+        "placeholder": "Search options…",
+        "empty": "No matching options",
+        "toggle": "Show options"
       }
     },
     "provenance": {

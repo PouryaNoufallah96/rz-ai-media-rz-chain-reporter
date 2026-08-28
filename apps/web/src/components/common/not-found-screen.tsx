@@ -1,5 +1,6 @@
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
+import { FileQuestionIcon } from "lucide-react";
 
 import { Suspended } from "@/components/fetcher/suspended";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
@@ -14,7 +15,13 @@ export function NotFoundScreen() {
     >
       {(t) => (
         <>
-          <h1 className="font-semibold text-3xl">{t("notFound.title")}</h1>
+          <FileQuestionIcon
+            aria-hidden="true"
+            className="mb-5 size-8 text-muted-foreground"
+          />
+          <h1 className="font-semibold text-3xl tracking-display">
+            {t("notFound.title")}
+          </h1>
           <p className="mt-3 text-muted-foreground">{t("notFound.body")}</p>
           <div className="mt-6">
             <Button

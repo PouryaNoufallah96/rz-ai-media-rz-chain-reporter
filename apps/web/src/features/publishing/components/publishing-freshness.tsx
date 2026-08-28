@@ -20,9 +20,9 @@ export function PublishingFreshness() {
         onClick={refresh}
         size="xs"
         type="button"
-        variant="outline"
+        variant="ghost"
       >
-        {t(isRefreshing ? "freshness.refreshing" : "freshness.refresh")}
+        {t("freshness.refresh")}
       </Button>
     </div>
   );

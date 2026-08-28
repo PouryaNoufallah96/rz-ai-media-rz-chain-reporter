@@ -374,8 +374,8 @@
         }
       },
       "thresholds": {
-        "policyScore": 7,
-        "lexicalTopicScore": 11
+        "policyScore": 0,
+        "lexicalTopicScore": 1
       },
       "freshnessLadder": [
         {
@@ -657,7 +657,7 @@
         "sha256": "52a8e4fc2831802416acc840f703b038e2fa84622dcbbac35e63d44974b9c604"
       },
       "editorial": {
-        "mediaFitThreshold": 5,
+        "mediaFitThreshold": 0,
         "strongTerms": [
           {
             "term": "bnb chain",
@@ -1025,7 +1025,7 @@
         "sha256": "a3c4af1d942930de85bb4a1bd3e141885caec217406032925f0ecac5e66ba1d3"
       },
       "editorial": {
-        "mediaFitThreshold": 7,
+        "mediaFitThreshold": 0,
         "strongTerms": [
           {
             "term": "prediction market",
@@ -1417,7 +1417,7 @@
         "sha256": "849a1e5ee9ef0f01e97d4c0d097879aa9c9f79a3256b7dee70247a0b32ca88da"
       },
       "editorial": {
-        "mediaFitThreshold": 7,
+        "mediaFitThreshold": 0,
         "strongTerms": [
           {
             "term": "bitcoin etf",
@@ -1749,7 +1749,7 @@
         "sha256": "a24a127dec439fb7a100ffd325b0a3002119fce83dadaeda1174563d887e65cc"
       },
       "editorial": {
-        "mediaFitThreshold": 11,
+        "mediaFitThreshold": 0,
         "strongTerms": [
           {
             "term": "exploit",
@@ -2407,7 +2407,7 @@
     "maxItemsPerSource": 15,
     "telegram": {
       "orderingMode": "views",
-      "topN": 10
+      "topN": 20
     }
   },
   "enrichment": {

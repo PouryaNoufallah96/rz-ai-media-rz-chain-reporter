@@ -24,7 +24,7 @@ export function KeysetPagination({
   if (!offLatest && onOlder === null) return null;
 
   return (
-    <nav className="mt-3 flex flex-wrap justify-end gap-2">
+    <nav className="mt-4 flex flex-wrap items-center justify-end gap-2 [&_button]:max-sm:min-h-11">
       {offLatest ? (
         <>
           <Button onClick={onBackToLatest} size="sm" variant="ghost">

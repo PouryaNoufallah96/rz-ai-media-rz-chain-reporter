@@ -23,7 +23,7 @@ export function ExpandablePreview({ children }: { children: string }) {
       <CollapsibleTrigger
         render={
           <Button
-            className="w-fit max-sm:min-h-11"
+            className="w-fit justify-start px-0 max-sm:min-h-11"
             size="xs"
             type="button"
             variant="ghost"
@@ -33,7 +33,7 @@ export function ExpandablePreview({ children }: { children: string }) {
         {t(open ? "detail.hidePreview" : "detail.showPreview")}
         <Icon aria-hidden="true" data-icon="inline-end" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="wrap-anywhere">
+      <CollapsibleContent className="wrap-anywhere rounded-lg bg-muted/50 p-3 text-sm/relaxed">
         <Bdi className="block text-start" dir="auto">
           {children}
         </Bdi>

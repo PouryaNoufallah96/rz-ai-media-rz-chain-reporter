@@ -11,6 +11,7 @@ import {
   providerFailureClass,
   unknownFailure,
 } from "./port";
+import { publishRasterForUpload } from "./publish-raster";
 
 const telegramSuccessSchema = z.strictObject({
   messageId: z.int(),
@@ -117,7 +118,7 @@ export function createTelegramPublisher({
             ),
           );
         }
-        const media = material.media
+        let media = material.media
           ? await runtime.readMedia(material.media.objectKey).catch(() => null)
           : null;
         if (material.media && !media) {
@@ -131,11 +132,28 @@ export function createTelegramPublisher({
             ),
           );
         }
+        let mimeType = material.media?.mimeType ?? null;
+        if (media && mimeType) {
+          const raster = await publishRasterForUpload(media, mimeType);
+          if (!raster) {
+            return failed(
+              prepared.attempt.id,
+              definiteFailure(
+                "MEDIA_NOT_PUBLISHABLE",
+                "invalid",
+                "publication",
+                "none",
+              ),
+            );
+          }
+          media = raster.bytes;
+          mimeType = raster.mimeType;
+        }
         const url = `https://api.telegram.org/bot${credential.botToken}/${prepared.method}`;
         const init = telegramRequest({
           chatId: credential.channel,
           method: prepared.method,
-          mimeType: material.media?.mimeType ?? null,
+          mimeType,
           media,
           text: assembled.text,
         });
