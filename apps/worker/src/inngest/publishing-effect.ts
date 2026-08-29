@@ -128,6 +128,7 @@ export function createPublishingEffectFunction(
           return attempt;
         },
         claimFinalEffect: async (attemptId) => {
+          await assertLastResponsibleMoment();
           const claimed = await claimPublicationFinalEffect(
             runtime.db,
             input.workspaceId,

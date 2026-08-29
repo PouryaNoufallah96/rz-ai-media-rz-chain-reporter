@@ -6,7 +6,7 @@ import {
 import { workerLogger } from "../logging/logger";
 import { workerEnv } from "../runtime/env";
 
-const CACHE_FLUSH_SETTLE_MS = 250;
+const CACHE_FLUSH_SETTLE_MS = 1_000;
 
 export function waitForCacheFlush() {
   return new Promise<void>((resolve) =>
@@ -45,5 +45,15 @@ export async function notifyCacheInvalidation(
     });
   }
 
+  return outcome;
+}
+
+export async function notifyCacheInvalidationForDurableStep(
+  tags: readonly string[],
+) {
+  const outcome = await notifyCacheInvalidation(tags);
+  if (outcome === "failed" || outcome === "rejected") {
+    throw new Error(`cache invalidation ${outcome}`);
+  }
   return outcome;
 }

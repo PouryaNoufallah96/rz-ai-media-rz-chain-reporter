@@ -189,7 +189,6 @@ export function createModelGateway(options: {
 
         return {
           embeddings: embedded.embeddings,
-          responseBody: embedded.responseBody,
           usageEventId: pending.event.id,
         };
       }
@@ -214,7 +213,6 @@ export function createModelGateway(options: {
 
       return {
         embeddings: embedded.embeddings,
-        responseBody: embedded.responseBody,
         usageEventId: pending.event.id,
       };
     },
@@ -255,8 +253,14 @@ export function createModelGateway(options: {
         },
       );
       if (!pending.inserted) {
+        const replayStatus = await resolveReplayStatus(
+          options.executor,
+          input.workspaceId,
+          pending.event,
+          input.deadlineMs,
+        );
         throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
-          ambiguous: true,
+          ambiguous: replayStatus === "pending" || replayStatus === "unknown",
           reason: "usage-slot-replayed",
           usageEventId: pending.event.id,
         });
@@ -405,7 +409,7 @@ export function createModelGateway(options: {
       return { prepared, usageEventId: pending.event.id };
     },
 
-    async invokeStructured(input) {
+    async invokeStructured<TOutput>(input: StructuredModelInvocation<TOutput>) {
       assertInvocationBounds(input);
       const { route, taskKey } = resolveModelTask(
         options.template,
@@ -463,54 +467,49 @@ export function createModelGateway(options: {
         });
       }
 
-      const generated = await (async (): Promise<
-        StructuredAdapterResult<
-          typeof input extends StructuredModelInvocation<infer T> ? T : never
-        >
-      > => {
-        try {
-          return await adapter.generateStructured({
-            abortSignal: input.abortSignal,
-            deadlineMs: input.deadlineMs,
-            instructions: input.instructions,
-            maxOutputTokens: input.maxOutputTokens,
-            model: route.model,
-            outputName: input.outputName,
-            prompt: input.prompt,
-            schema: input.schema,
-            telemetry: {
-              operationAttemptId: input.operationAttemptId,
-              operationId: input.operationId,
-              usageEventId: pending.event.id,
-            },
-          });
-        } catch (error) {
-          if (
-            error instanceof AdapterInvocationError &&
-            error.kind === "structured-output-invalid"
-          ) {
-            await finalizeStructuredFailure(
-              options.executor,
-              input.workspaceId,
-              pending.event.id,
-              error,
-              input.persistDefiniteFailure,
-              invocationClaimFence(input),
-            );
-            throw new ModelGatewayInvocationError("STRUCTURED_OUTPUT_INVALID", {
-              reason: "structured-output-invalid",
-              usageEventId: pending.event.id,
-            });
-          }
-          return failInvocation(
+      let generated: StructuredAdapterResult<TOutput>;
+      try {
+        generated = await adapter.generateStructured({
+          abortSignal: input.abortSignal,
+          deadlineMs: input.deadlineMs,
+          instructions: input.instructions,
+          maxOutputTokens: input.maxOutputTokens,
+          model: route.model,
+          outputName: input.outputName,
+          prompt: input.prompt,
+          schema: input.schema,
+          telemetry: {
+            operationAttemptId: input.operationAttemptId,
+            operationId: input.operationId,
+            usageEventId: pending.event.id,
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof AdapterInvocationError &&
+          error.kind === "structured-output-invalid"
+        ) {
+          await finalizeStructuredFailure(
             options.executor,
             input.workspaceId,
             pending.event.id,
             error,
+            input.persistDefiniteFailure,
             invocationClaimFence(input),
           );
+          throw new ModelGatewayInvocationError("STRUCTURED_OUTPUT_INVALID", {
+            reason: "structured-output-invalid",
+            usageEventId: pending.event.id,
+          });
         }
-      })();
+        generated = await failInvocation(
+          options.executor,
+          input.workspaceId,
+          pending.event.id,
+          error,
+          invocationClaimFence(input),
+        );
+      }
 
       try {
         const finalized = await finalizeUsageWithResult(
@@ -589,8 +588,14 @@ export function createModelGateway(options: {
       );
 
       if (!pending.inserted) {
+        const replayStatus = await resolveReplayStatus(
+          options.executor,
+          input.workspaceId,
+          pending.event,
+          input.deadlineMs,
+        );
         throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
-          ambiguous: true,
+          ambiguous: replayStatus === "pending" || replayStatus === "unknown",
           reason: "usage-slot-replayed",
           usageEventId: pending.event.id,
         });
@@ -613,16 +618,15 @@ export function createModelGateway(options: {
         },
       });
 
-      // A cancelled response returns the generator early, so settlement lives in
-      // `finally`; otherwise the usage row would stay pending forever.
       // A cancelled response returns the generator early, so `finally` settles
       // the row; otherwise an abandoned stream would leave usage pending forever.
       async function* settleWhileStreaming() {
-        let settled = false;
+        let drained = false;
+        let ledgerSettled = false;
 
         try {
           yield* streamed.textStream;
-          settled = true;
+          drained = true;
 
           const finalized = await finalizeUsage(
             options.executor,
@@ -633,6 +637,7 @@ export function createModelGateway(options: {
               ...streamed.observation(),
             },
           );
+          ledgerSettled = true;
 
           if (finalized.status !== "updated") {
             throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
@@ -642,11 +647,11 @@ export function createModelGateway(options: {
             });
           }
         } catch (error) {
-          if (settled) {
+          if (ledgerSettled) {
             throw error;
           }
 
-          settled = true;
+          ledgerSettled = true;
           await failInvocation(
             options.executor,
             input.workspaceId,
@@ -654,11 +659,11 @@ export function createModelGateway(options: {
             error,
           );
         } finally {
-          if (!settled) {
-            settled = true;
+          if (!ledgerSettled) {
+            ledgerSettled = true;
             await finalizeUsage(options.executor, input.workspaceId, {
               id: pending.event.id,
-              status: "cancelled",
+              status: drained ? "unknown" : "cancelled",
               ...streamed.observation(),
             });
           }

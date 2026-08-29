@@ -1,12 +1,12 @@
 import "server-only";
 
-import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { requireSession } from "@/features/auth/api/server/session";
 import { rpcDb } from "@/server/rpc/db";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 
+import { accountTags } from "../../db/cache/tags";
 import { readActivityHistory } from "../../db/queries";
 
 export async function getActivityHistory() {
@@ -17,8 +17,7 @@ export async function getActivityHistory() {
 
 async function readCachedActivityHistory(workspaceId: string, userId: string) {
   "use cache";
-  cacheTag(workspaceCacheTag(workspaceId, "drafts"));
-  cacheTag(workspaceCacheTag(workspaceId, "publishing"));
+  cacheTag(...accountTags.summaryReads(workspaceId));
   cacheLife("minutes");
   return readActivityHistory(rpcDb(), workspaceId, userId);
 }

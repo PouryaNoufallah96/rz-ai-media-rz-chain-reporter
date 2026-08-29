@@ -67,10 +67,12 @@ export function createScheduledEffectProbeFunction(
         step,
         event.data.workspaceId,
         {
+          actorId: claim.actor,
           attemptCount: claim.attemptNumber,
           lifecycle: "running",
           operationId: event.data.operationId,
           operationVersion: claim.claimVersion,
+          sharedImport: false,
         },
         "worker.scheduled-effect.realtime-unavailable",
       );
@@ -91,11 +93,13 @@ export function createScheduledEffectProbeFunction(
         step,
         event.data.workspaceId,
         {
+          actorId: claim.actor,
           attemptCount: claim.attemptNumber,
           latestAttemptOutcome: effect.outcome,
           lifecycle: effect.lifecycle,
           operationId: event.data.operationId,
           operationVersion: effect.operationVersion,
+          sharedImport: false,
         },
         "worker.scheduled-effect.realtime-unavailable",
       );
@@ -379,6 +383,7 @@ async function claimScheduledEffectProbe(
     }
 
     return {
+      actor: currentOperation.actor,
       attemptId,
       attemptNumber,
       claimVersion: claimed.version,

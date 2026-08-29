@@ -1,4 +1,3 @@
-import type { CacheInvalidationOutcome } from "@rz-chain-reporter/cache-invalidation";
 import {
   type PublishingChangedRealtimeMessage,
   workspaceCacheTag,
@@ -10,7 +9,11 @@ import {
   type WorkerStep,
 } from "../inngest/channels";
 import type { WorkerInngestClient } from "../inngest/client";
-import { notifyCacheInvalidation, waitForCacheFlush } from "./notify";
+import {
+  notifyCacheInvalidation,
+  notifyCacheInvalidationForDurableStep,
+  waitForCacheFlush,
+} from "./notify";
 
 type PublishingChange = Omit<
   PublishingChangedRealtimeMessage,
@@ -20,24 +23,30 @@ type PublishingChange = Omit<
 export async function notifyPublishingChanged(
   step: WorkerStep,
   workspaceId: string,
+  actorId: string | null,
   change: PublishingChange,
   callSite: string,
 ) {
   const cacheInvalidation = await step.run(
     `notify-publishing-cache-${callSite}`,
-    () =>
-      settlePublishingNotification(
-        () => notifyPublishingCacheChanged(workspaceId),
-        waitForCacheFlush,
-      ),
+    async () => {
+      const outcome = await notifyCacheInvalidationForDurableStep([
+        workspaceCacheTag(workspaceId, "publishing"),
+      ]);
+      if (outcome === "accepted") {
+        await waitForCacheFlush();
+      }
+      return outcome;
+    },
   );
   return {
     cacheInvalidation,
     publishingRealtimePublished:
-      cacheInvalidation === "accepted"
+      cacheInvalidation === "accepted" && actorId !== null
         ? await publishPublishingChanged(
             step,
             workspaceId,
+            actorId,
             publishingMessage(change),
             callSite,
           )
@@ -45,20 +54,10 @@ export async function notifyPublishingChanged(
   };
 }
 
-export async function settlePublishingNotification(
-  notifyLane2: () => Promise<CacheInvalidationOutcome>,
-  settle: () => Promise<void>,
-) {
-  const outcome = await notifyLane2();
-  if (outcome === "accepted") {
-    await settle();
-  }
-  return outcome;
-}
-
 export async function notifyPublishingChangedNow(
   client: WorkerInngestClient,
   workspaceId: string,
+  actorId: string | null,
   change: PublishingChange,
 ) {
   const cacheInvalidation = await notifyPublishingCacheChanged(workspaceId);
@@ -68,10 +67,11 @@ export async function notifyPublishingChangedNow(
   return {
     cacheInvalidation,
     publishingRealtimePublished:
-      cacheInvalidation === "accepted"
+      cacheInvalidation === "accepted" && actorId !== null
         ? await publishPublishingChangedNow(
             client,
             workspaceId,
+            actorId,
             publishingMessage(change),
           )
         : false,

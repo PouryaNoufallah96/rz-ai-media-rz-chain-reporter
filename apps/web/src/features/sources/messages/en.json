@@ -14,6 +14,7 @@
     },
     "import": {
       "title": "Source import",
+      "loading": "Loading source imports",
       "start": "Start import",
       "pending": "Starting…",
       "startHint": "Opens one ticket in the operations panel.",
@@ -63,9 +64,9 @@
         "enriching": "enriching · {n, number} / {m, number}"
       },
       "counts": {
-        "acquired": "acquired {n, number}",
-        "skipped": "skipped {n, number}",
-        "failed": "failed {n, number}"
+        "acquired": "{n, number} acquired",
+        "skipped": "{n, number} skipped",
+        "failed": "{n, number} failed"
       },
       "mix": {
         "bucket": "{n, number} {label} ({percent})",
@@ -94,7 +95,7 @@
       "running": "Running",
       "settling": "Settling",
       "succeeded": "Succeeded",
-      "partial": "Partial",
+      "partial": "Succeeded with exceptions",
       "failed": "Failed",
       "cancelled": "Cancelled",
       "unknown": "Outcome unknown"
@@ -145,6 +146,7 @@
     },
     "catalog": {
       "title": "Source catalog",
+      "loading": "Loading the source catalog",
       "hint": "Two independent facts per source: what the template configured, and what the last fetch observed.",
       "kind": {
         "rss": "RSS / ATOM",

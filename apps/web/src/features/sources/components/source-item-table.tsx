@@ -130,17 +130,14 @@ export function SourceItemTable({ stream }: { stream: SourceItemStream }) {
             table={table}
           />
           <KeysetPagination
+            ariaLabel={t("stream.caption")}
             backToLatestLabel={t("stream.pager.backToLatest")}
             newerLabel={t("stream.pager.newer")}
             offLatest={page.offLatest}
             olderLabel={t("stream.pager.older")}
-            onBackToLatest={() => setValues({ cursor: null })}
-            onNewer={() => setValues({ cursor: page.newerCursor })}
-            onOlder={
-              page.olderCursor
-                ? () => setValues({ cursor: page.olderCursor })
-                : null
-            }
+            newerCursor={page.newerCursor}
+            olderCursor={page.olderCursor}
+            onCursor={(cursor) => setValues({ cursor })}
           />
         </>
       )}

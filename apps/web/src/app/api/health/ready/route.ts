@@ -21,10 +21,21 @@ function notReady(reason: string) {
 async function readAppliedState(database: ReturnType<typeof createDb>) {
   await database.check();
 
-  return database.db.query.workspace.findMany({
-    columns: { customerTemplateFingerprint: true },
-    limit: 2,
-  });
+  let timer: ReturnType<typeof setTimeout>;
+
+  return Promise.race([
+    database.db.query.workspace.findMany({
+      columns: { customerTemplateFingerprint: true },
+      limit: 2,
+    }),
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        reject,
+        DB_PROBE_TIMEOUT_MS,
+        new Error("readiness deadline"),
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
 }
 
 export async function GET() {

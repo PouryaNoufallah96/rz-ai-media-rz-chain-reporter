@@ -20,17 +20,17 @@ import {
 
 import {
   decodeKeysetCursor,
-  encodeKeysetCursor,
+  keysetPageOf,
+  type OccurredAtCursor,
+  occurredAtCursorSchema,
 } from "@/features/shared/lib/keyset-cursor";
 
 import { USAGE_PAGE_SIZE, type USAGE_PROVIDERS } from "../constants";
-import {
-  type UsageCursor,
-  type UsagePage,
-  type UsageQuery,
-  type UsageRow,
-  type UsageSummary,
-  usageCursorSchema,
+import type {
+  UsagePage,
+  UsageQuery,
+  UsageRow,
+  UsageSummary,
 } from "../schemas/usage";
 
 type UsageProvider = (typeof USAGE_PROVIDERS)[number];
@@ -51,7 +51,7 @@ export async function readUsageSummary(
   userId: string,
   query: UsageQuery,
 ): Promise<UsageSummary> {
-  const where = and(...usageConditions(workspaceId, userId, query));
+  const where = and(...usageConditions(workspaceId, query));
   const [aggregateRows, modelRows, recordedRows] = await Promise.all([
     executor
       .select({
@@ -84,7 +84,7 @@ export async function readUsageSummary(
       .select({ invocations: count() })
       .from(aiUsageEvent)
       .innerJoin(operation, usageOperationJoin(workspaceId, userId))
-      .where(and(...usageConditions(workspaceId, userId))),
+      .where(and(...usageConditions(workspaceId))),
   ]);
 
   const aggregate = aggregateRows[0];
@@ -107,7 +107,7 @@ export async function readUsagePage(
   userId: string,
   query: UsageQuery,
 ): Promise<UsagePage> {
-  const cursor = decodeKeysetCursor(usageCursorSchema, query.cursor);
+  const cursor = decodeKeysetCursor(occurredAtCursorSchema, query.cursor);
   const direction = cursor?.direction ?? "older";
   const cursorCondition = cursor
     ? direction === "older"
@@ -147,7 +147,7 @@ export async function readUsagePage(
     })
     .from(aiUsageEvent)
     .innerJoin(operation, usageOperationJoin(workspaceId, userId))
-    .where(and(...usageConditions(workspaceId, userId, query), cursorCondition))
+    .where(and(...usageConditions(workspaceId, query), cursorCondition))
     .orderBy(
       direction === "older"
         ? desc(aiUsageEvent.occurredAt)
@@ -156,36 +156,22 @@ export async function readUsagePage(
     )
     .limit(USAGE_PAGE_SIZE + 1);
 
-  const hasExtra = rawRows.length > USAGE_PAGE_SIZE;
-  const bounded = rawRows.slice(0, USAGE_PAGE_SIZE);
-  const rowsWithCursor = direction === "newer" ? bounded.toReversed() : bounded;
-  const rows: UsageRow[] = rowsWithCursor.map(
+  const { ordered, ...page } = keysetPageOf({
+    raw: rawRows,
+    pageSize: USAGE_PAGE_SIZE,
+    cursor,
+    toCursor: (row, nextDirection) =>
+      ({
+        direction: nextDirection,
+        occurredAt: row.cursorOccurredAt,
+        id: row.id,
+      }) satisfies OccurredAtCursor,
+  });
+  const rows: UsageRow[] = ordered.map(
     ({ cursorOccurredAt: _cursorOccurredAt, ...row }) => row,
   );
-  const first = rowsWithCursor[0];
-  const last = rowsWithCursor.at(-1);
-  const offLatest = cursor !== null;
 
-  return {
-    rows,
-    olderCursor:
-      last && (direction === "newer" || hasExtra)
-        ? encodeKeysetCursor({
-            direction: "older",
-            occurredAt: last.cursorOccurredAt,
-            id: last.id,
-          } satisfies UsageCursor)
-        : null,
-    newerCursor:
-      first && offLatest && (direction === "older" || hasExtra)
-        ? encodeKeysetCursor({
-            direction: "newer",
-            occurredAt: first.cursorOccurredAt,
-            id: first.id,
-          } satisfies UsageCursor)
-        : null,
-    offLatest,
-  };
+  return { ...page, rows };
 }
 
 function usageOperationJoin(workspaceId: string, userId: string) {
@@ -196,15 +182,8 @@ function usageOperationJoin(workspaceId: string, userId: string) {
   );
 }
 
-function usageConditions(
-  workspaceId: string,
-  userId: string,
-  query?: UsageQuery,
-): SQL[] {
-  const conditions: SQL[] = [
-    inWorkspace(aiUsageEvent, workspaceId),
-    eq(operation.actor, userId),
-  ];
+function usageConditions(workspaceId: string, query?: UsageQuery): SQL[] {
+  const conditions: SQL[] = [inWorkspace(aiUsageEvent, workspaceId)];
   if (!query) return conditions;
   const since = periodStart(query.period);
 

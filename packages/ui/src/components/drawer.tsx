@@ -36,14 +36,13 @@ const POPUP_GEOMETRY: Record<DrawerSide, string> = {
   "block-start":
     "max-h-[85dvh] w-full flex-col border-b after:inset-x-0 after:bottom-full after:h-(--drawer-bleed)",
   "inline-end":
-    "h-full w-[min(420px,95vw)] flex-row border-s after:inset-y-0 after:start-full after:w-(--drawer-bleed)",
+    "h-full w-[min(400px,95vw)] flex-row border-s after:inset-y-0 after:start-full after:w-(--drawer-bleed)",
   "inline-start":
-    "h-full w-[min(420px,95vw)] flex-row border-e after:inset-y-0 after:end-full after:w-(--drawer-bleed)",
+    "h-full w-[min(400px,95vw)] flex-row border-e after:inset-y-0 after:end-full after:w-(--drawer-bleed)",
 };
 
-// Base UI's swipe axis is physical (`SwipeDirection` in
-// utils/useSwipeDismiss.d.ts) and does not consult the direction provider, so
-// the inline sides are resolved here rather than by a direction-scoped override.
+// Base UI's physical `SwipeDirection` ignores the direction provider, so resolve
+// inline sides here instead of using a direction-scoped override.
 const POPUP_TRANSFORM: Record<SwipeDirection, string> = {
   down: "[--drawer-closed-transform:translate3d(0,calc(100%_+_2px),0)] [--drawer-open-transform:translate3d(0,var(--drawer-swipe-movement-y,0px),0)]",
   left: "[--drawer-closed-transform:translate3d(calc(-100%_-_2px),0,0)] [--drawer-open-transform:translate3d(var(--drawer-swipe-movement-x,0px),0,0)]",
@@ -89,10 +88,7 @@ function Drawer({
     side,
     direction ?? providerDirection,
   );
-  const context = React.useMemo(
-    () => ({ modal, side, swipeDirection }),
-    [modal, side, swipeDirection],
-  );
+  const context = { modal, side, swipeDirection };
 
   return (
     <DrawerContext value={context}>
@@ -126,7 +122,7 @@ function DrawerOverlay({
     <DrawerPrimitive.Backdrop
       data-slot="drawer-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/45 opacity-[calc(1-var(--drawer-swipe-progress,0))] transition-opacity duration-220 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*220ms)] data-swiping:duration-0 motion-reduce:transition-none",
+        "fixed inset-0 isolate z-50 bg-black/45 opacity-[calc(1-var(--drawer-swipe-progress,0))] transition-opacity duration-200 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*200ms)] data-swiping:duration-0 motion-reduce:transition-none",
         className,
       )}
       {...props}
@@ -186,7 +182,7 @@ function DrawerPopup({
     <DrawerPrimitive.Popup
       data-slot="drawer-popup"
       className={cn(
-        "data-ending-style:transform-(--drawer-closed-transform) data-starting-style:transform-(--drawer-closed-transform) group/drawer-popup transform-(--drawer-open-transform) pointer-events-auto relative flex select-none bg-popover bg-clip-padding text-popover-foreground text-xs/relaxed shadow-lg outline-none transition-transform duration-220 ease-out [--drawer-bleed:3rem] after:pointer-events-none after:absolute after:bg-popover data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*220ms)] data-swiping:duration-0 motion-reduce:transition-none",
+        "data-ending-style:transform-(--drawer-closed-transform) data-starting-style:transform-(--drawer-closed-transform) group/drawer-popup transform-(--drawer-open-transform) pointer-events-auto relative flex select-none bg-popover bg-clip-padding text-popover-foreground text-xs/relaxed shadow-lg outline-none transition-transform duration-200 ease-out [--drawer-bleed:3rem] after:pointer-events-none after:absolute after:bg-popover data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*200ms)] data-swiping:duration-0 motion-reduce:transition-none",
         POPUP_GEOMETRY[side],
         POPUP_TRANSFORM[swipeDirection],
         className,

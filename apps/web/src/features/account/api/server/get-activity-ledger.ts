@@ -1,17 +1,17 @@
 import "server-only";
 
-import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { requireSession } from "@/features/auth/api/server/session";
 import {
-  type HistoryCursor,
-  historyCursorSchema,
-} from "@/features/publishing/schemas/history";
-import { decodeKeysetCursor } from "@/features/shared/lib/keyset-cursor";
+  decodeKeysetCursor,
+  type OccurredAtCursor,
+  occurredAtCursorSchema,
+} from "@/features/shared/lib/keyset-cursor";
 import { rpcDb } from "@/server/rpc/db";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 
+import { accountTags } from "../../db/cache/tags";
 import { readActivityLedger } from "../../db/queries";
 
 export async function getActivityLedger(auditCursor: string | null) {
@@ -20,17 +20,17 @@ export async function getActivityLedger(auditCursor: string | null) {
   return readCachedActivityLedger(
     workspaceId,
     session.user.id,
-    decodeKeysetCursor(historyCursorSchema, auditCursor),
+    decodeKeysetCursor(occurredAtCursorSchema, auditCursor),
   );
 }
 
 async function readCachedActivityLedger(
   workspaceId: string,
   userId: string,
-  cursor: HistoryCursor | null,
+  cursor: OccurredAtCursor | null,
 ) {
   "use cache";
-  cacheTag(workspaceCacheTag(workspaceId, "publishing"));
+  cacheTag(accountTags.ledgerReads(workspaceId));
   cacheLife("minutes");
   return readActivityLedger(rpcDb(), workspaceId, userId, cursor);
 }

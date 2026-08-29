@@ -37,14 +37,18 @@ export async function POST(request: Request) {
 
   const body = await readBoundedText(request);
 
-  if (body === null) {
+  if (body.kind === "empty") {
+    return rejected(400);
+  }
+
+  if (body.kind === "too-large") {
     return rejected(413);
   }
 
   let parsed: unknown;
 
   try {
-    parsed = JSON.parse(body);
+    parsed = JSON.parse(body.text);
   } catch {
     return rejected(400);
   }
@@ -62,11 +66,15 @@ export async function POST(request: Request) {
   );
 }
 
-async function readBoundedText(request: Request) {
+async function readBoundedText(
+  request: Request,
+): Promise<
+  { kind: "empty" } | { kind: "too-large" } | { kind: "ok"; text: string }
+> {
   const reader = request.body?.getReader();
 
   if (!reader) {
-    return null;
+    return { kind: "empty" };
   }
 
   const chunks: BlobPart[] = [];
@@ -83,11 +91,14 @@ async function readBoundedText(request: Request) {
 
     if (size > MAX_REQUEST_BYTES) {
       await reader.cancel();
-      return null;
+      return { kind: "too-large" };
     }
 
     chunks.push(value.slice().buffer);
   }
 
-  return new TextDecoder().decode(await new Blob(chunks).arrayBuffer());
+  return {
+    kind: "ok",
+    text: new TextDecoder().decode(await new Blob(chunks).arrayBuffer()),
+  };
 }

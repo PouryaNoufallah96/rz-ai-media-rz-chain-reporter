@@ -5,10 +5,11 @@ import { LanguagesIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
-import { useRouter } from "@/i18n/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
 
 export function LocaleSwitch() {
   const locale = useLocale();
+  const pathname = usePathname();
   const router = useRouter();
   const t = useTranslations(SHARED_NAMESPACE);
   const nextLocale = locale === "en" ? "fa" : "en";
@@ -20,8 +21,6 @@ export function LocaleSwitch() {
       })}
       className="max-sm:size-11"
       onClick={() => {
-        const pathname =
-          window.location.pathname.replace(/^\/(?:en|fa)(?=\/|$)/, "") || "/";
         router.replace(`${pathname}${window.location.search}`, {
           locale: nextLocale,
         });

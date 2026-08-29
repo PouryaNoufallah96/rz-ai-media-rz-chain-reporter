@@ -4,26 +4,6 @@
     "body": "<product>product</product> helps your team find relevant stories, write on-brand posts and create images. Review the result, then publish now or schedule it.",
     "openWorkspace": "Open workspace",
     "signIn": "Operator sign in",
-    "access": "Access is provisioned for your editorial team.",
-    "workflow": {
-      "title": "How it works",
-      "discover": "Find your next story",
-      "discoverBody": "Choose RSS and public Telegram sources. Editorial AI evaluates the material and surfaces relevant stories.",
-      "review": "Create copy and images",
-      "reviewBody": "Compare model suggestions, edit each platform’s draft and generate an image that fits your brand.",
-      "publish": "Review, approve, publish",
-      "publishBody": "Save the content you want to keep. Approve a draft, publish now or schedule it, and follow its delivery status.",
-      "platforms": "X · Telegram · Instagram — configured destination accounts"
-    },
-    "control": {
-      "title": "Made for your editorial team.",
-      "body": "A dedicated installation with your media brands, sources and destination accounts already configured.",
-      "brands": "Content for each brand",
-      "brandsBody": "Use News Runs for source-led content and Promo Runs for promotional briefs, guided by each brand’s policies.",
-      "visibility": "Progress & usage",
-      "visibilityBody": "Track ongoing work, inspect failures and see model usage and recorded cost.",
-      "language": "English & Persian",
-      "languageBody": "Work in either interface language. Choose the language of each draft separately."
-    }
+    "access": "Access is provisioned for your editorial team."
   }
 }

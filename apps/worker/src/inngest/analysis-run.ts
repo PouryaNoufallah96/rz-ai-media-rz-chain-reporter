@@ -88,8 +88,7 @@ import { NORMALIZATION_VERSION } from "../editorial/text";
 import { InstallationIdentityError } from "../identity/assert";
 import { stableFailureCode, workerLogger } from "../logging/logger";
 
-import { createWorkerModelGateway } from "../model-gateway/worker-gateway";
-import { workerEnv } from "../runtime/env";
+import { workerModelGateway } from "../model-gateway/worker-gateway";
 import {
   notifyEditorialAndUsageChanged,
   notifyEditorialChanged,
@@ -100,10 +99,12 @@ import type { WorkerInngestClient } from "./client";
 import { durableEvents } from "./events";
 import { assertWorkspace, type WorkerRuntime } from "./runtime";
 
+const ANALYSIS_RUN_FUNCTION_ID = "analysis-run" as const;
 const WORKER_CLAIMANT = "analysis-run:v1";
 const CLAIM_LEASE_MS = 900_000;
 const PARENT_RETRIES = 2;
 const UNIT_RETRIES = 0;
+const ANALYSIS_UNIT_INVOKE_TIMEOUT = "10m" as const;
 
 const EMBEDDING_DEADLINE_MS = 60_000;
 const SEMANTIC_TASK_KEY = "keyword-embedding";
@@ -288,7 +289,7 @@ type ClaimResult =
       status: "claimed";
       actor: string;
       analysisRunId: string;
-      configuration: RunConfiguration;
+      configurationKind: RunConfiguration["kind"];
       operationVersion: number;
       startedAt: string;
       templateFingerprint: string;
@@ -354,7 +355,7 @@ async function claimAnalysisRun(
       status: "claimed",
       actor: current.actor,
       analysisRunId: run.id,
-      configuration: run.configuration,
+      configurationKind: run.configuration.kind,
       operationVersion: claimed.version,
       startedAt: run.startedAt.toISOString(),
       templateFingerprint: run.templateFingerprint,
@@ -786,20 +787,50 @@ function runBounds(template: CustomerTemplate) {
   };
 }
 
+async function loadRunConfiguration(
+  runtime: WorkerRuntime,
+  workspaceId: string,
+  operationId: string,
+): Promise<RunConfiguration> {
+  await assertWorkspace(runtime, workspaceId);
+  const run = await findAnalysisRunByOperationId(
+    runtime.db,
+    workspaceId,
+    operationId,
+  );
+  if (!run) {
+    throw new NonRetriableError("NOT_FOUND");
+  }
+  const parsed = runConfigurationSchema(runBounds(runtime.template)).safeParse(
+    run.configuration,
+  );
+  if (!parsed.success) {
+    throw new NonRetriableError("VALIDATION_FAILED");
+  }
+  return parsed.data;
+}
+
+async function loadNewsConfiguration(
+  runtime: WorkerRuntime,
+  workspaceId: string,
+  operationId: string,
+) {
+  const configuration = await loadRunConfiguration(
+    runtime,
+    workspaceId,
+    operationId,
+  );
+  if (configuration.kind !== "news") {
+    throw new NonRetriableError("VALIDATION_FAILED");
+  }
+  return configuration;
+}
+
 export function createAnalysisRunFunctions(
   client: WorkerInngestClient,
   runtime: WorkerRuntime,
 ) {
-  const gateway = () =>
-    createWorkerModelGateway({
-      bindings: {
-        OLLAMA_BASE_URL: workerEnv.OLLAMA_BASE_URL,
-        OPENROUTER_API_KEY: workerEnv.OPENROUTER_API_KEY,
-      },
-      executor: runtime.db,
-      identity: runtime.identity,
-      template: runtime.template,
-    });
+  const gateway = () => workerModelGateway(runtime);
 
   const readCancelRequested = (
     step: WorkerStep,
@@ -820,7 +851,12 @@ export function createAnalysisRunFunctions(
 
   const cancelInBand = async (
     step: WorkerStep,
-    input: { analysisRunId: string; operationId: string; workspaceId: string },
+    input: {
+      actor: string;
+      analysisRunId: string;
+      operationId: string;
+      workspaceId: string;
+    },
     callSite: string,
   ) => {
     const settled = await step.run(`cancel-run-${callSite}`, () =>
@@ -845,9 +881,11 @@ export function createAnalysisRunFunctions(
         step,
         input.workspaceId,
         {
+          actorId: input.actor,
           lifecycle: settled.lifecycle,
           operationId: input.operationId,
           operationVersion: settled.version,
+          sharedImport: false,
         },
         "worker.analysis-run.realtime-unavailable",
       );
@@ -858,6 +896,7 @@ export function createAnalysisRunFunctions(
       input.workspaceId,
       input.analysisRunId,
       "cancelled",
+      input.actor,
     );
 
     return {
@@ -1216,7 +1255,7 @@ export function createAnalysisRunFunctions(
 
   const parentFunction = client.createFunction(
     {
-      id: "analysis-run",
+      id: ANALYSIS_RUN_FUNCTION_ID,
       cancelOn: [
         {
           event: OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME,
@@ -1229,6 +1268,7 @@ export function createAnalysisRunFunctions(
         const { operationId, workspaceId } = event.data.event.data;
         const failureCode = failureCodeOf(event.data.error.message);
         let analysisRunId: string | null = null;
+        let actorId: string | null = null;
         try {
           const settled = await step.run("settle-failed-run", () =>
             coded(async () => {
@@ -1247,6 +1287,15 @@ export function createAnalysisRunFunctions(
                 workspaceId,
                 operationId,
               );
+              const [owner] = await runtime.db
+                .select({ actor: operation.actor })
+                .from(operation)
+                .where(
+                  and(
+                    eq(operation.workspaceId, workspaceId),
+                    eq(operation.id, operationId),
+                  ),
+                );
               const result = await settleAnalysisRun(runtime.db, workspaceId, {
                 operationId,
                 failureCode,
@@ -1258,21 +1307,29 @@ export function createAnalysisRunFunctions(
                 outcome: result?.lifecycle ?? "unchanged",
               });
               return {
+                actor: owner?.actor ?? null,
                 analysisRunId: run?.id ?? null,
                 lifecycle: result?.lifecycle ?? null,
               };
             }),
           );
           analysisRunId = settled.analysisRunId;
+          actorId = settled.actor ?? null;
         } finally {
           if (analysisRunId === null) {
-            await notifyUsageLedgerChanged(step, workspaceId);
+            await notifyUsageLedgerChanged(
+              step,
+              workspaceId,
+              actorId,
+              "failed",
+            );
           } else {
             await notifyEditorialAndUsageChanged(
               step,
               workspaceId,
               analysisRunId,
               "failed",
+              actorId,
             );
           }
         }
@@ -1301,20 +1358,13 @@ export function createAnalysisRunFunctions(
           analysisRunId,
           "claimed",
         );
-        const configuration = runConfigurationSchema(
-          runBounds(runtime.template),
-        ).safeParse(claim.configuration);
-        if (!configuration.success) {
-          throw new NonRetriableError("VALIDATION_FAILED");
-        }
-        const run = configuration.data;
 
         if (
           await readCancelRequested(step, workspaceId, analysisRunId, "claimed")
         ) {
           return cancelInBand(
             step,
-            { analysisRunId, operationId, workspaceId },
+            { actor: claim.actor, analysisRunId, operationId, workspaceId },
             "claimed",
           );
         }
@@ -1323,32 +1373,41 @@ export function createAnalysisRunFunctions(
           step,
           workspaceId,
           {
+            actorId: claim.actor,
             lifecycle: "running",
             operationId,
             operationVersion: claim.operationVersion,
+            sharedImport: false,
           },
           "worker.analysis-run.realtime-unavailable",
         );
 
         let sourceImportId: string | null = null;
-        if (run.kind === "news") {
-          const request = {
-            actor: claim.actor,
-            enrichmentEnabled: run.enrichmentEnabled,
-            orderingMode: run.orderingMode,
-            sourceIds: run.sourceIds,
-            templateFingerprint: claim.templateFingerprint,
-            topN: run.topN,
-            topics: run.topics,
-            windowHours: run.windowHours,
+        if (claim.configurationKind === "news") {
+          const importRequest = async (): Promise<ImportRequest> => {
+            const configuration = await loadNewsConfiguration(
+              runtime,
+              workspaceId,
+              operationId,
+            );
+            return {
+              actor: claim.actor,
+              enrichmentEnabled: configuration.enrichmentEnabled,
+              orderingMode: configuration.orderingMode,
+              sourceIds: configuration.sourceIds,
+              templateFingerprint: claim.templateFingerprint,
+              topN: configuration.topN,
+              topics: configuration.topics,
+              windowHours: configuration.windowHours,
+            };
           };
 
           let resolved = await step.run("resolve-import-binding", () =>
-            coded(() =>
+            coded(async () =>
               resolveImportBinding(runtime, workspaceId, {
                 analysisRunId,
                 operationId,
-                request,
+                request: await importRequest(),
               }),
             ),
           );
@@ -1364,7 +1423,7 @@ export function createAnalysisRunFunctions(
             ) {
               return cancelInBand(
                 step,
-                { analysisRunId, operationId, workspaceId },
+                { actor: claim.actor, analysisRunId, operationId, workspaceId },
                 "import-ready-pre-wait",
               );
             }
@@ -1395,7 +1454,12 @@ export function createAnalysisRunFunctions(
               ) {
                 return cancelInBand(
                   step,
-                  { analysisRunId, operationId, workspaceId },
+                  {
+                    actor: claim.actor,
+                    analysisRunId,
+                    operationId,
+                    workspaceId,
+                  },
                   `import-ready-post-wait-${waitSlice}`,
                 );
               }
@@ -1403,11 +1467,11 @@ export function createAnalysisRunFunctions(
               resolved = await step.run(
                 `resolve-import-after-ready-${waitSlice}`,
                 () =>
-                  coded(() =>
+                  coded(async () =>
                     resolveImportBinding(runtime, workspaceId, {
                       analysisRunId,
                       operationId,
-                      request,
+                      request: await importRequest(),
                     }),
                   ),
               );
@@ -1429,7 +1493,11 @@ export function createAnalysisRunFunctions(
 
           await step.run("load-candidates", () =>
             coded(async () => {
-              await assertWorkspace(runtime, workspaceId);
+              const configuration = await loadNewsConfiguration(
+                runtime,
+                workspaceId,
+                operationId,
+              );
               const loaded = await loadAnalysisRunCandidates(
                 runtime.db,
                 workspaceId,
@@ -1437,7 +1505,8 @@ export function createAnalysisRunFunctions(
                   analysisRunId,
                   sourceImportId: resolved.sourceImportId,
                   windowStart: new Date(
-                    Date.parse(claim.startedAt) - run.windowHours * 3_600_000,
+                    Date.parse(claim.startedAt) -
+                      configuration.windowHours * 3_600_000,
                   ),
                 },
               );
@@ -1460,7 +1529,7 @@ export function createAnalysisRunFunctions(
           ) {
             return cancelInBand(
               step,
-              { analysisRunId, operationId, workspaceId },
+              { actor: claim.actor, analysisRunId, operationId, workspaceId },
               "pre-semantic",
             );
           }
@@ -1494,10 +1563,14 @@ export function createAnalysisRunFunctions(
           );
 
           await step.run("filter-and-score", () =>
-            coded(() =>
+            coded(async () =>
               filterAndScore(runtime, gateway(), {
                 analysisRunId,
-                configuration: run,
+                configuration: await loadNewsConfiguration(
+                  runtime,
+                  workspaceId,
+                  operationId,
+                ),
                 operationId,
                 runStartedAt: new Date(Date.parse(claim.startedAt)),
                 semanticAttemptId,
@@ -1524,16 +1597,20 @@ export function createAnalysisRunFunctions(
         ) {
           return cancelInBand(
             step,
-            { analysisRunId, operationId, workspaceId },
+            { actor: claim.actor, analysisRunId, operationId, workspaceId },
             "pre-plan",
           );
         }
 
         const planned = await step.run("plan-units", () =>
-          coded(() =>
+          coded(async () =>
             planUnits(runtime, {
               analysisRunId,
-              configuration: run,
+              configuration: await loadRunConfiguration(
+                runtime,
+                workspaceId,
+                operationId,
+              ),
               workspaceId,
             }),
           ),
@@ -1557,10 +1634,11 @@ export function createAnalysisRunFunctions(
                   operationId,
                   workspaceId,
                 },
+                timeout: ANALYSIS_UNIT_INVOKE_TIMEOUT,
               })
               .then((result) => unitResultSchema.parse(result))
               .catch(() =>
-                run.kind === "news"
+                claim.configurationKind === "news"
                   ? recoverNewsUnitNonTerminal(step, workspaceId, {
                       analysisModelUnitId: unit.id,
                       analysisRunId,
@@ -1626,9 +1704,11 @@ export function createAnalysisRunFunctions(
           step,
           workspaceId,
           {
+            actorId: claim.actor,
             lifecycle: settled.lifecycle,
             operationId,
             operationVersion: settled.version,
+            sharedImport: false,
           },
           "worker.analysis-run.realtime-unavailable",
         );
@@ -1637,6 +1717,7 @@ export function createAnalysisRunFunctions(
           workspaceId,
           analysisRunId,
           settled.cancelled || cancelRequested ? "cancelled" : "settled",
+          claim.actor,
         );
 
         return {
@@ -1658,7 +1739,7 @@ export function createAnalysisRunFunctions(
       triggers: [
         {
           event: "inngest/function.cancelled",
-          if: `event.data.function_id == '${client.id}-analysis-run'`,
+          if: `event.data.function_id == '${client.id}-${ANALYSIS_RUN_FUNCTION_ID}'`,
         },
       ],
     },
@@ -1686,7 +1767,17 @@ export function createAnalysisRunFunctions(
             workspaceId,
             operationId,
           );
-          return found ? { analysisRunId: found.id } : null;
+          if (!found) return null;
+          const [owner] = await runtime.db
+            .select({ actor: operation.actor })
+            .from(operation)
+            .where(
+              and(
+                eq(operation.workspaceId, workspaceId),
+                eq(operation.id, operationId),
+              ),
+            );
+          return { actor: owner?.actor ?? null, analysisRunId: found.id };
         }),
       );
       if (!run) {
@@ -1712,21 +1803,26 @@ export function createAnalysisRunFunctions(
         return { settled: false };
       }
 
-      await publishOperationStatus(
-        step,
-        workspaceId,
-        {
-          lifecycle: settled.lifecycle,
-          operationId,
-          operationVersion: settled.version,
-        },
-        "worker.analysis-run.realtime-unavailable",
-      );
+      if (run.actor) {
+        await publishOperationStatus(
+          step,
+          workspaceId,
+          {
+            actorId: run.actor,
+            lifecycle: settled.lifecycle,
+            operationId,
+            operationVersion: settled.version,
+            sharedImport: false,
+          },
+          "worker.analysis-run.realtime-unavailable",
+        );
+      }
       await notifyEditorialAndUsageChanged(
         step,
         workspaceId,
         run.analysisRunId,
         settled.cancelled ? "cancelled" : "settled",
+        run.actor,
       );
 
       return { lifecycle: settled.lifecycle, settled: true };

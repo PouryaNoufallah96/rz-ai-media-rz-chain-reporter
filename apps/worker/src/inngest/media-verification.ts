@@ -15,11 +15,21 @@ import {
   markMediaRejected,
   markMediaVerified,
 } from "@rz-chain-reporter/db/repositories/media-asset";
-import type { Storage } from "@rz-chain-reporter/storage";
-import sharp from "sharp";
+import {
+  isMissingStorageObject,
+  type Storage,
+} from "@rz-chain-reporter/storage";
+
+import { decodeStaticRaster } from "./media-storage";
 
 const REFERENCE_CLEANUP_DELAY_MS = 24 * 60 * 60 * 1000;
+const UNATTACHED_IMAGE_CLEANUP_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
 const CLEANUP_CLAIM_MS = 15 * 60 * 1000;
+
+const VERIFIED_CLEANUP_DELAY_MS: Record<string, number | undefined> = {
+  [REFERENCE_IMAGE_KIND]: REFERENCE_CLEANUP_DELAY_MS,
+  image: UNATTACHED_IMAGE_CLEANUP_DELAY_MS,
+};
 
 const MEDIA_REJECTION_REASONS = {
   checksum: "CHECKSUM_MISMATCH",
@@ -47,24 +57,11 @@ type Inspection =
   | { status: "rejected"; reason: RejectionReason; observed: ObservedMedia }
   | { status: "verified"; observed: Required<ObservedMedia> };
 
-const MIME_BY_FORMAT: Record<string, string | undefined> = {
-  jpeg: "image/jpeg",
-  png: "image/png",
-  webp: "image/webp",
-};
-
 function rejected(
   reason: RejectionReason,
   observed: ObservedMedia = {},
 ): Inspection {
   return { status: "rejected", reason, observed };
-}
-
-function isMissingObject(error: unknown) {
-  return (
-    error instanceof Error &&
-    (error.name === "NotFound" || error.name === "NoSuchKey")
-  );
 }
 
 async function readBounded(stream: ReadableStream<Uint8Array>) {
@@ -91,20 +88,6 @@ async function readBounded(stream: ReadableStream<Uint8Array>) {
   };
 }
 
-async function decodeImage(bytes: Buffer) {
-  try {
-    const image = sharp(bytes, {
-      failOn: "warning",
-      limitInputPixels: MAX_REFERENCE_IMAGE_PIXELS,
-    });
-    const metadata = await image.metadata();
-    await image.stats();
-    return metadata;
-  } catch {
-    return null;
-  }
-}
-
 async function inspect(
   storage: Storage,
   asset: MediaAsset,
@@ -117,7 +100,7 @@ async function inspect(
       });
     }
   } catch (error) {
-    if (!isMissingObject(error)) throw error;
+    if (!isMissingStorageObject(error)) throw error;
     return rejected(MEDIA_REJECTION_REASONS.missing);
   }
 
@@ -135,30 +118,16 @@ async function inspect(
     return rejected(MEDIA_REJECTION_REASONS.checksum, observed);
   }
 
-  const metadata = await decodeImage(read.bytes);
-  const mimeType = metadata?.format
-    ? MIME_BY_FORMAT[metadata.format]
-    : undefined;
-  if (
-    !metadata ||
-    !mimeType ||
-    !metadata.width ||
-    !metadata.height ||
-    metadata.width > MAX_REFERENCE_IMAGE_DIMENSION ||
-    metadata.height > MAX_REFERENCE_IMAGE_DIMENSION ||
-    metadata.width * metadata.height > MAX_REFERENCE_IMAGE_PIXELS ||
-    (metadata.pages ?? 1) !== 1
-  ) {
+  const raster = await decodeStaticRaster(read.bytes, {
+    maxDimension: MAX_REFERENCE_IMAGE_DIMENSION,
+    maxPixels: MAX_REFERENCE_IMAGE_PIXELS,
+  });
+  if (!raster) {
     return rejected(MEDIA_REJECTION_REASONS.malformed, observed);
   }
 
-  const decoded = {
-    ...observed,
-    height: metadata.height,
-    mimeType,
-    width: metadata.width,
-  };
-  return mimeType === asset.mimeType
+  const decoded = { ...observed, ...raster };
+  return raster.mimeType === asset.mimeType
     ? { status: "verified", observed: decoded }
     : rejected(MEDIA_REJECTION_REASONS.declaredMime, decoded);
 }
@@ -259,13 +228,14 @@ export async function verifyMediaUpload(
     return { status: "rejected" as const, reason: inspection.reason };
   }
 
+  const cleanupDelayMs = VERIFIED_CLEANUP_DELAY_MS[asset.kind];
   const verified = await markMediaVerified(executor, workspaceId, {
     id: asset.id,
     version: asset.version,
     cleanupAfter:
-      asset.kind === REFERENCE_IMAGE_KIND
-        ? new Date(Date.now() + REFERENCE_CLEANUP_DELAY_MS)
-        : null,
+      cleanupDelayMs === undefined
+        ? null
+        : new Date(Date.now() + cleanupDelayMs),
     ...inspection.observed,
   });
   return verified.status === "updated"

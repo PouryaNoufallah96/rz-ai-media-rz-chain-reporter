@@ -86,11 +86,9 @@ export function AssistantTranscript({
         </Attachment>
       ) : null}
 
-      <MessageScrollerProvider>
+      <MessageScrollerProvider autoScroll>
         <MessageScroller className="min-h-0 flex-1">
-          <MessageScrollerViewport>
-            {/* The bottom padding keeps the last turn clear of the viewport
-                fade and of the scroll-to-latest button. */}
+          <MessageScrollerViewport aria-label={t("transcript.label")}>
             <MessageScrollerContent className="gap-3 pb-12">
               {messages.length === 0 ? (
                 <Empty className="gap-2 p-0">
@@ -110,6 +108,8 @@ export function AssistantTranscript({
               {messages.map((message, index) => (
                 <MessageScrollerItem key={message.id}>
                   <AssistantTurn
+                    failed={status === "error" && index === messages.length - 1}
+                    live={index === messages.length - 1 && status === "ready"}
                     message={message}
                     onAnswer={onAnswer}
                     pending={inFlight && index === messages.length - 1}
@@ -136,10 +136,14 @@ export function AssistantTranscript({
 }
 
 function AssistantTurn({
+  failed,
+  live,
   message,
   onAnswer,
   pending,
 }: {
+  failed: boolean;
+  live: boolean;
   message: AssistantUIMessage;
   onAnswer: (answer: AssistantAnswer) => void;
   pending: boolean;
@@ -148,8 +152,6 @@ function AssistantTurn({
   const fromOperator = message.role === "user";
   const align = fromOperator ? "end" : "start";
   const answered = message.parts.some((part) => part.type === "text");
-  // A source note names its document, so several excerpts of one document
-  // collapse to a single note.
   const citations = new Map(
     message.parts.flatMap((part) =>
       part.type === "data-citation"
@@ -161,7 +163,13 @@ function AssistantTurn({
   return (
     <Message align={align}>
       <MessageContent className="gap-1.5">
-        {answered || fromOperator || pending ? null : (
+        {failed ? (
+          <Bubble align={align} variant="muted">
+            <BubbleContent>
+              <Bdi>{t("status.error")}</Bdi>
+            </BubbleContent>
+          </Bubble>
+        ) : answered || fromOperator || pending ? null : (
           <Bubble align={align} variant="muted">
             <BubbleContent>
               <Bdi>{t("fallback")}</Bdi>
@@ -181,7 +189,8 @@ function AssistantTurn({
               </BubbleContent>
             </Bubble>
           ) : part.type === "tool-ask_user" &&
-            part.state === "input-available" ? (
+            part.state === "input-available" &&
+            live ? (
             <AssistantAskUser
               input={part.input}
               key={part.toolCallId}

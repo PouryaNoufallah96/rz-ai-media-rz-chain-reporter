@@ -3,7 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import type { createDb } from "@rz-chain-reporter/db";
-import { APIError, createAuthMiddleware, getIp } from "better-auth/api";
+import { APIError, createAuthMiddleware, getIP } from "better-auth/api";
 
 const SIGN_IN_PATH = "/sign-in/email";
 
@@ -22,14 +22,15 @@ const WINDOW = `make_interval(secs => ${WINDOW_SECONDS})`;
 const IN_WINDOW = `t.window_started_at > now() - ${WINDOW}`;
 
 const PRUNE_EXPIRED_WINDOWS = `
-  delete from auth_throttle
-  where bucket in (
-    select bucket
-    from auth_throttle
-    where window_started_at <= now() - ${WINDOW}
-    order by window_started_at
-    limit ${PRUNE_BATCH_SIZE}
-  )
+  delete from auth_throttle as t
+  where t.window_started_at <= now() - ${WINDOW}
+    and t.bucket in (
+      select bucket
+      from auth_throttle
+      where window_started_at <= now() - ${WINDOW}
+      order by window_started_at
+      limit ${PRUNE_BATCH_SIZE}
+    )
 `;
 
 type AuthDatabase = ReturnType<typeof createDb>["db"];
@@ -108,14 +109,14 @@ async function consume(db: AuthDatabase, buckets: Bucket[]) {
     : null;
 }
 
-// Better Auth 1.6.29 matches the single `before` hook with `matcher: () => true`,
+// Better Auth matches the single `before` hook with `matcher: () => true`,
 // so the path guard must be first or every /get-session pays for the throttle.
 export function createSignInThrottleHook(db: AuthDatabase) {
   return createAuthMiddleware(async (ctx) => {
     if (ctx.path !== SIGN_IN_PATH) return;
 
     const headers = ctx.headers ?? ctx.request?.headers;
-    const ip = headers ? getIp(headers, ctx.context.options) : null;
+    const ip = headers ? getIP(headers, ctx.context.options) : null;
     // Fail closed rather than sharing one bucket: docs/operations/sign-in-trust-boundary.md.
     if (!ip) throw rateLimited(WINDOW_SECONDS);
 

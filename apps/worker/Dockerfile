@@ -40,6 +40,9 @@ COPY customer-templates/${CUSTOMER_TEMPLATE_KEY}/ customer-templates/${CUSTOMER_
 
 ENV NODE_ENV=production
 RUN CUSTOMER_TEMPLATE_KEY=${CUSTOMER_TEMPLATE_KEY} pnpm --filter worker build
+RUN mkdir -p /sharp-runtime/node_modules \
+  && cp -RL /app/node_modules/.pnpm/sharp@*/node_modules/. /sharp-runtime/node_modules/ \
+  && rm -rf /sharp-runtime/node_modules/@types
 
 FROM node:24.19.0-slim AS runner
 WORKDIR /app
@@ -48,8 +51,7 @@ RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nod
 
 ARG CUSTOMER_TEMPLATE_KEY
 COPY --from=builder --chown=worker:nodejs /app/apps/worker/dist ./dist
-COPY --from=builder --chown=worker:nodejs /app/node_modules/.pnpm ./node_modules/.pnpm
-RUN ln -s "$(find node_modules/.pnpm -path '*/node_modules/sharp' -type d -print -quit | sed 's#^node_modules/##')" node_modules/sharp
+COPY --from=builder --chown=worker:nodejs /sharp-runtime/node_modules ./node_modules
 COPY --from=builder --chown=worker:nodejs /app/customer-templates/${CUSTOMER_TEMPLATE_KEY}/ ./customer-templates/${CUSTOMER_TEMPLATE_KEY}/
 COPY --chmod=0755 apps/worker/docker-entrypoint.sh ./docker-entrypoint.sh
 

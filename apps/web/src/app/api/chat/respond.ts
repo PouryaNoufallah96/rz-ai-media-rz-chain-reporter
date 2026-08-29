@@ -3,13 +3,15 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
+import { matchesAppliedCustomerTemplate } from "@rz-chain-reporter/db/repositories/customer-template-identity";
 import { readLiveDraftOrigin } from "@rz-chain-reporter/db/repositories/draft-origin";
 import { env } from "@rz-chain-reporter/env/server";
 import { createModelGateway } from "@rz-chain-reporter/model-gateway/gateway";
+import * as Sentry from "@sentry/nextjs";
 import {
   createUIMessageStream,
   createUIMessageStreamResponse,
-  stepCountIs,
+  isStepCount,
   type ToolSet,
 } from "ai";
 import { revalidateTag } from "next/cache";
@@ -27,7 +29,10 @@ import {
   type KnowledgeExcerpt,
   selectKnowledge,
 } from "@/features/assistant/lib/retrieval";
-import { readRunContext } from "@/features/assistant/lib/run-context";
+import {
+  brandName,
+  readRunContext,
+} from "@/features/assistant/lib/run-context";
 import type { AssistantUIMessage } from "@/features/assistant/schemas/assistant-message";
 import type {
   AssistantActiveCard,
@@ -62,9 +67,8 @@ export async function respondToAssistantTurn(
   const question = request.message.parts[0]?.text ?? "";
   const executor = rpcDb();
   const workspaceId = await resolveInstallationWorkspaceId(executor);
-  // The browser may claim any Draft ID; only a live draft from this
-  // operator's origin run, whose platform, brand and content locale match,
-  // is allowed to be quoted.
+  // Quote only a live draft from this operator's origin run with matching
+  // platform, brand, and content locale; the browser-supplied ID is untrusted.
   const card = request.card
     ? await authorizedCard(executor, workspaceId, userId, request)
     : null;
@@ -83,13 +87,14 @@ export async function respondToAssistantTurn(
     question,
   });
 
-  // The code-owned chooser and the model-callable one never arm together, so a
-  // turn can offer at most one questionnaire.
   const options = brandOptions(customerEditorial.brands, request.brandKeys);
   const clarifiable = knowledge.brandChoice === null && options.length > 1;
 
   const stream = createUIMessageStream<AssistantUIMessage>({
-    onError: () => "ASSISTANT_UNAVAILABLE",
+    onError: (error) => {
+      Sentry.captureException(error);
+      return "ASSISTANT_UNAVAILABLE";
+    },
     execute: async ({ writer }) => {
       writer.write({ type: "start" });
 
@@ -115,8 +120,6 @@ export async function respondToAssistantTurn(
         workspaceId,
       });
 
-      // Source notes belong to an answer that used them, they name the document
-      // rather than each matched section, and a handful of them is noise.
       if (answer.answered) {
         for (const note of sourceNotes(knowledge)) {
           writer.write({ type: "data-citation", data: note });
@@ -160,13 +163,6 @@ type Writer = Parameters<
 
 function choiceOf(brand: { key: string; name: string }) {
   return { id: brand.key, label: brand.name };
-}
-
-function brandName(brandKey: string) {
-  return (
-    customerEditorial.brands.find((brand) => brand.key === brandKey)?.name ??
-    brandKey
-  );
 }
 
 function sourceNotes(knowledge: {
@@ -215,15 +211,13 @@ async function streamAnswer(
 
   const gateway = createModelGateway({
     assertTemplateCurrent: async (candidateWorkspaceId) => {
-      const [installation] = await executor.query.workspace.findMany({
-        columns: { customerTemplateFingerprint: true, id: true },
-        limit: 2,
-      });
+      const current = await matchesAppliedCustomerTemplate(
+        executor,
+        candidateWorkspaceId,
+        customerTemplateFingerprint,
+      );
 
-      if (
-        installation?.id !== candidateWorkspaceId ||
-        installation.customerTemplateFingerprint !== customerTemplateFingerprint
-      ) {
+      if (!current) {
         throw new Error("template drift");
       }
     },
@@ -246,7 +240,7 @@ async function streamAnswer(
       operationAttemptId: operation.attemptId,
       operationId: operation.operationId,
       prompt: context.prompt,
-      stopWhen: stepCountIs(1),
+      stopWhen: isStepCount(1),
       taskKey: "assistant-synthesis",
       tools: context.tools,
       workspaceId,
@@ -286,10 +280,18 @@ async function streamAnswer(
 
     return { answered: started, ask: null };
   } finally {
-    await closeSynthesisOperation(executor, workspaceId, operation, succeeded);
-    // `updateTag` throws outside a Server Action, so this Route Handler drops
-    // the workspace Usage tag the way the internal Lane 2 handler does.
-    revalidateTag(workspaceCacheTag(workspaceId, "usage"), { expire: 0 });
+    try {
+      await closeSynthesisOperation(
+        executor,
+        workspaceId,
+        operation,
+        succeeded,
+      );
+    } finally {
+      // `updateTag` throws outside a Server Action, so this Route Handler drops
+      // the workspace Usage tag the way the internal Lane 2 handler does.
+      revalidateTag(workspaceCacheTag(workspaceId, "usage"), { expire: 0 });
+    }
   }
 }
 

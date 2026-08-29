@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  SOURCE_ORIGINS,
   type SourceOrigin,
   TELEGRAM_ORDERING_MODES,
 } from "@rz-chain-reporter/contracts";
@@ -21,7 +22,6 @@ import {
   FieldLegend,
   FieldSet,
 } from "@rz-chain-reporter/ui/components/field";
-import { Input } from "@rz-chain-reporter/ui/components/input";
 import {
   InputGroup,
   InputGroupAddon,
@@ -44,6 +44,7 @@ import type { z } from "zod";
 import {
   FieldCaption,
   FormField,
+  FormNumberField,
   FormRootError,
   FormSelectField,
   FormSwitchField,
@@ -66,8 +67,6 @@ import {
   type SourceImportsView,
   startSourceImportInputSchema,
 } from "../schemas/imports";
-
-const SOURCE_KINDS: readonly SourceOrigin[] = ["rss", "telegram_public"];
 
 type ImportFormValues = z.input<typeof startSourceImportInputSchema>;
 
@@ -123,16 +122,23 @@ export function SourceImportForm({
   const onSubmit = handleSubmit(async (values) => {
     clearErrors("root");
     action.reset();
-    const result = await action.execute(
-      selectedHasOrigin(selectable, values.sourceIds, "telegram_public")
-        ? values
-        : {
-            ...values,
-            orderingMode: imports.defaults.orderingMode,
-            topN: imports.defaults.topN,
-            topics: [],
-          },
+    const telegramSelected = selectedHasOrigin(
+      selectable,
+      values.sourceIds,
+      "telegram_public",
     );
+    const submitted = telegramSelected
+      ? {
+          ...values,
+          topics: values.orderingMode === "keywords" ? values.topics : [],
+        }
+      : {
+          ...values,
+          orderingMode: imports.defaults.orderingMode,
+          topN: imports.defaults.topN,
+          topics: [],
+        };
+    const result = await action.execute(submitted);
 
     if (result.status === "error") {
       applyActionErrorToForm(setError, result, setFocus);
@@ -277,7 +283,7 @@ function SourceSelection({
                   {t("catalog.empty")}
                 </p>
               ) : (
-                SOURCE_KINDS.map((origin) => {
+                SOURCE_ORIGINS.map((origin) => {
                   const entries = selectable.filter(
                     (entry) => entry.origin === origin,
                   );
@@ -395,9 +401,13 @@ function SourceSelection({
             recentTopics={recentTopics}
             resolveError={resolveError}
           />
-          <TopNField
+          <FormNumberField
             control={control}
+            description={t("import.topNHint")}
             disabled={disabled}
+            label={t("import.topN")}
+            max={MAX_TOP_N}
+            name="topN"
             resolveError={resolveError}
           />
         </>
@@ -495,44 +505,6 @@ function OrderingField({
   );
 }
 
-function TopNField({ control, disabled, resolveError }: FieldProps) {
-  const t = useTranslations(SOURCES_NAMESPACE);
-
-  return (
-    <FormField
-      control={control}
-      description={t("import.topNHint")}
-      disabled={disabled}
-      name="topN"
-      resolveError={resolveError}
-    >
-      {({ controlId, controlProps, descriptionId, field }) => (
-        <>
-          <FieldCaption htmlFor={controlId}>{t("import.topN")}</FieldCaption>
-          <Input
-            {...controlProps}
-            className="w-24"
-            inputMode="numeric"
-            max={MAX_TOP_N}
-            min={1}
-            name={field.name}
-            onBlur={field.onBlur}
-            onChange={(event) =>
-              field.onChange(event.currentTarget.valueAsNumber)
-            }
-            ref={field.ref}
-            type="number"
-            value={Number.isNaN(field.value) ? "" : field.value}
-          />
-          <FieldDescription id={descriptionId}>
-            {t("import.topNHint")}
-          </FieldDescription>
-        </>
-      )}
-    </FormField>
-  );
-}
-
 function TopicsField({
   control,
   disabled,
@@ -550,7 +522,7 @@ function TopicsField({
       name="topics"
       resolveError={resolveError}
     >
-      {({ controlId, controlProps, descriptionId, field }) => {
+      {({ controlId, controlProps, descriptionNode, field }) => {
         const topics = field.value;
         const atCap = topics.length >= MAX_TOPICS;
         const add = (topic: string) => {
@@ -634,9 +606,7 @@ function TopicsField({
                 </Button>
               ) : null}
             </div>
-            <FieldDescription id={descriptionId}>
-              {t("import.topicsHint")}
-            </FieldDescription>
+            {descriptionNode}
             {recentTopics.length > 0 ? (
               <FieldSet className="mt-1 grid gap-1">
                 <FieldLegend className="ticket-label" variant="label">

@@ -69,12 +69,12 @@ function Calendar({
           orientation === "left" ? (
             <ChevronLeftIcon
               aria-hidden="true"
-              className={cn("size-4 rtl:rotate-180", iconClassName)}
+              className={cn("size-4", iconClassName)}
             />
           ) : (
             <ChevronRightIcon
               aria-hidden="true"
-              className={cn("size-4 rtl:rotate-180", iconClassName)}
+              className={cn("size-4", iconClassName)}
             />
           ),
         DayButton: CalendarDayButton,

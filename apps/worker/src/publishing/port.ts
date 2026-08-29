@@ -230,6 +230,13 @@ export function unknownFailure(
   });
 }
 
+export function failed(
+  attemptId: string,
+  failure: ProviderFailure,
+): PublishResult {
+  return { status: "failed", attemptId, failure };
+}
+
 export function providerFailureClass(
   error: unknown,
 ): "provider" | "timeout" | "transport" {
@@ -240,4 +247,10 @@ export function providerFailureClass(
     (error instanceof Error && error.message === "PROVIDER_RESPONSE_TOO_LARGE")
     ? "provider"
     : "transport";
+}
+
+export function objectValue(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
 }

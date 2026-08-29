@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createLocalAccountIssuer } from "better-auth/db";
+
 import { auth } from "./index";
 
 export type OperatorPasswordPolicy = {
@@ -15,7 +17,6 @@ type PasswordRejected = {
 export type CreateOperatorResult =
   | { status: "created"; userId: string; email: string }
   | { status: "email-taken" }
-  | { status: "no-credential-account" }
   | PasswordRejected;
 
 export type ResetOperatorPasswordResult =
@@ -25,6 +26,7 @@ export type ResetOperatorPasswordResult =
   | PasswordRejected;
 
 const CREDENTIAL_PROVIDER = "credential";
+const CREDENTIAL_ISSUER = createLocalAccountIssuer(CREDENTIAL_PROVIDER);
 
 export async function operatorPasswordPolicy(): Promise<OperatorPasswordPolicy> {
   const { password } = await auth.$context;
@@ -57,22 +59,44 @@ export async function createOperatorAccount(input: {
   });
 
   if (existing) {
-    return existing.accounts.some(
-      (account) => account.providerId === CREDENTIAL_PROVIDER,
-    )
-      ? { status: "email-taken" }
-      : { status: "no-credential-account" };
+    if (
+      existing.accounts.some(
+        (account) => account.providerId === CREDENTIAL_PROVIDER,
+      )
+    ) {
+      return { status: "email-taken" };
+    }
+
+    // Provisioning that failed between createUser and linkAccount leaves a
+    // sign-in-less row, and `disableSignUp` leaves this command as its only repair.
+    await ctx.internalAdapter.linkAccount({
+      accountId: existing.user.id,
+      issuer: CREDENTIAL_ISSUER,
+      password: await ctx.password.hash(input.password),
+      providerId: CREDENTIAL_PROVIDER,
+      userId: existing.user.id,
+    });
+
+    return {
+      status: "created",
+      userId: existing.user.id,
+      email: existing.user.email,
+    };
   }
 
   const hash = await ctx.password.hash(input.password);
-  const user = await ctx.internalAdapter.createUser({
-    email: input.email,
-    emailVerified: false,
-    name: input.name,
-  });
+  const user = await ctx.internalAdapter.createUser(
+    {
+      email: input.email,
+      emailVerified: false,
+      name: input.name,
+    },
+    { method: "admin" },
+  );
 
   await ctx.internalAdapter.linkAccount({
     accountId: user.id,
+    issuer: CREDENTIAL_ISSUER,
     password: hash,
     providerId: CREDENTIAL_PROVIDER,
     userId: user.id,

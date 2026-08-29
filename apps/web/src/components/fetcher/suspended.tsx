@@ -15,11 +15,7 @@ type ResolvedProps<T> = {
   empty?: ReactNode;
 };
 
-export async function Resolved<T>({
-  children,
-  data,
-  empty = null,
-}: ResolvedProps<T>) {
+async function Resolved<T>({ children, data, empty = null }: ResolvedProps<T>) {
   const resolved = typeof data === "function" ? await data() : await data;
 
   if (resolved === null || resolved === undefined) {

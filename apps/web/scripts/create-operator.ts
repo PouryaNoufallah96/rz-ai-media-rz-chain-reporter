@@ -35,11 +35,6 @@ async function createOperator() {
     case "email-taken":
       fail(`An operator account already exists for ${email}.`);
       break;
-    case "no-credential-account":
-      fail(
-        `A user row exists for ${email} with no credential account, so it cannot sign in. Repair it before retrying.`,
-      );
-      break;
     case "password-rejected":
       fail(
         `The password must be between ${result.policy.minPasswordLength} and ${result.policy.maxPasswordLength} characters.`,

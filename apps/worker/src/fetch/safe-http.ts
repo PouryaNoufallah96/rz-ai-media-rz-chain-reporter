@@ -259,10 +259,10 @@ async function readResponse(
     return settled;
   }
 
-  const mime = (response.headers.get("content-type") ?? "")
-    .split(";")[0]
-    ?.trim()
-    .toLowerCase();
+  const [declaredMime, ...contentTypeParameters] = (
+    response.headers.get("content-type") ?? ""
+  ).split(";");
+  const mime = declaredMime?.trim().toLowerCase();
   if (mime === undefined || !request.mimeAllowlist.includes(mime)) {
     await response.body?.cancel();
     throw new SafeHttpError("unsupported_mime", host);
@@ -274,12 +274,17 @@ async function readResponse(
     throw new SafeHttpError("too_large", host);
   }
 
+  const decoder = decoderFor(contentTypeParameters);
+  if (decoder === null) {
+    await response.body?.cancel();
+    throw new SafeHttpError("unsupported_mime", host);
+  }
+
   const reader = response.body?.getReader();
   if (reader === undefined) {
     return settled;
   }
 
-  const decoder = new TextDecoder();
   let decodedBytes = 0;
   let text = "";
   let chunk = await reader.read();
@@ -294,6 +299,28 @@ async function readResponse(
   }
 
   return { ...settled, decodedBytes, text: text + decoder.decode() };
+}
+
+// The declared charset decodes as declared or the response is refused; a silent
+// UTF-8 fallback would corrupt every legacy-encoded source instead.
+function decoderFor(contentTypeParameters: readonly string[]) {
+  try {
+    return new TextDecoder(charsetOf(contentTypeParameters) ?? "utf-8");
+  } catch {
+    return null;
+  }
+}
+
+function charsetOf(parameters: readonly string[]) {
+  for (const parameter of parameters) {
+    const [name, ...value] = parameter.split("=");
+    if (name?.trim().toLowerCase() !== "charset") {
+      continue;
+    }
+    const label = value.join("=").trim().replace(/^"|"$/g, "").toLowerCase();
+    return label === "" ? null : label;
+  }
+  return null;
 }
 
 function pinnedLookup(exemptHosts: ReadonlySet<string>): LookupFunction {

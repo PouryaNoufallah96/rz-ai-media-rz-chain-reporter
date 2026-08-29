@@ -23,15 +23,15 @@ function createAuth() {
       provider: "pg",
       schema,
     }),
-    trustedOrigins: [env.CORS_ORIGIN],
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,
+      minPasswordLength: 8,
     },
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     advanced: {
-      // Without `trustedProxies`, 1.6.29 nulls a multi-value X-Forwarded-For.
+      // Without `trustedProxies`, a multi-value X-Forwarded-For resolves to null.
       ipAddress: {
         ipAddressHeaders: ["x-forwarded-for"],
         trustedProxies: ["127.0.0.1/32", "::1/128"],

@@ -1,6 +1,5 @@
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
 import { Layers2Icon } from "lucide-react";
-import { Suspense } from "react";
 import { UrlDataBoundary } from "@/components/fetcher/suspended";
 import { getSession } from "@/features/auth/api/server/session";
 import UserMenu, {
@@ -35,7 +34,7 @@ export default async function Header() {
   const t = await getT(SHARED_NAMESPACE);
 
   return (
-    <header className="relative min-w-0 border-b bg-card">
+    <header className="sticky top-0 z-40 min-w-0 border-border/40 border-b bg-background/45 backdrop-blur-xl">
       <a
         className="sr-only z-50 bg-background px-3 py-2 focus:not-sr-only focus:absolute focus:inset-s-2 focus:top-2"
         href="#main-content"
@@ -72,18 +71,16 @@ export default async function Header() {
           </Localized>
           <Localized namespaces={[SHARED_NAMESPACE]}>
             <UrlDataBoundary
-              fallback={
-                <Skeleton className="size-8 max-[599px]:size-11 sm:size-9" />
-              }
+              fallback={<Skeleton className="size-8 max-sm:size-11" />}
             >
               <LocaleSwitch />
             </UrlDataBoundary>
             <ModeToggle />
-            <Suspense
+            <UrlDataBoundary
               fallback={<Skeleton className="h-8 w-20 max-sm:h-11 sm:w-32" />}
             >
               <ResolvedUserMenu />
-            </Suspense>
+            </UrlDataBoundary>
           </Localized>
         </div>
       </div>

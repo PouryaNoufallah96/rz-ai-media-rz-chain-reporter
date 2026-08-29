@@ -11,7 +11,7 @@ const buildEnv = validateBuildEnv(process.env);
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
-  deploymentId: process.env.APP_VERSION,
+  deploymentId: buildEnv.APP_VERSION,
   cacheComponents: true,
   partialPrefetching: true,
   typedRoutes: true,
@@ -23,9 +23,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/*": [
       `../../customer-templates/${buildEnv.CUSTOMER_TEMPLATE_KEY}/**`,
-      // next/dist requires "@swc/helpers/_/*", whose export map resolves to
-      // esm/ through the module-sync condition Node honours but the file
-      // tracer does not, so the standalone image boots without those files.
+      // The tracer misses the module-sync export for `@swc/helpers/_/*`;
+      // include its ESM files so the standalone image boots.
       "../../node_modules/.pnpm/@swc+helpers@*/node_modules/@swc/helpers/esm/**",
     ],
   },

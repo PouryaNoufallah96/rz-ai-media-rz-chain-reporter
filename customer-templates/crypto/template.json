@@ -656,9 +656,9 @@
       "brandLogo": {
         "path": "brand-logos/rz-prime.png",
         "mimeType": "image/png",
-        "pixelWidth": 164,
-        "pixelHeight": 115,
-        "sha256": "52a8e4fc2831802416acc840f703b038e2fa84622dcbbac35e63d44974b9c604"
+        "pixelWidth": 1774,
+        "pixelHeight": 887,
+        "sha256": "800c6773b57c5ad1590c1e0d05b9c6bbfec6fc9194a371596cd1b863896032cb"
       },
       "editorial": {
         "mediaFitThreshold": 0,
@@ -1024,9 +1024,9 @@
       "brandLogo": {
         "path": "brand-logos/coin-hall.png",
         "mimeType": "image/png",
-        "pixelWidth": 73,
-        "pixelHeight": 97,
-        "sha256": "a3c4af1d942930de85bb4a1bd3e141885caec217406032925f0ecac5e66ba1d3"
+        "pixelWidth": 1289,
+        "pixelHeight": 1221,
+        "sha256": "3f33daa59b47d15decb34694372da63ca5232de902c88f3609efd2262d9ea9ef"
       },
       "editorial": {
         "mediaFitThreshold": 0,
@@ -1416,9 +1416,9 @@
       "brandLogo": {
         "path": "brand-logos/chain-reporter.png",
         "mimeType": "image/png",
-        "pixelWidth": 119,
-        "pixelHeight": 178,
-        "sha256": "849a1e5ee9ef0f01e97d4c0d097879aa9c9f79a3256b7dee70247a0b32ca88da"
+        "pixelWidth": 1261,
+        "pixelHeight": 1247,
+        "sha256": "4d4585b18fb73d3d0ffc7d2e0218e2b935a4a871b93109b6a1373b182298773b"
       },
       "editorial": {
         "mediaFitThreshold": 0,
@@ -1748,9 +1748,9 @@
       "brandLogo": {
         "path": "brand-logos/meta-coin-guard.png",
         "mimeType": "image/png",
-        "pixelWidth": 88,
-        "pixelHeight": 98,
-        "sha256": "a24a127dec439fb7a100ffd325b0a3002119fce83dadaeda1174563d887e65cc"
+        "pixelWidth": 1280,
+        "pixelHeight": 1229,
+        "sha256": "a4da9de3f7738100e7917a0008694607bb529541218cf8b65175cc9eba50d3f1"
       },
       "editorial": {
         "mediaFitThreshold": 0,

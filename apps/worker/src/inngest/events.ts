@@ -145,139 +145,124 @@ function assertSchemaVersion(schemaVersion: number) {
   }
 }
 
+type RelayedEventCreator = (
+  payload: unknown,
+  id: string,
+) => ReturnType<(typeof durableEvents)[keyof typeof durableEvents]["create"]>;
+
+const relayedEventCreators: Record<string, RelayedEventCreator | undefined> = {
+  [MEDIA_UPLOAD_CONFIRMED_EVENT_NAME]: (payload, id) => {
+    const parsed = mediaUploadConfirmedPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+    }
+    return durableEvents.mediaUploadConfirmed.create(parsed.data, { id });
+  },
+  [OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME]: (payload, id) => {
+    const parsed = analysisRunCancelledPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+    }
+    return durableEvents.operationAnalysisRunCancelled.create(parsed.data, {
+      id,
+    });
+  },
+  [OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME]: (payload, id) => {
+    const parsed = analysisRunRequestedPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+    }
+    return durableEvents.operationAnalysisRunRequested.create(parsed.data, {
+      id,
+    });
+  },
+  [OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME]: (payload, id) => {
+    const parsed = copyGenerationRequestedPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+    }
+    return durableEvents.operationCopyGenerationRequested.create(parsed.data, {
+      id,
+    });
+  },
+  [OPERATION_GENERATION_REQUESTED_EVENT_NAME]: (payload, id) => {
+    const parsed = operationGenerationRequestedPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+    }
+    return durableEvents.operationGenerationRequested.create(parsed.data, {
+      id,
+    });
+  },
+  [OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME]: (payload, id) => {
+    const parsed = imageGenerationRequestedPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+    }
+    return durableEvents.operationImageGenerationRequested.create(parsed.data, {
+      id,
+    });
+  },
+  [OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME]: (
+    payload,
+    id,
+  ) => {
+    const parsed =
+      publicationReconciliationRequestedPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+    }
+    return durableEvents.operationPublicationReconciliationRequested.create(
+      parsed.data,
+      { id },
+    );
+  },
+  [OPERATION_PUBLICATION_REQUESTED_EVENT_NAME]: (payload, id) => {
+    const parsed = publicationRequestedPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+    }
+    return durableEvents.operationPublicationRequested.create(parsed.data, {
+      id,
+    });
+  },
+  [OPERATION_SCHEDULED_EFFECT_REQUESTED_EVENT_NAME]: (payload, id) => {
+    const parsed =
+      operationScheduledEffectRequestedPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+    }
+    return durableEvents.operationScheduledEffectRequested.create(parsed.data, {
+      id,
+    });
+  },
+  [OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME]: (payload, id) => {
+    const parsed =
+      operationSourceImportRequestedPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+    }
+    return durableEvents.operationSourceImportRequested.create(parsed.data, {
+      id,
+    });
+  },
+  [STORAGE_RECONCILIATION_REQUESTED_EVENT_NAME]: (payload, id) => {
+    const parsed =
+      storageReconciliationRequestedPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+    }
+    return durableEvents.storageReconciliationRequested.create(parsed.data, {
+      id,
+    });
+  },
+};
+
 export function createInngestEvent(outbox: OutboxEvent) {
   assertSchemaVersion(outbox.schemaVersion);
-  const eventId = `outbox:${outbox.eventType}:${outbox.id}`;
-
-  switch (outbox.eventType) {
-    case OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME: {
-      const payload = copyGenerationRequestedPayloadSchema.safeParse(
-        outbox.payload,
-      );
-      if (!payload.success) {
-        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
-      }
-      return durableEvents.operationCopyGenerationRequested.create(
-        payload.data,
-        { id: eventId },
-      );
-    }
-    case OPERATION_GENERATION_REQUESTED_EVENT_NAME: {
-      const payload = operationGenerationRequestedPayloadSchema.safeParse(
-        outbox.payload,
-      );
-      if (!payload.success) {
-        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
-      }
-      return durableEvents.operationGenerationRequested.create(payload.data, {
-        id: eventId,
-      });
-    }
-    case OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME: {
-      const payload = imageGenerationRequestedPayloadSchema.safeParse(
-        outbox.payload,
-      );
-      if (!payload.success) {
-        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
-      }
-      return durableEvents.operationImageGenerationRequested.create(
-        payload.data,
-        { id: eventId },
-      );
-    }
-    case OPERATION_SCHEDULED_EFFECT_REQUESTED_EVENT_NAME: {
-      const payload = operationScheduledEffectRequestedPayloadSchema.safeParse(
-        outbox.payload,
-      );
-      if (!payload.success) {
-        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
-      }
-      return durableEvents.operationScheduledEffectRequested.create(
-        payload.data,
-        {
-          id: eventId,
-        },
-      );
-    }
-    case OPERATION_PUBLICATION_REQUESTED_EVENT_NAME: {
-      const payload = publicationRequestedPayloadSchema.safeParse(
-        outbox.payload,
-      );
-      if (!payload.success) {
-        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
-      }
-      return durableEvents.operationPublicationRequested.create(payload.data, {
-        id: eventId,
-      });
-    }
-    case OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME: {
-      const payload = publicationReconciliationRequestedPayloadSchema.safeParse(
-        outbox.payload,
-      );
-      if (!payload.success) {
-        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
-      }
-      return durableEvents.operationPublicationReconciliationRequested.create(
-        payload.data,
-        { id: eventId },
-      );
-    }
-    case MEDIA_UPLOAD_CONFIRMED_EVENT_NAME: {
-      const payload = mediaUploadConfirmedPayloadSchema.safeParse(
-        outbox.payload,
-      );
-      if (!payload.success) {
-        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
-      }
-      return durableEvents.mediaUploadConfirmed.create(payload.data, {
-        id: eventId,
-      });
-    }
-    case STORAGE_RECONCILIATION_REQUESTED_EVENT_NAME: {
-      const payload = storageReconciliationRequestedPayloadSchema.safeParse(
-        outbox.payload,
-      );
-      if (!payload.success) {
-        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
-      }
-      return durableEvents.storageReconciliationRequested.create(payload.data, {
-        id: eventId,
-      });
-    }
-    case OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME: {
-      const payload = analysisRunRequestedPayloadSchema.safeParse(
-        outbox.payload,
-      );
-      if (!payload.success) {
-        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
-      }
-      return durableEvents.operationAnalysisRunRequested.create(payload.data, {
-        id: eventId,
-      });
-    }
-    case OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME: {
-      const payload = analysisRunCancelledPayloadSchema.safeParse(
-        outbox.payload,
-      );
-      if (!payload.success) {
-        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
-      }
-      return durableEvents.operationAnalysisRunCancelled.create(payload.data, {
-        id: eventId,
-      });
-    }
-    case OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME: {
-      const payload = operationSourceImportRequestedPayloadSchema.safeParse(
-        outbox.payload,
-      );
-      if (!payload.success) {
-        throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
-      }
-      return durableEvents.operationSourceImportRequested.create(payload.data, {
-        id: eventId,
-      });
-    }
-    default:
-      throw new OutboxEventContractError("OUTBOX_EVENT_TYPE_UNSUPPORTED");
+  const create = relayedEventCreators[outbox.eventType];
+  if (!create) {
+    throw new OutboxEventContractError("OUTBOX_EVENT_TYPE_UNSUPPORTED");
   }
+  return create(outbox.payload, `outbox:${outbox.eventType}:${outbox.id}`);
 }

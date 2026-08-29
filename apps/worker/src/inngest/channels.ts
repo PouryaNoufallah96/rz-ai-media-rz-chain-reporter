@@ -12,12 +12,29 @@ import {
   usageRealtimeChannel,
 } from "@rz-chain-reporter/contracts/realtime-channels";
 
-import { workerLogger } from "../logging/logger";
+import { type WorkerLogFields, workerLogger } from "../logging/logger";
 import type { WorkerInngestClient } from "./client";
 
 export type WorkerStep = Parameters<
   Parameters<WorkerInngestClient["createFunction"]>[1]
 >[0]["step"];
+
+function settled(
+  publish: Promise<unknown>,
+  logEvent: string,
+  fields: WorkerLogFields,
+) {
+  return publish
+    .then(() => true)
+    .catch(() => {
+      workerLogger.warn(logEvent, fields);
+      return false;
+    });
+}
+
+function ping() {
+  return { occurredAt: new Date().toISOString(), schemaVersion: 1 } as const;
+}
 
 export function publishOperationStatus(
   step: WorkerStep,
@@ -25,60 +42,53 @@ export function publishOperationStatus(
   message: OperationStatusRealtimeMessage,
   logEvent: string,
 ) {
-  return step.realtime
-    .publish(
+  return settled(
+    step.realtime.publish(
       `publish-${message.lifecycle}-status`,
       operationsRealtimeChannel(workspaceId).status,
       message,
-    )
-    .then(() => true)
-    .catch(() => {
-      workerLogger.warn(logEvent, {
-        operationId: message.operationId,
-        status: message.lifecycle,
-        workspaceId,
-      });
-      return false;
-    });
+    ),
+    logEvent,
+    {
+      operationId: message.operationId,
+      status: message.lifecycle,
+      workspaceId,
+    },
+  );
 }
 
 export function publishPublishingChanged(
   step: WorkerStep,
   workspaceId: string,
+  actorId: string,
   message: PublishingChangedRealtimeMessage,
   callSite: string,
 ) {
-  return step.realtime
-    .publish(
+  return settled(
+    step.realtime.publish(
       `publish-publishing-changed-${callSite}`,
-      publishingRealtimeChannel(workspaceId).changed,
+      publishingRealtimeChannel(workspaceId, actorId).changed,
       message,
-    )
-    .then(() => true)
-    .catch(() => {
-      workerLogger.warn("worker.publishing.realtime-unavailable", {
-        operationId: message.operationId,
-        workspaceId,
-      });
-      return false;
-    });
+    ),
+    "worker.publishing.realtime-unavailable",
+    { operationId: message.operationId, workspaceId },
+  );
 }
 
 export function publishPublishingChangedNow(
   client: WorkerInngestClient,
   workspaceId: string,
+  actorId: string,
   message: PublishingChangedRealtimeMessage,
 ) {
-  return client.realtime
-    .publish(publishingRealtimeChannel(workspaceId).changed, message)
-    .then(() => true)
-    .catch(() => {
-      workerLogger.warn("worker.publishing.realtime-unavailable", {
-        operationId: message.operationId,
-        workspaceId,
-      });
-      return false;
-    });
+  return settled(
+    client.realtime.publish(
+      publishingRealtimeChannel(workspaceId, actorId).changed,
+      message,
+    ),
+    "worker.publishing.realtime-unavailable",
+    { operationId: message.operationId, workspaceId },
+  );
 }
 
 export function publishSourcesChanged(
@@ -86,40 +96,29 @@ export function publishSourcesChanged(
   workspaceId: string,
   callSite: string,
 ) {
-  return step.realtime
-    .publish(
+  return settled(
+    step.realtime.publish(
       `publish-sources-changed-${callSite}`,
       sourcesRealtimeChannel(workspaceId).changed,
-      {
-        occurredAt: new Date().toISOString(),
-        schemaVersion: 1,
-      },
-    )
-    .then(() => true)
-    .catch(() => {
-      workerLogger.warn("worker.sources.realtime-unavailable", {
-        workspaceId,
-      });
-      return false;
-    });
+      ping(),
+    ),
+    "worker.sources.realtime-unavailable",
+    { workspaceId },
+  );
 }
 
 export function publishSourcesChangedNow(
   client: WorkerInngestClient,
   workspaceId: string,
 ) {
-  return client.realtime
-    .publish(sourcesRealtimeChannel(workspaceId).changed, {
-      occurredAt: new Date().toISOString(),
-      schemaVersion: 1,
-    })
-    .then(() => true)
-    .catch(() => {
-      workerLogger.warn("worker.sources.realtime-unavailable", {
-        workspaceId,
-      });
-      return false;
-    });
+  return settled(
+    client.realtime.publish(
+      sourcesRealtimeChannel(workspaceId).changed,
+      ping(),
+    ),
+    "worker.sources.realtime-unavailable",
+    { workspaceId },
+  );
 }
 
 export function publishEditorialChanged(
@@ -128,24 +127,15 @@ export function publishEditorialChanged(
   analysisRunId: string,
   callSite: string,
 ) {
-  return step.realtime
-    .publish(
+  return settled(
+    step.realtime.publish(
       `publish-editorial-changed-${callSite}`,
       editorialRealtimeChannel(workspaceId, analysisRunId).changed,
-      {
-        analysisRunId,
-        occurredAt: new Date().toISOString(),
-        schemaVersion: 1,
-      },
-    )
-    .then(() => true)
-    .catch(() => {
-      workerLogger.warn("worker.editorial.realtime-unavailable", {
-        analysisRunId,
-        workspaceId,
-      });
-      return false;
-    });
+      { analysisRunId, ...ping() },
+    ),
+    "worker.editorial.realtime-unavailable",
+    { analysisRunId, workspaceId },
+  );
 }
 
 export function publishEditorialChangedNow(
@@ -153,38 +143,33 @@ export function publishEditorialChangedNow(
   workspaceId: string,
   analysisRunId: string,
 ) {
-  return client.realtime
-    .publish(editorialRealtimeChannel(workspaceId, analysisRunId).changed, {
-      analysisRunId,
-      occurredAt: new Date().toISOString(),
-      schemaVersion: 1,
-    })
-    .then(() => true)
-    .catch(() => {
-      workerLogger.warn("worker.editorial.realtime-unavailable", {
-        analysisRunId,
-        workspaceId,
-      });
-      return false;
-    });
+  return settled(
+    client.realtime.publish(
+      editorialRealtimeChannel(workspaceId, analysisRunId).changed,
+      { analysisRunId, ...ping() },
+    ),
+    "worker.editorial.realtime-unavailable",
+    { analysisRunId, workspaceId },
+  );
 }
 
 export function publishUsageLedgerChanged(
   step: WorkerStep,
   workspaceId: string,
+  actorId: string | null,
 ) {
-  return step.realtime
-    .publish("publish-usage-ledger", usageRealtimeChannel(workspaceId).ledger, {
-      occurredAt: new Date().toISOString(),
-      schemaVersion: 1,
-    })
-    .then(() => true)
-    .catch(() => {
-      workerLogger.warn("worker.usage-ledger.realtime-unavailable", {
-        workspaceId,
-      });
-      return false;
-    });
+  if (!actorId) {
+    return Promise.resolve(false);
+  }
+  return settled(
+    step.realtime.publish(
+      "publish-usage-ledger",
+      usageRealtimeChannel(workspaceId, actorId).ledger,
+      ping(),
+    ),
+    "worker.usage-ledger.realtime-unavailable",
+    { workspaceId },
+  );
 }
 
 export function publishDraftsChanged(
@@ -193,20 +178,15 @@ export function publishDraftsChanged(
   message: DraftsChangedRealtimeMessage,
   callSite: string,
 ) {
-  return step.realtime
-    .publish(
+  return settled(
+    step.realtime.publish(
       `publish-drafts-changed-${callSite}`,
       draftsRealtimeChannel(workspaceId, message.analysisRunId).changed,
       message,
-    )
-    .then(() => true)
-    .catch(() => {
-      workerLogger.warn("worker.drafts.realtime-unavailable", {
-        operationId: message.operationId,
-        workspaceId,
-      });
-      return false;
-    });
+    ),
+    "worker.drafts.realtime-unavailable",
+    { operationId: message.operationId, workspaceId },
+  );
 }
 
 export function publishDraftsChangedNow(
@@ -214,17 +194,12 @@ export function publishDraftsChangedNow(
   workspaceId: string,
   message: DraftsChangedRealtimeMessage,
 ) {
-  return client.realtime
-    .publish(
+  return settled(
+    client.realtime.publish(
       draftsRealtimeChannel(workspaceId, message.analysisRunId).changed,
       message,
-    )
-    .then(() => true)
-    .catch(() => {
-      workerLogger.warn("worker.drafts.realtime-unavailable", {
-        operationId: message.operationId,
-        workspaceId,
-      });
-      return false;
-    });
+    ),
+    "worker.drafts.realtime-unavailable",
+    { operationId: message.operationId, workspaceId },
+  );
 }

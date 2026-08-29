@@ -14,6 +14,7 @@
     },
     "import": {
       "title": "دریافت از منابع",
+      "loading": "در حال بارگذاری دریافت‌های منابع",
       "start": "شروع دریافت",
       "pending": "در حال شروع…",
       "startHint": "یک برگه در پنل عملیات باز می‌کند.",
@@ -63,9 +64,9 @@
         "enriching": "در حال غنی‌سازی · {n, number} از {m, number}"
       },
       "counts": {
-        "acquired": "گردآوری‌شده {n, number}",
-        "skipped": "نادیده {n, number}",
-        "failed": "ناموفق {n, number}"
+        "acquired": "{n, number} گردآوری‌شده",
+        "skipped": "{n, number} نادیده",
+        "failed": "{n, number} ناموفق"
       },
       "mix": {
         "bucket": "{n, number} {label} ({percent})",
@@ -94,7 +95,7 @@
       "running": "در حال اجرا",
       "settling": "در حال نهایی شدن",
       "succeeded": "موفق",
-      "partial": "ناقص",
+      "partial": "موفق با استثنا",
       "failed": "ناموفق",
       "cancelled": "لغو شد",
       "unknown": "نتیجه نامشخص"
@@ -145,6 +146,7 @@
     },
     "catalog": {
       "title": "فهرست منابع",
+      "loading": "در حال بارگذاری فهرست منابع",
       "hint": "هر منبع دو واقعیت مستقل دارد: آنچه قالب تنظیم کرده، و آنچه آخرین دریافت مشاهده کرده است.",
       "kind": {
         "rss": "آر‌اس‌اس / اتم",

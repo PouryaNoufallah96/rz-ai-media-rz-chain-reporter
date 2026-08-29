@@ -4,6 +4,8 @@ import { z } from "zod";
 import {
   boundedRetry,
   definiteFailure,
+  failed,
+  objectValue,
   type ProviderFailure,
   type Publisher,
   type PublisherRuntime,
@@ -118,19 +120,25 @@ export function createTelegramPublisher({
             ),
           );
         }
-        let media = material.media
-          ? await runtime.readMedia(material.media.objectKey).catch(() => null)
-          : null;
-        if (material.media && !media) {
-          return failed(
-            prepared.attempt.id,
-            definiteFailure(
-              "MEDIA_NOT_PUBLISHABLE",
-              "invalid",
-              "publication",
-              "none",
-            ),
-          );
+        let media: Uint8Array | null = null;
+        if (material.media) {
+          try {
+            media = await runtime.readMedia(material.media.objectKey);
+          } catch (error) {
+            return failed(
+              prepared.attempt.id,
+              boundedRetry(
+                definiteFailure(
+                  "MEDIA_NOT_PUBLISHABLE",
+                  providerFailureClass(error),
+                  "preparation",
+                  "retry_preparation",
+                ),
+                prepared.attempt.number,
+                Date.now(),
+              ),
+            );
+          }
         }
         let mimeType = material.media?.mimeType ?? null;
         if (media && mimeType) {
@@ -152,6 +160,7 @@ export function createTelegramPublisher({
         const url = `https://api.telegram.org/bot${credential.botToken}/${prepared.method}`;
         const init = telegramRequest({
           chatId: credential.channel,
+          link: assembled.telegramLink,
           method: prepared.method,
           mimeType,
           media,
@@ -274,6 +283,7 @@ function telegramRequest(
   input:
     | {
         chatId: string;
+        link: { length: number; offset: number; url: string } | null;
         media: Uint8Array | null;
         method: "sendMessage";
         mimeType: string | null;
@@ -281,15 +291,23 @@ function telegramRequest(
       }
     | {
         chatId: string;
+        link: { length: number; offset: number; url: string } | null;
         media: Uint8Array | null;
         method: "sendPhoto";
         mimeType: string | null;
         text: string;
       },
 ) {
+  const entities = input.link
+    ? [{ ...input.link, type: "text_link" as const }]
+    : undefined;
   if (input.method === "sendMessage") {
     return {
-      body: JSON.stringify({ chat_id: input.chatId, text: input.text }),
+      body: JSON.stringify({
+        chat_id: input.chatId,
+        entities,
+        text: input.text,
+      }),
       headers: { "content-type": "application/json" },
       method: "POST",
     } satisfies RequestInit;
@@ -300,12 +318,9 @@ function telegramRequest(
   const form = new FormData();
   form.set("chat_id", input.chatId);
   form.set("caption", input.text);
+  if (entities) form.set("caption_entities", JSON.stringify(entities));
   form.set("photo", new Blob([input.media], { type: input.mimeType }));
   return { body: form, method: "POST" } satisfies RequestInit;
-}
-
-function failed(attemptId: string, failure: ProviderFailure): PublishResult {
-  return { status: "failed", attemptId, failure };
 }
 
 function projectTelegramSuccess(body: unknown) {
@@ -323,10 +338,4 @@ function projectTelegramError(body: unknown) {
     migrateToChatId: parameters?.migrate_to_chat_id,
     retryAfter: parameters?.retry_after,
   }).data;
-}
-
-function objectValue(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null
-    ? (value as Record<string, unknown>)
-    : null;
 }

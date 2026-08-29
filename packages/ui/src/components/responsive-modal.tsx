@@ -27,7 +27,7 @@ function ResponsiveModalContent({
         <DialogPopup
           data-slot="responsive-modal-content"
           className={cn(
-            "max-md:data-closed:zoom-out-100 max-md:data-closed:slide-out-to-bottom-4 max-md:data-open:zoom-in-100 max-md:data-open:slide-in-from-bottom-4 w-full max-w-md max-md:max-w-none max-md:rounded-b-none",
+            "w-full max-w-md max-md:max-w-none max-md:rounded-b-none max-md:[--dialog-closed-scale:1] max-md:[--dialog-closed-translate-y:1rem]",
             className,
           )}
           {...props}

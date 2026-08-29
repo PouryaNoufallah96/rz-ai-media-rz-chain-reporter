@@ -5,7 +5,10 @@ import { connectWorker } from "../inngest/connect";
 import { openWorkerRuntime } from "../inngest/runtime";
 import { stableFailureCode, workerLogger } from "../logging/logger";
 import { OutboxRelay } from "../relay/relay";
-import { deriveWorkerRuntimeConfig } from "../runtime/config";
+import {
+  assertObjectStoreBound,
+  deriveWorkerRuntimeConfig,
+} from "../runtime/config";
 import { abortableDelay } from "../runtime/delay";
 import { workerEnv } from "../runtime/env";
 import { WorkerRuntimeState } from "../runtime/state";
@@ -17,6 +20,7 @@ const SHUTDOWN_DEADLINE_MS = 15_000;
 
 export async function runWorkerApplication(client: WorkerInngestClient) {
   const config = deriveWorkerRuntimeConfig(workerEnv);
+  assertObjectStoreBound(config);
   const { database, identity, template } = openWorkerRuntime();
   const state = new WorkerRuntimeState(config);
   const checkReadiness = async () => {
@@ -41,22 +45,47 @@ export async function runWorkerApplication(client: WorkerInngestClient) {
     const orderedDrain = (async () => {
       await initialization.catch(() => undefined);
 
-      if (state.relay) {
-        await state.relay.stopIntakeAndDrain();
+      try {
+        if (state.relay) {
+          await state.relay.stopIntakeAndDrain();
+        }
+        workerLogger.info("worker.drain.relay-stopped");
+      } catch (error) {
+        workerLogger.error("worker.drain.relay-failed", {
+          errorCode: stableFailureCode(error, "RELAY_DRAIN_FAILED"),
+        });
       }
-      workerLogger.info("worker.drain.relay-stopped");
 
-      if (state.connection) {
-        await state.connection.close();
-        await state.connection.closed;
+      try {
+        if (state.connection) {
+          await state.connection.close();
+          await state.connection.closed;
+        }
+        workerLogger.info("worker.drain.connect-closed");
+      } catch (error) {
+        workerLogger.error("worker.drain.connect-close-failed", {
+          errorCode: stableFailureCode(error, "CONNECT_CLOSE_FAILED"),
+        });
       }
-      workerLogger.info("worker.drain.connect-closed");
 
-      await closeServer(healthServer);
-      workerLogger.info("worker.drain.health-closed");
+      try {
+        await closeServer(healthServer);
+        workerLogger.info("worker.drain.health-closed");
+      } catch (error) {
+        workerLogger.error("worker.drain.health-close-failed", {
+          errorCode: stableFailureCode(error, "HEALTH_SERVER_CLOSE_FAILED"),
+        });
+      }
 
-      await database.close();
-      workerLogger.info("worker.drain.database-closed");
+      try {
+        await database.close();
+        workerLogger.info("worker.drain.database-closed");
+      } catch (error) {
+        workerLogger.error("worker.drain.database-close-failed", {
+          errorCode: stableFailureCode(error, "DATABASE_CLOSE_FAILED"),
+        });
+      }
+
       await shutdownWorkerObservability();
       process.exitCode = exitCode;
     })();
@@ -73,11 +102,14 @@ export async function runWorkerApplication(client: WorkerInngestClient) {
       }),
     ])
       .finally(() => clearTimeout(deadlineTimer))
-      .catch(() => {
-        workerLogger.error("worker.drain.deadline-exceeded", {
-          errorCode: "SHUTDOWN_DEADLINE_EXCEEDED",
-        });
-        captureWorkerFailure("SHUTDOWN_DEADLINE_EXCEEDED");
+      .catch(async (error: unknown) => {
+        const errorCode = stableFailureCode(
+          error,
+          "SHUTDOWN_DEADLINE_EXCEEDED",
+        );
+        workerLogger.error("worker.drain.deadline-exceeded", { errorCode });
+        captureWorkerFailure(errorCode);
+        await shutdownWorkerObservability();
         process.exit(1);
       });
 

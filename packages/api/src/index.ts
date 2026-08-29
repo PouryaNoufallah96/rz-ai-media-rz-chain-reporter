@@ -38,15 +38,15 @@ const attachRequestId = o.middleware(async ({ context, next }) => {
 
 export const publicProcedure = o.use(attachRequestId);
 
-const requireAuth = o.middleware(async ({ context, next }) => {
-  const session = await context.getSession();
-  if (!session?.user) {
-    throw new ORPCError("UNAUTHORIZED");
-  }
-  return next({ context: { session } });
-});
-
-export const protectedProcedure = publicProcedure.use(requireAuth);
+export const protectedProcedure = publicProcedure
+  .errors({ UNAUTHORIZED: { status: 401 } })
+  .use(async ({ context, errors, next }) => {
+    const session = await context.getSession();
+    if (!session?.user) {
+      throw errors.UNAUTHORIZED();
+    }
+    return next({ context: { session } });
+  });
 
 // Zero or several workspace rows is a provisioning fault, not an unreachable database.
 export const installationProcedure = protectedProcedure

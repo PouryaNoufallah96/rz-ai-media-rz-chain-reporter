@@ -25,8 +25,7 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "catalog:",
-    "@openrouter/ai-sdk-provider": "catalog:",
+    "@ai-sdk/otel": "catalog:",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/sdk-trace-node": "catalog:",
     "@rz-chain-reporter/cache-invalidation": "workspace:*",
@@ -52,7 +51,7 @@
     "@rz-chain-reporter/config": "workspace:*",
     "@types/node": "catalog:",
     "esbuild": "0.28.2",
-    "inngest-cli": "1.41.1",
+    "inngest-cli": "1.44.0",
     "tsx": "4.23.12",
     "typescript": "catalog:"
   }

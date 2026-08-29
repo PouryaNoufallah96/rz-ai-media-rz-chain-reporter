@@ -8,7 +8,9 @@ import type { Locale } from "@rz-chain-reporter/i18n";
 import {
   MAX_BIBLE_CHARS,
   MAX_EXCERPTS,
+  MAX_FAQ_CHARS,
   MAX_FAQ_ROWS,
+  MAX_OVERVIEW_CHARS,
   MAX_REVIEWED_CHARS,
 } from "../constants";
 
@@ -20,8 +22,6 @@ export type KnowledgeExcerpt = {
   text: string;
 };
 
-// Knowledge is prompt context, never a gate: selection decides what the model
-// reads, not whether it may answer.
 export type Brand = { key: string; name: string };
 
 export type AssistantKnowledge = {
@@ -82,7 +82,7 @@ function overlap(
 function rankFaq(rows: readonly ReviewedKnowledgeFaqRow[], question: string) {
   const asked = tokens(question);
 
-  return rows
+  const ranked = rows
     .map((row) => ({
       row,
       score: overlap(
@@ -94,8 +94,23 @@ function rankFaq(rows: readonly ReviewedKnowledgeFaqRow[], question: string) {
       (left, right) =>
         right.score - left.score || right.row.priority - left.row.priority,
     )
-    .slice(0, MAX_FAQ_ROWS)
-    .map((candidate) => candidate.row);
+    .slice(0, MAX_FAQ_ROWS);
+
+  const selected: ReviewedKnowledgeFaqRow[] = [];
+  let budget = MAX_FAQ_CHARS;
+
+  for (const { row } of ranked) {
+    const length = row.question.length + row.answer.length + 1;
+
+    if (length > budget) {
+      break;
+    }
+
+    selected.push(row);
+    budget -= length;
+  }
+
+  return selected;
 }
 
 function splitSections(text: string) {
@@ -206,8 +221,6 @@ function namedBrands(
   );
 }
 
-// With no brand selected on the surface the operator is looking at, the
-// installation's configured brands are the choice.
 export function brandOptions(
   brands: readonly Brand[],
   brandKeys: readonly string[],
@@ -263,10 +276,15 @@ export function selectKnowledge(input: {
   );
 
   const overview: KnowledgeExcerpt[] = [];
+  let overviewBudget = MAX_OVERVIEW_CHARS;
 
   for (const document of inLocale) {
     if (document.brandKey !== null) {
       continue;
+    }
+
+    if (document.text.length > overviewBudget) {
+      break;
     }
 
     overview.push({
@@ -276,6 +294,7 @@ export function selectKnowledge(input: {
       sha256: document.sha256,
       text: document.text,
     });
+    overviewBudget -= document.text.length;
   }
 
   const rankedMatches: (KnowledgeExcerpt & {
@@ -349,9 +368,8 @@ export function selectKnowledge(input: {
     overview,
     matches,
     bibles,
-    // Matching a brand document is not ambiguity: the chooser arms only when the
-    // operator referred to one brand without naming it and brand knowledge is
-    // what would answer them.
+    // A brand-document match is not ambiguous; arm the chooser only for one
+    // unnamed brand when brand knowledge would answer the question.
     brandChoice:
       namedKeys.size === 0 &&
       choices.length > 1 &&

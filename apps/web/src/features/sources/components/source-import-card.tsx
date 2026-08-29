@@ -12,11 +12,16 @@ import { ChevronDownIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId } from "react";
 
-import { StateMark, type StateMarkState } from "@/components/common/state-mark";
+import {
+  StateMark,
+  type StateMarkState,
+  stateTone,
+} from "@/components/common/state-mark";
 import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
 import { OPERATION_ERROR_KEYS } from "@/features/operations/lib/panel-state";
 
 import { SHORT_ID_LENGTH, SOURCES_NAMESPACE } from "../constants";
+import { partialImportStateOf } from "../lib/import-outcome";
 import { MIX_PERCENT_FORMAT, mixPercents } from "../lib/mix-shares";
 import type {
   SourceImportCard as ImportCard,
@@ -30,7 +35,7 @@ const OUTCOME_MARK: Record<SourceImportSourceLine["outcome"], StateMarkState> =
     pending: "queued",
     succeeded: "succeeded",
     not_modified: "succeeded",
-    partial: "failed",
+    partial: "partial",
     skipped: "cancelled",
     rejected: "failed",
     blocked: "failed",
@@ -227,13 +232,7 @@ function SourceLine({ line }: { line: SourceImportSourceLine }) {
         <span className="min-w-0 flex-1 truncate text-xs">
           <Bdi>{line.name}</Bdi>
         </span>
-        <span
-          className={`text-xs ${
-            OUTCOME_MARK[line.outcome] === "failed"
-              ? "text-destructive"
-              : "text-muted-foreground"
-          }`}
-        >
+        <span className={`text-xs ${lineTone(OUTCOME_MARK[line.outcome])}`}>
           {line.reason
             ? `${t(`outcome.${line.outcome}`)} — ${t(`reason.${line.reason}`)}`
             : t(`outcome.${line.outcome}`)}
@@ -273,7 +272,7 @@ function RunStateLabel({
         })
       : t("import.stage.acquiring");
   }
-  if (card.partial && card.lifecycle === "succeeded") {
+  if (state === "partial") {
     return t("state.partial");
   }
   return t(`state.${state === "failed" ? "failed" : card.lifecycle}`);
@@ -434,15 +433,13 @@ function isRunning(card: ImportCard) {
 
 function cardStateOf(card: ImportCard): StateMarkState {
   if (card.lifecycle === "settling") return "running";
-  if (card.lifecycle === "succeeded" && card.partial) return "failed";
-  return card.lifecycle;
+  if (card.lifecycle !== "succeeded" || !card.partial) return card.lifecycle;
+
+  return partialImportStateOf(card);
 }
 
-function stateTone(state: StateMarkState) {
-  if (state === "failed") return "text-destructive text-sm";
-  if (state === "succeeded") return "text-proof-text text-sm";
-  if (["running", "retrying", "unknown"].includes(state)) {
-    return "text-working text-sm";
-  }
-  return "text-sm";
+function lineTone(state: StateMarkState) {
+  if (state === "failed") return "text-destructive";
+  if (state === "partial") return "text-caution";
+  return "text-muted-foreground";
 }

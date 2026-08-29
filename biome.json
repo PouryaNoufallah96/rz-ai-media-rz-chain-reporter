@@ -109,6 +109,35 @@
       }
     },
     {
+      "includes": [
+        "apps/web/src/features/**/*.ts",
+        "apps/web/src/features/**/*.tsx",
+        "!apps/web/src/features/editorial/components/card-sheet.tsx",
+        "!apps/web/src/features/account/components/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/features/*/actions/**", "@/features/*/db/**"],
+                    "message": "A slice's actions/ and db/ are private. Within a slice import relatively; across a slice go through api/server/, schemas/, or lib/. See chainreporter-feature-slice."
+                  },
+                  {
+                    "group": ["@/features/*/components/**"],
+                    "message": "A slice's components/ are private to that slice and its routes. Across slices go through api/server/, schemas/, or lib/; shared UI belongs in apps/web/src/components. See chainreporter-feature-slice."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["apps/web/src/features/**/lib/**"],
       "linter": {
         "rules": {
@@ -117,6 +146,14 @@
               "level": "error",
               "options": {
                 "patterns": [
+                  {
+                    "group": ["@/features/*/actions/**", "@/features/*/db/**"],
+                    "message": "A slice's actions/ and db/ are private. Within a slice import relatively; across a slice go through api/server/, schemas/, or lib/. See chainreporter-feature-slice."
+                  },
+                  {
+                    "group": ["@/features/*/components/**"],
+                    "message": "A slice's components/ are private to that slice and its routes. Across slices go through api/server/, schemas/, or lib/; shared UI belongs in apps/web/src/components. See chainreporter-feature-slice."
+                  },
                   {
                     "group": ["next", "next/**"],
                     "message": "A slice lib/ must not import next/. Put next/cache helpers such as withMutationRefresh at the features/shared hub root. See chainreporter-feature-slice."
@@ -149,12 +186,7 @@
       }
     },
     {
-      "includes": [
-        "apps/web/src/features/**/*.ts",
-        "apps/web/src/features/**/*.tsx",
-        "!apps/web/src/features/editorial/components/card-sheet.tsx",
-        "!apps/web/src/features/account/components/**"
-      ],
+      "includes": ["apps/web/src/features/shared/**/lib/**"],
       "linter": {
         "rules": {
           "style": {
@@ -163,8 +195,12 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["@/features/*/components/**"],
-                    "message": "A slice's components/ are private to that slice and its routes. Across slices go through api/server/, schemas/, or lib/; shared UI belongs in apps/web/src/components. See chainreporter-feature-slice."
+                    "group": ["@/features/*", "@/features/*/**"],
+                    "message": "features/shared is the leaf-less hub: it must not import any other slice."
+                  },
+                  {
+                    "group": ["next", "next/**"],
+                    "message": "A slice lib/ must not import next/. Put next/cache helpers such as withMutationRefresh at the features/shared hub root. See chainreporter-feature-slice."
                   }
                 ]
               }
@@ -182,6 +218,10 @@
               "level": "error",
               "options": {
                 "patterns": [
+                  {
+                    "group": ["@/features/*/actions/**", "@/features/*/db/**"],
+                    "message": "A slice's actions/ and db/ are private. Within a slice import relatively; across a slice go through api/server/, schemas/, or lib/. See chainreporter-feature-slice."
+                  },
                   {
                     "group": [
                       "@/features/*/components/**",
@@ -205,6 +245,10 @@
               "level": "error",
               "options": {
                 "patterns": [
+                  {
+                    "group": ["@/features/*/actions/**", "@/features/*/db/**"],
+                    "message": "A slice's actions/ and db/ are private. Within a slice import relatively; across a slice go through api/server/, schemas/, or lib/. See chainreporter-feature-slice."
+                  },
                   {
                     "group": [
                       "@/features/*/components/**",

@@ -6,6 +6,8 @@ import {
 } from "nuqs/server";
 import { z } from "zod";
 
+import { keysetCursorParam } from "@/features/shared/lib/keyset-cursor";
+
 import { ACCOUNT_SAVED_STATES } from "../constants";
 
 export const accountSearchParsers = {
@@ -20,10 +22,10 @@ export const loadAccountSearchParams = createLoader(accountSearchParsers);
 export type AccountSearchParams = Promise<SearchParams>;
 
 const accountQuerySchema = z.strictObject({
-  draft: z.string().min(1).max(200).nullable().catch(null),
+  draft: z.uuid().nullable().catch(null),
   savedState: z.enum(ACCOUNT_SAVED_STATES),
-  savedCursor: z.string().min(1).max(512).nullable().catch(null),
-  auditCursor: z.string().min(1).max(512).nullable().catch(null),
+  savedCursor: keysetCursorParam,
+  auditCursor: keysetCursorParam,
 });
 
 export type AccountQuery = z.infer<typeof accountQuerySchema>;

@@ -19,6 +19,13 @@ export class ObjectStoreUnboundError extends Error {
   }
 }
 
+export function isMissingStorageObject(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === "NotFound" || error.name === "NoSuchKey")
+  );
+}
+
 export type StorageBindings = {
   S3_ACCESS_KEY_ID?: string;
   S3_BUCKET?: string;

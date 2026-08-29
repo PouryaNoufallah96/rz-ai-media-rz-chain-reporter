@@ -43,6 +43,7 @@ export interface FormFieldRenderProps<
   controlId: string;
   controlProps: ControlProps;
   descriptionId?: string;
+  descriptionNode: ReactNode;
   field: ControllerRenderProps<TFieldValues, TName>;
   fieldState: ControllerFieldState;
 }
@@ -176,6 +177,9 @@ export function FormField<
 
   const controlId = id ?? fieldId(field.name, generatedId);
   const descriptionId = description ? `${controlId}-description` : undefined;
+  const descriptionNode = description ? (
+    <FieldDescription id={descriptionId}>{description}</FieldDescription>
+  ) : null;
   const message = fieldState.error
     ? resolveError(errorCode(fieldState.error))
     : undefined;
@@ -201,6 +205,7 @@ export function FormField<
         controlId,
         controlProps,
         descriptionId,
+        descriptionNode,
         field,
         fieldState,
       })}
@@ -319,6 +324,71 @@ export function FormInputField<
             onChange={(event) => field.onChange(event.currentTarget.value)}
             ref={field.ref}
             value={field.value ?? ""}
+          />
+        </CaptionedControl>
+      )}
+    </FormField>
+  );
+}
+
+export function FormNumberField<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+>({
+  className,
+  control,
+  defaultValue,
+  description,
+  disabled,
+  id,
+  label,
+  max,
+  min = 1,
+  name,
+  orientation,
+  resolveError,
+  rules,
+  shouldUnregister,
+}: FormAdapterProps<TFieldValues, TName> & {
+  max?: number;
+  min?: number;
+}) {
+  return (
+    <FormField
+      className={className}
+      control={control}
+      defaultValue={defaultValue}
+      description={description}
+      disabled={disabled}
+      id={id}
+      name={name}
+      orientation={orientation}
+      resolveError={resolveError}
+      rules={rules}
+      shouldUnregister={shouldUnregister}
+    >
+      {({ controlId, controlProps, descriptionId, field }) => (
+        <CaptionedControl
+          controlId={controlId}
+          description={description}
+          descriptionId={descriptionId}
+          label={label}
+          orientation={orientation}
+        >
+          <Input
+            {...controlProps}
+            className="w-24"
+            inputMode="numeric"
+            max={max}
+            min={min}
+            name={field.name}
+            onBlur={field.onBlur}
+            onChange={(event) =>
+              field.onChange(event.currentTarget.valueAsNumber)
+            }
+            ref={field.ref}
+            type="number"
+            value={Number.isNaN(field.value) ? "" : field.value}
           />
         </CaptionedControl>
       )}

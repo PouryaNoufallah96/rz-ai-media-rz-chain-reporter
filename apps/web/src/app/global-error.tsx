@@ -13,7 +13,6 @@ import { useEffect } from "react";
 
 import { geistSans } from "@/lib/fonts";
 
-// Replaces the root layout — no locale or catalog. English-only (ADR 0002).
 export default function GlobalError({
   error,
 }: {

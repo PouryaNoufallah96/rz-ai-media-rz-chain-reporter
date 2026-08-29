@@ -98,6 +98,15 @@ export const imageProfileSchema = z
   })
   .superRefine((profile, ctx) => {
     const familyKeys = new Set(Object.keys(profile.families));
+    const axesByValue = new Map<string, string[]>();
+
+    for (const [axisName, values] of Object.entries(profile.axes)) {
+      for (const value of Object.keys(values)) {
+        const axes = axesByValue.get(value) ?? [];
+        axes.push(axisName);
+        axesByValue.set(value, axes);
+      }
+    }
 
     if (familyKeys.size === 0) {
       ctx.addIssue({
@@ -106,6 +115,13 @@ export const imageProfileSchema = z
         message: "Expected at least one layout family",
       });
     }
+
+    reportRestrictionValue(
+      ctx,
+      axesByValue,
+      profile.restrictions.moodAccentDefault,
+      ["restrictions", "moodAccentDefault"],
+    );
 
     for (const [familyKey, family] of Object.entries(profile.families)) {
       for (const [axisName, axisValue] of Object.entries(family.defaultAxes)) {
@@ -133,21 +149,59 @@ export const imageProfileSchema = z
     for (const [clauseName, clause] of Object.entries(
       profile.restrictions.moodAccentRestricted,
     )) {
+      reportRestrictionValue(ctx, axesByValue, clauseName, [
+        "restrictions",
+        "moodAccentRestricted",
+        clauseName,
+      ]);
       reportUnknownFamilies(ctx, familyKeys, clause.families, [
         "restrictions",
         "moodAccentRestricted",
         clauseName,
       ]);
+      reportUnknownAxisValues(
+        ctx,
+        profile.axes.energy,
+        clause.energies,
+        "energy",
+        ["restrictions", "moodAccentRestricted", clauseName, "energies"],
+      );
+      reportUnknownAxisValues(
+        ctx,
+        profile.axes.environment,
+        clause.environments,
+        "environment",
+        ["restrictions", "moodAccentRestricted", clauseName, "environments"],
+      );
     }
 
     for (const [clauseName, clause] of Object.entries(
       profile.restrictions.environmentRestricted ?? {},
     )) {
+      reportRestrictionValue(ctx, axesByValue, clauseName, [
+        "restrictions",
+        "environmentRestricted",
+        clauseName,
+      ]);
       reportUnknownFamilies(ctx, familyKeys, clause.families, [
         "restrictions",
         "environmentRestricted",
         clauseName,
       ]);
+      reportUnknownAxisValues(
+        ctx,
+        profile.axes.energy,
+        clause.energies,
+        "energy",
+        ["restrictions", "environmentRestricted", clauseName, "energies"],
+      );
+      reportUnknownAxisValues(
+        ctx,
+        profile.axes.environment,
+        clause.environments,
+        "environment",
+        ["restrictions", "environmentRestricted", clauseName, "environments"],
+      );
     }
 
     for (const axisName of profile.restrictions.optionalAxes ?? []) {
@@ -245,5 +299,46 @@ function reportUnknownFamilies(
         message: `Unknown layout family "${familyKey}"`,
       });
     }
+  }
+}
+
+function reportUnknownAxisValues(
+  ctx: z.RefinementCtx,
+  axis: Readonly<Record<string, string>> | undefined,
+  values: readonly string[] | undefined,
+  axisName: string,
+  path: (string | number)[],
+) {
+  for (const [index, value] of (values ?? []).entries()) {
+    if (!(value in (axis ?? {}))) {
+      ctx.addIssue({
+        code: "custom",
+        path: [...path, index],
+        message: `Unknown value "${value}" on axis "${axisName}"`,
+      });
+    }
+  }
+}
+
+function reportRestrictionValue(
+  ctx: z.RefinementCtx,
+  axesByValue: ReadonlyMap<string, readonly string[]>,
+  value: string,
+  path: (string | number)[],
+) {
+  const axes = axesByValue.get(value) ?? [];
+
+  if (axes.length === 0) {
+    ctx.addIssue({
+      code: "custom",
+      path,
+      message: `Unknown axis value "${value}"`,
+    });
+  } else if (axes.length > 1) {
+    ctx.addIssue({
+      code: "custom",
+      path,
+      message: `Ambiguous axis value "${value}" appears on ${axes.join(", ")}`,
+    });
   }
 }

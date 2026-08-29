@@ -1,9 +1,14 @@
-import { DomUtils, parseDocument } from "htmlparser2";
-
-import { type SafeHttpResponse, safeFetch } from "../fetch/safe-http";
 import {
+  SafeHttpError,
+  type SafeHttpResponse,
+  safeFetch,
+} from "../fetch/safe-http";
+import {
+  bounded,
   contentHashV1,
+  decodeEntities,
   type FetchedSourceItem,
+  parseDate,
   type SourceFetchRequest,
   type SourceFetchResult,
 } from "./types";
@@ -58,6 +63,18 @@ export function readTelegramChannel(
   response: SafeHttpResponse,
 ): SourceFetchResult {
   const settled = { etag: null, lastModified: null };
+
+  if (response.status === 404) {
+    return {
+      ...settled,
+      items: [],
+      outcome: "rejected",
+      reason: "no_web_preview",
+    };
+  }
+  if (response.status < 200 || response.status > 299) {
+    throw new SafeHttpError("fetch_failed", new URL(response.url).hostname);
+  }
 
   // Groups and channels without a web preview redirect off /s/.
   if (!new URL(response.url).pathname.startsWith(PREVIEW_PATH_PREFIX)) {
@@ -153,14 +170,6 @@ function parseViews(raw: string | undefined) {
   return Number.isFinite(views) ? views : null;
 }
 
-function parseDate(raw: string | undefined) {
-  if (raw === undefined) {
-    return null;
-  }
-  const at = new Date(raw);
-  return Number.isNaN(at.getTime()) ? null : at;
-}
-
 function plainText(value: string) {
   return decodeEntities(
     value.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""),
@@ -168,16 +177,4 @@ function plainText(value: string) {
     .replace(/[^\S\n]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-}
-
-// Escaping `<` first keeps this a pure decoder: no leftover angle bracket in
-// the stripped message text can reopen a tag for the tokenizer.
-function decodeEntities(value: string) {
-  return value.includes("&")
-    ? DomUtils.textContent(parseDocument(value.replace(/</g, "&lt;")))
-    : value;
-}
-
-function bounded(value: string, maxChars: number) {
-  return value.length > maxChars ? value.slice(0, maxChars).trim() : value;
 }

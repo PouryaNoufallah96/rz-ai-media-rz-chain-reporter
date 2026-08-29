@@ -145,7 +145,9 @@ export function createOpenRouterAdapter(
     },
 
     generateStructured(input) {
-      const model = getProvider().chat(input.model);
+      const model = getProvider().chat(input.model, {
+        usage: { include: true },
+      });
 
       return generateStructured(
         model,
@@ -157,7 +159,7 @@ export function createOpenRouterAdapter(
 
     streamText(input) {
       return streamSynthesis(
-        getProvider().chat(input.model),
+        getProvider().chat(input.model, { usage: { include: true } }),
         input,
         emptyObservation(),
         observeOpenRouterStep,
@@ -241,27 +243,36 @@ function observeOpenRouterStep(step: ObservedModelStep): ModelCallObservation {
   const parsed = openRouterMetadataSchema.safeParse(step.providerMetadata);
   const metadata = parsed.success ? parsed.data.openrouter : undefined;
   const usage = metadata?.usage;
+  const reported = step.usage.raw !== undefined;
   const generationId =
     step.response.headers?.["x-generation-id"] ?? step.response.id;
 
   return {
     ...commonObservation(step),
-    cacheReadTokens:
-      usage?.promptTokensDetails?.cachedTokens ??
-      step.usage.inputTokenDetails.cacheReadTokens,
-    completionTokens: usage?.completionTokens ?? step.usage.outputTokens,
+    cacheReadTokens: reported
+      ? (usage?.promptTokensDetails?.cachedTokens ??
+        step.usage.inputTokenDetails.cacheReadTokens)
+      : undefined,
+    completionTokens: reported
+      ? (usage?.completionTokens ?? step.usage.outputTokens)
+      : undefined,
     costAuthority: usage?.cost === undefined ? "unknown" : "billed_openrouter",
     generationId,
     openrouterCost: usage?.cost === undefined ? undefined : String(usage.cost),
-    promptTokens: usage?.promptTokens ?? step.usage.inputTokens,
-    reasoningTokens:
-      usage?.completionTokensDetails?.reasoningTokens ??
-      step.usage.outputTokenDetails.reasoningTokens,
-    totalTokens: usage?.totalTokens ?? step.usage.totalTokens,
+    promptTokens: reported
+      ? (usage?.promptTokens ?? step.usage.inputTokens)
+      : undefined,
+    reasoningTokens: reported
+      ? (usage?.completionTokensDetails?.reasoningTokens ??
+        step.usage.outputTokenDetails.reasoningTokens)
+      : undefined,
+    totalTokens: reported
+      ? (usage?.totalTokens ?? step.usage.totalTokens)
+      : undefined,
     upstreamInferenceCost:
       usage?.costDetails?.upstreamInferenceCost === undefined
         ? undefined
         : String(usage.costDetails.upstreamInferenceCost),
-    upstreamProvider: metadata?.provider,
+    upstreamProvider: metadata?.provider || undefined,
   };
 }

@@ -7,7 +7,11 @@ import {
   type WorkerStep,
 } from "../inngest/channels";
 import type { WorkerInngestClient } from "../inngest/client";
-import { notifyCacheInvalidation, waitForCacheFlush } from "./notify";
+import {
+  notifyCacheInvalidation,
+  notifyCacheInvalidationForDurableStep,
+  waitForCacheFlush,
+} from "./notify";
 
 type SourcesNotificationCallSite =
   | "running"
@@ -21,15 +25,16 @@ export function notifySourcesChanged(
   workspaceId: string,
   callSite: SourcesNotificationCallSite,
 ) {
-  return notifySources(step, workspaceId, callSite, false);
+  return notifySources(step, workspaceId, callSite, false, null);
 }
 
 export function notifySourcesAndUsageChanged(
   step: WorkerStep,
   workspaceId: string,
   callSite: SourcesNotificationCallSite,
+  usageActorId: string | null,
 ) {
-  return notifySources(step, workspaceId, callSite, true);
+  return notifySources(step, workspaceId, callSite, true, usageActorId);
 }
 
 async function notifySources(
@@ -37,6 +42,7 @@ async function notifySources(
   workspaceId: string,
   callSite: SourcesNotificationCallSite,
   withUsage: boolean,
+  usageActorId: string | null,
 ) {
   const tags = withUsage
     ? [
@@ -47,7 +53,7 @@ async function notifySources(
 
   const cacheInvalidation = await step.run(
     `notify-sources-cache-${callSite}`,
-    () => notifyCacheInvalidation(tags),
+    () => notifyCacheInvalidationForDurableStep(tags),
   );
 
   if (cacheInvalidation !== "accepted") {
@@ -68,7 +74,7 @@ async function notifySources(
       callSite,
     ),
     usageRealtimePublished: withUsage
-      ? await publishUsageLedgerChanged(step, workspaceId)
+      ? await publishUsageLedgerChanged(step, workspaceId, usageActorId)
       : false,
   };
 }

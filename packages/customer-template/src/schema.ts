@@ -16,9 +16,7 @@ import { stableKeySchema } from "./stable-key";
 export type { ImageProfile } from "./image-profile";
 export { imageProfileSchema } from "./image-profile";
 
-// Loader compatibility only. Git owns content versioning, so this normally bumps
-// solely when a template that loaded before would no longer load; owner lock Q25
-// bumped it to 7 for optional Reviewed Knowledge even though v6 templates still parse.
+// Bump only when a previously valid customer template no longer loads.
 export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 7;
 
 const trimmedText = z
@@ -646,6 +644,7 @@ function reportEditorialIssues(
   }
 
   const requiredTaskKeys = [
+    "assistant-synthesis",
     "keyword-embedding",
     "image-template-selection",
     "image-creative-brief",
@@ -657,7 +656,7 @@ function reportEditorialIssues(
       ctx.addIssue({
         code: "custom",
         path: ["models", "tasks", fixedTaskKey],
-        message: "IMAGE_TASK_ROUTE_MISSING",
+        message: "TASK_ROUTE_MISSING",
       });
     }
   }

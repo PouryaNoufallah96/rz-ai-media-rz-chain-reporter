@@ -11,14 +11,13 @@ import {
 const MAX_PARTS = 24;
 const MAX_MESSAGES = 40;
 
-// Stored history is a projection, not a mirror: the SDK owns the live message
-// shape and adds fields, so unknown keys are stripped and an unknown part or
-// message is dropped instead of failing the whole envelope.
+// Stored history is a projection: unknown SDK fields are stripped, while an
+// unknown part or message is dropped instead of failing the whole envelope.
 const partSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("text"),
     text: z.string().max(20_000),
-    state: z.string().optional(),
+    state: z.enum(["streaming", "done"]).optional(),
   }),
   z.object({
     type: z.literal("data-citation"),
@@ -28,9 +27,8 @@ const partSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("tool-ask_user"),
     toolCallId: z.string().max(128),
-    state: z.string(),
-    input: assistantAskUserSchema.optional(),
-    output: z.object({ choiceId: z.string().max(128) }).optional(),
+    state: z.literal("input-available"),
+    input: assistantAskUserSchema,
   }),
 ]);
 
@@ -65,6 +63,14 @@ export function historyKey(workspaceId: string, operatorId: string) {
   return `chainreporter.assistant.${workspaceId}.${operatorId}`;
 }
 
+function noop() {
+  return;
+}
+
+export function subscribeToStoredHistory() {
+  return noop;
+}
+
 export function readHistory(key: string): AssistantUIMessage[] {
   const raw = globalThis.localStorage?.getItem(key);
 
@@ -87,11 +93,10 @@ export function readHistory(key: string): AssistantUIMessage[] {
   }
 
   if (envelope.data.expiresAt <= Date.now()) {
-    globalThis.localStorage?.removeItem(key);
     return [];
   }
 
-  return envelope.data.messages as AssistantUIMessage[];
+  return envelope.data.messages;
 }
 
 export function expiresAt(key: string) {

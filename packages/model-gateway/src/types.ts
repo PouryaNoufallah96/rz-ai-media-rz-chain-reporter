@@ -93,7 +93,6 @@ export type EmbeddingAdapterInput = {
 export type EmbeddingAdapterResult = {
   embeddings: number[][];
   observation: ModelCallObservation;
-  responseBody: unknown;
 };
 
 export type ImageAdapterInput = {
@@ -185,7 +184,6 @@ export type TextStreamModelInvocation = TextStreamToolOptions & {
 
 export type EmbeddingModelResult = {
   embeddings: number[][];
-  responseBody: unknown;
   usageEventId: string;
 };
 

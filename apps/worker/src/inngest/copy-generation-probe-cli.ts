@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import {
   assemblePublishPayload,
   COPY_CONFIGURATION_VERSION,
+  COPY_GENERATION_COMMAND_PREFIX,
   COPY_PROMPT_VERSION,
   type EnrichmentReason,
   type Platform,
@@ -37,6 +38,7 @@ import { user } from "@rz-chain-reporter/db/schema/auth";
 import { copyGeneration } from "@rz-chain-reporter/db/schema/copy-generation";
 import { copyGenerationUnit } from "@rz-chain-reporter/db/schema/copy-generation-unit";
 import { copyVariant } from "@rz-chain-reporter/db/schema/copy-variant";
+import { draftRevision } from "@rz-chain-reporter/db/schema/draft-revision";
 import { editorialSelection } from "@rz-chain-reporter/db/schema/editorial-selection";
 import { filterResult } from "@rz-chain-reporter/db/schema/filter-result";
 import { mediaBrand } from "@rz-chain-reporter/db/schema/media-brand";
@@ -107,7 +109,9 @@ if (
 const databaseUrl = new URL(workerEnv.DATABASE_URL);
 if (
   !["127.0.0.1", "localhost", "::1"].includes(databaseUrl.hostname) ||
-  databaseUrl.pathname !== "/rz-chain-reporter"
+  !["/rz-chain-reporter", "/rz_chain_reporter_lifecycle_probe"].includes(
+    databaseUrl.pathname,
+  )
 ) {
   console.error("copy-generation probe failed [LOCAL_DATABASE_REQUIRED]");
   process.exit(EXIT_FAILURE);
@@ -504,7 +508,7 @@ type SourceOriginFixture = {
 
 class CopySourceFixture {
   workspaceId = "";
-  private actorId = "";
+  actorId = "";
   private brandId = "";
   private brandKey = "";
   private analysisOperationId = "";
@@ -516,6 +520,7 @@ class CopySourceFixture {
   private rank = 0;
   private itemIds: string[] = [];
   private revisionIds: string[] = [];
+  private draftRevisionIds: string[] = [];
   private draftIds: string[] = [];
   private operationIds: string[] = [];
 
@@ -684,7 +689,151 @@ class CopySourceFixture {
       requestedContentLocale,
       variantKeys: policy.variants.map((variant) => variant.key),
     });
-    return { operationId, policy };
+    const [generation] = await opened.database.db
+      .select({ platformDraftId: copyGeneration.platformDraftId })
+      .from(copyGeneration)
+      .where(eq(copyGeneration.operationId, operationId));
+    if (!generation) throw new Error("COPY_EXECUTION_GENERATION_REQUIRED");
+    return { operationId, platformDraftId: generation.platformDraftId, policy };
+  }
+
+  async startBaseGeneration(
+    platformDraftId: string,
+    requestedContentLocale: "en" | "fa",
+    mode: "refresh_article" | "regenerate",
+  ) {
+    const brand = opened.template.mediaBrands.find(
+      (entry) => entry.key === this.brandKey,
+    );
+    const model = opened.template.editorial.models.find(
+      (entry) =>
+        opened.template.models?.tasks[`copy-generation:${entry.key}`] !==
+        undefined,
+    );
+    if (!brand || !model) throw new Error("COPY_REPLACEMENT_FIXTURE_REQUIRED");
+    const commandId = randomUUID();
+    const result = await startCopyOperation(
+      opened.database.db,
+      this.workspaceId,
+      {
+        actor: this.actorId,
+        configurationVersion: COPY_CONFIGURATION_VERSION,
+        copyPolicy: {
+          fingerprints: {
+            [this.brandKey]: computeBrandPolicyFingerprint(brand.editorial),
+          },
+          modelOptionKeys: opened.template.editorial.models.map(
+            (entry) => entry.key,
+          ),
+          platforms: opened.template.editorial.drafting.copy.platforms.map(
+            (entry) => ({
+              platform: entry.platform,
+              variantKeys: entry.variants.map((variant) => variant.key),
+            }),
+          ),
+        },
+        customerTemplateFingerprint: opened.identity.fingerprint,
+        idempotencyKey: `copy-replacement-probe-${commandId}`,
+        mode,
+        modelOptionKey: model.key,
+        platformDraftId,
+        promptVersion: COPY_PROMPT_VERSION,
+        requestedContentLocale,
+        requestHash: hash(commandId),
+        requestId: null,
+      },
+    );
+    assert.equal(result.status, "created");
+    if (result.status !== "created") {
+      throw new Error("COPY_REPLACEMENT_OPERATION_NOT_CREATED");
+    }
+    this.operationIds.push(result.operationId);
+    return result.operationId;
+  }
+
+  async completeGeneration(
+    operationId: string,
+    outcome: "failed" | "succeeded",
+  ) {
+    const contentLocale = await this.generationLocale(operationId);
+    let units = await opened.database.db
+      .select({ id: copyGenerationUnit.id })
+      .from(copyGenerationUnit)
+      .where(eq(copyGenerationUnit.copyGenerationId, operationId))
+      .orderBy(asc(copyGenerationUnit.createdAt), asc(copyGenerationUnit.id));
+    if (units.length === 0) {
+      await opened.database.db.insert(copyGenerationUnit).values({
+        workspaceId: this.workspaceId,
+        copyGenerationId: operationId,
+        variantKey: "replacement-probe",
+      });
+      units = await opened.database.db
+        .select({ id: copyGenerationUnit.id })
+        .from(copyGenerationUnit)
+        .where(eq(copyGenerationUnit.copyGenerationId, operationId));
+    }
+    const variants: string[] = [];
+    for (const [index, unit] of units.entries()) {
+      const attempt = await allocateOperationAttempt(
+        opened.database.db,
+        this.workspaceId,
+        operationId,
+      );
+      if (!attempt) throw new Error("COPY_REPLACEMENT_ATTEMPT_REQUIRED");
+      await opened.database.db
+        .update(copyGenerationUnit)
+        .set({ operationAttemptId: attempt.id, status: outcome })
+        .where(eq(copyGenerationUnit.id, unit.id));
+      await opened.database.db
+        .update(operationAttempt)
+        .set({
+          failureCode: outcome === "failed" ? "VALIDATION_FAILED" : null,
+          outcome: outcome === "failed" ? "failed_terminal" : "succeeded",
+        })
+        .where(eq(operationAttempt.id, attempt.id));
+      if (outcome === "succeeded") {
+        const id = randomUUID();
+        variants.push(id);
+        await opened.database.db.insert(copyVariant).values({
+          id,
+          workspaceId: this.workspaceId,
+          body: `Replacement probe body ${index}`,
+          contentLocale,
+          copyGenerationUnitId: unit.id,
+          hashtags: ["#probe"],
+          headline: `Replacement probe headline ${index}`,
+        });
+      }
+    }
+    return variants;
+  }
+
+  async createRevisionFromVariant(platformDraftId: string, variantId: string) {
+    const [variant] = await opened.database.db
+      .select({
+        body: copyVariant.body,
+        contentLocale: copyVariant.contentLocale,
+        hashtags: copyVariant.hashtags,
+        headline: copyVariant.headline,
+      })
+      .from(copyVariant)
+      .where(eq(copyVariant.id, variantId));
+    if (!variant) throw new Error("COPY_REPLACEMENT_VARIANT_REQUIRED");
+    const id = randomUUID();
+    this.draftRevisionIds.push(id);
+    await opened.database.db.insert(draftRevision).values({
+      id,
+      workspaceId: this.workspaceId,
+      authoredBy: this.actorId,
+      body: variant.body,
+      contentLocale: variant.contentLocale,
+      hashtags: variant.hashtags,
+      headline: variant.headline,
+      originatingCopyVariantId: variantId,
+      platformDraftId,
+      revisionNumber: 1,
+    });
+    return id;
   }
 
   async retryFailedGeneration(operationId: string) {
@@ -889,6 +1038,11 @@ class CopySourceFixture {
 
   async cleanup() {
     if (!this.workspaceId) return "exact_fixture_removed";
+    if (this.draftRevisionIds.length > 0) {
+      await opened.database.db
+        .delete(draftRevision)
+        .where(inArray(draftRevision.id, this.draftRevisionIds));
+    }
     if (this.operationIds.length > 0) {
       await opened.database.db
         .delete(aiUsageEvent)
@@ -1069,6 +1223,15 @@ class CopySourceFixture {
       requestHash: hash(id),
     });
     return id;
+  }
+
+  private async generationLocale(operationId: string) {
+    const [generation] = await opened.database.db
+      .select({ locale: copyGeneration.requestedContentLocale })
+      .from(copyGeneration)
+      .where(eq(copyGeneration.operationId, operationId));
+    if (!generation) throw new Error("COPY_REPLACEMENT_GENERATION_REQUIRED");
+    return generation.locale;
   }
 }
 
@@ -1798,9 +1961,202 @@ async function proveHistoricalRetryUsesCurrentVersions(
   );
 }
 
+async function proveLocaleVariantReplacement(probe: CopySourceFixture) {
+  const fixture = await probe.createExecutionGeneration("x");
+  const oldEnVariants = await probe.completeGeneration(
+    fixture.operationId,
+    "succeeded",
+  );
+  assert.equal(
+    (
+      await settleCopyGeneration(
+        opened.database.db,
+        probe.workspaceId,
+        fixture.operationId,
+      )
+    )?.lifecycle,
+    "succeeded",
+  );
+
+  const oldFaOperationId = await probe.startBaseGeneration(
+    fixture.platformDraftId,
+    "fa",
+    "regenerate",
+  );
+  const oldFaVariants = await probe.completeGeneration(
+    oldFaOperationId,
+    "succeeded",
+  );
+  assert.equal(
+    (
+      await settleCopyGeneration(
+        opened.database.db,
+        probe.workspaceId,
+        oldFaOperationId,
+      )
+    )?.lifecycle,
+    "succeeded",
+  );
+  await probe.createRevisionFromVariant(
+    fixture.platformDraftId,
+    oldEnVariants[0] ?? "",
+  );
+
+  const replacementOperationId = await probe.startBaseGeneration(
+    fixture.platformDraftId,
+    "en",
+    "regenerate",
+  );
+  const replacementVariants = await probe.completeGeneration(
+    replacementOperationId,
+    "succeeded",
+  );
+  const replacement = await settleCopyGeneration(
+    opened.database.db,
+    probe.workspaceId,
+    replacementOperationId,
+  );
+  assert.equal(replacement?.lifecycle, "succeeded");
+
+  const remaining = new Set(
+    (
+      await opened.database.db
+        .select({ id: copyVariant.id })
+        .from(copyVariant)
+        .where(
+          inArray(copyVariant.id, [
+            ...oldEnVariants,
+            ...oldFaVariants,
+            ...replacementVariants,
+          ]),
+        )
+    ).map((variant) => variant.id),
+  );
+  assert.equal(remaining.has(oldEnVariants[0] ?? ""), true);
+  for (const variantId of oldEnVariants.slice(1)) {
+    assert.equal(remaining.has(variantId), false);
+  }
+  for (const variantId of [...oldFaVariants, ...replacementVariants]) {
+    assert.equal(remaining.has(variantId), true);
+  }
+
+  const [oldAudit] = await opened.database.db
+    .select({
+      commandType: operation.commandType,
+      generationId: copyGeneration.operationId,
+    })
+    .from(operation)
+    .innerJoin(copyGeneration, eq(copyGeneration.operationId, operation.id))
+    .where(eq(operation.id, fixture.operationId));
+  const oldAuditUnits = await opened.database.db
+    .select({ id: copyGenerationUnit.id })
+    .from(copyGenerationUnit)
+    .where(eq(copyGenerationUnit.copyGenerationId, fixture.operationId));
+  const [replacementAudit] = await opened.database.db
+    .select({ commandType: operation.commandType })
+    .from(operation)
+    .where(eq(operation.id, replacementOperationId));
+  assert.equal(oldAudit?.generationId, fixture.operationId);
+  assert.equal(oldAuditUnits.length, oldEnVariants.length);
+  assert.equal(
+    replacementAudit?.commandType,
+    `${COPY_GENERATION_COMMAND_PREFIX}regenerate`,
+  );
+
+  const refreshOrigin = await probe.createRssOrigin("replacement-refresh");
+  const refreshBaselineOperationId = await probe.createRssGeneration(
+    refreshOrigin,
+    false,
+  );
+  const [refreshFixture] = await opened.database.db
+    .select({ platformDraftId: copyGeneration.platformDraftId })
+    .from(copyGeneration)
+    .where(eq(copyGeneration.operationId, refreshBaselineOperationId));
+  if (!refreshFixture) throw new Error("COPY_REFRESH_REPLACEMENT_REQUIRED");
+  const refreshOldVariants = await probe.completeGeneration(
+    refreshBaselineOperationId,
+    "succeeded",
+  );
+  await settleCopyGeneration(
+    opened.database.db,
+    probe.workspaceId,
+    refreshBaselineOperationId,
+  );
+  const refreshOperationId = await probe.startBaseGeneration(
+    refreshFixture.platformDraftId,
+    "en",
+    "refresh_article",
+  );
+  const refreshVariants = await probe.completeGeneration(
+    refreshOperationId,
+    "succeeded",
+  );
+  await settleCopyGeneration(
+    opened.database.db,
+    probe.workspaceId,
+    refreshOperationId,
+  );
+  assert.equal(await countExistingVariants(refreshOldVariants), 0);
+  assert.equal(
+    await countExistingVariants(refreshVariants),
+    refreshVariants.length,
+  );
+
+  const preservationFixture = await probe.createExecutionGeneration("x");
+  const preservedVariants = await probe.completeGeneration(
+    preservationFixture.operationId,
+    "succeeded",
+  );
+  await settleCopyGeneration(
+    opened.database.db,
+    probe.workspaceId,
+    preservationFixture.operationId,
+  );
+  const failedOperationId = await probe.startBaseGeneration(
+    preservationFixture.platformDraftId,
+    "en",
+    "regenerate",
+  );
+  await probe.completeGeneration(failedOperationId, "failed");
+  assert.equal(
+    (
+      await settleCopyGeneration(
+        opened.database.db,
+        probe.workspaceId,
+        failedOperationId,
+      )
+    )?.lifecycle,
+    "failed",
+  );
+  assert.equal(
+    await countExistingVariants(preservedVariants),
+    preservedVariants.length,
+  );
+
+  const waitingOperationId = await probe.startBaseGeneration(
+    preservationFixture.platformDraftId,
+    "en",
+    "regenerate",
+  );
+  const waiting = await settleCopyGeneration(
+    opened.database.db,
+    probe.workspaceId,
+    waitingOperationId,
+  );
+  assert.equal(waiting && "waiting" in waiting, true);
+  assert.equal(
+    await countExistingVariants(preservedVariants),
+    preservedVariants.length,
+  );
+  console.log(
+    "copy-generation execution locale-replacement unreferenced=deleted referenced=retained other-locale=retained current=retained audit=retained failed=preserved waiting=preserved refresh=replace status=pass",
+  );
+}
+
 async function runExecutionProbe(probe: CopySourceFixture) {
   const brand = opened.template.mediaBrands[0];
   if (!brand) throw new Error("EXECUTION_TEMPLATE_BRAND_REQUIRED");
+  await proveLocaleVariantReplacement(probe);
   await proveHistoricalRetryUsesCurrentVersions(probe);
   proveBrandGuidanceOwners();
   proveCopyNormalization(brand);
@@ -2018,6 +2374,7 @@ async function runExecutionProbe(probe: CopySourceFixture) {
   await proveMixedRunningRejectedInvokes(probe);
   await proveFunctionPolicy();
   await proveFreshnessOrdering(probe, partialContext);
+  await proveDraftInvalidationRetry(probe, partialContext);
   await proveRearm(probe);
 }
 
@@ -2643,6 +3000,16 @@ async function operationVariantCount(operationId: string) {
   ).length;
 }
 
+async function countExistingVariants(variantIds: string[]) {
+  if (variantIds.length === 0) return 0;
+  return (
+    await opened.database.db
+      .select({ id: copyVariant.id })
+      .from(copyVariant)
+      .where(inArray(copyVariant.id, variantIds))
+  ).length;
+}
+
 async function operationAttemptCount(operationId: string) {
   return (
     await opened.database.db
@@ -2744,7 +3111,12 @@ async function proveFreshnessOrdering(
     },
     "probe",
   );
-  await notifyUsageLedgerChanged(step, probe.workspaceId);
+  await notifyUsageLedgerChanged(
+    step,
+    probe.workspaceId,
+    probe.actorId,
+    "probe",
+  );
   assert.deepEqual(order, [
     "drafts-lane2",
     "sleep",
@@ -2759,6 +3131,86 @@ async function proveFreshnessOrdering(
   assert.equal(serialized.includes("prompt"), false);
   console.log(
     "copy-generation execution freshness drafts-and-usage lane2-before-lane3 content-free status=pass",
+  );
+}
+
+async function proveDraftInvalidationRetry(
+  probe: CopySourceFixture,
+  context: NonNullable<Awaited<ReturnType<typeof findCopyExecutionContext>>>,
+) {
+  const originalBaseUrl = workerEnv.WEB_INTERNAL_BASE_URL;
+  const originalSecret = workerEnv.CACHE_INVALIDATION_WEBHOOK_SECRET;
+  const originalFetch = globalThis.fetch;
+  const order: string[] = [];
+  let requests = 0;
+  Object.defineProperty(workerEnv, "WEB_INTERNAL_BASE_URL", {
+    configurable: true,
+    value: "http://127.0.0.1:3001",
+  });
+  Object.defineProperty(workerEnv, "CACHE_INVALIDATION_WEBHOOK_SECRET", {
+    configurable: true,
+    value: "x".repeat(32),
+  });
+  globalThis.fetch = async (_input, init) => {
+    requests += 1;
+    if (requests === 1) throw new Error("synthetic cache connection failure");
+    if (requests === 2) return new Response(null, { status: 503 });
+    const request = JSON.parse(String(init?.body)) as { tags: string[] };
+    return new Response(
+      JSON.stringify({
+        status: "accepted",
+        tags: request.tags.map((tag) => ({ revalidated: true, tag })),
+      }),
+      { headers: { "content-type": "application/json" }, status: 202 },
+    );
+  };
+  try {
+    const step = {
+      realtime: {
+        publish: async () => {
+          order.push("lane3");
+        },
+      },
+      run: async (_id: string, effect: () => Promise<unknown>) => {
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          order.push(`lane2-${attempt}`);
+          try {
+            return await effect();
+          } catch (error) {
+            if (attempt === 3) throw error;
+          }
+        }
+      },
+      sleep: async () => {
+        order.push("settle");
+      },
+    } as never;
+    await notifyDraftsChanged(
+      step,
+      probe.workspaceId,
+      {
+        analysisRunId: context.analysisRunId,
+        code: "partial",
+        operationId: context.operationId,
+        platformDraftId: context.platformDraftId,
+      },
+      "probe-retry",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    Object.defineProperty(workerEnv, "WEB_INTERNAL_BASE_URL", {
+      configurable: true,
+      value: originalBaseUrl,
+    });
+    Object.defineProperty(workerEnv, "CACHE_INVALIDATION_WEBHOOK_SECRET", {
+      configurable: true,
+      value: originalSecret,
+    });
+  }
+  assert.equal(requests, 3);
+  assert.deepEqual(order, ["lane2-1", "lane2-2", "lane2-3", "settle", "lane3"]);
+  console.log(
+    "copy-generation execution drafts-cache failed-and-rejected=retried lane2-before-lane3=true providerEffects=0 status=pass",
   );
 }
 

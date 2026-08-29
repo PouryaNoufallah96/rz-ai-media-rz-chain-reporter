@@ -13,8 +13,7 @@ import { NonRetriableError } from "inngest";
 import { z } from "zod";
 import { workerLogger } from "../logging/logger";
 
-import { createWorkerModelGateway } from "../model-gateway/worker-gateway";
-import { workerEnv } from "../runtime/env";
+import { workerModelGateway } from "../model-gateway/worker-gateway";
 import { notifyUsageLedgerChanged } from "../web-cache/usage-ledger";
 import { publishOperationStatus } from "./channels";
 import type { WorkerInngestClient } from "./client";
@@ -41,7 +40,12 @@ export function createGenerationProbeFunction(
       retries: 0,
       triggers: [durableEvents.operationGenerationRequested],
       onFailure: async ({ event, step }) => {
-        await notifyUsageLedgerChanged(step, event.data.event.data.workspaceId);
+        await notifyUsageLedgerChanged(
+          step,
+          event.data.event.data.workspaceId,
+          null,
+          "failure",
+        );
       },
     },
     async ({ event, step }) => {
@@ -55,7 +59,12 @@ export function createGenerationProbeFunction(
       });
 
       if (claim.status === "terminal") {
-        await notifyUsageLedgerChanged(step, event.data.workspaceId);
+        await notifyUsageLedgerChanged(
+          step,
+          event.data.workspaceId,
+          claim.actor,
+          "replayed",
+        );
         return {
           operationId: event.data.operationId,
           replayed: true,
@@ -67,10 +76,12 @@ export function createGenerationProbeFunction(
         step,
         event.data.workspaceId,
         {
+          actorId: claim.actor,
           attemptCount: claim.attemptNumber,
           lifecycle: "running",
           operationId: event.data.operationId,
           operationVersion: claim.operationVersion,
+          sharedImport: false,
         },
         "worker.generation-probe.realtime-unavailable",
       );
@@ -81,15 +92,7 @@ export function createGenerationProbeFunction(
           await assertWorkspace(runtime, event.data.workspaceId);
           const gateway =
             claim.mode === "real"
-              ? createWorkerModelGateway({
-                  bindings: {
-                    OLLAMA_BASE_URL: workerEnv.OLLAMA_BASE_URL,
-                    OPENROUTER_API_KEY: workerEnv.OPENROUTER_API_KEY,
-                  },
-                  executor: runtime.db,
-                  identity: runtime.identity,
-                  template: runtime.template,
-                })
+              ? workerModelGateway(runtime)
               : createGenerationProbeFixture({
                   executor: runtime.db,
                   mode: claim.mode,
@@ -169,17 +172,24 @@ export function createGenerationProbeFunction(
         step,
         event.data.workspaceId,
         {
+          actorId: claim.actor,
           attemptCount: claim.attemptNumber,
           latestAttemptOutcome: invocation.attemptOutcome,
           lifecycle: terminal.lifecycle,
           operationId: event.data.operationId,
           operationVersion: terminal.version,
+          sharedImport: false,
         },
         "worker.generation-probe.realtime-unavailable",
       );
 
       const { cacheInvalidation, usageRealtimePublished } =
-        await notifyUsageLedgerChanged(step, event.data.workspaceId);
+        await notifyUsageLedgerChanged(
+          step,
+          event.data.workspaceId,
+          claim.actor,
+          "settled",
+        );
 
       return {
         cacheInvalidation,
@@ -235,6 +245,7 @@ async function claimOperation(
         .orderBy(desc(aiUsageEvent.occurredAt))
         .limit(1);
       return {
+        actor: current.actor,
         status: "terminal" as const,
         usageEventId: usage?.id ?? null,
       };
@@ -306,6 +317,7 @@ async function claimOperation(
     }
 
     return {
+      actor: current.actor,
       attemptId,
       attemptNumber,
       mode,

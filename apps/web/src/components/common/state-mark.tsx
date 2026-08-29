@@ -6,6 +6,7 @@ export const STATE_MARKS = [
   "retrying",
   "waiting",
   "succeeded",
+  "partial",
   "failed",
   "cancelled",
   "unknown",
@@ -19,6 +20,7 @@ const MARK_TONE: Record<StateMarkState, string> = {
   retrying: "text-working",
   waiting: "text-muted-foreground",
   succeeded: "text-proof",
+  partial: "text-caution",
   failed: "text-destructive",
   cancelled: "text-muted-foreground",
   unknown: "text-working",
@@ -46,6 +48,12 @@ const MARK_GEOMETRY: Record<StateMarkState, ReactNode> = {
     </>
   ),
   succeeded: <path d="m4.5 8.25 2.25 2.25 4.75-5" />,
+  partial: (
+    <>
+      <path d="m4.5 8.25 2.25 2.25 1.75-1.84" />
+      <path d="m10.2 6.85 1.3-1.35" />
+    </>
+  ),
   failed: <path d="m4.5 4.5 7 7m0-7-7 7" />,
   cancelled: <path d="M6 3h7v10H3V6z" />,
   unknown: <path d="M3 3h10v7l-2.5-2-2.5 2-2.5-2L3 10z" />,
@@ -75,4 +83,14 @@ export function StateMark({
       ) : null}
     </svg>
   );
+}
+
+export function stateTone(state: StateMarkState) {
+  if (state === "failed") return "text-destructive text-sm";
+  if (state === "partial") return "text-caution text-sm";
+  if (state === "succeeded") return "text-proof-text text-sm";
+  if (["running", "retrying", "unknown"].includes(state)) {
+    return "text-working text-sm";
+  }
+  return "text-sm";
 }

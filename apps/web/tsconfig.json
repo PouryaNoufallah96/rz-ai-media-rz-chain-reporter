@@ -12,8 +12,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@rz-chain-reporter/ui/*": ["../../packages/ui/src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [

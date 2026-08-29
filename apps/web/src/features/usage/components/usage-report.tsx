@@ -250,17 +250,14 @@ export function UsageReport({ page, query, summary }: UsageReportProps) {
               table={table}
             />
             <KeysetPagination
+              ariaLabel={t("ledger.caption")}
               backToLatestLabel={t("pager.backToLatest")}
               newerLabel={t("pager.newer")}
               olderLabel={t("pager.older")}
               offLatest={page.offLatest}
-              onBackToLatest={() => setValues({ cursor: null })}
-              onNewer={() => setValues({ cursor: page.newerCursor })}
-              onOlder={
-                page.olderCursor
-                  ? () => setValues({ cursor: page.olderCursor })
-                  : null
-              }
+              newerCursor={page.newerCursor}
+              olderCursor={page.olderCursor}
+              onCursor={(cursor) => setValues({ cursor })}
             />
           </>
         )}

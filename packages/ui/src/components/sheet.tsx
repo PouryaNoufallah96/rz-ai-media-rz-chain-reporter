@@ -34,8 +34,8 @@ const VIEWPORT_ALIGNMENT: Record<SheetSide, string> = {
 const POPUP_GEOMETRY: Record<SheetSide, string> = {
   "block-end": "max-h-[85dvh] w-full border-t",
   "block-start": "max-h-[85dvh] w-full border-b",
-  "inline-end": "h-full w-[min(420px,95vw)] border-s",
-  "inline-start": "h-full w-[min(420px,95vw)] border-e",
+  "inline-end": "h-full w-[min(400px,95vw)] border-s",
+  "inline-start": "h-full w-[min(400px,95vw)] border-e",
 };
 
 // CSS has no logical translate, so the inline-axis sign is resolved here from
@@ -86,7 +86,7 @@ function SheetPopup({
     <SheetPrimitive.Popup
       data-slot="sheet-popup"
       className={cn(
-        "relative flex flex-col gap-4 overflow-y-auto overscroll-contain bg-popover bg-clip-padding p-4 text-popover-foreground text-xs/relaxed shadow-lg outline-none transition-[translate] duration-220 ease-out motion-reduce:transition-none data-ending-style:[translate:var(--sheet-slide)] data-starting-style:[translate:var(--sheet-slide)]",
+        "relative flex flex-col gap-4 overflow-y-auto overscroll-contain bg-popover bg-clip-padding p-4 text-popover-foreground text-xs/relaxed shadow-lg outline-none transition-[translate] duration-200 ease-out data-ending-style:duration-150 motion-reduce:transition-none data-ending-style:[translate:var(--sheet-slide)] data-starting-style:[translate:var(--sheet-slide)]",
         POPUP_GEOMETRY[side],
         className,
       )}
@@ -124,7 +124,7 @@ function SheetContent({
 }: React.ComponentProps<typeof SheetPopup>) {
   return (
     <DialogPortal>
-      <DialogOverlay className="transition-opacity duration-220" />
+      <DialogOverlay />
       <SheetViewport side={side}>
         <SheetPopup data-slot="sheet-content" side={side} {...props} />
       </SheetViewport>

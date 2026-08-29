@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  ASSISTANT_SYNTHESIS_COMMAND_TYPE,
   type AttemptOutcome,
   type OperationLifecycle,
   operationCommandKind,
@@ -12,7 +13,6 @@ import { inWorkspace } from "@rz-chain-reporter/db/filters";
 import { sourceImportProgress } from "@rz-chain-reporter/db/repositories/source-import";
 import { like } from "drizzle-orm";
 
-import { ASSISTANT_SYNTHESIS_COMMAND_TYPE } from "@/features/assistant/constants";
 import { RECENT_TERMINAL_WINDOW_MS } from "../constants";
 import type { OperationSummary } from "../schemas/operation-summary";
 
@@ -138,12 +138,17 @@ export async function listRecentOperations(
     ),
   ]);
 
+  const attemptsByOperation = new Map<string, typeof attemptRows>();
+  for (const attempt of attemptRows) {
+    const entries = attemptsByOperation.get(attempt.operationId) ?? [];
+    entries.push(attempt);
+    attemptsByOperation.set(attempt.operationId, entries);
+  }
+
   const summaries = rows.map(
     ({ claimedAt, outboxEvents, publish, sourceImport, ...operation }) => {
       const outbox = outboxEvents[0];
-      const attempts = attemptRows.filter(
-        (attempt) => attempt.operationId === operation.id,
-      );
+      const attempts = attemptsByOperation.get(operation.id) ?? [];
       const measured = sourceImport ? progress[sourceImport.id] : undefined;
 
       return {
@@ -254,7 +259,6 @@ function timelineOf(
     });
   }
 
-  // The import's own run is the travel record; its children are read on /sources.
   if (operationCommandKind(operation.commandType) === "source-import") {
     if (operation.claimedAt) {
       timeline.push({

@@ -41,6 +41,7 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
   --working: oklch(0.497 0.094 81.74);
+  --caution: oklch(0.52 0.14 62);
   --proof: oklch(0.467 0.089 249.831);
   --proof-text: oklch(0.467 0.089 249.831);
   --font-ui-sans: var(--font-geist-sans);
@@ -53,10 +54,7 @@
 
 :root[data-script="arab"] {
   --tracking-display: 0;
-  --tracking-label: 0;
-  --text-transform-label: none;
   --font-weight-label: 600;
-  --text-size-label: 12px;
 }
 
 @utility ticket-label {
@@ -77,7 +75,7 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.235 0.006 285);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.6 0.17 282);
+  --primary: oklch(0.57 0.17 282);
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.265 0.007 285);
   --secondary-foreground: oklch(0.985 0 0);
@@ -89,11 +87,11 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.59 0.16 282);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
   --sidebar: oklch(0.185 0.005 285);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: var(--primary);
@@ -103,6 +101,7 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
   --working: oklch(0.71 0.131 82.969);
+  --caution: oklch(0.75 0.14 65);
   --proof: oklch(0.583 0.101 250.344);
   --proof-text: oklch(0.707 0.077 248.387);
 }
@@ -118,11 +117,6 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -142,6 +136,7 @@
   --color-foreground: var(--foreground);
   --color-background: var(--background);
   --color-working: var(--working);
+  --color-caution: var(--caution);
   --color-proof: var(--proof);
   --color-proof-text: var(--proof-text);
   --radius-sm: calc(var(--radius) - 8px);
@@ -173,6 +168,15 @@
   input,
   textarea {
     caret-color: var(--primary);
+  }
+  #main-content {
+    scroll-margin-block-start: 7rem;
+  }
+}
+
+@media (min-width: 40rem) {
+  #main-content {
+    scroll-margin-block-start: 4rem;
   }
 }
 

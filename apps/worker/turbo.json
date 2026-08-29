@@ -3,7 +3,13 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "inputs": ["$TURBO_EXTENDS$", ".env", ".env.*"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/customer-templates/**",
+        "!$TURBO_ROOT$/customer-templates/**/.DS_Store",
+        ".env",
+        ".env.*"
+      ]
     },
     "dev": {
       "with": ["worker#dev:inngest"],

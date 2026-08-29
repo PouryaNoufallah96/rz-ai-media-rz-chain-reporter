@@ -280,11 +280,13 @@ export function createMediaUploadVerificationFunction(
           step,
           workspaceId,
           {
+            actorId: settlement.operation.actor,
             attemptCount: settlement.attemptCount,
             latestAttemptOutcome: settlement.latestAttemptOutcome,
             lifecycle: settlement.operation.lifecycle,
             operationId,
             operationVersion: settlement.operation.version,
+            sharedImport: false,
           },
           "worker.media-verification.realtime-unavailable",
         );
@@ -308,6 +310,7 @@ export function createMediaUploadVerificationFunction(
               result,
             );
             return {
+              actor: settlement?.operation.actor ?? null,
               attemptCount: settlement?.attemptCount ?? null,
               latestAttemptOutcome: settlement?.latestAttemptOutcome ?? null,
               lifecycle: settlement?.operation.lifecycle ?? null,
@@ -318,6 +321,7 @@ export function createMediaUploadVerificationFunction(
         });
 
         if (
+          settled.actor &&
           settled.lifecycle &&
           settled.operationVersion &&
           settled.attemptCount !== null
@@ -326,11 +330,13 @@ export function createMediaUploadVerificationFunction(
             step,
             event.data.workspaceId,
             {
+              actorId: settled.actor,
               attemptCount: settled.attemptCount,
               latestAttemptOutcome: settled.latestAttemptOutcome ?? undefined,
               lifecycle: settled.lifecycle,
               operationId: event.data.operationId,
               operationVersion: settled.operationVersion,
+              sharedImport: false,
             },
             "worker.media-verification.realtime-unavailable",
           );

@@ -6,6 +6,7 @@ import type {
   SourceFetchReason,
   SourceOrigin,
 } from "@rz-chain-reporter/contracts";
+import { DomUtils, parseDocument } from "htmlparser2";
 
 // Only the two dispositions the fetcher alone can see: a feed owns publication
 // dates and upstream language. out_of_window and over_cap belong to ordering.
@@ -65,4 +66,24 @@ export function contentHashV1(item: {
       ].join(CONTENT_HASH_SEPARATOR),
     )
     .digest("hex");
+}
+
+export function parseDate(raw: string | null | undefined) {
+  if (raw === null || raw === undefined) {
+    return null;
+  }
+  const at = new Date(raw);
+  return Number.isNaN(at.getTime()) ? null : at;
+}
+
+// Escape `<` before decoding unexpanded entities so no resulting angle bracket
+// can reopen a tag for the tokenizer.
+export function decodeEntities(value: string) {
+  return value.includes("&")
+    ? DomUtils.textContent(parseDocument(value.replace(/</g, "&lt;")))
+    : value;
+}
+
+export function bounded(value: string, maxChars: number) {
+  return value.length > maxChars ? value.slice(0, maxChars).trim() : value;
 }

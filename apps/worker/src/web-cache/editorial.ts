@@ -7,7 +7,11 @@ import {
   type WorkerStep,
 } from "../inngest/channels";
 import type { WorkerInngestClient } from "../inngest/client";
-import { notifyCacheInvalidation, waitForCacheFlush } from "./notify";
+import {
+  notifyCacheInvalidation,
+  notifyCacheInvalidationForDurableStep,
+  waitForCacheFlush,
+} from "./notify";
 
 type EditorialNotificationCallSite =
   | "claimed"
@@ -27,7 +31,14 @@ export function notifyEditorialChanged(
   analysisRunId: string,
   callSite: EditorialNotificationCallSite,
 ) {
-  return notifyEditorial(step, workspaceId, analysisRunId, callSite, false);
+  return notifyEditorial(
+    step,
+    workspaceId,
+    analysisRunId,
+    callSite,
+    false,
+    null,
+  );
 }
 
 export function notifyEditorialAndUsageChanged(
@@ -35,8 +46,16 @@ export function notifyEditorialAndUsageChanged(
   workspaceId: string,
   analysisRunId: string,
   callSite: EditorialNotificationCallSite,
+  usageActorId: string | null,
 ) {
-  return notifyEditorial(step, workspaceId, analysisRunId, callSite, true);
+  return notifyEditorial(
+    step,
+    workspaceId,
+    analysisRunId,
+    callSite,
+    true,
+    usageActorId,
+  );
 }
 
 async function notifyEditorial(
@@ -45,6 +64,7 @@ async function notifyEditorial(
   analysisRunId: string,
   callSite: EditorialNotificationCallSite,
   withUsage: boolean,
+  usageActorId: string | null,
 ) {
   const tags = withUsage
     ? [
@@ -55,7 +75,7 @@ async function notifyEditorial(
 
   const cacheInvalidation = await step.run(
     `notify-editorial-cache-${callSite}`,
-    () => notifyCacheInvalidation(tags),
+    () => notifyCacheInvalidationForDurableStep(tags),
   );
 
   if (cacheInvalidation !== "accepted") {
@@ -77,7 +97,7 @@ async function notifyEditorial(
       callSite,
     ),
     usageRealtimePublished: withUsage
-      ? await publishUsageLedgerChanged(step, workspaceId)
+      ? await publishUsageLedgerChanged(step, workspaceId, usageActorId)
       : false,
   };
 }

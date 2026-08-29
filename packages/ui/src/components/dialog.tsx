@@ -30,7 +30,7 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/45 opacity-0 transition-opacity duration-100 ease-out data-ending-style:opacity-0 data-open:opacity-100 data-starting-style:opacity-0 motion-reduce:transition-none",
+        "fixed inset-0 isolate z-50 bg-black/45 opacity-100 transition-opacity duration-200 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-150 motion-reduce:transition-none",
         className,
       )}
       {...props}
@@ -64,7 +64,7 @@ function DialogPopup({
     <DialogPrimitive.Popup
       data-slot="dialog-popup"
       className={cn(
-        "data-closed:fade-out-0 data-closed:zoom-out-95 data-open:fade-in-0 data-open:zoom-in-95 relative grid max-h-full gap-5 overflow-y-auto overscroll-contain rounded-xl bg-popover p-5 text-popover-foreground text-xs/relaxed shadow-lg outline-none ring-1 ring-foreground/10 duration-150 data-closed:animate-out data-open:animate-in motion-reduce:animate-none!",
+        "relative grid max-h-full gap-5 overflow-y-auto overscroll-contain rounded-xl bg-popover p-5 text-popover-foreground text-xs/relaxed shadow-lg outline-none ring-1 ring-foreground/10 transition-[opacity,scale,translate] duration-200 ease-out [--dialog-closed-scale:0.97] [--dialog-closed-translate-y:0px] data-ending-style:translate-y-(--dialog-closed-translate-y) data-starting-style:translate-y-(--dialog-closed-translate-y) data-ending-style:scale-(--dialog-closed-scale) data-starting-style:scale-(--dialog-closed-scale) data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-150 motion-reduce:transition-none",
         className,
       )}
       {...props}

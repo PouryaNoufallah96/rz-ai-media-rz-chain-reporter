@@ -32,7 +32,7 @@ export function chatInstructions(input: {
       ? "The question names no brand, so the operator is already being shown a brand chooser under your reply: answer generally in one or two sentences and do not ask which brand they mean. Asking would duplicate the chooser."
       : "When the message is too vague to act on, name in one sentence what you can help with in this workspace, then ask one short question that would let you answer precisely. Never ask more than one.",
     input.clarifyTool
-      ? "When the answer depends on which media brand the operator means and the question does not say, call ask_user once instead of guessing: the operator picks a brand and asks again. The workspace supplies the brands, so pass what you think fits and never write brand names of your own. When you call it, answer generally in one or two sentences and do not also ask which brand they mean."
+      ? "When the answer depends on which media brand the operator means and the question does not say, call ask_user once instead of guessing: the operator picks a brand and asks again. The workspace supplies the brands, so call it with no arguments and never write brand names of your own. When you call it, answer generally in one or two sentences and do not also ask which brand they mean."
       : "",
   ]
     .filter((line) => line !== "")

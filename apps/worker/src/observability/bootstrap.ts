@@ -1,5 +1,7 @@
+import { OpenTelemetry } from "@ai-sdk/otel";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import * as Sentry from "@sentry/node";
+import { registerTelemetry } from "ai";
 import { InngestSpanProcessor } from "inngest/experimental";
 
 import {
@@ -10,11 +12,7 @@ import {
   flushWorkerLogging,
   setWorkerSentryInitialized,
 } from "../logging/logger";
-import {
-  scrubWorkerErrorEvent,
-  scrubWorkerLog,
-  scrubWorkerTransaction,
-} from "./privacy";
+import { scrubWorkerErrorEvent, scrubWorkerLog } from "./privacy";
 
 const SENTRY_CLOSE_TIMEOUT_MS = 2_000;
 
@@ -32,7 +30,6 @@ export function initializeWorkerObservability(options: {
     Sentry.init({
       beforeSend: scrubWorkerErrorEvent,
       beforeSendLog: scrubWorkerLog,
-      beforeSendTransaction: scrubWorkerTransaction,
       dsn: options.sentryDsn,
       enableLogs: true,
       sendDefaultPii: false,
@@ -47,6 +44,7 @@ export function initializeWorkerObservability(options: {
     spanProcessors: [new InngestSpanProcessor(client)],
   });
   tracerProvider.register();
+  registerTelemetry(new OpenTelemetry());
 
   return client;
 }

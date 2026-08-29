@@ -8,6 +8,7 @@ type ProbeOperation =
   | "delete"
   | "get"
   | "head"
+  | "list"
   | "openRead"
   | "put";
 
@@ -102,6 +103,13 @@ async function run() {
       chunks: streamed.chunks,
       streamed: true,
     });
+
+    const listed = await execute("list", () =>
+      storage.list({ prefix: key, limit: 1 }),
+    );
+    assert.equal(listed.items.length, 1);
+    assert.equal(listed.items[0]?.key, key);
+    report("list", { bytes: listed.items[0]?.size ?? 0, objects: 1 });
 
     await execute("delete", () => storage.delete([key]));
     deleted = true;

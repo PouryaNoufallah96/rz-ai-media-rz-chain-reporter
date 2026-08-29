@@ -13,6 +13,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
+import { useAction } from "@/hooks/use-action";
 import { Link, useRouter } from "@/i18n/navigation";
 import { signOutAction } from "../actions/auth-actions";
 import { authClient } from "../lib/auth-client";
@@ -23,6 +24,12 @@ export type UserMenuUser = Pick<SessionUser, "id" | "name" | "email">;
 
 export default function UserMenu({ user }: { user: UserMenuUser | null }) {
   const router = useRouter();
+  const signOut = useAction(signOutAction, {
+    onSuccess: () => {
+      authClient.$store.notify("$sessionSignal");
+      router.push("/");
+    },
+  });
   const t = useTranslations(SHARED_NAMESPACE);
   const {
     data: session,
@@ -80,19 +87,17 @@ export default function UserMenu({ user }: { user: UserMenuUser | null }) {
         <DropdownMenuGroup>
           <DropdownMenuLabel>{t("userMenu.account")}</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel className="whitespace-normal break-words text-foreground">
+          <DropdownMenuLabel className="wrap-break-word whitespace-normal text-foreground">
             {user.name}
           </DropdownMenuLabel>
           <DropdownMenuLabel className="whitespace-normal break-all font-normal">
             {user.email}
           </DropdownMenuLabel>
           <DropdownMenuItem
+            disabled={signOut.isPending}
             variant="destructive"
-            onClick={async () => {
-              const [error] = await signOutAction();
-              if (error) return;
-              authClient.$store.notify("$sessionSignal");
-              router.push("/");
+            onClick={() => {
+              void signOut.execute();
             }}
           >
             {t("userMenu.signOut")}

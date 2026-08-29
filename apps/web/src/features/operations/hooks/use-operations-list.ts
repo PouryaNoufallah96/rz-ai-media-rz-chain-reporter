@@ -18,7 +18,7 @@ function operationsListQueryOptions(
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     retry: false,
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: 0,
   });
 }
 
