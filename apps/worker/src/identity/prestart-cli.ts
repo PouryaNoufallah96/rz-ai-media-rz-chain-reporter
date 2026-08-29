@@ -112,6 +112,18 @@ try {
   console.log("build, runtime, loaded and applied template identity match");
 
   if (stage === "web") {
+    const objectStoreBindings = [
+      process.env.S3_ACCESS_KEY_ID,
+      process.env.S3_BUCKET,
+      process.env.S3_ENDPOINT,
+      process.env.S3_REGION,
+      process.env.S3_SECRET_ACCESS_KEY,
+    ];
+
+    if (!objectStoreBindings.every(Boolean)) {
+      throw new WorkerRuntimeBindingError(["object_store"]);
+    }
+
     assertAssistantBinding(
       loadCustomerTemplate(artifactRoot, identity.customerTemplateKey).template,
     );

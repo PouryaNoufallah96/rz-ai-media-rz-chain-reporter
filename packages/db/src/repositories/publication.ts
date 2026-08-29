@@ -1373,6 +1373,20 @@ export async function readPublicationExecutionSummary(
   };
 }
 
+export async function readPublicationOperationActor(
+  executor: Executor,
+  workspaceId: string,
+  operationId: string,
+) {
+  const [row] = await executor
+    .select({ actorId: operation.actor })
+    .from(operation)
+    .where(
+      and(inWorkspace(operation, workspaceId), eq(operation.id, operationId)),
+    );
+  return row?.actorId ?? null;
+}
+
 export async function readPendingPublicationFollowUps(
   executor: Executor,
   workspaceId: string,

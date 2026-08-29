@@ -1,5 +1,4 @@
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
-import { z } from "zod";
 
 import { Suspended } from "@/components/fetcher/suspended";
 import { requireSession } from "@/features/auth/api/server/session";
@@ -9,6 +8,7 @@ import { getPublishingHistory } from "@/features/publishing/api/server/get-publi
 import { getSavedHistory } from "@/features/publishing/api/server/get-saved-history";
 import { Localized } from "@/i18n/client";
 import { getT } from "@/i18n/server";
+import { enabledImageModels } from "@/lib/customer-template.server";
 
 import { getAccountSummary } from "../api/server/get-account-summary";
 import { getActivityHistory } from "../api/server/get-activity-history";
@@ -61,13 +61,6 @@ async function readAccountDesk(searchParams: AccountSearchParams) {
   const query = normalizeAccountQuery(
     await loadAccountSearchParams(searchParams),
   );
-  const validDraftId = z.uuid().safeParse(query.draft);
-  const savedSearchParams = Promise.resolve({
-    state: query.savedState,
-    ...(query.savedCursor ? { cursor: query.savedCursor } : {}),
-  });
-  const scheduledSearchParams = Promise.resolve({ view: "scheduled" });
-
   const [
     session,
     summary,
@@ -83,9 +76,9 @@ async function readAccountDesk(searchParams: AccountSearchParams) {
     getActivityHistory(),
     getActivityLedger(query.auditCursor),
     getRecentTopics(),
-    getSavedHistory(savedSearchParams),
-    getPublishingHistory(scheduledSearchParams),
-    validDraftId.success ? getPlatformDraft(validDraftId.data) : null,
+    getSavedHistory({ state: query.savedState, cursor: query.savedCursor }),
+    getPublishingHistory({ view: "scheduled", cursor: null }),
+    query.draft ? getPlatformDraft(query.draft) : null,
   ]);
 
   return {
@@ -94,6 +87,7 @@ async function readAccountDesk(searchParams: AccountSearchParams) {
       email: session.user.email,
       createdAt: session.user.createdAt,
     },
+    imageModels: enabledImageModels,
     summary,
     activities,
     ledger,
@@ -115,29 +109,59 @@ function AccountHeadingSkeleton() {
 }
 
 function AccountDeskSkeleton({ loadingLabel }: { loadingLabel: string }) {
+  const ledgerColumns = Array.from({ length: 4 }, (_, index) => index);
+  const ledgerRows = Array.from({ length: 6 }, (_, index) => index);
+  const links = Array.from({ length: 3 }, (_, index) => index);
+
   return (
-    <div aria-busy="true" className="mt-5" role="status">
+    <div aria-busy="true" role="status">
       <span className="sr-only">{loadingLabel}</span>
-      <div className="grid gap-4 rounded-xl border bg-card p-4 md:grid-cols-2 md:gap-6">
+      <div className="mt-5 grid gap-5 rounded-xl border bg-card p-4 sm:p-5 md:grid-cols-2 md:gap-6">
         <Skeleton className="h-28 w-full" />
         <Skeleton className="h-28 w-full" />
       </div>
       <div className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-stretch">
-        <div className="grid min-w-0 gap-4 lg:grid-rows-[auto_1fr]">
-          <Skeleton className="h-48 w-full" />
-          <div className="grid gap-4">
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-36 w-full" />
-            <Skeleton className="h-36 w-full" />
-            <Skeleton className="h-36 w-full" />
-            <Skeleton className="h-36 w-full" />
-          </div>
+        <div className="grid min-w-0 content-start gap-4 lg:grid-rows-[auto_1fr]">
+          <Skeleton className="h-144 w-full" />
+          <Skeleton className="h-96 w-full" />
         </div>
-        <div className="grid min-w-0 gap-4 lg:grid-rows-[auto_auto_1fr]">
+        <div className="grid min-w-0 content-start gap-4 lg:grid-rows-[auto_auto_1fr]">
           <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-28 w-full" />
           <Skeleton className="min-h-96 w-full" />
         </div>
+      </div>
+      <div className="mt-6 min-w-0">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="mt-1 mb-3 h-4 w-full max-w-3xl" />
+        <div className="overflow-hidden rounded-lg border bg-card">
+          <div className="grid grid-cols-4 gap-3 border-b px-3 py-3">
+            {ledgerColumns.map((column) => (
+              <Skeleton className="h-2.5 w-16" key={column} />
+            ))}
+          </div>
+          {ledgerRows.map((row) => (
+            <div
+              className="grid grid-cols-4 gap-3 border-b px-3 py-3 last:border-b-0"
+              key={row}
+            >
+              {ledgerColumns.map((column) => (
+                <Skeleton className="h-3.5 w-full" key={column} />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          <Skeleton className="h-7 w-20 max-sm:h-11" />
+          <Skeleton className="h-7 w-20 max-sm:h-11" />
+        </div>
+      </div>
+      <div className="mt-8 flex flex-wrap gap-x-5 gap-y-1 border-border border-t pt-2">
+        {links.map((link) => (
+          <span className="flex h-11 items-center" key={link}>
+            <Skeleton className="h-4 w-20" />
+          </span>
+        ))}
       </div>
     </div>
   );

@@ -57,10 +57,12 @@ export async function reconcilePublication(
     step,
     input.workspaceId,
     {
+      actorId: claim.operation.actor,
       attemptCount: attempt.attemptNumber,
       lifecycle: "running",
       operationId: input.operationId,
       operationVersion: claim.operation.version,
+      sharedImport: false,
     },
     "worker.publishing.realtime-unavailable",
   );
@@ -247,7 +249,9 @@ export async function reconcilePublication(
       input.workspaceId,
       {
         ...settled,
+        actorId: claim.operation.actor,
         operationId: input.operationId,
+        sharedImport: false,
       },
       "worker.publishing.realtime-unavailable",
     );
@@ -332,7 +336,12 @@ export async function reconcilePublication(
   await publishOperationStatus(
     step,
     input.workspaceId,
-    { ...operationSettled, operationId: input.operationId },
+    {
+      ...operationSettled,
+      actorId: claim.operation.actor,
+      operationId: input.operationId,
+      sharedImport: false,
+    },
     "worker.publishing.realtime-unavailable",
   );
   return { operation: operationSettled, status: decision };

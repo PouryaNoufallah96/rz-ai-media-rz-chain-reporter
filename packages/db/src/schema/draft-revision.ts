@@ -32,6 +32,7 @@ export const draftRevision = pgTable(
     hashtags: text("hashtags").array().notNull(),
     originatingCopyVariantId: uuid("originating_copy_variant_id").notNull(),
     selectedFinalMediaAssetId: uuid("selected_final_media_asset_id"),
+    imageIntentVersion: integer("image_intent_version").default(0).notNull(),
     authoredBy: text("authored_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -85,6 +86,10 @@ export const draftRevision = pgTable(
     check(
       "ck_draft_revision_hashtags_nonempty",
       sql`cardinality(${t.hashtags}) > 0 and array_position(${t.hashtags}, null) is null`,
+    ),
+    check(
+      "ck_draft_revision_image_intent_version_nonnegative",
+      sql`${t.imageIntentVersion} >= 0`,
     ),
   ],
 );

@@ -17,6 +17,7 @@ import { OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME } from "@rz-chain-reporter/
 import type { Executor, Transaction } from "@rz-chain-reporter/db/executor";
 import { inWorkspace } from "@rz-chain-reporter/db/filters";
 import { analysisRunProgress } from "@rz-chain-reporter/db/repositories/analysis-run";
+import { ownedDraftExists } from "@rz-chain-reporter/db/repositories/draft-origin";
 import { aiUsageEvent } from "@rz-chain-reporter/db/schema/ai-usage-event";
 import { analysisModelUnit } from "@rz-chain-reporter/db/schema/analysis-model-unit";
 import { analysisRun } from "@rz-chain-reporter/db/schema/analysis-run";
@@ -91,6 +92,34 @@ const COMMITTED_USAGE_FIRST = sql`(${aiUsageEvent.status} = 'succeeded')`;
 
 const DUPLICATE_BRAND_ID = "00000000-0000-0000-0000-000000000000";
 
+export async function ownedDraftSelectedMediaExists(
+  executor: Executor,
+  workspaceId: string,
+  userId: string,
+  mediaAssetId: string,
+) {
+  const [row] = await executor
+    .select({ id: draftRevision.id })
+    .from(draftRevision)
+    .innerJoin(
+      platformDraft,
+      and(
+        inWorkspace(platformDraft, workspaceId),
+        eq(platformDraft.id, draftRevision.platformDraftId),
+        isNull(platformDraft.deletedAt),
+      ),
+    )
+    .where(
+      and(
+        inWorkspace(draftRevision, workspaceId),
+        eq(draftRevision.selectedFinalMediaAssetId, mediaAssetId),
+        ownedDraftExists(workspaceId, userId, platformDraft.id),
+      ),
+    )
+    .limit(1);
+  return row !== undefined;
+}
+
 export async function readEditorialWorkspace(
   executor: Executor,
   workspaceId: string,
@@ -144,6 +173,7 @@ type PlatformDraftProjectionRow = {
   version: number;
   activeRevisionId: string | null;
   revisionVersion: number;
+  projectionVersion: number;
   editorialSelectionId: string | null;
   telegramFilterResultId: string | null;
   promoIdeaId: string | null;
@@ -193,7 +223,6 @@ export async function readPlatformDrafts(
   userId: string,
   environmentForcedPause: boolean,
   timeZone: string,
-  imageModels: readonly { key: string; name: string }[] = [],
 ): Promise<PlatformDraftRead[]> {
   return database.transaction(
     async (executor) => {
@@ -214,6 +243,7 @@ export async function readPlatformDrafts(
       draft.version,
       draft.active_revision_id as "activeRevisionId",
       draft.revision_version as "revisionVersion",
+      draft.projection_version as "projectionVersion",
       draft.editorial_selection_id as "editorialSelectionId",
       draft.telegram_filter_result_id as "telegramFilterResultId",
       draft.promo_idea_id as "promoIdeaId",
@@ -253,10 +283,6 @@ export async function readPlatformDrafts(
       on brand.id = draft.media_brand_id
       and brand.workspace_id = draft.workspace_id
       and brand.deleted_at is null
-    left join draft_revision active_revision
-      on active_revision.id = draft.active_revision_id
-      and active_revision.workspace_id = draft.workspace_id
-      and active_revision.platform_draft_id = draft.id
     left join editorial_selection selection
       on selection.id = draft.editorial_selection_id
       and selection.workspace_id = draft.workspace_id
@@ -330,18 +356,11 @@ export async function readPlatformDrafts(
         generation.created_at,
         generation_operation.lifecycle
       from image_generation generation
-      inner join draft_revision image_revision
-        on image_revision.id = generation.draft_revision_id
-        and image_revision.workspace_id = generation.workspace_id
       inner join operation generation_operation
         on generation_operation.id = generation.operation_id
         and generation_operation.workspace_id = generation.workspace_id
       where generation.workspace_id = draft.workspace_id
-        and image_revision.platform_draft_id = draft.id
-        and image_revision.content_locale = active_revision.content_locale
-        and image_revision.headline = active_revision.headline
-        and image_revision.body = active_revision.body
-        and image_revision.hashtags = active_revision.hashtags
+        and generation.draft_revision_id = draft.active_revision_id
       order by generation.created_at desc, generation.operation_id desc
       limit 1
     ) latest_image on true
@@ -432,7 +451,85 @@ export async function readPlatformDrafts(
                   inArray(copyGeneration.platformDraftId, draftIds),
                 ),
               )
-              .where(inWorkspace(copyVariant, workspaceId))
+              .innerJoin(
+                operation,
+                and(
+                  inWorkspace(operation, workspaceId),
+                  eq(operation.id, copyGeneration.operationId),
+                ),
+              )
+              .where(
+                and(
+                  inWorkspace(copyVariant, workspaceId),
+                  eq(operation.lifecycle, "succeeded"),
+                  sql`(
+                    (
+                      ${operation.commandType} in (
+                        'copy-generation:route',
+                        'copy-generation:regenerate',
+                        'copy-generation:refresh_article'
+                      )
+                      and not exists (
+                        select 1
+                        from copy_generation newer_generation
+                        inner join operation newer_operation
+                          on newer_operation.id = newer_generation.operation_id
+                          and newer_operation.workspace_id = newer_generation.workspace_id
+                        where newer_generation.workspace_id = ${copyGeneration.workspaceId}
+                          and newer_generation.platform_draft_id = ${copyGeneration.platformDraftId}
+                          and newer_generation.requested_content_locale = ${copyGeneration.requestedContentLocale}
+                          and newer_operation.lifecycle = 'succeeded'
+                          and newer_operation.command_type in (
+                            'copy-generation:route',
+                            'copy-generation:regenerate',
+                            'copy-generation:refresh_article'
+                          )
+                          and (newer_generation.created_at, newer_generation.operation_id)
+                            > (${copyGeneration.createdAt}, ${copyGeneration.operationId})
+                      )
+                    )
+                    or (
+                      ${operation.commandType} = 'copy-generation:retry_failed'
+                      and exists (
+                        select 1
+                        from copy_generation prior_generation
+                        inner join operation prior_operation
+                          on prior_operation.id = prior_generation.operation_id
+                          and prior_operation.workspace_id = prior_generation.workspace_id
+                        where prior_generation.workspace_id = ${copyGeneration.workspaceId}
+                          and prior_generation.platform_draft_id = ${copyGeneration.platformDraftId}
+                          and prior_generation.requested_content_locale = ${copyGeneration.requestedContentLocale}
+                          and prior_operation.lifecycle = 'succeeded'
+                          and prior_operation.command_type in (
+                            'copy-generation:route',
+                            'copy-generation:regenerate',
+                            'copy-generation:refresh_article'
+                          )
+                          and (prior_generation.created_at, prior_generation.operation_id)
+                            < (${copyGeneration.createdAt}, ${copyGeneration.operationId})
+                      )
+                      and not exists (
+                        select 1
+                        from copy_generation later_generation
+                        inner join operation later_operation
+                          on later_operation.id = later_generation.operation_id
+                          and later_operation.workspace_id = later_generation.workspace_id
+                        where later_generation.workspace_id = ${copyGeneration.workspaceId}
+                          and later_generation.platform_draft_id = ${copyGeneration.platformDraftId}
+                          and later_generation.requested_content_locale = ${copyGeneration.requestedContentLocale}
+                          and later_operation.lifecycle = 'succeeded'
+                          and later_operation.command_type in (
+                            'copy-generation:route',
+                            'copy-generation:regenerate',
+                            'copy-generation:refresh_article'
+                          )
+                          and (later_generation.created_at, later_generation.operation_id)
+                            > (${copyGeneration.createdAt}, ${copyGeneration.operationId})
+                      )
+                    )
+                  )`,
+                ),
+              )
               .orderBy(desc(copyVariant.createdAt), asc(copyVariant.id));
       const revisions =
         draftIds.length === 0
@@ -452,15 +549,58 @@ export async function readPlatformDrafts(
                 when ${platformDraft.promoIdeaId} is not null then 'ready'
                 when ${sourceItem.origin} = 'telegram_public' then 'ready'
                 when ${sourceItem.origin} = 'rss'
-                  and not ${copyGeneration.limited}
-                  and ${copyGeneration.sourceItemEnrichmentId} is not null
-                  and ${copyGeneration.pageContentHash} is not null then 'ready'
+                  and ${copyGeneration.sourceItemRevisionId} is not null then 'ready'
                 else 'extract_required'
               end`,
                 sourceAttribution: sourceItem.attribution,
                 sourceCanonicalUrl: sourceItemRevision.canonicalUrl,
                 selectedFinalMediaAssetId:
                   draftRevision.selectedFinalMediaAssetId,
+                imageIntentVersion: draftRevision.imageIntentVersion,
+                hasNonterminalImageGeneration: sql<boolean>`exists (
+                  select 1
+                  from image_generation revision_image_generation
+                  inner join operation revision_image_operation
+                    on revision_image_operation.id = revision_image_generation.operation_id
+                    and revision_image_operation.workspace_id = revision_image_generation.workspace_id
+                  where revision_image_generation.workspace_id = ${draftRevision.workspaceId}
+                    and revision_image_generation.draft_revision_id = ${draftRevision.id}
+                    and revision_image_operation.lifecycle in ('queued', 'running', 'settling')
+                )`,
+                mediaLocked: sql<boolean>`exists (
+                  select 1
+                  from approval revision_approval
+                  where revision_approval.workspace_id = ${draftRevision.workspaceId}
+                    and revision_approval.draft_revision_id = ${draftRevision.id}
+                )`,
+                imageProvenanceMismatch: sql<boolean>`exists (
+                  select 1
+                  from image_generation selected_generation
+                  inner join draft_revision generating_revision
+                    on generating_revision.id = selected_generation.draft_revision_id
+                    and generating_revision.workspace_id = selected_generation.workspace_id
+                  inner join copy_variant generating_variant
+                    on generating_variant.id = generating_revision.originating_copy_variant_id
+                    and generating_variant.workspace_id = generating_revision.workspace_id
+                  inner join copy_generation_unit generating_unit
+                    on generating_unit.id = generating_variant.copy_generation_unit_id
+                    and generating_unit.workspace_id = generating_variant.workspace_id
+                  inner join copy_generation generating_copy
+                    on generating_copy.operation_id = generating_unit.copy_generation_id
+                    and generating_copy.workspace_id = generating_unit.workspace_id
+                  where selected_generation.workspace_id = ${draftRevision.workspaceId}
+                    and selected_generation.final_media_asset_id = ${draftRevision.selectedFinalMediaAssetId}
+                    and (
+                      generating_revision.headline is distinct from ${draftRevision.headline}
+                      or generating_revision.body is distinct from ${draftRevision.body}
+                      or generating_revision.hashtags is distinct from ${draftRevision.hashtags}
+                      or generating_revision.content_locale is distinct from ${draftRevision.contentLocale}
+                      or generating_copy.source_item_revision_id is distinct from ${copyGeneration.sourceItemRevisionId}
+                      or generating_copy.source_item_enrichment_id is distinct from ${copyGeneration.sourceItemEnrichmentId}
+                      or generating_copy.page_content_hash is distinct from ${copyGeneration.pageContentHash}
+                      or generating_copy.limited is distinct from ${copyGeneration.limited}
+                    )
+                )`,
                 authoredBy: draftRevision.authoredBy,
                 authorName: user.name,
                 createdAt: draftRevision.createdAt,
@@ -544,10 +684,18 @@ export async function readPlatformDrafts(
         string,
         Omit<(typeof revisions)[number], "platformDraftId">[]
       >();
+      const nextRevisionNumberByDraft = new Map<string, number>();
       for (const { platformDraftId, ...revision } of revisions) {
         const existing = revisionsByDraft.get(platformDraftId);
         if (existing) existing.push(revision);
         else revisionsByDraft.set(platformDraftId, [revision]);
+        nextRevisionNumberByDraft.set(
+          platformDraftId,
+          Math.max(
+            nextRevisionNumberByDraft.get(platformDraftId) ?? 1,
+            revision.revisionNumber + 1,
+          ),
+        );
       }
 
       const publishingByDraft = await readPlatformDraftPublishing(
@@ -612,6 +760,8 @@ export async function readPlatformDrafts(
           version: row.version,
           activeRevisionId: row.activeRevisionId,
           revisionVersion: row.revisionVersion,
+          projectionVersion: row.projectionVersion,
+          nextRevisionNumber: nextRevisionNumberByDraft.get(row.id) ?? 1,
           origin,
           originTitle: row.originTitle,
           sourceKind: row.sourceKind,
@@ -620,7 +770,6 @@ export async function readPlatformDrafts(
           candidates: candidatesByDraft.get(row.id) ?? [],
           revisions: revisionsByDraft.get(row.id) ?? [],
           imageGeneration,
-          imageModels: imageModels.map(({ key, name }) => ({ key, name })),
           publishing:
             publishingByDraft.get(row.id) ??
             emptyPublishingProjection(environmentForcedPause, timeZone),

@@ -10,6 +10,7 @@ import pg from "pg";
 import { createDb } from "../index";
 import {
   type StartCopyOperationInput,
+  settleCopyGeneration,
   startCopyOperation,
 } from "../repositories/copy-generation";
 import {
@@ -581,7 +582,7 @@ async function proveDraftRevisionReplay(input: {
     "race-second",
   );
 
-  const apply = revisionApplyInput(
+  const apply = await revisionSubmitInput(
     input.editorialDraftId,
     editorialVariantId,
     "revision-apply",
@@ -661,6 +662,7 @@ async function proveDraftRevisionReplay(input: {
     actorId: actor,
     commandKind: "adopt_image",
     expectedActive: noOpInput.expectedActive,
+    expectedImageIntentVersion: 0,
     finalMediaAssetId: selectedMediaAssetId,
     idempotencyKey: "revision-adopt-image",
     platformDraftId: input.editorialDraftId,
@@ -744,7 +746,7 @@ async function proveDraftRevisionReplay(input: {
     ...noOpInput,
     idempotencyKey: "revision-edit",
     requestHash: "revision-edit-hash",
-    expectedActive: { id: adopted.revision.id, version: 2 },
+    expectedActive: { id: adopted.revision.id, version: 1 },
     content: { ...noOpInput.content, body: "Probe editorial body edited" },
   };
   const edited = await executeDraftRevisionCommand(
@@ -775,7 +777,7 @@ async function proveDraftRevisionReplay(input: {
   const telegramFirst = await executeDraftRevisionCommand(
     database.db,
     workspaceId,
-    revisionApplyInput(
+    await revisionSubmitInput(
       input.telegramDraftId,
       telegramVariantId,
       "telegram-apply",
@@ -832,14 +834,14 @@ async function proveDraftRevisionReplay(input: {
     );
   }
 
-  const firstRace = revisionApplyInput(
+  const firstRace = await revisionSubmitInput(
     input.firstRaceDraftId,
     firstRaceVariantId,
     "nested-savepoint-race",
     "nested-savepoint-race-hash",
     null,
   );
-  const secondRace = revisionApplyInput(
+  const secondRace = await revisionSubmitInput(
     input.secondRaceDraftId,
     secondRaceVariantId,
     "nested-savepoint-race",
@@ -868,7 +870,6 @@ async function proveDraftRevisionReplay(input: {
     draftId: input.editorialDraftId,
     variantId: editorialVariantId,
     originalId: appended.revision.id,
-    withMediaId: adopted.revision.id,
     editedId: edited.revision.id,
     foreignRevisionId: telegramFirst.revision.id,
     selectedMediaAssetId,
@@ -883,7 +884,6 @@ async function proveRevisionSnapshots(input: {
   draftId: string;
   variantId: string;
   originalId: string;
-  withMediaId: string;
   editedId: string;
   foreignRevisionId: string;
   selectedMediaAssetId: string;
@@ -901,24 +901,22 @@ async function proveRevisionSnapshots(input: {
   }
   const original = initial.expectedRevision;
   if (
-    original.selectedFinalMediaAssetId !== null ||
+    original.selectedFinalMediaAssetId !== input.selectedMediaAssetId ||
     initial.active.id !== input.editedId ||
     initial.active.selectedFinalMediaAssetId !== input.selectedMediaAssetId
   ) {
-    throw new Error("media changes mutated an earlier revision");
+    throw new Error("revision media pair was not preserved");
   }
-  await assertActiveRevision(input.draftId, input.editedId, 3, 3);
+  await assertActiveRevision(input.draftId, input.editedId, 2, 2);
 
-  const base = {
+  const unchanged = await executeRevision({
     actorId: actor,
     platformDraftId: input.draftId,
-  };
-  const unchanged = await executeRevision({
-    ...base,
     commandKind: "submit_content",
+    source: { kind: "draft_revision", id: input.editedId },
     idempotencyKey: "snapshot-normalized-no-op",
     requestHash: "snapshot-normalized-no-op",
-    expectedActive: { id: input.editedId, version: 3 },
+    expectedActive: { id: input.editedId, version: 2 },
     content: {
       contentLocale: initial.active.contentLocale,
       headline: `  ${initial.active.headline}  `,
@@ -927,288 +925,51 @@ async function proveRevisionSnapshots(input: {
     },
   });
   assertStatus(unchanged.status, "no_op", "normalized unchanged save");
-  await assertActiveRevision(input.draftId, input.editedId, 3, 3);
+  await assertActiveRevision(input.draftId, input.editedId, 2, 2);
 
-  await executeRevision({
-    ...base,
-    commandKind: "select_revision",
-    draftRevisionId: input.originalId,
-    expectedActive: { id: input.editedId, version: 3 },
-    idempotencyKey: "snapshot-select-original",
-    requestHash: "snapshot-select-original",
-  });
-  await assertActiveRevision(input.draftId, input.originalId, 4, 3);
-
-  const equivalentVariantId = await seedSucceededVariant(
-    input.draftId,
-    "equivalent",
-    original,
-  );
-  const equivalent = await executeRevision(
-    revisionApplyInput(
-      input.draftId,
-      equivalentVariantId,
-      "snapshot-equivalent-variant",
-      "snapshot-equivalent-variant",
-      { id: input.originalId, version: 4 },
-    ),
-  );
-  if (
-    equivalent.status !== "no_op" ||
-    equivalent.revision.id !== input.originalId ||
-    equivalent.revision.originatingCopyVariantId !== input.variantId
-  ) {
-    throw new Error("equivalent variant provenance created a duplicate");
-  }
-  await assertActiveRevision(input.draftId, input.originalId, 4, 3);
-
-  const alternateVariantId = await seedSucceededVariant(
-    input.draftId,
-    "alternate",
-  );
-  const alternate = await executeRevision(
-    revisionApplyInput(
-      input.draftId,
-      alternateVariantId,
-      "snapshot-alternate-variant",
-      "snapshot-alternate-variant",
-      { id: input.originalId, version: 4 },
-    ),
-  );
-  assertStatus(alternate.status, "appended", "different variant snapshot");
-  await assertActiveRevision(input.draftId, alternate.revision.id, 5, 4);
-
-  const restored = await executeRevision(
-    revisionApplyInput(
-      input.draftId,
-      input.variantId,
-      "snapshot-original-variant",
-      "snapshot-original-variant",
-      { id: alternate.revision.id, version: 5 },
-    ),
-  );
-  if (
-    restored.status !== "no_op" ||
-    restored.revision.id !== input.originalId
-  ) {
-    throw new Error("A to B to A did not reuse the original snapshot");
-  }
-  await assertActiveRevision(input.draftId, input.originalId, 6, 4);
-
-  const aba = await executeDraftRevisionCommand(database.db, workspaceId, {
-    ...base,
-    commandKind: "select_revision",
-    draftRevisionId: input.editedId,
-    expectedActive: { id: input.originalId, version: 4 },
-    idempotencyKey: "snapshot-aba",
-    requestHash: "snapshot-aba",
-  });
-  assertStatus(aba.status, "version_conflict", "same-ID ABA fence");
-  const foreign = await executeDraftRevisionCommand(database.db, workspaceId, {
-    ...base,
-    commandKind: "select_revision",
-    draftRevisionId: input.foreignRevisionId,
-    expectedActive: { id: input.originalId, version: 6 },
-    idempotencyKey: "snapshot-foreign-selection",
-    requestHash: "snapshot-foreign-selection",
-  });
-  assertStatus(foreign.status, "not_found", "foreign draft selection");
-  const crossWorkspace = await executeDraftRevisionCommand(
-    database.db,
-    otherWorkspaceId,
-    {
-      ...base,
-      commandKind: "select_revision",
-      draftRevisionId: input.originalId,
-      expectedActive: { id: input.originalId, version: 6 },
-      idempotencyKey: "snapshot-cross-workspace-selection",
-      requestHash: "snapshot-cross-workspace-selection",
+  const fromHistory = await executeRevision({
+    actorId: actor,
+    platformDraftId: input.draftId,
+    commandKind: "submit_content",
+    source: { kind: "draft_revision", id: input.originalId },
+    content: {
+      contentLocale: original.contentLocale,
+      headline: original.headline,
+      body: "New saved copy from a historical revision",
+      hashtags: original.hashtags,
     },
-  );
-  assertStatus(crossWorkspace.status, "not_found", "cross-workspace selection");
-  await executeRevision({
-    ...base,
-    commandKind: "select_revision",
-    draftRevisionId: input.originalId,
-    expectedActive: { id: input.originalId, version: 6 },
-    idempotencyKey: "snapshot-already-selected",
-    requestHash: "snapshot-already-selected",
+    expectedActive: { id: input.editedId, version: 2 },
+    idempotencyKey: "snapshot-save-from-history",
+    requestHash: "snapshot-save-from-history",
   });
-  await assertActiveRevision(input.draftId, input.originalId, 6, 4);
+  if (
+    fromHistory.status !== "appended" ||
+    fromHistory.revision.revisionNumber !== 3
+  ) {
+    throw new Error(
+      "editing historical source did not append the next revision",
+    );
+  }
+  await assertActiveRevision(input.draftId, fromHistory.revision.id, 3, 3);
 
-  const reusedMedia = await executeRevision({
-    ...base,
-    commandKind: "adopt_image",
-    finalMediaAssetId: input.selectedMediaAssetId,
-    expectedActive: { id: input.originalId, version: 6 },
-    idempotencyKey: "snapshot-reuse-media",
-    requestHash: "snapshot-reuse-media",
-  });
-  if (
-    reusedMedia.status !== "no_op" ||
-    reusedMedia.revision.id !== input.withMediaId
-  ) {
-    throw new Error("media adoption did not reuse the existing media snapshot");
-  }
-  await assertActiveRevision(input.draftId, input.withMediaId, 7, 4);
-  const preservedMedia = await executeRevision(
-    revisionApplyInput(
-      input.draftId,
-      equivalentVariantId,
-      "snapshot-equivalent-preserves-media",
-      "snapshot-equivalent-preserves-media",
-      { id: input.withMediaId, version: 7 },
-    ),
-  );
-  if (preservedMedia.revision.id !== input.withMediaId) {
-    throw new Error("unchanged copy variant dropped the current media");
-  }
-  await assertActiveRevision(input.draftId, input.withMediaId, 7, 4);
-  const removedMedia = await executeRevision({
-    ...base,
-    commandKind: "remove_image",
-    expectedActive: { id: input.withMediaId, version: 7 },
-    idempotencyKey: "snapshot-remove-media",
-    requestHash: "snapshot-remove-media",
-  });
-  if (
-    removedMedia.status !== "no_op" ||
-    removedMedia.revision.id !== input.originalId
-  ) {
-    throw new Error("image removal did not reuse the original text snapshot");
-  }
-  await assertActiveRevision(input.draftId, input.originalId, 8, 4);
-
-  const tagContent = {
-    contentLocale: original.contentLocale,
-    headline: original.headline,
-    body: original.body,
-    hashtags: ["#probe", "#first", "#second"],
-  };
-  const tags = await executeRevision({
-    ...base,
-    commandKind: "submit_content",
-    content: tagContent,
-    expectedActive: { id: input.originalId, version: 8 },
-    idempotencyKey: "snapshot-tags",
-    requestHash: "snapshot-tags",
-  });
-  const reordered = await executeRevision({
-    ...base,
-    commandKind: "submit_content",
-    content: { ...tagContent, hashtags: ["#probe", "#second", "#first"] },
-    expectedActive: { id: tags.revision.id, version: 9 },
-    idempotencyKey: "snapshot-reordered-tags",
-    requestHash: "snapshot-reordered-tags",
-  });
-  if (tags.status !== "appended" || reordered.status !== "appended") {
-    throw new Error("ordered hashtags were not part of snapshot identity");
-  }
-  const restoredTags = await executeRevision({
-    ...base,
-    commandKind: "submit_content",
-    content: tagContent,
-    expectedActive: { id: reordered.revision.id, version: 10 },
-    idempotencyKey: "snapshot-restored-tags",
-    requestHash: "snapshot-restored-tags",
-  });
-  if (
-    restoredTags.status !== "no_op" ||
-    restoredTags.revision.id !== tags.revision.id
-  ) {
-    throw new Error("unchanged historical copy save was duplicated");
-  }
-  await assertActiveRevision(input.draftId, tags.revision.id, 11, 6);
-
-  const localizedVariantId = await seedSucceededVariant(
-    input.draftId,
-    "localized",
-    { ...original, contentLocale: "fa" },
-  );
-  const localized = await executeRevision(
-    revisionApplyInput(
-      input.draftId,
-      localizedVariantId,
-      "snapshot-language",
-      "snapshot-language",
-      { id: tags.revision.id, version: 11 },
-    ),
-  );
-  assertStatus(localized.status, "appended", "language snapshot identity");
-  const replayContext = await readDraftRevisionCommandContext(
-    database.db,
-    workspaceId,
-    input.draftId,
-    actor,
-    input.originalId,
-  );
-  if (
-    replayContext?.active?.contentLocale !== "fa" ||
-    replayContext.expectedRevision?.contentLocale !== "en"
-  ) {
-    throw new Error("immutable expected revision follows current selection");
-  }
   const replay = await executeRevision(input.replayInput);
   if (replay.status !== "replayed" || replay.revision.id !== input.originalId) {
     throw new Error("old receipt did not preserve its immutable result");
   }
-  await assertActiveRevision(input.draftId, localized.revision.id, 12, 7);
-
-  await executeRevision({
-    ...base,
-    commandKind: "select_revision",
-    draftRevisionId: input.originalId,
-    expectedActive: { id: localized.revision.id, version: 12 },
-    idempotencyKey: "snapshot-old-before-new-save",
-    requestHash: "snapshot-old-before-new-save",
-  });
-  const fromHistory = await executeRevision({
-    ...base,
-    commandKind: "submit_content",
-    content: { ...original, body: "New saved copy from a historical revision" },
-    expectedActive: { id: input.originalId, version: 13 },
-    idempotencyKey: "snapshot-save-from-history",
-    requestHash: "snapshot-save-from-history",
-  });
-  if (fromHistory.revision.revisionNumber !== 8) {
-    throw new Error("saving from history reused the active revision number");
-  }
-  await assertActiveRevision(input.draftId, fromHistory.revision.id, 14, 8);
-
-  const selections = await Promise.all(
-    ["a", "b"].map((suffix) =>
-      executeDraftRevisionCommand(database.db, workspaceId, {
-        ...base,
-        commandKind: "select_revision",
-        draftRevisionId: input.originalId,
-        expectedActive: { id: fromHistory.revision.id, version: 14 },
-        idempotencyKey: `snapshot-concurrent-selection-${suffix}`,
-        requestHash: `snapshot-concurrent-selection-${suffix}`,
-      }),
-    ),
-  );
-  const selectionStatuses = selections
-    .map((result) => result.status)
-    .sort()
-    .join(",");
-  if (selectionStatuses !== "no_op,version_conflict") {
-    throw new Error(`concurrent selection settled as ${selectionStatuses}`);
-  }
-  await assertActiveRevision(input.draftId, input.originalId, 15, 8);
 
   await client.query("begin");
   try {
     await expectConstraint(
       "immutable media snapshot",
-      "update draft_revision set selected_final_media_asset_id = $1 where workspace_id = $2 and id = $3",
-      [input.selectedMediaAssetId, workspaceId, input.originalId],
-      "ck_draft_revision_immutable",
+      "update draft_revision set selected_final_media_asset_id = null where workspace_id = $1 and id = $2",
+      [workspaceId, input.originalId],
+      "ck_draft_revision_generated_media_transition",
     );
     await expectConstraint(
       "immutable copy snapshot",
       "update draft_revision set body = 'changed' where workspace_id = $1 and id = $2",
       [workspaceId, input.originalId],
-      "ck_draft_revision_immutable",
+      "ck_draft_revision_copy_immutable",
     );
     await expectConstraint(
       "active revision belongs to draft",
@@ -1219,64 +980,295 @@ async function proveRevisionSnapshots(input: {
   } finally {
     await client.query("rollback");
   }
-  const legacyDuplicateId = randomUUID();
-  await client.query(
-    `insert into draft_revision
-      (id, workspace_id, platform_draft_id, revision_number, content_locale, headline, body, hashtags, originating_copy_variant_id, selected_final_media_asset_id, authored_by)
-     select $1, workspace_id, platform_draft_id, 9, content_locale, headline, body, hashtags, originating_copy_variant_id, selected_final_media_asset_id, authored_by
-       from draft_revision where workspace_id = $2 and id = $3`,
-    [legacyDuplicateId, workspaceId, input.originalId],
-  );
-  await executeRevision({
-    ...base,
-    commandKind: "select_revision",
-    draftRevisionId: legacyDuplicateId,
-    expectedActive: { id: input.originalId, version: 15 },
-    idempotencyKey: "snapshot-select-legacy-duplicate",
-    requestHash: "snapshot-select-legacy-duplicate",
+
+  await proveVisibleCopyVariantSources({
+    draftId: input.draftId,
+    activeRevisionId: fromHistory.revision.id,
+    activeRevisionVersion: 3,
+    currentVariantId: input.variantId,
+    currentContent: {
+      contentLocale: fromHistory.revision.contentLocale,
+      headline: fromHistory.revision.headline,
+      body: fromHistory.revision.body,
+      hashtags: fromHistory.revision.hashtags,
+    },
   });
-  const currentDuplicate = await executeRevision(
-    revisionApplyInput(
+  observed.push(
+    "immutable-copy-media-pair-source-edit-appends-next-revision",
+    "normalized-unchanged-content-no-op",
+    "copy-variant-source-current-base-retry-and-provenance-only-superseded",
+  );
+}
+
+async function proveVisibleCopyVariantSources(input: {
+  draftId: string;
+  activeRevisionId: string;
+  activeRevisionVersion: number;
+  currentVariantId: string;
+  currentContent: {
+    contentLocale: "en" | "fa";
+    headline: string;
+    body: string;
+    hashtags: string[];
+  };
+}) {
+  const baseline = await startCopyOperation(
+    database.db,
+    workspaceId,
+    copyInput(
       input.draftId,
-      input.variantId,
-      "snapshot-current-duplicate-preferred",
-      "snapshot-current-duplicate-preferred",
-      { id: legacyDuplicateId, version: 16 },
+      "regenerate",
+      "visible-source-baseline",
+      "visible-source-baseline",
     ),
   );
-  if (currentDuplicate.revision.id !== legacyDuplicateId) {
-    throw new Error("exact active snapshot was not preferred over old history");
+  if (baseline.status !== "created") {
+    throw new Error(`baseline generation settled as ${baseline.status}`);
   }
-  await assertActiveRevision(input.draftId, legacyDuplicateId, 16, 9);
-  await executeRevision({
-    ...base,
-    commandKind: "select_revision",
-    draftRevisionId: alternate.revision.id,
-    expectedActive: { id: legacyDuplicateId, version: 16 },
-    idempotencyKey: "snapshot-leave-legacy-duplicate",
-    requestHash: "snapshot-leave-legacy-duplicate",
+  const baselineVariantId = await settleGenerationWithVariant(
+    baseline.operationId,
+    "baseline",
+    input.currentContent,
+  );
+  const baselineNoOp = await executeRevision({
+    actorId: actor,
+    platformDraftId: input.draftId,
+    commandKind: "submit_content",
+    source: { kind: "copy_variant", id: baselineVariantId },
+    content: input.currentContent,
+    expectedActive: {
+      id: input.activeRevisionId,
+      version: input.activeRevisionVersion,
+    },
+    idempotencyKey: "visible-source-baseline-no-op",
+    requestHash: "visible-source-baseline-no-op",
   });
-  const oldest = await executeRevision(
-    revisionApplyInput(
+  if (
+    baselineNoOp.status !== "no_op" ||
+    baselineNoOp.revision.id !== input.activeRevisionId
+  ) {
+    throw new Error("equivalent current source did not preserve the revision");
+  }
+
+  const replacement = await startCopyOperation(
+    database.db,
+    workspaceId,
+    copyInput(
       input.draftId,
-      input.variantId,
-      "snapshot-oldest-exact-match",
-      "snapshot-oldest-exact-match",
-      { id: alternate.revision.id, version: 17 },
+      "regenerate",
+      "visible-source-replacement",
+      "visible-source-replacement",
     ),
   );
-  if (oldest.revision.id !== input.originalId) {
-    throw new Error(
-      "history matching did not select the oldest exact snapshot",
+  if (replacement.status !== "created") {
+    throw new Error(`replacement generation settled as ${replacement.status}`);
+  }
+  await client.query(
+    `update copy_generation
+        set limited = true,
+            limited_reason = 'fetch_failed',
+            source_item_enrichment_id = null,
+            page_content_hash = null
+      where workspace_id = $1 and operation_id = $2`,
+    [workspaceId, replacement.operationId],
+  );
+
+  const whileReplacementRuns = await executeRevision({
+    actorId: actor,
+    platformDraftId: input.draftId,
+    commandKind: "submit_content",
+    source: { kind: "copy_variant", id: baselineVariantId },
+    content: input.currentContent,
+    expectedActive: {
+      id: input.activeRevisionId,
+      version: input.activeRevisionVersion,
+    },
+    idempotencyKey: "visible-source-in-progress",
+    requestHash: "visible-source-in-progress",
+  });
+  if (
+    whileReplacementRuns.status !== "no_op" ||
+    whileReplacementRuns.revision.id !== input.activeRevisionId
+  ) {
+    throw new Error("in-progress replacement hid the last successful set");
+  }
+
+  const replacementVariantId = await settleGenerationWithVariant(
+    replacement.operationId,
+    "replacement",
+    input.currentContent,
+  );
+  const retained = await client.query<{ present: boolean }>(
+    "select exists(select 1 from copy_variant where workspace_id = $1 and id = $2) as present",
+    [workspaceId, input.currentVariantId],
+  );
+  if (!retained.rows[0]?.present) {
+    throw new Error("referenced superseded variation lost its provenance row");
+  }
+
+  const superseded = await executeDraftRevisionCommand(
+    database.db,
+    workspaceId,
+    {
+      actorId: actor,
+      platformDraftId: input.draftId,
+      commandKind: "submit_content",
+      source: { kind: "copy_variant", id: baselineVariantId },
+      content: input.currentContent,
+      expectedActive: {
+        id: input.activeRevisionId,
+        version: input.activeRevisionVersion,
+      },
+      idempotencyKey: "visible-source-superseded",
+      requestHash: "visible-source-superseded",
+    },
+  );
+  assertStatus(
+    superseded.status,
+    "not_found",
+    "superseded provenance-only variant",
+  );
+
+  const replacementRevision = await executeRevision({
+    actorId: actor,
+    platformDraftId: input.draftId,
+    commandKind: "submit_content",
+    source: { kind: "copy_variant", id: replacementVariantId },
+    content: input.currentContent,
+    expectedActive: {
+      id: input.activeRevisionId,
+      version: input.activeRevisionVersion,
+    },
+    idempotencyKey: "visible-source-current-base",
+    requestHash: "visible-source-current-base",
+  });
+  assertStatus(
+    replacementRevision.status,
+    "appended",
+    "same material with changed source provenance",
+  );
+
+  const retry = await startCopyOperation(
+    database.db,
+    workspaceId,
+    copyInput(
+      input.draftId,
+      "retry_failed",
+      "visible-source-retry",
+      "visible-source-retry",
+    ),
+  );
+  if (retry.status !== "created") {
+    throw new Error(`retry generation settled as ${retry.status}`);
+  }
+  const retryVariantId = await settleGenerationWithVariant(
+    retry.operationId,
+    "retry",
+  );
+  const retryRevision = await executeRevision({
+    actorId: actor,
+    platformDraftId: input.draftId,
+    commandKind: "submit_content",
+    source: { kind: "copy_variant", id: retryVariantId },
+    content: generationContent("retry"),
+    expectedActive: {
+      id: replacementRevision.revision.id,
+      version: input.activeRevisionVersion + 1,
+    },
+    idempotencyKey: "visible-source-current-retry",
+    requestHash: "visible-source-current-retry",
+  });
+  assertStatus(
+    retryRevision.status,
+    "appended",
+    "current retry variant source",
+  );
+}
+
+async function settleGenerationWithVariant(
+  operationId: string,
+  suffix: string,
+  selectedContent: {
+    contentLocale: "en" | "fa";
+    headline: string;
+    body: string;
+    hashtags: string[];
+  } = generationContent(suffix),
+) {
+  const units = await client.query<{ id: string }>(
+    `select id
+       from copy_generation_unit
+      where workspace_id = $1 and copy_generation_id = $2
+      order by created_at, id`,
+    [workspaceId, operationId],
+  );
+  const first = units.rows[0];
+  if (!first) throw new Error(`${suffix} generation has no unit`);
+  const attempts = await client.query<{ lastAttempt: number }>(
+    `select coalesce(max(attempt_number), 0)::int as "lastAttempt"
+       from operation_attempt
+      where workspace_id = $1 and operation_id = $2`,
+    [workspaceId, operationId],
+  );
+  const lastAttempt = attempts.rows[0]?.lastAttempt ?? 0;
+
+  for (const [index, unit] of units.rows.entries()) {
+    const attemptId = randomUUID();
+    const succeeded = index === 0;
+    await client.query(
+      `insert into operation_attempt
+        (id, workspace_id, operation_id, attempt_number, outcome, failure_code, created_at, updated_at)
+       values ($1, $2, $3, $4, $5, $6, now(), now())`,
+      [
+        attemptId,
+        workspaceId,
+        operationId,
+        lastAttempt + index + 1,
+        succeeded ? "succeeded" : "failed_terminal",
+        succeeded ? null : "provider_rejected",
+      ],
+    );
+    await client.query(
+      `update copy_generation_unit
+          set status = $1, operation_attempt_id = $2, updated_at = now()
+        where workspace_id = $3 and id = $4`,
+      [succeeded ? "succeeded" : "failed", attemptId, workspaceId, unit.id],
     );
   }
-  await assertActiveRevision(input.draftId, input.originalId, 18, 9);
-  observed.push(
-    "active-history-exact-snapshot-reuse-variant-provenance-independent",
-    "ordered-tags-language-media-identity-immutable-copy-and-media",
-    "active-cas-aba-concurrency-foreign-draft-replay-no-reselect",
-    "legacy-duplicate-current-preferred-oldest-history-reused",
+
+  const variantId = randomUUID();
+  await client.query(
+    `insert into copy_variant
+      (id, workspace_id, copy_generation_unit_id, content_locale, headline, body, hashtags, created_at)
+     values ($1, $2, $3, $4, $5, $6, $7, now())`,
+    [
+      variantId,
+      workspaceId,
+      first.id,
+      selectedContent.contentLocale,
+      selectedContent.headline,
+      selectedContent.body,
+      selectedContent.hashtags,
+    ],
   );
+  const settled = await settleCopyGeneration(
+    database.db,
+    workspaceId,
+    operationId,
+  );
+  if (settled?.lifecycle !== "succeeded") {
+    throw new Error(`${suffix} generation did not succeed`);
+  }
+  return variantId;
+}
+
+function generationContent(suffix: string) {
+  return {
+    contentLocale: "en" as const,
+    headline: `Probe ${suffix} headline`,
+    body: `Probe ${suffix} body`,
+    hashtags: ["#probe", `#${suffix}`],
+  };
 }
 
 async function executeRevision(input: ExecuteDraftRevisionCommandInput) {
@@ -1319,18 +1311,32 @@ async function assertActiveRevision(
   }
 }
 
-function revisionApplyInput(
+async function revisionSubmitInput(
   platformDraftId: string,
   copyVariantId: string,
   idempotencyKey: string,
   requestHash: string,
   active: { id: string; version: number } | null,
-): ExecuteDraftRevisionCommandInput {
+): Promise<ExecuteDraftRevisionCommandInput> {
+  const variant = await client.query<{
+    contentLocale: "en" | "fa";
+    headline: string;
+    body: string;
+    hashtags: string[];
+  }>(
+    `select content_locale as "contentLocale", headline, body, hashtags
+       from copy_variant
+      where workspace_id = $1 and id = $2`,
+    [workspaceId, copyVariantId],
+  );
+  const content = variant.rows[0];
+  if (!content) throw new Error("revision source variation is missing");
   return {
     actorId: actor,
     platformDraftId,
-    commandKind: "apply_copy_variant",
-    copyVariantId,
+    commandKind: "submit_content",
+    source: { kind: "copy_variant", id: copyVariantId },
+    content,
     idempotencyKey,
     requestHash,
     expectedActive: active ?? { id: null, version: 0 },
@@ -1356,38 +1362,22 @@ async function seedSucceededVariant(
        from copy_generation generation
        join copy_generation_unit unit on unit.copy_generation_id = generation.operation_id
       where generation.workspace_id = $1 and generation.platform_draft_id = $2 and unit.status = 'pending'
-      order by generation.created_at, generation.operation_id, unit.created_at, unit.id
+      order by generation.created_at desc, generation.operation_id desc, unit.created_at, unit.id
       limit 1`,
     [workspaceId, platformDraftId],
   );
   const row = unit.rows[0];
   if (!row) throw new Error(`${suffix} has no pending copy unit`);
-  const attemptId = randomUUID();
-  await client.query(
-    `insert into operation_attempt (id, workspace_id, operation_id, attempt_number, outcome, created_at, updated_at)
-     select $1, $2, $3, coalesce(max(attempt_number), 0) + 1, 'succeeded', now(), now()
-       from operation_attempt where workspace_id = $2 and operation_id = $3`,
-    [attemptId, workspaceId, row.operationId],
+  return settleGenerationWithVariant(
+    row.operationId,
+    suffix,
+    content ?? {
+      contentLocale: "en",
+      headline: `Probe ${suffix} headline`,
+      body: `Probe ${suffix} body`,
+      hashtags: ["#probe", "#platform"],
+    },
   );
-  await client.query(
-    `update copy_generation_unit set status = 'succeeded', operation_attempt_id = $1, updated_at = now() where workspace_id = $2 and id = $3`,
-    [attemptId, workspaceId, row.unitId],
-  );
-  const variantId = randomUUID();
-  await client.query(
-    `insert into copy_variant (id, workspace_id, copy_generation_unit_id, content_locale, headline, body, hashtags, created_at)
-     values ($1, $2, $3, $4, $5, $6, $7, now())`,
-    [
-      variantId,
-      workspaceId,
-      row.unitId,
-      content?.contentLocale ?? "en",
-      content?.headline ?? `Probe ${suffix} headline`,
-      content?.body ?? `Probe ${suffix} body`,
-      content?.hashtags ?? ["#probe", "#platform"],
-    ],
-  );
-  return variantId;
 }
 
 async function assertRevisionRaceCounts(
@@ -1402,7 +1392,7 @@ async function assertRevisionRaceCounts(
     activeVersions: number;
   }>(
     `select
-       (select count(*)::int from draft_revision_command_receipt where workspace_id = $1 and actor_id = $2 and command_kind = 'apply_copy_variant' and idempotency_key = $3) as receipts,
+       (select count(*)::int from draft_revision_command_receipt where workspace_id = $1 and actor_id = $2 and command_kind = 'submit_content' and idempotency_key = $3) as receipts,
        (select count(*)::int from draft_revision where workspace_id = $1 and platform_draft_id in ($4, $5)) as revisions,
        (select count(*)::int from platform_draft where workspace_id = $1 and id in ($4, $5) and active_revision_id is not null) as "activeDrafts",
        (select sum(revision_version)::int from platform_draft where workspace_id = $1 and id in ($4, $5)) as "activeVersions"`,
@@ -1430,7 +1420,7 @@ async function proveFreshTransactionWinnerRead(
         (id, workspace_id, actor_id, platform_draft_id, command_kind, idempotency_key, request_hash, resulting_draft_revision_id, appended_revision, created_at)
        select $1, workspace_id, actor_id, platform_draft_id, command_kind, idempotency_key, request_hash, resulting_draft_revision_id, appended_revision, now()
          from draft_revision_command_receipt
-        where workspace_id = $2 and actor_id = $3 and command_kind = 'apply_copy_variant' and idempotency_key = $4`,
+        where workspace_id = $2 and actor_id = $3 and command_kind = 'submit_content' and idempotency_key = $4`,
       [randomUUID(), workspaceId, actor, input.idempotencyKey],
     );
     throw new Error("forced receipt conflict did not fail");

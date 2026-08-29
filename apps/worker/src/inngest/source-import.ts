@@ -8,9 +8,11 @@ import {
   errorCodeSchema,
   type InvocationKey,
   type OperationLifecycle,
+  SOURCE_IMPORT_COMMAND_PREFIX,
   type SourceFetchOutcome,
   type SourceFetchReason,
   type SourceOrigin,
+  sourceItemBriefSchema,
   type TelegramOrderingMode,
   type UsageStatus,
 } from "@rz-chain-reporter/contracts";
@@ -48,14 +50,17 @@ import { ModelGatewayInvocationError } from "@rz-chain-reporter/model-gateway/er
 import { resolveModelTask } from "@rz-chain-reporter/model-gateway/task";
 import { cosineSimilarity } from "ai";
 import { and, eq, sql } from "drizzle-orm";
-import { invoke, NonRetriableError, RetryAfterError } from "inngest";
+import { invoke, NonRetriableError } from "inngest";
 import { z } from "zod";
 import { fetchArticle } from "../articles/fetcher";
 import { EXTRACT_MAX_CHARS } from "../articles/types";
 import { SafeHttpError } from "../fetch/safe-http";
 import { type WorkerLogFields, workerLogger } from "../logging/logger";
 
-import { createWorkerModelGateway } from "../model-gateway/worker-gateway";
+import {
+  type createWorkerModelGateway,
+  workerModelGateway,
+} from "../model-gateway/worker-gateway";
 import { workerEnv } from "../runtime/env";
 import { fetchSource } from "../sources/fetcher";
 import {
@@ -79,8 +84,7 @@ const BRIEF_MIN_CHARS = 40;
 const BRIEF_MAX_CHARS = 1_200;
 const MAX_EMBEDDING_VALUES = 400;
 const MAX_EMBEDDING_VALUE_CHARS = 500;
-const DEFAULT_RETRY_AFTER = "30s";
-const SOURCE_CHILD_RETRIES = 1;
+const SOURCE_CHILD_RETRIES = 0;
 const SOURCE_CHILD_FINISH_TIMEOUT = "30s";
 const SOURCE_CHILD_INVOKE_TIMEOUT = "35s";
 const ENRICH_CHILD_RETRIES = 1;
@@ -145,18 +149,9 @@ async function coded<T>(
   }
 }
 
-const briefSchema = z.strictObject({
-  summary: z.string().min(BRIEF_MIN_CHARS).max(BRIEF_MAX_CHARS),
-});
-
-const embeddingResponseSchema = z.object({
-  data: z.array(
-    z.object({
-      embedding: z.array(z.number()),
-      index: z.int().nonnegative().optional(),
-    }),
-  ),
-});
+const briefSchema = sourceItemBriefSchema
+  .extend({ summary: z.string().min(BRIEF_MIN_CHARS).max(BRIEF_MAX_CHARS) })
+  .strict();
 
 const sourceUnitSchema = z.object({
   concurrencyKey: z.string().min(1),
@@ -175,49 +170,31 @@ const enrichUnitSchema = z.object({
 
 const SOURCE_FETCH_FAILURES: Record<
   SafeHttpError["reason"],
-  {
-    outcome: SourceFetchOutcome;
-    reason: SourceFetchReason | null;
-    retryable: boolean;
-  }
+  { outcome: SourceFetchOutcome; reason: SourceFetchReason | null }
 > = {
-  deadline: { outcome: "timed_out", reason: "deadline", retryable: false },
-  fetch_failed: { outcome: "failed_retryable", reason: null, retryable: true },
-  redirect_blocked: {
-    outcome: "blocked",
-    reason: "redirect_blocked",
-    retryable: false,
-  },
-  retry_after: {
-    outcome: "failed_retryable",
-    reason: "retry_after",
-    retryable: true,
-  },
-  ssrf_blocked: {
-    outcome: "blocked",
-    reason: "ssrf_blocked",
-    retryable: false,
-  },
-  too_large: { outcome: "rejected", reason: "too_large", retryable: false },
-  unsupported_mime: {
-    outcome: "rejected",
-    reason: "unsupported_mime",
-    retryable: false,
-  },
+  deadline: { outcome: "timed_out", reason: "deadline" },
+  fetch_failed: { outcome: "failed_retryable", reason: null },
+  redirect_blocked: { outcome: "blocked", reason: "redirect_blocked" },
+  retry_after: { outcome: "failed_retryable", reason: "retry_after" },
+  ssrf_blocked: { outcome: "blocked", reason: "ssrf_blocked" },
+  too_large: { outcome: "rejected", reason: "too_large" },
+  unsupported_mime: { outcome: "rejected", reason: "unsupported_mime" },
 };
 
 type ClaimResult =
-  | { status: "settled" }
+  | { status: "settled"; actor: string }
   | {
       status: "claimed";
+      actor: string;
       claimedAt: string;
+      sharedImport: boolean;
       enrichmentEnabled: boolean;
       operationVersion: number;
       orderingMode: TelegramOrderingMode;
       sourceImportId: string;
       templateFingerprint: string;
       topN: number;
-      topics: string[];
+      topicCount: number;
       windowHours: number;
     };
 
@@ -252,7 +229,7 @@ async function claimSourceImport(
     }
 
     if (current.lifecycle !== "queued" && current.lifecycle !== "running") {
-      return { status: "settled" };
+      return { status: "settled", actor: current.actor };
     }
 
     const now = new Date();
@@ -280,14 +257,18 @@ async function claimSourceImport(
 
     return {
       status: "claimed",
+      actor: current.actor,
       claimedAt: claimedAt.toISOString(),
       enrichmentEnabled: imported.enrichmentEnabled,
       operationVersion: claimed.version,
       orderingMode: imported.orderingMode,
+      sharedImport: current.commandType.startsWith(
+        SOURCE_IMPORT_COMMAND_PREFIX,
+      ),
       sourceImportId: imported.id,
       templateFingerprint: imported.templateFingerprint,
       topN: imported.topN,
-      topics: imported.topics,
+      topicCount: imported.topics.length,
       windowHours: imported.windowHours,
     };
   });
@@ -319,11 +300,21 @@ export async function settleSourceImportOperation(
   workspaceId: string,
   operationId: string,
   failureCode: ErrorCode | null,
-): Promise<{ lifecycle: OperationLifecycle; version: number } | null> {
+): Promise<{
+  actorId: string;
+  lifecycle: OperationLifecycle;
+  sharedImport: boolean;
+  version: number;
+} | null> {
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
     const [current] = await tx
-      .select({ lifecycle: operation.lifecycle, version: operation.version })
+      .select({
+        actor: operation.actor,
+        commandType: operation.commandType,
+        lifecycle: operation.lifecycle,
+        version: operation.version,
+      })
       .from(operation)
       .where(
         and(
@@ -335,6 +326,11 @@ export async function settleSourceImportOperation(
     if (!current) {
       throw new NonRetriableError("NOT_FOUND");
     }
+
+    const actorId = current.actor;
+    const sharedImport = current.commandType.startsWith(
+      SOURCE_IMPORT_COMMAND_PREFIX,
+    );
 
     const imported = await findSourceImportByOperationId(
       tx,
@@ -373,7 +369,12 @@ export async function settleSourceImportOperation(
         return null;
       }
       await releaseClaim();
-      return { lifecycle: "cancelled", version: cancelled.operation.version };
+      return {
+        actorId,
+        lifecycle: "cancelled",
+        sharedImport,
+        version: cancelled.operation.version,
+      };
     }
 
     if (current.lifecycle !== "running" && current.lifecycle !== "settling") {
@@ -413,7 +414,12 @@ export async function settleSourceImportOperation(
       return null;
     }
     await releaseClaim();
-    return { lifecycle, version: terminal.operation.version };
+    return {
+      actorId,
+      lifecycle,
+      sharedImport,
+      version: terminal.operation.version,
+    };
   });
 }
 
@@ -601,31 +607,6 @@ function interleaveSources(candidates: readonly Candidate[]) {
   return ordered;
 }
 
-function alignEmbeddings(
-  responseBody: unknown,
-  positional: readonly number[][],
-  expected: number,
-) {
-  const parsed = embeddingResponseSchema.safeParse(responseBody);
-  if (parsed.success && parsed.data.data.length === expected) {
-    const ordered: (number[] | undefined)[] = Array.from(
-      { length: expected },
-      () => undefined,
-    );
-    parsed.data.data.forEach((entry, position) => {
-      ordered[entry.index ?? position] = entry.embedding;
-    });
-    const aligned = ordered.filter((vector) => vector !== undefined);
-    if (aligned.length === expected) {
-      return aligned;
-    }
-  }
-  if (positional.length !== expected) {
-    throw new SourceImportError("MODEL_INVOCATION_FAILED");
-  }
-  return [...positional];
-}
-
 function usageStatusOf(
   slots: readonly { invocationKey: InvocationKey; status: UsageStatus }[],
   key: InvocationKey,
@@ -691,16 +672,7 @@ export function createSourceImportFunctions(
   client: WorkerInngestClient,
   runtime: WorkerRuntime,
 ) {
-  const gateway = () =>
-    createWorkerModelGateway({
-      bindings: {
-        OLLAMA_BASE_URL: workerEnv.OLLAMA_BASE_URL,
-        OPENROUTER_API_KEY: workerEnv.OPENROUTER_API_KEY,
-      },
-      executor: runtime.db,
-      identity: runtime.identity,
-      template: runtime.template,
-    });
+  const gateway = () => workerModelGateway(runtime);
 
   const sourceFunction = client.createFunction(
     {
@@ -748,7 +720,7 @@ export function createSourceImportFunctions(
         );
       },
     },
-    async ({ attempt, event, step }) =>
+    async ({ event, step }) =>
       coded(
         {
           operationId: event.data.operationId,
@@ -849,26 +821,13 @@ export function createSourceImportFunctions(
                     throw error;
                   }
                   const mapped = SOURCE_FETCH_FAILURES[error.reason];
-                  if (!mapped.retryable || attempt >= SOURCE_CHILD_RETRIES) {
-                    await settle(mapped.outcome, mapped.reason, {
-                      admittedCount: 0,
-                      etag: unit.etag,
-                      fetchedCount: 0,
-                      lastModified: unit.lastModified,
-                      startedAt,
-                    });
-                  }
-                  if (!mapped.retryable) {
-                    return { outcome: mapped.outcome, sourceId };
-                  }
-                  throw error.reason === "retry_after"
-                    ? new RetryAfterError(
-                        "TRANSIENT_CONFLICT",
-                        error.retryAfterSeconds === null
-                          ? DEFAULT_RETRY_AFTER
-                          : `${error.retryAfterSeconds}s`,
-                      )
-                    : new SourceImportError("TRANSIENT_CONFLICT");
+                  return settle(mapped.outcome, mapped.reason, {
+                    admittedCount: 0,
+                    etag: unit.etag,
+                    fetchedCount: 0,
+                    lastModified: unit.lastModified,
+                    startedAt,
+                  });
                 }
 
                 if (fetched.outcome === "not_modified") {
@@ -982,9 +941,11 @@ export function createSourceImportFunctions(
             step,
             input.workspaceId,
             {
+              actorId: reconciled.completion.result.actorId,
               lifecycle: reconciled.completion.result.lifecycle,
               operationId: input.operationId,
               operationVersion: reconciled.completion.result.version,
+              sharedImport: reconciled.completion.result.sharedImport,
             },
             "worker.source-import.realtime-unavailable",
           );
@@ -993,6 +954,7 @@ export function createSourceImportFunctions(
           step,
           input.workspaceId,
           reconciled.completion.status === "settled" ? "settled" : "enriching",
+          reconciled.completion.result?.actorId ?? null,
         );
       },
     },
@@ -1395,9 +1357,11 @@ export function createSourceImportFunctions(
               step,
               workspaceId,
               {
+                actorId: completion.result.actorId,
                 lifecycle: completion.result.lifecycle,
                 operationId,
                 operationVersion: completion.result.version,
+                sharedImport: completion.result.sharedImport,
               },
               "worker.source-import.realtime-unavailable",
             );
@@ -1406,6 +1370,7 @@ export function createSourceImportFunctions(
             step,
             workspaceId,
             completion.status === "settled" ? "settled" : "enriching",
+            completion.result?.actorId ?? null,
           );
           return result;
         },
@@ -1420,8 +1385,9 @@ export function createSourceImportFunctions(
       onFailure: async ({ event, step }) => {
         const { operationId, workspaceId } = event.data.event.data;
         const failureCode = failureCodeOf(event.data.error.message);
+        let actorId: string | null = null;
         try {
-          await step.run("settle-failed-import", () =>
+          const failed = await step.run("settle-failed-import", () =>
             coded({ operationId, workspaceId }, async () => {
               await assertWorkspace(runtime, workspaceId);
               await settleOperationAttempt(runtime.db, workspaceId, {
@@ -1440,11 +1406,20 @@ export function createSourceImportFunctions(
                 operationId,
                 outcome: settled?.lifecycle ?? "unchanged",
               });
-              return { lifecycle: settled?.lifecycle ?? null };
+              return {
+                actorId: settled?.actorId ?? null,
+                lifecycle: settled?.lifecycle ?? null,
+              };
             }),
           );
+          actorId = failed.actorId ?? null;
         } finally {
-          await notifySourcesAndUsageChanged(step, workspaceId, "failed");
+          await notifySourcesAndUsageChanged(
+            step,
+            workspaceId,
+            "failed",
+            actorId,
+          );
         }
       },
     },
@@ -1463,7 +1438,12 @@ export function createSourceImportFunctions(
             }),
           );
           if (claim.status === "settled") {
-            await notifySourcesAndUsageChanged(step, workspaceId, "replayed");
+            await notifySourcesAndUsageChanged(
+              step,
+              workspaceId,
+              "replayed",
+              claim.actor,
+            );
             return { operationId, replayed: true };
           }
           if (claim.templateFingerprint !== runtime.identity.fingerprint) {
@@ -1476,9 +1456,11 @@ export function createSourceImportFunctions(
             step,
             workspaceId,
             {
+              actorId: claim.actor,
               lifecycle: "running",
               operationId,
               operationVersion: claim.operationVersion,
+              sharedImport: claim.sharedImport,
             },
             "worker.source-import.realtime-unavailable",
           );
@@ -1563,7 +1545,7 @@ export function createSourceImportFunctions(
 
           const embeddingAttemptId =
             claim.orderingMode === "keywords" &&
-            claim.topics.length > 0 &&
+            claim.topicCount > 0 &&
             sources.some((entry) => entry.host === TELEGRAM_HOST)
               ? await step.run("allocate-embedding-attempt", () =>
                   coded(
@@ -1606,6 +1588,14 @@ export function createSourceImportFunctions(
               },
               async () => {
                 await assertWorkspace(runtime, workspaceId);
+                const imported = await findSourceImportByOperationId(
+                  runtime.db,
+                  workspaceId,
+                  operationId,
+                );
+                if (!imported) {
+                  throw new NonRetriableError("NOT_FOUND");
+                }
                 return admitAndOrder(runtime, workspaceId, {
                   claimedAt: Date.parse(claim.claimedAt),
                   embeddingAttemptId,
@@ -1614,7 +1604,7 @@ export function createSourceImportFunctions(
                   operationId,
                   orderingMode: claim.orderingMode,
                   sourceImportId: claim.sourceImportId,
-                  topics: claim.topics,
+                  topics: imported.topics,
                   windowHours: claim.windowHours,
                 });
               },
@@ -1673,6 +1663,7 @@ export function createSourceImportFunctions(
             step,
             workspaceId,
             "enriching",
+            claim.actor,
           );
 
           const completion = await step.run("settle-completed-import", () =>
@@ -1702,16 +1693,23 @@ export function createSourceImportFunctions(
               step,
               workspaceId,
               {
+                actorId: completion.result.actorId,
                 lifecycle: completion.result.lifecycle,
                 operationId,
                 operationVersion: completion.result.version,
+                sharedImport: completion.result.sharedImport,
               },
               "worker.source-import.realtime-unavailable",
             );
           }
           const notification =
             completion.status === "settled"
-              ? await notifySourcesAndUsageChanged(step, workspaceId, "settled")
+              ? await notifySourcesAndUsageChanged(
+                  step,
+                  workspaceId,
+                  "settled",
+                  claim.actor,
+                )
               : readyNotification;
 
           return {
@@ -1951,11 +1949,10 @@ async function rankByKeywords(
     values,
     workspaceId,
   });
-  const vectors = alignEmbeddings(
-    embedded.responseBody,
-    embedded.embeddings,
-    values.length,
-  );
+  if (embedded.embeddings.length !== values.length) {
+    throw new SourceImportError("MODEL_INVOCATION_FAILED");
+  }
+  const vectors = embedded.embeddings;
 
   const [firstVector] = vectors;
   if (!firstVector) {

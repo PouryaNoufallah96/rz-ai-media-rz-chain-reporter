@@ -58,31 +58,34 @@ export default function SignInForm() {
   });
 
   return (
-    <div className="w-full max-w-sm">
+    <div className="w-full">
       <LockKeyholeIcon
         aria-hidden="true"
-        className="mb-6 size-7 text-primary"
+        className="mb-4 size-6 text-primary"
       />
-      <h1 className="font-semibold text-3xl tracking-display">
+      <h1 className="text-balance font-medium text-2xl tracking-display">
         {t("signIn.title")}
       </h1>
-      <p className="mt-3 mb-8 text-muted-foreground text-sm leading-6">
+      <p className="mt-2 mb-7 text-pretty text-muted-foreground text-sm leading-6">
         {t("signIn.description")}
       </p>
       <form
         aria-busy={isPending}
-        className="[&_[data-slot=input]]:h-11"
+        className="max-sm:**:data-[slot=input]:min-h-11"
         onSubmit={onSubmit}
         noValidate
       >
         <FieldGroup>
           <FormInputField
             autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
             control={control}
             disabled={isPending}
             label={t("signIn.email")}
             name="email"
             resolveError={resolveError}
+            spellCheck={false}
             type="email"
           />
           <FormInputField
@@ -108,13 +111,17 @@ export default function SignInForm() {
                 : undefined
             }
           />
-          <Button className="h-11 w-full" disabled={isPending} type="submit">
+          <Button
+            className="w-full max-sm:min-h-11"
+            disabled={isPending}
+            type="submit"
+          >
             {isPending ? <Spinner data-icon="inline-start" /> : null}
             {isPending ? t("signIn.submitting") : t("signIn.submit")}
           </Button>
         </FieldGroup>
       </form>
-      <p className="mt-6 border-t pt-5 text-muted-foreground text-xs leading-5">
+      <p className="mt-6 border-t pt-4 text-muted-foreground text-xs leading-5">
         {t("signIn.provisioned")}
       </p>
     </div>

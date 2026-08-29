@@ -148,6 +148,13 @@ async function main() {
   const scrubbed = scrubTransactionEvent({
     type: "transaction",
     transaction: `GET ${routeCanary}?source=meta`,
+    contexts: {
+      trace: {
+        data: { "http.target": routeCanary },
+        span_id: "0123456789abcdef",
+        trace_id: "0123456789abcdef0123456789abcdef",
+      },
+    },
     spans: [
       {
         data: {},

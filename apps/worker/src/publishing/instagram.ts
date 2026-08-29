@@ -5,6 +5,8 @@ import { z } from "zod";
 import {
   boundedRetry,
   definiteFailure,
+  failed,
+  objectValue,
   type ProviderFailure,
   type Publisher,
   type PublisherRuntime,
@@ -58,6 +60,9 @@ export function createInstagramPublisher(
   const now = input.now ?? Date.now;
   const graphUrl = (path: string, query: Record<string, string>) => {
     const url = new URL(path, GRAPH_ORIGIN);
+    if (url.origin !== GRAPH_ORIGIN) {
+      throw new Error("INSTAGRAM_GRAPH_TARGET_INVALID");
+    }
     for (const [key, value] of Object.entries(query)) {
       url.searchParams.set(key, value);
     }
@@ -601,16 +606,6 @@ function projectStatus(body: unknown) {
 
 function projectIdentifier(body: unknown, key: string) {
   return instagramIdentifierSchema.safeParse(objectValue(body)?.[key]).data;
-}
-
-function failed(attemptId: string, failure: ProviderFailure): PublishResult {
-  return { status: "failed", attemptId, failure };
-}
-
-function objectValue(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null
-    ? (value as Record<string, unknown>)
-    : null;
 }
 
 function retryDelayMs(headers: Headers | undefined, now: number) {

@@ -23,7 +23,6 @@ import {
   finalizeUsageWithResult,
   insertPendingUsage,
 } from "@rz-chain-reporter/db/repositories/ai-usage-event";
-import { grantApproval } from "@rz-chain-reporter/db/repositories/approval";
 import { executeDraftRevisionCommand } from "@rz-chain-reporter/db/repositories/draft-revision";
 import {
   allocateImageStageAttempt,
@@ -120,7 +119,6 @@ import {
 } from "../image-assembler";
 import {
   buildSelectionOutputSchema,
-  deterministicImageFallback,
   normalizeCreativeBrief,
   selectionSignature,
 } from "../image-selection";
@@ -276,6 +274,7 @@ async function mainLocal() {
     const idempotencyKey = randomUUID();
     const requestHash = commandHash({
       draftRevisionId: fixture.draftRevisionId,
+      expectedImageIntentVersion: 0,
       expectedRevisionVersion: 1,
       idempotencyKey,
       modelOptionKey: fixture.modelOptionKey,
@@ -287,6 +286,7 @@ async function mainLocal() {
       {
         actor: fixture.actorId,
         draftRevisionId: fixture.draftRevisionId,
+        expectedImageIntentVersion: 0,
         expectedRevisionVersion: 1,
         idempotencyKey,
         modelOptionKey: fixture.modelOptionKey,
@@ -312,6 +312,7 @@ async function mainLocal() {
       {
         actor: fixture.actorId,
         draftRevisionId: fixture.draftRevisionId,
+        expectedImageIntentVersion: 0,
         expectedRevisionVersion: 1,
         idempotencyKey,
         modelOptionKey: fixture.modelOptionKey,
@@ -346,6 +347,7 @@ async function mainLocal() {
       {
         actor: fixture.actorId,
         draftRevisionId: fixture.draftRevisionId,
+        expectedImageIntentVersion: 0,
         expectedRevisionVersion: 1,
         idempotencyKey,
         modelOptionKey: fixture.modelOptionKey,
@@ -801,11 +803,13 @@ async function mainLocal() {
       {
         actor: fixture.actorId,
         draftRevisionId: fixture.draftRevisionId,
+        expectedImageIntentVersion: 0,
         expectedRevisionVersion: 1,
         idempotencyKey: rearmIdempotencyKey,
         modelOptionKey: fixture.modelOptionKey,
         requestHash: commandHash({
           draftRevisionId: fixture.draftRevisionId,
+          expectedImageIntentVersion: 0,
           expectedRevisionVersion: 1,
           idempotencyKey: rearmIdempotencyKey,
           modelOptionKey: fixture.modelOptionKey,
@@ -894,6 +898,7 @@ async function mainInngest() {
       {
         actor: childFixture.actorId,
         draftRevisionId: childFixture.draftRevisionId,
+        expectedImageIntentVersion: 0,
         expectedRevisionVersion: 1,
         idempotencyKey: randomUUID(),
         modelOptionKey: childFixture.modelOptionKey,
@@ -1021,6 +1026,7 @@ async function mainInngest() {
       {
         actor: parentFixture.actorId,
         draftRevisionId: parentFixture.draftRevisionId,
+        expectedImageIntentVersion: 0,
         expectedRevisionVersion: 1,
         idempotencyKey: randomUUID(),
         modelOptionKey: parentFixture.modelOptionKey,
@@ -1489,6 +1495,7 @@ async function proveBrandConcurrency(
   const sameBrand = await startImageGeneration(db, secondary.workspaceId, {
     actor: secondary.actorId,
     draftRevisionId: secondary.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey: sameBrandKey,
     modelOptionKey: secondary.modelOptionKey,
@@ -1504,6 +1511,7 @@ async function proveBrandConcurrency(
       await startImageGeneration(db, secondary.workspaceId, {
         actor: secondary.actorId,
         draftRevisionId: secondary.draftRevisionId,
+        expectedImageIntentVersion: 0,
         expectedRevisionVersion: 1,
         idempotencyKey: sameBrandKey,
         modelOptionKey: secondary.modelOptionKey,
@@ -1558,6 +1566,7 @@ async function proveBrandConcurrency(
   const differentBrand = await startImageGeneration(db, secondary.workspaceId, {
     actor: secondary.actorId,
     draftRevisionId: secondary.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey: differentBrandKey,
     modelOptionKey: secondary.modelOptionKey,
@@ -1612,6 +1621,7 @@ async function proveCrossDraftReferenceConflict(
       await startImageGeneration(db, secondary.workspaceId, {
         actor: secondary.actorId,
         draftRevisionId: secondary.draftRevisionId,
+        expectedImageIntentVersion: 0,
         expectedRevisionVersion: 1,
         idempotencyKey,
         modelOptionKey: secondary.modelOptionKey,
@@ -1638,6 +1648,7 @@ async function proveReferenceAndCancellation(
   const created = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -1707,6 +1718,7 @@ async function proveReferenceAndCancellation(
   const reused = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey: reuseKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -1772,6 +1784,7 @@ async function proveReferenceAndCancellation(
   const invalidated = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey: invalidatedKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -1968,11 +1981,13 @@ async function mainPaid() {
       {
         actor: fixture.actorId,
         draftRevisionId: fixture.draftRevisionId,
+        expectedImageIntentVersion: 0,
         expectedRevisionVersion: 1,
         idempotencyKey,
         modelOptionKey: fixture.modelOptionKey,
         requestHash: commandHash({
           draftRevisionId: fixture.draftRevisionId,
+          expectedImageIntentVersion: 0,
           expectedRevisionVersion: 1,
           idempotencyKey,
           modelOptionKey: fixture.modelOptionKey,
@@ -2170,6 +2185,32 @@ async function mainFinalization() {
       opened.template,
     );
 
+    const prePaidSupersession = await createFixture(
+      db,
+      workspaceId,
+      opened.template,
+      opened.identity.fingerprint,
+    );
+    fixtures.push(prePaidSupersession);
+    await provePrePaidStageSupersession(
+      opened,
+      prePaidSupersession,
+      workspaceId,
+    );
+
+    const startedSupersession = await createFixture(
+      db,
+      workspaceId,
+      opened.template,
+      opened.identity.fingerprint,
+    );
+    fixtures.push(startedSupersession);
+    await proveStartedImageFinishesUnselected(
+      opened,
+      startedSupersession,
+      workspaceId,
+    );
+
     const succeeded = await createFixture(
       db,
       workspaceId,
@@ -2198,12 +2239,17 @@ async function mainFinalization() {
       workspaceId,
       finalized.operationId,
     );
-    await proveImageAdmissionReplay(db, succeeded, finalized.operationId);
+    await proveImageAdmissionReplay(
+      db,
+      succeeded,
+      finalized.operationId,
+      "image_intent_conflict",
+    );
     await proveImageRemoval(db, workspaceId, succeeded);
     assert.equal(
       (await executeImageBrandedFinal(finalized.runtime, finalized.stageInput))
         .status,
-      "succeeded",
+      "superseded",
     );
     await proveImageRemainsRemoved(
       db,
@@ -2215,21 +2261,12 @@ async function mainFinalization() {
       workspaceId,
       finalized.operationId,
     );
-    if (!succeededContext) throw new Error("FINALIZED_OPERATION_MISSING");
-    assert.ok(
-      await settleImageOperationAndWakeNext(db, workspaceId, {
-        claimedBy: finalized.stageInput.token,
-        expectedVersion: succeededContext.operationVersion,
-        lifecycle: "succeeded",
-        mediaBrandId: succeeded.mediaBrandId,
-        operationId: finalized.operationId,
-      }),
-    );
+    assert.equal(succeededContext?.operationLifecycle, "cancelled");
     const [durableOriginal] = await db
       .select({ cleanupAfter: mediaAsset.cleanupAfter })
       .from(mediaAsset)
       .where(eq(mediaAsset.id, replayed.originalId));
-    assert.equal(durableOriginal?.cleanupAfter, null);
+    assert.ok(durableOriginal?.cleanupAfter);
 
     const changedCopy = await createFixture(
       db,
@@ -2253,7 +2290,7 @@ async function mainFinalization() {
       ).status,
       "succeeded",
     );
-    await proveStaleFinalIsUnattached(
+    await proveFinalTargetsInitiatingRevision(
       db,
       workspaceId,
       changedCopy,
@@ -2278,29 +2315,34 @@ async function mainFinalization() {
       .from(platformDraft)
       .where(eq(platformDraft.id, returnedSelection.platformDraftId));
     assert.ok(changedSelection);
-    const returned = await executeDraftRevisionCommand(db, workspaceId, {
-      actorId: returnedSelection.actorId,
-      commandKind: "select_revision",
-      draftRevisionId: returnedSelection.draftRevisionId,
-      expectedActive: {
-        id: changedSelection.activeRevisionId,
-        version: changedSelection.revisionVersion,
-      },
-      idempotencyKey: randomUUID(),
-      platformDraftId: returnedSelection.platformDraftId,
-      requestHash: commandHash({
-        draftRevisionId: returnedSelection.draftRevisionId,
-      }),
-    });
-    assert.ok("revision" in returned);
+    const [returned] = await db
+      .update(platformDraft)
+      .set({
+        activeRevisionId: returnedSelection.draftRevisionId,
+        revisionVersion: sql`${platformDraft.revisionVersion} + 1`,
+      })
+      .where(
+        and(
+          eq(platformDraft.id, returnedSelection.platformDraftId),
+          eq(
+            platformDraft.activeRevisionId,
+            changedSelection.activeRevisionId ?? "",
+          ),
+          eq(platformDraft.revisionVersion, changedSelection.revisionVersion),
+        ),
+      )
+      .returning({ id: platformDraft.id });
+    assert.ok(returned);
     await proveImageAdmissionReplay(
       db,
       returnedSelection,
       returnedFinal.operationId,
+      "version_conflict",
     );
     const rejectedStaleImage = await startImageGeneration(db, workspaceId, {
       actor: returnedSelection.actorId,
       draftRevisionId: returnedSelection.draftRevisionId,
+      expectedImageIntentVersion: 0,
       expectedRevisionVersion: 1,
       idempotencyKey: randomUUID(),
       modelOptionKey: returnedSelection.modelOptionKey,
@@ -2317,7 +2359,7 @@ async function mainFinalization() {
       ).status,
       "succeeded",
     );
-    await proveStaleFinalIsUnattached(
+    await proveFinalTargetsInitiatingRevision(
       db,
       workspaceId,
       returnedSelection,
@@ -2338,7 +2380,7 @@ async function mainFinalization() {
     );
     await db
       .update(imageGeneration)
-      .set({ expectedRevisionVersion: null })
+      .set({ expectedImageIntentVersion: null })
       .where(eq(imageGeneration.operationId, legacyFinal.operationId));
     assert.equal(
       (
@@ -2730,6 +2772,7 @@ async function runImageStagesThroughProvider(
   const created = await startImageGeneration(opened.database.db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -2767,6 +2810,127 @@ async function runImageStagesThroughProvider(
     "succeeded",
   );
   return { operationId: created.operationId, runtime, stageInput };
+}
+
+async function provePrePaidStageSupersession(
+  opened: ReturnType<typeof openWorkerRuntime>,
+  fixture: Fixture,
+  workspaceId: string,
+) {
+  const db = opened.database.db;
+  const runtime: WorkerRuntime = {
+    db,
+    identity: opened.identity,
+    template: fixture.template,
+  };
+  const firstKey = randomUUID();
+  const first = await startImageGeneration(db, workspaceId, {
+    actor: fixture.actorId,
+    draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
+    expectedRevisionVersion: 1,
+    idempotencyKey: firstKey,
+    modelOptionKey: fixture.modelOptionKey,
+    requestHash: commandHash({ firstKey }),
+    requestId: null,
+  });
+  if (!("operationId" in first)) {
+    throw new Error("PRE_PAID_SUPERSESSION_FIRST_NOT_CREATED");
+  }
+  const token = `pre-paid-supersession:${randomUUID()}`;
+  const claimed = await claimOperationExecution(db, workspaceId, {
+    claimedBy: token,
+    id: first.operationId,
+    leaseExpiresAt: new Date(Date.now() + 120_000),
+    now: new Date(),
+  });
+  if (claimed.status !== "claimed") {
+    throw new Error("PRE_PAID_SUPERSESSION_FIRST_NOT_CLAIMED");
+  }
+  const secondKey = randomUUID();
+  const second = await startImageGeneration(db, workspaceId, {
+    actor: fixture.actorId,
+    draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 1,
+    expectedRevisionVersion: 1,
+    idempotencyKey: secondKey,
+    modelOptionKey: fixture.modelOptionKey,
+    requestHash: commandHash({ secondKey }),
+    requestId: null,
+  });
+  assert.equal(second.status, "created");
+  const adapter = new DeterministicImageAdapter(fixture.fallback, "accepted");
+  const gateway = createWorkerModelGateway({
+    adapters: { local: adapter, remote: adapter },
+    bindings: {},
+    executor: db,
+    identity: opened.identity,
+    template: fixture.template,
+  });
+  assert.equal(
+    (
+      await executeImageSelection(runtime, gateway, {
+        operationId: first.operationId,
+        token,
+        workspaceId,
+      })
+    ).status,
+    "superseded",
+  );
+  assert.equal(adapter.structuredCalls, 0);
+  const superseded = await findImageExecutionContext(
+    db,
+    workspaceId,
+    first.operationId,
+  );
+  assert.equal(superseded?.operationLifecycle, "cancelled");
+}
+
+async function proveStartedImageFinishesUnselected(
+  opened: ReturnType<typeof openWorkerRuntime>,
+  fixture: Fixture,
+  workspaceId: string,
+) {
+  const db = opened.database.db;
+  const staged = await runImageStagesThroughProvider(
+    opened,
+    fixture,
+    workspaceId,
+  );
+  const replacementKey = randomUUID();
+  const replacement = await startImageGeneration(db, workspaceId, {
+    actor: fixture.actorId,
+    draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 1,
+    expectedRevisionVersion: 1,
+    idempotencyKey: replacementKey,
+    modelOptionKey: fixture.modelOptionKey,
+    requestHash: commandHash({ replacementKey }),
+    requestId: null,
+  });
+  assert.equal(replacement.status, "created");
+  assert.equal(
+    (await executeImageBrandedFinal(staged.runtime, staged.stageInput)).status,
+    "superseded",
+  );
+  const context = await findImageExecutionContext(
+    db,
+    workspaceId,
+    staged.operationId,
+  );
+  if (!context?.finalMediaAssetId) {
+    throw new Error("STARTED_SUPERSEDED_FINAL_MISSING");
+  }
+  const [revision] = await db
+    .select({
+      imageIntentVersion: draftRevision.imageIntentVersion,
+      selectedFinalMediaAssetId: draftRevision.selectedFinalMediaAssetId,
+    })
+    .from(draftRevision)
+    .where(eq(draftRevision.id, fixture.draftRevisionId));
+  assert.equal(revision?.imageIntentVersion, 2);
+  assert.equal(revision?.selectedFinalMediaAssetId, null);
+  assert.equal(context.operationLifecycle, "cancelled");
 }
 
 async function proveFinalStageLeaseRenewal(
@@ -2931,6 +3095,7 @@ async function proveJpegReferenceInvocation(
   const created = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -3040,6 +3205,7 @@ async function proveImageProviderRejection(
   const created = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -3215,6 +3381,7 @@ async function proveCreativeBriefNormalization(
   const created = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -3334,6 +3501,7 @@ async function proveBannedCreativeBriefRejection(
   const created = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -3456,6 +3624,7 @@ async function proveDeterministicCreativeBrief(
   const created = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -3576,7 +3745,10 @@ async function proveFinalizationCommit(
     .from(imageVarietyMemory)
     .where(eq(imageVarietyMemory.imageGenerationId, operationId));
   assert.equal(memory.length, 1);
-  assert.equal(memory[0]?.selectionSignature, selectionSignature(selection));
+  assert.equal(
+    memory[0]?.selectionSignature,
+    selectionSignature(brief.brief.imageProfileFingerprint, selection),
+  );
 
   const [original] = await db
     .select()
@@ -3588,6 +3760,8 @@ async function proveFinalizationCommit(
   const revisions = await db
     .select({
       id: draftRevision.id,
+      imageIntentVersion: draftRevision.imageIntentVersion,
+      revisionNumber: draftRevision.revisionNumber,
       selectedFinalMediaAssetId: draftRevision.selectedFinalMediaAssetId,
     })
     .from(draftRevision)
@@ -3599,7 +3773,9 @@ async function proveFinalizationCommit(
     );
   assert.equal(revisions.length, 1);
   assert.equal(revisions[0]?.id, generation.draftRevisionId);
-  assert.equal(revisions[0]?.selectedFinalMediaAssetId, null);
+  assert.equal(revisions[0]?.imageIntentVersion, 1);
+  assert.equal(revisions[0]?.revisionNumber, 1);
+  assert.equal(revisions[0]?.selectedFinalMediaAssetId, finalId);
   const receipts = await db
     .select()
     .from(draftRevisionCommandReceipt)
@@ -3610,12 +3786,7 @@ async function proveFinalizationCommit(
         eq(draftRevisionCommandReceipt.idempotencyKey, operationId),
       ),
     );
-  assert.equal(receipts.length, 1);
-  assert.equal(receipts[0]?.appendedRevision, true);
-  assert.notEqual(
-    receipts[0]?.resultingDraftRevisionId,
-    generation.draftRevisionId,
-  );
+  assert.equal(receipts.length, 0);
   const [active] = await db
     .select({
       revision: draftRevision,
@@ -3626,59 +3797,11 @@ async function proveFinalizationCommit(
       draftRevision,
       eq(draftRevision.id, platformDraft.activeRevisionId),
     )
-    .where(
-      eq(
-        platformDraft.activeRevisionId,
-        receipts[0]?.resultingDraftRevisionId ?? "",
-      ),
-    );
+    .where(eq(platformDraft.activeRevisionId, generation.draftRevisionId));
   assert.equal(active?.revision.selectedFinalMediaAssetId, finalId);
-  assert.equal(active?.revision.revisionNumber, 2);
-  assert.equal(active?.revisionVersion, 2);
+  assert.equal(active?.revision.revisionNumber, 1);
+  assert.equal(active?.revisionVersion, 1);
   assert.ok(active);
-  const rollback = new Error("APPROVAL_PROBE_ROLLBACK");
-  await assert.rejects(
-    db.transaction(async (tx) => {
-      const approved = await grantApproval(tx, workspaceId, {
-        actorId: active.revision.authoredBy,
-        draftRevisionId: active.revision.id,
-        expectedRevisionVersion: active.revisionVersion,
-        selectedFinalMediaAssetId: finalId,
-        idempotencyKey: `final-approval:${operationId}`,
-        requestHash: commandHash({ finalId }),
-      });
-      assert.ok("approval" in approved);
-      const edited = await executeDraftRevisionCommand(tx, workspaceId, {
-        actorId: active.revision.authoredBy,
-        commandKind: "submit_content",
-        content: {
-          body: active.revision.body,
-          contentLocale: active.revision.contentLocale,
-          hashtags: active.revision.hashtags,
-          headline: `${active.revision.headline} changed`,
-        },
-        expectedActive: {
-          id: active.revision.id,
-          version: active.revisionVersion,
-        },
-        idempotencyKey: `edited-final:${operationId}`,
-        platformDraftId: active.revision.platformDraftId,
-        requestHash: commandHash({ finalId, edited: true }),
-      });
-      assert.ok("revision" in edited);
-      assert.notEqual(edited.revision.id, active.revision.id);
-      assert.equal(edited.revision.selectedFinalMediaAssetId, null);
-      const [originalSnapshot] = await tx
-        .select({
-          selectedFinalMediaAssetId: draftRevision.selectedFinalMediaAssetId,
-        })
-        .from(draftRevision)
-        .where(eq(draftRevision.id, active.revision.id));
-      assert.equal(originalSnapshot?.selectedFinalMediaAssetId, finalId);
-      throw rollback;
-    }),
-    (error: unknown) => error === rollback,
-  );
   return { finalId, originalId };
 }
 
@@ -3690,6 +3813,7 @@ async function proveImageRemoval(
   const [before] = await db
     .select({
       id: draftRevision.id,
+      imageIntentVersion: draftRevision.imageIntentVersion,
       revisionVersion: platformDraft.revisionVersion,
       selectedFinalMediaAssetId: draftRevision.selectedFinalMediaAssetId,
     })
@@ -3707,6 +3831,7 @@ async function proveImageRemoval(
   };
   const semanticPayload = {
     commandKind: "remove_image" as const,
+    expectedImageIntentVersion: before.imageIntentVersion,
     platformDraftId: fixture.platformDraftId,
     expectedActive,
   };
@@ -3731,7 +3856,7 @@ async function proveImageRemoval(
     .select({ revisionCount: sql<number>`count(*)::int` })
     .from(draftRevision)
     .where(eq(draftRevision.platformDraftId, fixture.platformDraftId));
-  assert.equal(after?.revisionCount, 2);
+  assert.equal(after?.revisionCount, 1);
   const [receipt] = await db
     .select()
     .from(draftRevisionCommandReceipt)
@@ -3750,6 +3875,7 @@ async function proveImageAdmissionReplay(
   db: Executor,
   fixture: Fixture,
   operationId: string,
+  expectedFreshConflict: "image_intent_conflict" | "version_conflict",
 ) {
   const [admitted] = await db
     .select()
@@ -3759,6 +3885,7 @@ async function proveImageAdmissionReplay(
   const input = {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey: admitted.idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -3778,7 +3905,7 @@ async function proveImageAdmissionReplay(
     ...input,
     idempotencyKey: randomUUID(),
   });
-  assert.equal(freshStale.status, "version_conflict");
+  assert.equal(freshStale.status, expectedFreshConflict);
 }
 
 async function proveImageRemainsRemoved(
@@ -3803,7 +3930,7 @@ async function proveImageRemainsRemoved(
     .select({ id: draftRevisionCommandReceipt.id })
     .from(draftRevisionCommandReceipt)
     .where(eq(draftRevisionCommandReceipt.idempotencyKey, operationId));
-  assert.equal(receipts.length, 1);
+  assert.equal(receipts.length, 0);
 }
 
 async function proveChangedCopySkipsAttachment(db: Executor, fixture: Fixture) {
@@ -3829,7 +3956,7 @@ async function proveChangedCopySkipsAttachment(db: Executor, fixture: Fixture) {
   assert.ok("revision" in changed);
 }
 
-async function proveStaleFinalIsUnattached(
+async function proveFinalTargetsInitiatingRevision(
   db: Executor,
   workspaceId: string,
   fixture: Fixture,
@@ -3842,14 +3969,21 @@ async function proveStaleFinalIsUnattached(
   assert.ok(generation?.finalMediaAssetId);
   const revisions = await db
     .select({
+      id: draftRevision.id,
       selectedFinalMediaAssetId: draftRevision.selectedFinalMediaAssetId,
     })
     .from(draftRevision)
     .where(eq(draftRevision.platformDraftId, fixture.platformDraftId));
   assert.equal(revisions.length, 2);
-  assert.deepEqual(
-    revisions.map((revision) => revision.selectedFinalMediaAssetId),
-    [null, null],
+  assert.equal(
+    revisions.find((revision) => revision.id === fixture.draftRevisionId)
+      ?.selectedFinalMediaAssetId,
+    generation.finalMediaAssetId,
+  );
+  assert.equal(
+    revisions.find((revision) => revision.id !== fixture.draftRevisionId)
+      ?.selectedFinalMediaAssetId,
+    null,
   );
   const receipts = await db
     .select({ id: draftRevisionCommandReceipt.id })
@@ -3874,6 +4008,7 @@ async function proveStaleImageOperations(
   const running = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey: runningKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -3913,6 +4048,7 @@ async function proveStaleImageOperations(
   const queued = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 1,
     expectedRevisionVersion: 1,
     idempotencyKey: queuedKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -3959,6 +4095,7 @@ async function proveStaleImageOperations(
   const freshness = await startImageGeneration(db, workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 2,
     expectedRevisionVersion: 1,
     idempotencyKey: freshnessKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -3996,7 +4133,7 @@ class DeterministicImageAdapter implements RemoteModelAdapter {
   readonly structuredPrompts: string[] = [];
 
   constructor(
-    private readonly fallback: ReturnType<typeof deterministicImageFallback>,
+    private readonly fallback: ImageProfile["fallbackBrief"],
     private readonly behavior:
       | "accepted"
       | "invalid-selection"
@@ -4092,36 +4229,51 @@ async function proveImageSourceReadiness(
       template: fixture.template,
     });
 
-    const rejectedKey = randomUUID();
-    const rejected = await startImageGeneration(db, workspaceId, {
+    const limitedKey = randomUUID();
+    const limited = await startImageGeneration(db, workspaceId, {
       actor: fixture.actorId,
       draftRevisionId: fixture.draftRevisionId,
+      expectedImageIntentVersion: 0,
       expectedRevisionVersion: 1,
-      idempotencyKey: rejectedKey,
+      idempotencyKey: limitedKey,
       modelOptionKey: fixture.modelOptionKey,
-      requestHash: commandHash({ proof: "feed-only-preflight", rejectedKey }),
+      requestHash: commandHash({ limitedKey, proof: "feed-only-fallback" }),
       requestId: null,
     });
-    assert.equal(rejected.status, "image_source_extract_required");
-    assert.deepEqual(
-      await imageCommandFootprint(db, workspaceId, rejectedKey),
-      { operations: 0, outboxEvents: 0, usageEvents: 0 },
-    );
+    assert.equal(limited.status, "created");
+    if (!("operationId" in limited)) {
+      throw new Error("RSS_LIMITED_IMAGE_OPERATION_NOT_CREATED");
+    }
+    assert.deepEqual(await imageCommandFootprint(db, workspaceId, limitedKey), {
+      operations: 1,
+      outboxEvents: 1,
+      usageEvents: 0,
+    });
     assert.equal(adapter.structuredCalls, 0);
     assert.equal(adapter.imageCalls, 0);
+    await proveFeedImageSelection(
+      db,
+      runtime,
+      gateway,
+      fixture,
+      limited.operationId,
+      adapter,
+      binding.sourceItemRevisionId,
+    );
 
     await makeRssBindingIncomplete(db, binding.copyOperationId, false);
     const incompleteKey = randomUUID();
     const incomplete = await startImageGeneration(db, workspaceId, {
       actor: fixture.actorId,
       draftRevisionId: fixture.draftRevisionId,
+      expectedImageIntentVersion: 0,
       expectedRevisionVersion: 1,
       idempotencyKey: incompleteKey,
       modelOptionKey: fixture.modelOptionKey,
       requestHash: commandHash({ incompleteKey, proof: "missing-extract" }),
       requestId: null,
     });
-    assert.equal(incomplete.status, "image_source_extract_required");
+    assert.equal(incomplete.status, "not_found");
     assert.deepEqual(
       await imageCommandFootprint(db, workspaceId, incompleteKey),
       { operations: 0, outboxEvents: 0, usageEvents: 0 },
@@ -4149,60 +4301,14 @@ async function proveImageSourceReadiness(
       "historical-feed-only",
     );
     await makeRssBindingIncomplete(db, binding.copyOperationId, true);
-    const historicalToken = `image-source-readiness:${randomUUID()}`;
-    const historicalClaim = await claimOperationExecution(db, workspaceId, {
-      claimedBy: historicalToken,
-      id: historicalOperation,
-      leaseExpiresAt: new Date(Date.now() + 120_000),
-      now: new Date(),
-    });
-    assert.equal(historicalClaim.status, "claimed");
-    const callsBeforeHistorical = adapter.structuredCalls;
-    assert.equal(
-      (
-        await executeImageSelection(runtime, gateway, {
-          operationId: historicalOperation,
-          token: historicalToken,
-          workspaceId,
-        })
-      ).status,
-      "failed",
-    );
-    assert.equal(adapter.structuredCalls, callsBeforeHistorical);
-    assert.equal(adapter.imageCalls, 0);
-    assert.equal(await usageCount(db, historicalOperation), 0);
-    assert.equal(
-      (
-        await executeImageSelection(runtime, gateway, {
-          operationId: historicalOperation,
-          token: historicalToken,
-          workspaceId,
-        })
-      ).status,
-      "failed",
-    );
-    assert.equal(adapter.structuredCalls, callsBeforeHistorical);
-    const [historicalAttempt] = await db
-      .select({
-        failureCode: operationAttempt.failureCode,
-        outcome: operationAttempt.outcome,
-      })
-      .from(operationAttempt)
-      .where(
-        eq(
-          operationAttempt.id,
-          stableImageIdentity(historicalOperation, "selection"),
-        ),
-      );
-    assert.deepEqual(historicalAttempt, {
-      failureCode: "IMAGE_SOURCE_EXTRACT_REQUIRED",
-      outcome: "failed_terminal",
-    });
-    await settleFixtureImageOperation(
+    await proveFeedImageSelection(
       db,
+      runtime,
+      gateway,
       fixture,
       historicalOperation,
-      "failed",
+      adapter,
+      binding.sourceItemRevisionId,
     );
 
     const firecrawl = await bindRssExtract(db, fixture, binding, "firecrawl");
@@ -4223,11 +4329,10 @@ async function proveImageSourceReadiness(
 
     console.log(
       JSON.stringify({
-        historicalAttempt: "failed_terminal:IMAGE_SOURCE_EXTRACT_REQUIRED",
+        fallbackProvenance: "rss_feed:pinned_source_item_revision",
+        incompleteBinding: "not_found:zero_operation_outbox_usage",
         preflight: "zero_operation_outbox_usage",
-        providerEffects: 0,
-        qualifyingProvenance: ["direct", "firecrawl"],
-        rejectionGatewayCalls: 0,
+        qualifyingProvenance: ["rss_feed", "direct", "firecrawl"],
         proof: "image-source-readiness",
       }),
     );
@@ -4442,6 +4547,7 @@ async function startFixtureImageGeneration(
   const created = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -4497,6 +4603,68 @@ async function proveQualifiedImageSelection(
     ).status,
     "succeeded",
   );
+  await settleFixtureImageOperation(db, fixture, operationId, "cancelled");
+}
+
+async function proveFeedImageSelection(
+  db: Executor,
+  runtime: WorkerRuntime,
+  gateway: ModelGateway,
+  fixture: Fixture,
+  operationId: string,
+  adapter: DeterministicImageAdapter,
+  sourceRevisionId: string,
+) {
+  const authorized = await loadAuthorizedImageSource(
+    db,
+    fixture.workspaceId,
+    operationId,
+  );
+  assert.equal(authorized?.source.kind, "rss");
+  if (authorized?.source.kind !== "rss") {
+    throw new Error("RSS_FEED_SOURCE_REQUIRED");
+  }
+  assert.equal(authorized.source.limited, true);
+  const token = `image-source-feed:${randomUUID()}`;
+  const claim = await claimOperationExecution(db, fixture.workspaceId, {
+    claimedBy: token,
+    id: operationId,
+    leaseExpiresAt: new Date(Date.now() + 120_000),
+    now: new Date(),
+  });
+  assert.equal(claim.status, "claimed");
+  const callsBefore = adapter.structuredCalls;
+  assert.equal(
+    (
+      await executeImageSelection(runtime, gateway, {
+        operationId,
+        token,
+        workspaceId: fixture.workspaceId,
+      })
+    ).status,
+    "succeeded",
+  );
+  assert.equal(adapter.structuredCalls, callsBefore + 1);
+  const [projection] = await db
+    .select({
+      contentHash: imageBrief.rssContentHash,
+      kind: imageBrief.sourceProjectionKind,
+      sourceRevisionId: imageBrief.rssSourceItemRevisionId,
+    })
+    .from(imageGeneration)
+    .innerJoin(
+      imageBrief,
+      and(
+        eq(imageBrief.id, imageGeneration.imageBriefId),
+        eq(imageBrief.workspaceId, imageGeneration.workspaceId),
+      ),
+    )
+    .where(eq(imageGeneration.operationId, operationId));
+  assert.deepEqual(projection, {
+    contentHash: authorized.source.contentHash,
+    kind: "rss_feed",
+    sourceRevisionId,
+  });
   await settleFixtureImageOperation(db, fixture, operationId, "cancelled");
 }
 
@@ -4812,7 +4980,7 @@ async function proveImageParentScheduling(
 type Fixture = {
   actorId: string;
   draftRevisionId: string;
-  fallback: ReturnType<typeof deterministicImageFallback>;
+  fallback: ImageProfile["fallbackBrief"];
   mediaBrandId: string;
   modelOptionKey: string;
   platformDraftId: string;
@@ -5022,14 +5190,14 @@ async function createFixture(
         actualBytes: referenceBytes.byteLength,
         checksum: referenceChecksum,
         declaredBytes: referenceBytes.byteLength,
-        height: 290,
+        height: 97,
         id: referenceId,
         kind: `${FIXTURE_PREFIX}:reference`,
         lifecycle: "verified",
         mimeType: "image/png",
         objectKey: referenceObjectKey,
         verifiedAt: new Date(),
-        width: 400,
+        width: 73,
         workspaceId,
       });
     });
@@ -5040,7 +5208,7 @@ async function createFixture(
   return {
     actorId: actor.id,
     draftRevisionId: revisionId,
-    fallback: deterministicImageFallback(profile),
+    fallback: profile.fallbackBrief,
     mediaBrandId: brandId,
     modelOptionKey: imageModel.key,
     platformDraftId: draftId,
@@ -5082,7 +5250,7 @@ function proveCreativeBriefNormalizationProfiles(template: CustomerTemplate) {
         readFileSync(resolve(customerRoot, brand.imageProfile), "utf8"),
       ),
     );
-    const fallback = deterministicImageFallback(profile);
+    const fallback = profile.fallbackBrief;
     assert.deepEqual(
       normalizeCreativeBrief(profile, fallback.selection, fallback.brief),
       { brief: fallback.brief, failures: [] },
@@ -5218,7 +5386,7 @@ function proveSelectionOutputSchema(template: CustomerTemplate) {
         type: "object",
       },
     );
-    const fallback = deterministicImageFallback(profile);
+    const fallback = profile.fallbackBrief;
     assert.deepEqual(schema.parse(fallback.selection), fallback.selection);
     return [brand.key];
   });
@@ -5246,7 +5414,7 @@ function proveImagePromptProfileBounds(template: CustomerTemplate) {
           readFileSync(resolve(customerRoot, brand.imageProfile), "utf8"),
         ),
       );
-      const fallback = deterministicImageFallback(profile);
+      const fallback = profile.fallbackBrief;
       return [
         [
           brand.key,
@@ -5733,6 +5901,7 @@ async function beginGatewayMatrixOperation(
   const created = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: 0,
     expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -6761,7 +6930,9 @@ function assertLocalServices() {
   const storageUrl = new URL(workerEnv.S3_ENDPOINT);
   if (
     !isLoopback(databaseUrl.hostname) ||
-    databaseUrl.pathname !== "/rz-chain-reporter" ||
+    !["/rz-chain-reporter", "/rz_chain_reporter_lifecycle_probe"].includes(
+      databaseUrl.pathname,
+    ) ||
     !isLoopback(storageUrl.hostname)
   ) {
     throw new Error("DISPOSABLE_PROJECT_LOCAL_FIXTURES_REQUIRED");

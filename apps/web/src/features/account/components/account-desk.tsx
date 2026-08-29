@@ -42,13 +42,14 @@ import { CardSheet } from "@/features/editorial/components/card-sheet";
 import type { PlatformDraftCard } from "@/features/editorial/schemas/drafts";
 import { PublishingFreshness } from "@/features/publishing/components/publishing-freshness";
 import { ScheduledPublicationActions } from "@/features/publishing/components/scheduled-publication-actions";
+import { publicationMark } from "@/features/publishing/lib/publication-mark";
 import type {
-  KeysetPage,
   PublishingHistoryRow,
   PublishingQuery,
   SavedHistoryRow,
   SavedQuery,
 } from "@/features/publishing/schemas/history";
+import type { KeysetPage } from "@/features/shared/lib/keyset-cursor";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 import { Link } from "@/i18n/navigation";
 
@@ -99,6 +100,7 @@ type SelectedDraft = {
 
 export function AccountDesk({
   activities,
+  imageModels,
   ledger,
   profile,
   query,
@@ -109,6 +111,7 @@ export function AccountDesk({
   topics,
 }: {
   activities: ActivityHistoryRow[];
+  imageModels: readonly { key: string; name: string }[];
   ledger: KeysetPage<ActivityLedgerRow>;
   profile: { name: string; email: string; createdAt: Date };
   query: AccountQuery;
@@ -165,6 +168,7 @@ export function AccountDesk({
             installationTimeZone={scheduled.installationTimeZone}
             onOpenDraft={openDraft}
             rows={scheduled.page.rows}
+            showFreshness={selectedDraftId === null}
           />
         </div>
         <div className="grid min-w-0 content-start gap-4 lg:grid-rows-[auto_auto_1fr]">
@@ -201,11 +205,11 @@ export function AccountDesk({
         card={card}
         finalFocus={finalFocus}
         freshness={freshness}
-        key={selectedDraftId ?? "missing-draft"}
+        imageModels={imageModels}
         loading={selectedDraftId !== null && selectedDraftId !== query.draft}
         onOpenChange={(open) => {
           if (!open) {
-            assistant?.clearCard();
+            assistant.clearCard();
             void setValues({ draft: null }, { startTransition });
           }
         }}
@@ -478,10 +482,12 @@ function ScheduledCards({
   installationTimeZone,
   onOpenDraft,
   rows,
+  showFreshness,
 }: {
   installationTimeZone: string;
   onOpenDraft: (event: MouseEvent<HTMLButtonElement>, id: string) => void;
   rows: PublishingHistoryRow[];
+  showFreshness: boolean;
 }) {
   const t = useTranslations(ACCOUNT_NAMESPACE);
   const [expanded, setExpanded] = useState(false);
@@ -505,9 +511,11 @@ function ScheduledCards({
           <p className="text-muted-foreground text-xs">
             {t("scheduled.description")}
           </p>
-          <div className="mt-2">
-            <PublishingFreshness />
-          </div>
+          {showFreshness ? (
+            <div className="mt-2">
+              <PublishingFreshness />
+            </div>
+          ) : null}
         </div>
         {rows.length === 0 ? (
           <CompactEmpty description={t("scheduled.empty")} />
@@ -759,17 +767,14 @@ function SavedCards({
           </section>
         )}
         <KeysetPagination
+          ariaLabel={t("saved.title")}
           backToLatestLabel={t("saved.latest")}
           newerLabel={t("saved.newer")}
           olderLabel={t("saved.older")}
           offLatest={page.offLatest}
-          onBackToLatest={() => void setValues({ savedCursor: null })}
-          onNewer={() => void setValues({ savedCursor: page.newerCursor })}
-          onOlder={
-            page.olderCursor
-              ? () => void setValues({ savedCursor: page.olderCursor })
-              : null
-          }
+          newerCursor={page.newerCursor}
+          olderCursor={page.olderCursor}
+          onCursor={(savedCursor) => void setValues({ savedCursor })}
         />
       </Card>
     </section>
@@ -812,28 +817,4 @@ function CompactEmpty({ description }: { description: string }) {
       </EmptyHeader>
     </Empty>
   );
-}
-
-function publicationMark(
-  lifecycle: PublishingHistoryRow["lifecycle"],
-): StateMarkState {
-  switch (lifecycle) {
-    case "confirmed":
-    case "completed":
-      return "succeeded";
-    case "failed":
-      return "failed";
-    case "cancelled":
-      return "cancelled";
-    case "delivery_unknown":
-    case "missed_requires_confirmation":
-      return "unknown";
-    case "effect_claimed":
-    case "reserved":
-      return "running";
-    case "rescheduled":
-      return "retrying";
-    default:
-      return "queued";
-  }
 }

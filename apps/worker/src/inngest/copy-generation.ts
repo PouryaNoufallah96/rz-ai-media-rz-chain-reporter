@@ -48,7 +48,7 @@ import { fetchArticle } from "../articles/fetcher";
 import type { ArticleBindings, ArticleFetcher } from "../articles/types";
 import { workerLogger } from "../logging/logger";
 
-import { createWorkerModelGateway } from "../model-gateway/worker-gateway";
+import { workerModelGateway } from "../model-gateway/worker-gateway";
 import { resolveArtifactRoot } from "../runtime/artifact-root";
 import { workerEnv } from "../runtime/env";
 import {
@@ -63,6 +63,7 @@ import { durableEvents } from "./events";
 import type { WorkerRuntime } from "./runtime";
 import { assertWorkspace } from "./runtime";
 
+const COPY_GENERATION_FUNCTION_ID = "copy-generation" as const;
 const ARTICLE_FETCH_TIMEOUT_MS = 20_000;
 const COPY_SOURCE_PROJECTION_MAX_CHARS = 8_000;
 const COPY_BRAND_GUIDANCE_MAX_CHARS = 8_000;
@@ -83,6 +84,7 @@ const copyOutputSchema = z.strictObject({
 });
 
 const unitInvokeSchema = z.object({
+  actorId: z.string().optional(),
   operationId: z.uuid(),
   operationVersion: z.int().nonnegative(),
   token: z.string().min(1),
@@ -93,6 +95,10 @@ const unitInvokeSchema = z.object({
 const unitResultSchema = z.strictObject({
   status: z.enum(["cancelled", "failed", "succeeded", "waiting"]),
   unitId: z.uuid(),
+});
+
+const cancelledIdsSchema = z.object({
+  data: z.object({ function_id: z.string(), run_id: z.string() }),
 });
 
 const cancelledEnvelopeSchema = z.object({
@@ -919,16 +925,7 @@ export async function executeCopyGenerationUnit(
 export function createCopyGenerationFunctions(
   client: WorkerInngestClient,
   runtime: WorkerRuntime,
-  gatewayFactory: () => ModelGateway = () =>
-    createWorkerModelGateway({
-      bindings: {
-        OLLAMA_BASE_URL: workerEnv.OLLAMA_BASE_URL,
-        OPENROUTER_API_KEY: workerEnv.OPENROUTER_API_KEY,
-      },
-      executor: runtime.db,
-      identity: runtime.identity,
-      template: runtime.template,
-    }),
+  gatewayFactory: () => ModelGateway = () => workerModelGateway(runtime),
 ) {
   const unitFunction = client.createFunction(
     {
@@ -950,6 +947,7 @@ export function createCopyGenerationFunctions(
           event.data.operationId,
         ),
       );
+      const actorId = event.data.actorId ?? null;
       if (context) {
         await notifyDraftsAndUsageChanged(
           step,
@@ -963,9 +961,15 @@ export function createCopyGenerationFunctions(
                 : "unit_failed",
           ),
           `unit-${event.data.unitId}`,
+          actorId,
         );
       } else {
-        await notifyUsageLedgerChanged(step, event.data.workspaceId);
+        await notifyUsageLedgerChanged(
+          step,
+          event.data.workspaceId,
+          actorId,
+          "unit",
+        );
       }
       return unitResultSchema.parse(result);
     },
@@ -973,7 +977,7 @@ export function createCopyGenerationFunctions(
 
   const parentFunction = client.createFunction(
     {
-      id: "copy-generation",
+      id: COPY_GENERATION_FUNCTION_ID,
       retries: COPY_PARENT_RETRIES,
       triggers: [durableEvents.operationCopyGenerationRequested],
       onFailure: async ({ event, step }) => {
@@ -1002,6 +1006,7 @@ export function createCopyGenerationFunctions(
           workspaceId,
           copyChange(context, "failed"),
           "failure",
+          null,
         );
       },
     },
@@ -1056,6 +1061,7 @@ export function createCopyGenerationFunctions(
             .invoke(`copy-unit-${unit.id}`, {
               function: unitFunction,
               data: {
+                actorId: claimed.operation.actor,
                 operationId,
                 operationVersion: claimed.operation.version,
                 token,
@@ -1120,9 +1126,11 @@ export function createCopyGenerationFunctions(
         step,
         workspaceId,
         {
+          actorId: claimed.operation.actor,
           lifecycle: settled.lifecycle,
           operationId,
           operationVersion: settled.version,
+          sharedImport: false,
         },
         "worker.copy-generation.realtime-unavailable",
       );
@@ -1131,6 +1139,7 @@ export function createCopyGenerationFunctions(
         workspaceId,
         copyChange(terminal, code),
         "terminal",
+        claimed.operation.actor,
       );
       return { lifecycle: settled.lifecycle, operationId };
     },
@@ -1143,13 +1152,24 @@ export function createCopyGenerationFunctions(
       triggers: [
         {
           event: "inngest/function.cancelled",
-          if: `event.data.function_id == '${client.id}-copy-generation'`,
+          if: `event.data.function_id == '${client.id}-${COPY_GENERATION_FUNCTION_ID}'`,
         },
       ],
     },
     async ({ event, step }) => {
       const envelope = cancelledEnvelopeSchema.safeParse(event);
-      if (!envelope.success) return { settled: false };
+      if (!envelope.success) {
+        const ids = cancelledIdsSchema.safeParse(event);
+        await step.run("report-cancelled-event-invalid", async () => {
+          workerLogger.error("worker.copy-generation.cancelled-event-invalid", {
+            errorCode: "VALIDATION_FAILED",
+            functionId: ids.success ? ids.data.data.function_id : undefined,
+            runId: ids.success ? ids.data.data.run_id : undefined,
+          });
+          return { parsed: false };
+        });
+        return { settled: false };
+      }
       const { operationId, workspaceId } = envelope.data.data.event.data;
       const context = await step.run("reload-cancelled-copy", () =>
         findCopyExecutionContext(runtime.db, workspaceId, operationId),
@@ -1184,6 +1204,7 @@ export function createCopyGenerationFunctions(
         workspaceId,
         copyChange(context, "cancelled"),
         "cancelled",
+        null,
       );
       return { lifecycle: settled.lifecycle, settled: true };
     },

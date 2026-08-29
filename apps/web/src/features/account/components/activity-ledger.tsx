@@ -10,7 +10,7 @@ import {
   type keysetDataTableFeatures,
   useKeysetDataTable,
 } from "@/components/data-table/use-keyset-data-table";
-import type { KeysetPage } from "@/features/publishing/schemas/history";
+import type { KeysetPage } from "@/features/shared/lib/keyset-cursor";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 
 import { ACCOUNT_NAMESPACE, ACTIVITY_MESSAGE } from "../constants";
@@ -97,29 +97,24 @@ export function ActivityLedger({
       <p className="mt-1 mb-3 max-w-3xl text-muted-foreground text-xs">
         {t("audit.description")}
       </p>
-      <div className="overflow-x-auto">
-        <CoreDataTable
-          isPending={isPending}
-          labels={{
-            caption: t("audit.caption"),
-            empty: t("audit.empty"),
-            updating: t("audit.updating"),
-          }}
-          table={table}
-        />
-      </div>
+      <CoreDataTable
+        isPending={isPending}
+        labels={{
+          caption: t("audit.caption"),
+          empty: t("audit.empty"),
+          updating: t("audit.updating"),
+        }}
+        table={table}
+      />
       <KeysetPagination
+        ariaLabel={t("audit.title")}
         backToLatestLabel={t("audit.latest")}
         newerLabel={t("audit.newer")}
         offLatest={page.offLatest}
         olderLabel={t("audit.older")}
-        onBackToLatest={() => setValues({ auditCursor: null })}
-        onNewer={() => setValues({ auditCursor: page.newerCursor })}
-        onOlder={
-          page.olderCursor
-            ? () => setValues({ auditCursor: page.olderCursor })
-            : null
-        }
+        newerCursor={page.newerCursor}
+        olderCursor={page.olderCursor}
+        onCursor={(auditCursor) => setValues({ auditCursor })}
       />
     </section>
   );

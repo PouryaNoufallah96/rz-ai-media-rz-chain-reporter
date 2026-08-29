@@ -34,7 +34,7 @@ async function resetPassword() {
       break;
     case "no-credential-account":
       fail(
-        `A user row exists for ${email} with no credential account, so there is no password to reset. Repair it before retrying.`,
+        `A user row exists for ${email} with no credential account, so there is no password to reset. Run operator:create ${email} to link one.`,
       );
       break;
     case "password-rejected":

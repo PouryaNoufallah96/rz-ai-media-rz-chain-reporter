@@ -1,9 +1,9 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { type Executor, withWorkspaceContext } from "../executor";
 import { activityEvent } from "../schema/activity-event";
 import { publishingControl } from "../schema/publishing-control";
-import { appendActivityEvent } from "./activity-event";
+import { appendActivityEvent, lockActivityIdentity } from "./activity-event";
 
 export async function setPublishingPaused(
   executor: Executor,
@@ -22,8 +22,11 @@ export async function setPublishingPaused(
     : ("publishing.resumed" as const);
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`${workspaceId}:${input.actorId}:${eventType}:${input.idempotencyKey}`}, 0))`,
+    await lockActivityIdentity(
+      tx,
+      workspaceId,
+      eventType,
+      input.idempotencyKey,
     );
     const activity = await appendActivityEvent(tx, workspaceId, {
       actorId: input.actorId,

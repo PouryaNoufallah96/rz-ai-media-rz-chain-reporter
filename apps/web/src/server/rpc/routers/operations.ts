@@ -11,7 +11,6 @@ import { rpcDb } from "../db";
 export const list = installationProcedure
   .input(z.strictObject({ focusedOperationId: z.uuid().optional() }))
   .output(z.array(operationSummarySchema))
-  .errors({ UNAUTHORIZED: { status: 401 } })
   .handler(({ context, input }) =>
     listRecentOperations(
       rpcDb(),

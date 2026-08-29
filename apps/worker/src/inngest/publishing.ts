@@ -4,16 +4,21 @@ import {
   type PublicationFailureCode,
   publicationFailureCodeSchema,
 } from "@rz-chain-reporter/contracts";
+import { inWorkspace } from "@rz-chain-reporter/db/filters";
 import { settleReconciliationOperationFailure } from "@rz-chain-reporter/db/repositories/operation-attempt";
 import {
   claimPublicationExecution,
   markPublicationCacheNotificationCompleted,
   readPublicationEffectiveAt,
   readPublicationExecutionSummary,
+  readPublicationOperationActor,
   reassertPublicationExecution,
   settleTimedOutPublicationExecution,
 } from "@rz-chain-reporter/db/repositories/publication";
+import { operation } from "@rz-chain-reporter/db/schema/operation";
+import { and, eq } from "drizzle-orm";
 import { NonRetriableError } from "inngest";
+import { stableFailureCode, workerLogger } from "../logging/logger";
 import { reconcilePublication } from "../publishing/reconcile";
 import { notifyPublishingChanged } from "../web-cache/publishing";
 import { publishOperationStatus } from "./channels";
@@ -57,6 +62,62 @@ export function createPublishingFunctions(
       id: "publication",
       retries: PUBLISH_PARENT_RETRIES,
       triggers: [durableEvents.operationPublicationRequested],
+      onFailure: async ({ event, step }) => {
+        const { operationId, publicationId, scheduleId, workspaceId } =
+          event.data.event.data;
+        const settlement = await step.run(
+          "settle-failed-publication",
+          async () => {
+            const settled = await settleTimedOutPublicationExecution(
+              runtime.db,
+              workspaceId,
+              {
+                claimedBy: `publishing:${event.data.run_id}`,
+                operationId,
+                publicationId,
+              },
+            );
+            if (!("attemptCount" in settled)) return settled;
+            const [owner] = await runtime.db
+              .select({ actor: operation.actor })
+              .from(operation)
+              .where(
+                and(
+                  inWorkspace(operation, workspaceId),
+                  eq(operation.id, operationId),
+                ),
+              );
+            return { ...settled, actor: owner?.actor ?? null };
+          },
+        );
+        if (!("attemptCount" in settlement)) return;
+        if (settlement.actor) {
+          await publishOperationStatus(
+            step,
+            workspaceId,
+            {
+              actorId: settlement.actor,
+              attemptCount: settlement.attemptCount,
+              lifecycle: settlement.operationLifecycle,
+              operationId,
+              operationVersion: settlement.operationVersion,
+              sharedImport: false,
+            },
+            "worker.publishing.realtime-unavailable",
+          );
+        }
+        await notifyPublishingChanged(
+          step,
+          workspaceId,
+          settlement.actor,
+          {
+            operationId,
+            publicationId,
+            scheduleId: scheduleId ?? null,
+          },
+          "failed",
+        );
+      },
     },
     async ({ event, runId, step }) => {
       const { operationId, publicationId, workspaceId } = event.data;
@@ -90,12 +151,14 @@ export function createPublishingFunctions(
         );
         if (claimed.status === "claimed") {
           return {
+            actor: claimed.operation.actor,
             operationVersion: claimed.operation.version,
             status: claimed.status,
           };
         }
         if (claimed.status === "missed") {
           return {
+            actor: claimed.operation.actor,
             attemptCount: claimed.operation.attemptSeq,
             lifecycle: claimed.operation.lifecycle,
             operationVersion: claimed.operation.version,
@@ -110,16 +173,19 @@ export function createPublishingFunctions(
             step,
             workspaceId,
             {
+              actorId: claim.actor,
               attemptCount: claim.attemptCount,
               lifecycle: claim.lifecycle,
               operationId,
               operationVersion: claim.operationVersion,
+              sharedImport: false,
             },
             "worker.publishing.realtime-unavailable",
           );
           await notifyPublishingChanged(
             step,
             workspaceId,
+            claim.actor,
             {
               operationId,
               publicationId,
@@ -135,9 +201,11 @@ export function createPublishingFunctions(
         step,
         workspaceId,
         {
+          actorId: claim.actor,
           lifecycle: "running",
           operationId,
           operationVersion: claim.operationVersion,
+          sharedImport: false,
         },
         "worker.publishing.realtime-unavailable",
       );
@@ -162,31 +230,43 @@ export function createPublishingFunctions(
 
       let result:
         | ReturnType<typeof publishingEffectResultSchema.parse>
-        | Awaited<ReturnType<typeof settleTimedOutPublicationExecution>>;
+        | Awaited<ReturnType<typeof settleTimedOutPublicationExecution>>
+        | null = null;
+      let invoked: unknown;
       try {
-        result = publishingEffectResultSchema.parse(
-          await step.invoke("invoke-publication-provider-effect", {
-            data: {
-              claimedBy,
-              claimVersion: claim.operationVersion,
-              operationId,
-              publicationId,
-              workspaceId,
-            },
-            function: effect,
-            timeout: PUBLISH_EFFECT_INVOKE_TIMEOUT,
-          }),
-        );
-      } catch {
+        invoked = await step.invoke("invoke-publication-provider-effect", {
+          data: {
+            claimedBy,
+            claimVersion: claim.operationVersion,
+            operationId,
+            publicationId,
+            workspaceId,
+          },
+          function: effect,
+          timeout: PUBLISH_EFFECT_INVOKE_TIMEOUT,
+        });
+      } catch (error) {
         result = await step.run(
           "settle-publication-after-effect-invoke-failure",
-          () =>
-            settleTimedOutPublicationExecution(runtime.db, workspaceId, {
+          () => {
+            workerLogger.warn("worker.publishing.effect-invoke-failed", {
+              operationId,
+              reason: stableFailureCode(
+                error,
+                error instanceof Error ? error.name : "unknown",
+              ),
+              workspaceId,
+            });
+            return settleTimedOutPublicationExecution(runtime.db, workspaceId, {
               claimedBy,
               operationId,
               publicationId,
-            }),
+            });
+          },
         );
+      }
+      if (result === null) {
+        result = publishingEffectResultSchema.parse(invoked);
       }
       const final = await step.run("reload-publication-after-effect", () =>
         readPublicationExecutionSummary(runtime.db, workspaceId, operationId),
@@ -196,11 +276,13 @@ export function createPublishingFunctions(
           step,
           workspaceId,
           {
+            actorId: claim.actor,
             attemptCount: final.attemptCount,
             latestAttemptOutcome: final.latestAttemptOutcome ?? undefined,
             lifecycle: final.operationLifecycle,
             operationId,
             operationVersion: final.operationVersion,
+            sharedImport: false,
           },
           "worker.publishing.realtime-unavailable",
         );
@@ -208,6 +290,7 @@ export function createPublishingFunctions(
       const notification = await notifyPublishingChanged(
         step,
         workspaceId,
+        claim.actor,
         {
           operationId,
           publicationId,
@@ -255,6 +338,7 @@ export function createPublishingFunctions(
             );
             return settled
               ? {
+                  actor: settled.operation.actor,
                   attemptCount: settled.attemptCount,
                   latestAttemptOutcome: settled.latestAttemptOutcome,
                   operationLifecycle: settled.operation.lifecycle,
@@ -268,11 +352,13 @@ export function createPublishingFunctions(
           step,
           workspaceId,
           {
+            actorId: settlement.actor,
             attemptCount: settlement.attemptCount,
             latestAttemptOutcome: settlement.latestAttemptOutcome,
             lifecycle: settlement.operationLifecycle,
             operationId,
             operationVersion: settlement.operationVersion,
+            sharedImport: false,
           },
           "worker.publishing.realtime-unavailable",
         );
@@ -286,9 +372,17 @@ export function createPublishingFunctions(
         publicationId: event.data.publicationId,
         workspaceId: event.data.workspaceId,
       });
+      const actor = await step.run("load-reconciliation-actor", () =>
+        readPublicationOperationActor(
+          runtime.db,
+          event.data.workspaceId,
+          event.data.operationId,
+        ),
+      );
       await notifyPublishingChanged(
         step,
         event.data.workspaceId,
+        actor,
         {
           operationId: event.data.operationId,
           publicationId: event.data.publicationId,

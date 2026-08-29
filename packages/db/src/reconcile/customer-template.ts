@@ -18,6 +18,7 @@ import type {
 } from "./report";
 
 const RECONCILE_ERROR_CODES = [
+  "BLOCKED_CHANGE",
   "MULTIPLE_WORKSPACES",
   "FOREIGN_INSTALLATION",
 ] as const;
@@ -105,10 +106,21 @@ export async function reconcileCustomerTemplate(
         ...mappings.entries,
       ];
 
+      const blocked = entries.filter((row) => row.outcome === "blocked");
+      if (mode === "apply" && blocked.length > 0) {
+        throw new ReconcileError(
+          "BLOCKED_CHANGE",
+          blocked
+            .map(
+              (row) => `${row.entity} "${row.key}" [${row.fields?.join(", ")}]`,
+            )
+            .join(", "),
+        );
+      }
+
       const divergent = entries.some((row) => row.outcome !== "unchanged");
       const appliedAt = mode === "apply" && divergent ? run.at : null;
 
-      // Stamp applied state in this transaction only when the run wrote something.
       if (existing && appliedAt) {
         await tx
           .update(workspace)
@@ -287,7 +299,6 @@ async function reconcileMediaBrands(
   const idByKey = new Map<string, string>();
 
   for (const [index, brand] of brands.entries()) {
-    // sort_order is derived from authored template order, not a separate field.
     const sortOrder = index + 1;
     const values = { name: brand.name, sortOrder };
     const current = byKey.get(brand.key);
@@ -572,11 +583,14 @@ async function reconcileDestinationAccounts(
 
     idByKey.set(account.key, current.id);
 
-    const fields: string[] = [];
-
     if (current.platform !== account.platform) {
-      fields.push("platform");
+      entries.push(
+        entry("destination_account", account.key, "blocked", ["platform"]),
+      );
+      continue;
     }
+
+    const fields: string[] = [];
 
     if (current.enabled !== account.enabled) {
       fields.push("enabled");

@@ -21,7 +21,6 @@ export const startImport = installationProcedure
   .input(startSourceImportInputSchema)
   .output(startSourceImportResultSchema)
   .errors({
-    UNAUTHORIZED: { status: 401 },
     VALIDATION_FAILED: { status: 400 },
     SOURCE_IMPORT_IN_PROGRESS: { status: 409 },
     TEMPLATE_DRIFT: { status: 409 },

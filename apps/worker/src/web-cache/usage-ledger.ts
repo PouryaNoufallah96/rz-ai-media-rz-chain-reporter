@@ -4,25 +4,31 @@ import {
   publishUsageLedgerChanged,
   type WorkerStep,
 } from "../inngest/channels";
-import { notifyCacheInvalidation } from "./notify";
+import { notifyCacheInvalidationForDurableStep } from "./notify";
 
 export async function notifyUsageLedgerChanged(
   step: WorkerStep,
   workspaceId: string,
+  actorId: string | null,
+  callSite: string,
 ) {
-  const cacheInvalidation = await step.run("notify-usage-cache", () =>
-    notifyCacheInvalidation([workspaceCacheTag(workspaceId, "usage")]),
+  const cacheInvalidation = await step.run(
+    `notify-usage-cache-${callSite}`,
+    () =>
+      notifyCacheInvalidationForDurableStep([
+        workspaceCacheTag(workspaceId, "usage"),
+      ]),
   );
 
   if (cacheInvalidation === "accepted") {
-    await step.sleep("let-web-cache-flush", "1s");
+    await step.sleep(`let-usage-cache-flush-${callSite}`, "1s");
   }
 
   return {
     cacheInvalidation,
     usageRealtimePublished:
       cacheInvalidation === "accepted"
-        ? await publishUsageLedgerChanged(step, workspaceId)
+        ? await publishUsageLedgerChanged(step, workspaceId, actorId)
         : false,
   };
 }

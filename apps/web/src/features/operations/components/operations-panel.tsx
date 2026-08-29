@@ -25,7 +25,7 @@ import { Check, ChevronRight, Copy } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { StateMark } from "@/components/common/state-mark";
+import { StateMark, stateTone } from "@/components/common/state-mark";
 
 import { OPERATIONS_NAMESPACE } from "../constants";
 import {
@@ -326,9 +326,6 @@ function OperationStateLabel({
         })
       : t("stage.acquiring");
   }
-  if (operation.sourceImport?.partial && operation.lifecycle === "succeeded") {
-    return t("state.partial");
-  }
   return t(`state.${state}`);
 }
 
@@ -394,19 +391,6 @@ function operationKindKey(commandType: string) {
     return "kind.publishing" as const;
   }
   return KIND_KEYS[operationCommandKind(commandType)];
-}
-
-function stateTone(state: PanelState) {
-  if (state === "failed") {
-    return "text-destructive text-sm";
-  }
-  if (state === "succeeded") {
-    return "text-proof-text text-sm";
-  }
-  if (["running", "retrying", "unknown"].includes(state)) {
-    return "text-working text-sm";
-  }
-  return "text-sm";
 }
 
 function shortId(id: string) {

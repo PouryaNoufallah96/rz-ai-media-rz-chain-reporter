@@ -3,13 +3,18 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "inputs": ["$TURBO_EXTENDS$", ".env", ".env.*"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/customer-templates/**",
+        "!$TURBO_ROOT$/customer-templates/**/.DS_Store",
+        ".env",
+        ".env.*"
+      ],
       "env": [
         "$TURBO_EXTENDS$",
         "DATABASE_URL",
         "BETTER_AUTH_SECRET",
         "BETTER_AUTH_URL",
-        "CORS_ORIGIN",
         "APP_URL",
         "INNGEST_DEV",
         "INNGEST_SIGNING_KEY",
@@ -19,7 +24,8 @@
         "S3_BUCKET",
         "S3_ENDPOINT",
         "S3_REGION",
-        "S3_SECRET_ACCESS_KEY"
+        "S3_SECRET_ACCESS_KEY",
+        "APP_VERSION"
       ],
       "outputs": [
         ".next/**",

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
+import type { ORPCErrorConstructorMap } from "@orpc/server";
 import { installationProcedure } from "@rz-chain-reporter/api";
 import {
   assembleCopy,
@@ -12,6 +13,7 @@ import {
   PLATFORM_COPY_HARD_MAX,
   platformCopyLength,
   runConfigurationSchema,
+  runConfigurationTransportSchema,
 } from "@rz-chain-reporter/contracts";
 import { classifyDbError } from "@rz-chain-reporter/db/db-error";
 import {
@@ -55,7 +57,6 @@ import {
 } from "@/features/editorial/schemas/drafts";
 import {
   cancelAnalysisRunInputSchema,
-  startAnalysisRunInputSchema,
   startAnalysisRunResultSchema,
 } from "@/features/editorial/schemas/workspace";
 import {
@@ -74,7 +75,6 @@ const customerRunConfigurationSchema = runConfigurationSchema(
 );
 
 const copyOperationErrors = {
-  UNAUTHORIZED: { status: 401 },
   VALIDATION_FAILED: { status: 400 },
   NOT_FOUND: { status: 404 },
   IDEMPOTENCY_KEY_REUSED: { status: 409 },
@@ -83,10 +83,11 @@ const copyOperationErrors = {
 } as const;
 
 const imageOperationErrors = {
-  UNAUTHORIZED: { status: 401 },
   VALIDATION_FAILED: { status: 400 },
   NOT_FOUND: { status: 404 },
   IMAGE_SOURCE_EXTRACT_REQUIRED: { status: 409 },
+  IMAGE_INTENT_CONFLICT: { status: 409 },
+  MEDIA_LOCKED: { status: 409 },
   VERSION_CONFLICT: { status: 409 },
   IDEMPOTENCY_KEY_REUSED: { status: 409 },
   OPERATION_IN_PROGRESS: { status: 409 },
@@ -127,19 +128,11 @@ export const retryImageGeneration = installationProcedure
 
 async function executeImageCommand(
   context: {
-    requestId: string | null;
+    requestId: string;
     session: { user: { id: string } };
     workspaceId: string;
   },
-  errors: {
-    IDEMPOTENCY_KEY_REUSED: () => Error;
-    IMAGE_SOURCE_EXTRACT_REQUIRED: () => Error;
-    NOT_FOUND: () => Error;
-    OPERATION_IN_PROGRESS: () => Error;
-    REFERENCE_CONFLICT: () => Error;
-    VALIDATION_FAILED: () => Error;
-    VERSION_CONFLICT: () => Error;
-  },
+  errors: ORPCErrorConstructorMap<typeof imageOperationErrors>,
   input:
     | z.infer<typeof startImageGenerationInputSchema>
     | z.infer<typeof retryImageGenerationInputSchema>,
@@ -155,6 +148,7 @@ async function executeImageCommand(
       actor: context.session.user.id,
       draftRevisionId: input.draftRevisionId,
       expectedRevisionVersion: input.expectedRevisionVersion,
+      expectedImageIntentVersion: input.expectedImageIntentVersion,
       idempotencyKey: input.idempotencyKey,
       modelOptionKey: input.modelOptionKey,
       operatorDirection: input.operatorDirection,
@@ -168,6 +162,10 @@ async function executeImageCommand(
     throw errors.IMAGE_SOURCE_EXTRACT_REQUIRED();
   }
   if (result.status === "version_conflict") throw errors.VERSION_CONFLICT();
+  if (result.status === "image_intent_conflict") {
+    throw errors.IMAGE_INTENT_CONFLICT();
+  }
+  if (result.status === "media_locked") throw errors.MEDIA_LOCKED();
   if (result.status === "idempotency_mismatch") {
     throw errors.IDEMPOTENCY_KEY_REUSED();
   }
@@ -246,13 +244,13 @@ export const updateDraftRevision = installationProcedure
   .input(updateDraftRevisionInputSchema)
   .output(updateDraftRevisionResultSchema)
   .errors({
-    UNAUTHORIZED: { status: 401 },
     VALIDATION_FAILED: { status: 400 },
     NOT_FOUND: { status: 404 },
     VERSION_CONFLICT: { status: 409 },
     IDEMPOTENCY_KEY_REUSED: { status: 409 },
     MEDIA_INVALID: { status: 400 },
     MEDIA_CONTENT_MISMATCH: { status: 409 },
+    MEDIA_LOCKED: { status: 409 },
   })
   .handler(async ({ context, errors, input }) => {
     const commandContext = await readDraftRevisionCommandContext(
@@ -261,8 +259,15 @@ export const updateDraftRevision = installationProcedure
       input.platformDraftId,
       context.session.user.id,
       input.expectedActive.id,
+      input.commandKind === "submit_content" ? input.source : undefined,
     );
     if (!commandContext) throw errors.NOT_FOUND();
+    if (
+      input.commandKind === "submit_content" &&
+      !commandContext.sourceRevision
+    ) {
+      throw errors.NOT_FOUND();
+    }
 
     const resolved = revisionCommand(input, commandContext);
     if (!resolved) throw errors.VALIDATION_FAILED();
@@ -281,10 +286,14 @@ export const updateDraftRevision = installationProcedure
       if (result.status === "version_conflict") {
         throw errors.VERSION_CONFLICT();
       }
+      if (result.status === "validation_failed") {
+        throw errors.VALIDATION_FAILED();
+      }
       if (result.status === "media_invalid") throw errors.MEDIA_INVALID();
       if (result.status === "media_content_mismatch") {
         throw errors.MEDIA_CONTENT_MISMATCH();
       }
+      if (result.status === "media_locked") throw errors.MEDIA_LOCKED();
       throw errors.IDEMPOTENCY_KEY_REUSED();
     }
     const [snapshot] = await readPlatformDrafts(
@@ -294,12 +303,15 @@ export const updateDraftRevision = installationProcedure
       context.session.user.id,
       env.PUBLISHING_EMERGENCY_PAUSED,
       customerTimeZone,
-      customerEditorial.drafting.image.models.filter((model) => model.enabled),
     );
     if (!snapshot) throw errors.NOT_FOUND();
     return {
       status: result.status,
       appendedRevision: result.appendedRevision,
+      revision: {
+        id: result.revision.id,
+        revisionNumber: result.revision.revisionNumber,
+      },
       card: snapshot.card,
     };
   });
@@ -321,53 +333,46 @@ function revisionCommand(
       semanticPayload: { ...identity, draftRevisionId: input.draftRevisionId },
     };
   }
-  if (input.commandKind === "apply_copy_variant") {
-    return {
-      command: input,
-      semanticPayload: { ...identity, copyVariantId: input.copyVariantId },
-    };
-  }
   if (input.commandKind === "adopt_image") {
     return {
       command: input,
       semanticPayload: {
         ...identity,
         finalMediaAssetId: input.finalMediaAssetId,
+        expectedImageIntentVersion: input.expectedImageIntentVersion,
       },
     };
   }
   if (input.commandKind === "remove_image") {
-    return { command: input, semanticPayload: identity };
+    return {
+      command: input,
+      semanticPayload: {
+        ...identity,
+        expectedImageIntentVersion: input.expectedImageIntentVersion,
+      },
+    };
   }
 
   const content = normalizeRevisionContent(
     input.content,
-    context.expectedRevision?.hashtags[0] ?? null,
+    context.sourceRevision?.hashtags[0] ?? null,
   );
   if (
     !content ||
-    context.expectedRevision?.contentLocale !== content.contentLocale ||
+    context.sourceRevision?.contentLocale !== content.contentLocale ||
     !validRevisionContent(context.platform, content)
   ) {
     return null;
   }
   return {
     command: { ...input, content },
-    semanticPayload: { ...identity, content },
+    semanticPayload: { ...identity, source: input.source, content },
   };
 }
 
-type CopyErrors = {
-  IDEMPOTENCY_KEY_REUSED: () => Error;
-  NOT_FOUND: () => Error;
-  OPERATION_IN_PROGRESS: () => Error;
-  TEMPLATE_DRIFT: () => Error;
-  VALIDATION_FAILED: () => Error;
-};
-
 function settleCopyOperation(
   result: Awaited<ReturnType<typeof startCopyOperation>>,
-  errors: CopyErrors,
+  errors: ORPCErrorConstructorMap<typeof copyOperationErrors>,
 ) {
   if (!("operationId" in result)) {
     if (result.status === "not_found") throw errors.NOT_FOUND();
@@ -387,7 +392,7 @@ function settleCopyOperation(
 
 function copyOperationIdentity(
   context: {
-    requestId: string | null;
+    requestId: string;
     session: { user: { id: string } };
   },
   input: { idempotencyKey: string; platformDraftId: string; kind: string },
@@ -466,7 +471,6 @@ export const reorderDrafts = installationProcedure
   .input(reorderPlatformDraftsInputSchema)
   .output(reorderPlatformDraftsResultSchema)
   .errors({
-    UNAUTHORIZED: { status: 401 },
     NOT_FOUND: { status: 404 },
     VERSION_CONFLICT: { status: 409 },
     LANE_MEMBERSHIP_CONFLICT: { status: 409 },
@@ -492,7 +496,6 @@ export const routeDraft = installationProcedure
   .input(routePlatformDraftInputSchema)
   .output(routePlatformDraftResultSchema)
   .errors({
-    UNAUTHORIZED: { status: 401 },
     VALIDATION_FAILED: { status: 400 },
     NOT_FOUND: { status: 404 },
     IDEMPOTENCY_KEY_REUSED: { status: 409 },
@@ -613,10 +616,9 @@ export const routeDraft = installationProcedure
   });
 
 export const startRun = installationProcedure
-  .input(startAnalysisRunInputSchema)
+  .input(runConfigurationTransportSchema)
   .output(startAnalysisRunResultSchema)
   .errors({
-    UNAUTHORIZED: { status: 401 },
     VALIDATION_FAILED: { status: 400 },
     TRANSIENT_CONFLICT: { status: 409 },
     IDEMPOTENCY_KEY_REUSED: { status: 409 },
@@ -708,7 +710,6 @@ export const cancelRun = installationProcedure
   .input(cancelAnalysisRunInputSchema)
   .output(okSchema)
   .errors({
-    UNAUTHORIZED: { status: 401 },
     NOT_FOUND: { status: 404 },
   })
   .handler(async ({ context, errors, input }) => {

@@ -5,6 +5,8 @@ import { z } from "zod";
 import {
   boundedRetry,
   definiteFailure,
+  failed,
+  objectValue,
   type ProviderFailure,
   type Publisher,
   type PublisherRuntime,
@@ -112,16 +114,20 @@ export function createXPublisher(input: XDependencies): Publisher {
               ),
             };
           }
-          const media = await input.runtime
-            .readMedia(material.media.objectKey)
-            .catch(() => null);
-          if (!media) {
+          let media: Uint8Array;
+          try {
+            media = await input.runtime.readMedia(material.media.objectKey);
+          } catch (error) {
             return {
-              failure: definiteFailure(
-                "MEDIA_NOT_PUBLISHABLE",
-                "invalid",
-                "preparation",
-                "none",
+              failure: boundedRetry(
+                definiteFailure(
+                  "MEDIA_NOT_PUBLISHABLE",
+                  providerFailureClass(error),
+                  "preparation",
+                  "retry_preparation",
+                ),
+                attempt.number,
+                Date.now(),
               ),
             };
           }
@@ -516,10 +522,6 @@ function encode(value: string) {
   );
 }
 
-function failed(attemptId: string, failure: ProviderFailure): PublishResult {
-  return { status: "failed", attemptId, failure };
-}
-
 function projectIdentifier(body: unknown, key: string) {
   const value = objectValue(body)?.[key];
   return xIdentifierSchema.safeParse(value).data;
@@ -600,12 +602,6 @@ function xReconciliationReadFailure(
     1,
     Date.now(),
   );
-}
-
-function objectValue(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null
-    ? (value as Record<string, unknown>)
-    : null;
 }
 
 function retryDelayMs(headers: Headers | undefined, now: number) {

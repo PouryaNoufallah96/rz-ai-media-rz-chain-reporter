@@ -13,6 +13,9 @@ export type MediaAssetLifecycle = (typeof MEDIA_ASSET_LIFECYCLES)[number];
 
 export const mediaAssetLifecycleSchema = z.enum(MEDIA_ASSET_LIFECYCLES);
 
+export const confirmedMediaAssetLifecycleSchema =
+  mediaAssetLifecycleSchema.exclude(["pending", "expired"]);
+
 export const REFERENCE_IMAGE_KIND = "reference_image";
 export const MAX_REFERENCE_IMAGE_BYTES = 900 * 1024;
 export const MAX_REFERENCE_IMAGE_DIMENSION = 4096;

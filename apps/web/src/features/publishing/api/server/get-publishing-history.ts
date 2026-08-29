@@ -10,21 +10,11 @@ import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 
 import { publishingTags } from "../../db/cache/tags";
 import { readPublishingControl, readPublishingHistory } from "../../db/queries";
-import {
-  loadPublishingSearchParams,
-  normalizePublishingQuery,
-  type PublishingQuery,
-  type PublishingSearchParams,
-} from "../../schemas/history";
+import type { PublishingQuery } from "../../schemas/history";
 
-export async function getPublishingHistory(
-  searchParams: PublishingSearchParams,
-) {
+export async function getPublishingHistory(query: PublishingQuery) {
   const session = await requireSession();
   const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
-  const query = normalizePublishingQuery(
-    await loadPublishingSearchParams(searchParams),
-  );
   return {
     ...(await readCachedPublishingHistory(workspaceId, session.user.id, query)),
     query,

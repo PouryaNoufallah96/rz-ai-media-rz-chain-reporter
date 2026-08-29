@@ -3,9 +3,8 @@
 import { type Options, type UseQueryStatesKeysMap, useQueryStates } from "nuqs";
 import { useTransition } from "react";
 
-// Tagging this transition so a filter or page change never plays a navigation
-// transition needs `addTransitionType`, which stable React 19.2 does not ship.
-// The tag returns with the View Transitions round.
+// Preventing filters and pages from playing a navigation transition needs
+// `addTransitionType`, which stable React 19.2 does not ship.
 export function useTransitionUrlState<TParsers extends UseQueryStatesKeysMap>(
   parsers: TParsers,
   options: Omit<Options, "shallow" | "startTransition"> = {},

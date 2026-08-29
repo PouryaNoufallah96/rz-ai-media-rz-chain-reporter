@@ -1,6 +1,7 @@
 import "server-only";
 
 import { fetchPublishingMediaGrant } from "@rz-chain-reporter/db/repositories/publishing-media-grant";
+import { isMissingStorageObject } from "@rz-chain-reporter/storage";
 
 import { mediaStorage } from "@/features/media/lib/storage";
 import { streamPublishingMediaGrant } from "@/server/publishing-media-grant";
@@ -23,15 +24,8 @@ export async function GET(
       mediaStorage()
         .openRead(objectKey)
         .catch((error: unknown) => {
-          if (isMissingObject(error)) return null;
+          if (isMissingStorageObject(error)) return null;
           throw error;
         }),
   });
-}
-
-function isMissingObject(error: unknown) {
-  return (
-    error instanceof Error &&
-    (error.name === "NotFound" || error.name === "NoSuchKey")
-  );
 }

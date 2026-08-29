@@ -2,7 +2,7 @@ import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 
 import { type CatalogNamespace, loadCatalog } from "./catalog";
-import { FORMATS, NOW } from "./config";
+import { NOW } from "./config";
 import { currentLocale } from "./server";
 
 export async function Localized({
@@ -20,12 +20,7 @@ export async function Localized({
   );
 
   return (
-    <NextIntlClientProvider
-      formats={FORMATS}
-      locale={locale}
-      messages={messages}
-      now={NOW}
-    >
+    <NextIntlClientProvider locale={locale} messages={messages} now={NOW}>
       {children}
     </NextIntlClientProvider>
   );

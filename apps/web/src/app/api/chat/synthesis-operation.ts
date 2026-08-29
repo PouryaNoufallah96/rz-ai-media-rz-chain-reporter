@@ -1,6 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import { ASSISTANT_SYNTHESIS_COMMAND_TYPE } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import { withWorkspaceContext } from "@rz-chain-reporter/db/executor";
 import {
@@ -11,8 +12,6 @@ import {
   allocateOperationAttemptInTransaction,
   settleOperationAttempt,
 } from "@rz-chain-reporter/db/repositories/operation-attempt";
-
-import { ASSISTANT_SYNTHESIS_COMMAND_TYPE } from "@/features/assistant/constants";
 
 export type SynthesisOperation = {
   attemptId: string;
@@ -65,26 +64,42 @@ export async function closeSynthesisOperation(
   operation: SynthesisOperation,
   succeeded: boolean,
 ) {
-  await settleOperationAttempt(executor, workspaceId, {
-    id: operation.attemptId,
-    outcome: succeeded ? "succeeded" : "failed_terminal",
-  });
+  return executor.transaction(async (tx) => {
+    await withWorkspaceContext(tx, workspaceId);
 
-  const settling = await transitionOperation(executor, workspaceId, {
-    id: operation.operationId,
-    version: operation.version,
-    from: "running",
-    to: succeeded ? "settling" : "failed",
-  });
+    const attempt = await settleOperationAttempt(tx, workspaceId, {
+      id: operation.attemptId,
+      outcome: succeeded ? "succeeded" : "failed_terminal",
+    });
 
-  if (!succeeded || settling.status !== "updated") {
-    return;
-  }
+    if (!attempt) {
+      throw new Error("assistant synthesis attempt was not settled");
+    }
 
-  await transitionOperation(executor, workspaceId, {
-    id: operation.operationId,
-    version: settling.operation.version,
-    from: "settling",
-    to: "succeeded",
+    const settling = await transitionOperation(tx, workspaceId, {
+      id: operation.operationId,
+      version: operation.version,
+      from: "running",
+      to: succeeded ? "settling" : "failed",
+    });
+
+    if (settling.status !== "updated") {
+      throw new Error("assistant synthesis operation did not leave running");
+    }
+
+    if (!succeeded) {
+      return;
+    }
+
+    const settled = await transitionOperation(tx, workspaceId, {
+      id: operation.operationId,
+      version: settling.operation.version,
+      from: "settling",
+      to: "succeeded",
+    });
+
+    if (settled.status !== "updated") {
+      throw new Error("assistant synthesis operation did not settle");
+    }
   });
 }

@@ -26,7 +26,9 @@
     },
     "ticket": {
       "title": "Publishing ticket",
-      "save": "Save",
+      "saveForLater": "Save it for later",
+      "saveScope": "Saves this persisted draft for later. Uncommitted content is never included.",
+      "saveBlocked": "Create a revision or save your edits before saving this draft for later.",
       "saved": "Saved",
       "restore": "Restore",
       "pending": "Working…",
@@ -37,7 +39,7 @@
       "unapproved": "Not approved",
       "action": "Approve revision {n, number}",
       "needsRevision": "Create a revision first",
-      "dirty": "Save your edits before approving or publishing."
+      "savedRevisionRequired": "Save or discard these edits and wait for image work to finish before approving or publishing."
     },
     "readiness": {
       "copy": "copy ceiling {n, number}",
@@ -127,27 +129,15 @@
     "saved": {
       "title": "Saved cards",
       "subtitle": "Private revision pointers for resuming editorial work without changing publication state.",
-      "ledger": "Saved-card ledger",
       "caption": "Saved cards ordered by most recent save",
       "empty": "No saved cards match this view.",
       "filter": "Saved state",
-      "filterState": {
-        "active": "Active",
-        "discarded": "Discarded",
-        "all": "All"
-      },
       "columns": {
-        "time": "Saved",
-        "card": "Brand / platform",
-        "revision": "Revision",
-        "state": "State",
-        "action": "Action"
+        "time": "Saved"
       },
       "revision": "Revision {n, number}",
-      "noRevision": "No revision",
       "active": "Saved",
       "discarded": "Discarded",
-      "reopen": "Reopen",
       "restore": "Restore",
       "discard": "Discard",
       "confirmTitle": "Confirm saved-card change",

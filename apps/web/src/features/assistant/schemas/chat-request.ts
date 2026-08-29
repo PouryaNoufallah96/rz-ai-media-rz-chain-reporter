@@ -54,9 +54,7 @@ const activeCardSchema = z.strictObject({
 export const assistantChatRequestSchema = z.strictObject({
   message: latestUserTurnSchema,
   locale: z.enum(LOCALES),
-  brandKeys: z
-    .array(z.enum(brandKeys as [string, ...string[]]))
-    .max(brandKeys.length),
+  brandKeys: z.array(z.enum(brandKeys)).max(brandKeys.length),
   card: activeCardSchema.nullable(),
   // A stale or malformed `?run=` must not fail the turn; it simply pins nothing.
   runId: z.uuid().nullable().catch(null),

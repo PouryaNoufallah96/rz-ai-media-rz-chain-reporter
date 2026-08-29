@@ -75,7 +75,13 @@ export function AssistantComposer({
         </span>
 
         <div className="flex items-center gap-1.5">
-          <Button onClick={onClear} size="sm" type="button" variant="ghost">
+          <Button
+            disabled={busy}
+            onClick={onClear}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
             {t("composer.clear")}
           </Button>
 

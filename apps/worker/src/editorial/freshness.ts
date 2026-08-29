@@ -21,8 +21,6 @@ export function scoreFreshness(
     }
   }
 
-  // Older than every rung: the ladder has no catch-all, so the terminal rung
-  // is the out-of-ladder score.
   const terminal = ladder.at(-1);
   if (terminal === undefined) {
     throw new Error("FRESHNESS_LADDER_EMPTY");

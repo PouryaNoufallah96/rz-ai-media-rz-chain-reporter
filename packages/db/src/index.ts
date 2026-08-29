@@ -23,7 +23,12 @@ export function createDb(
   databaseUrl: string,
   options?: Omit<PoolConfig, "connectionString">,
 ) {
-  const pool = new Pool({ ...options, connectionString: databaseUrl });
+  const pool = new Pool({
+    connectionTimeoutMillis: 10_000,
+    max: 10,
+    ...options,
+    connectionString: databaseUrl,
+  });
   return {
     db: drizzle(pool, { schema }),
     check: (timeoutMs = DB_PROBE_TIMEOUT_MS) => probe(pool, timeoutMs),

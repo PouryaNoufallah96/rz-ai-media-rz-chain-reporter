@@ -28,20 +28,20 @@
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
-    "check": "pnpm run check:root && turbo run check",
+    "check": "turbo run check //#check:root",
     "check:root": "biome check .vscode/settings.json biome.json package.json tsconfig.json turbo.json",
     "fix": "pnpm run fix:root && turbo run fix",
     "fix:root": "biome check --write .vscode/settings.json biome.json package.json tsconfig.json turbo.json",
-    "doctor": "pnpm dlx -y react-doctor@latest .",
-    "i18n:check": "pnpm --filter web i18n:check",
+    "doctor": "CI=1 pnpm dlx -y react-doctor@latest . --yes",
+    "i18n:check": "turbo run i18n:check --filter=web",
     "openapi:check": "turbo run openapi:check --filter=web",
-    "validate": "pnpm run check && pnpm run check-types && pnpm run i18n:check && pnpm run openapi:check && pnpm run doctor"
+    "validate": "turbo run check check-types i18n:check openapi:check //#check:root //#doctor --continue=always"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.8",
+    "@biomejs/biome": "2.5.11",
     "@rz-chain-reporter/config": "workspace:*",
     "@types/node": "catalog:",
-    "turbo": "2.10.10",
+    "turbo": "2.10.12",
     "typescript": "catalog:"
   },
   "packageManager": "pnpm@11.21.0"

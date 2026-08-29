@@ -86,9 +86,8 @@ export function AssistantProvider({
     setFocusToken((token) => token + 1);
   };
 
-  // `usePathname` is a dynamic client hook: reading route state here would sit
-  // above every route and cost the prerendered shell, so the widget inside the
-  // assistant Suspense boundary owns route-change clearing.
+  // Reading route state here would cost the prerendered shell; the widget inside
+  // the assistant Suspense boundary owns route-change clearing.
   const clearCard = () => {
     setCard(null);
     setCardTruncated(false);
@@ -121,14 +120,10 @@ export function AssistantProvider({
 }
 
 export function useAssistant() {
-  return use(AssistantContext);
-}
-
-export function useRequiredAssistant() {
   const value = use(AssistantContext);
 
   if (!value) {
-    throw new Error("useRequiredAssistant used outside the assistant slot");
+    throw new Error("useAssistant used outside AssistantScope");
   }
 
   return value;

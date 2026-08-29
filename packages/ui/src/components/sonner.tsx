@@ -41,8 +41,7 @@ const Toaster = ({
       }
       toastOptions={{
         classNames: {
-          toast:
-            "cn-toast motion-reduce:animate-none! motion-reduce:transition-none!",
+          toast: "motion-reduce:animate-none! motion-reduce:transition-none!",
         },
       }}
       {...props}

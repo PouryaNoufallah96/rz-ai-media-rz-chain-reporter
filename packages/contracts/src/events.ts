@@ -53,6 +53,8 @@ export const ANALYSIS_RUN_COMMAND_PREFIX = "analysis-run:";
 export const COPY_GENERATION_COMMAND_PREFIX = "copy-generation:";
 export const IMAGE_GENERATION_COMMAND_PREFIX = "image-generation:";
 
+export const ASSISTANT_SYNTHESIS_COMMAND_TYPE = "assistant-synthesis";
+
 const durableEventPayloadSchema = z.strictObject({
   schemaVersion: z.literal(DURABLE_EVENT_SCHEMA_VERSION),
   workspaceId: z.uuid(),

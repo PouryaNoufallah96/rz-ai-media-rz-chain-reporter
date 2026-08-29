@@ -1,0 +1,1 @@
+CREATE INDEX "ix_image_generation_workspace_draft_revision_created_at" ON "image_generation" USING btree ("workspace_id","draft_revision_id","created_at" DESC NULLS LAST,"operation_id");

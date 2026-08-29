@@ -13,7 +13,6 @@ import { rpcDb } from "../db";
 export const detail = installationProcedure
   .input(usageQuerySchema)
   .output(usagePageSchema)
-  .errors({ UNAUTHORIZED: { status: 401 } })
   .handler(({ context, input }) =>
     readUsagePage(rpcDb(), context.workspaceId, context.session.user.id, input),
   );

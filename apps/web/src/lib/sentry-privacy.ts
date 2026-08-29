@@ -5,6 +5,7 @@ type ErrorEvent = Parameters<NonNullable<SentryOptions["beforeSend"]>>[0];
 type TransactionEvent = Parameters<
   NonNullable<SentryOptions["beforeSendTransaction"]>
 >[0];
+type TraceContext = NonNullable<NonNullable<ErrorEvent["contexts"]>["trace"]>;
 
 const IDENTIFIER_SEGMENT =
   /\/(?:[0-9]+|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})(?=\/|$)/gi;
@@ -17,6 +18,11 @@ export function sanitizeRoute(value: string | undefined) {
     .replace(IDENTIFIER_SEGMENT, "/:id");
 }
 
+// `data` carries the root span's whole attribute bag, including raw request paths.
+function safeTrace(trace: TraceContext): TraceContext {
+  return { ...trace, data: undefined };
+}
+
 export function scrubErrorEvent(
   event: ErrorEvent,
   message: string,
@@ -25,7 +31,7 @@ export function scrubErrorEvent(
     ...event,
     breadcrumbs: undefined,
     contexts: event.contexts?.trace
-      ? { trace: event.contexts.trace }
+      ? { trace: safeTrace(event.contexts.trace) }
       : undefined,
     exception: event.exception
       ? {
@@ -40,6 +46,7 @@ export function scrubErrorEvent(
     message: event.message ? message : undefined,
     request: undefined,
     tags: undefined,
+    transaction: sanitizeRoute(event.transaction),
     user: undefined,
   };
 }
@@ -50,6 +57,9 @@ export function scrubTransactionEvent(
   return {
     ...event,
     breadcrumbs: undefined,
+    contexts: event.contexts?.trace
+      ? { trace: safeTrace(event.contexts.trace) }
+      : undefined,
     extra: undefined,
     request: undefined,
     spans: event.spans?.map((span) => ({

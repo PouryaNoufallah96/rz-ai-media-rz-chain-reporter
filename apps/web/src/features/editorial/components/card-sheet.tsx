@@ -14,11 +14,7 @@ import {
   REFERENCE_IMAGE_MIME_TYPES,
 } from "@rz-chain-reporter/contracts";
 import { DIRECTION } from "@rz-chain-reporter/i18n";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@rz-chain-reporter/ui/components/alert";
+import { BackgroundGradient } from "@rz-chain-reporter/ui/components/background-gradient";
 import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
@@ -39,10 +35,10 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@rz-chain-reporter/ui/components/input-group";
+import { MetalButton } from "@rz-chain-reporter/ui/components/metal-button";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@rz-chain-reporter/ui/components/sheet";
@@ -60,12 +56,7 @@ import {
   XIcon,
 } from "lucide-react";
 import Image from "next/image";
-import {
-  NextIntlClientProvider,
-  useFormatter,
-  useLocale,
-  useTranslations,
-} from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import {
   type ComponentProps,
   type ReactNode,
@@ -89,24 +80,31 @@ import {
 import { useAssistant } from "@/features/assistant/lib/assistant-context";
 import { createMediaUploadInputSchema } from "@/features/media/schemas/upload";
 import { PublishingTicket } from "@/features/publishing/components/publishing-ticket";
-import publishingEn from "@/features/publishing/messages/en.json";
-import publishingFa from "@/features/publishing/messages/fa.json";
 import { applyActionErrorToForm, useAction } from "@/hooks/use-action";
 import { client } from "@/lib/orpc";
 
-import { refreshArticleAndRegenerateAction } from "../actions/refresh-article-and-regenerate";
+import {
+  refreshArticleAndRegenerateAction,
+  regenerateCopyAction,
+  retryCopyGenerationAction,
+  retryImageGenerationAction,
+  startImageGenerationAction,
+  updateDraftRevisionAction,
+} from "../actions/commands";
 import { refreshEditorialReadsAction } from "../actions/refresh-editorial-reads";
-import { regenerateCopyAction } from "../actions/regenerate-copy";
-import { retryCopyGenerationAction } from "../actions/retry-copy-generation";
-import { retryImageGenerationAction } from "../actions/retry-image-generation";
-import { startImageGenerationAction } from "../actions/start-image-generation";
-import { updateDraftRevisionAction } from "../actions/update-draft-revision";
 import { EDITORIAL_NAMESPACE } from "../constants";
+import { useNarrowViewport } from "../hooks/use-narrow-viewport";
 import {
   acceptRevisionCard,
-  type EditBaseline,
+  canChangeSavedCard,
+  canCreateRevision,
+  candidateEditSource,
+  type EditSource,
+  hasGenerationBlockingEdits,
+  hasRevisionEdits,
   revisionEditorState,
-  revisionValues,
+  revisionEditSource,
+  selectEditSource,
 } from "../lib/revision-editor-state";
 import {
   type DraftEditorInput,
@@ -117,16 +115,22 @@ import {
 import { EditorialFreshness } from "./editorial-freshness";
 import { ExpandablePreview } from "./expandable-preview";
 
+type SheetOpenChangeDetails = Parameters<
+  NonNullable<ComponentProps<typeof Sheet>["onOpenChange"]>
+>[1];
+
 export function CardSheet({
   card: incomingCard,
   finalFocus,
   freshness,
+  imageModels,
   loading = false,
   onOpenChange,
   open,
 }: {
   card: PlatformDraftCard | null;
   finalFocus: HTMLElement | null;
+  imageModels: readonly { key: string; name: string }[];
   loading?: boolean;
   freshness?: {
     analysisRunId: string;
@@ -139,12 +143,12 @@ export function CardSheet({
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const assistant = useAssistant();
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [narrow, setNarrow] = useState(false);
+  const narrow = useNarrowViewport();
   const [pending, setPending] = useState(false);
   const [sourceCard, setSourceCard] = useState(incomingCard);
   const [editor, setEditor] = useState(() => revisionEditorState(incomingCard));
   const loadedVersion = useRef(-1);
-  const { card, baseline, hashtagDraft } = editor;
+  const { card, source, hashtagDraft } = editor;
   const form = useForm<DraftEditorInput>({
     defaultValues: editor.editorValues,
     mode: "onSubmit",
@@ -155,21 +159,20 @@ export function CardSheet({
     name: ["contentLocale", "headline", "body", "hashtags"],
   });
   const values: DraftEditorInput = { contentLocale, headline, body, hashtags };
-  const dirty =
-    hashtagDraft.trim() !== "" ||
-    (baseline !== null &&
-      EDITOR_FIELDS.some(
-        (field) => !sameField(baseline.content, values, field),
-      ));
+  const dirty = hasRevisionEdits(source, values, hashtagDraft);
+  const generationBlocked = hasGenerationBlockingEdits(
+    source,
+    values,
+    hashtagDraft,
+  );
 
-  if (sourceCard !== incomingCard) {
+  if (sourceCard !== incomingCard && (open || incomingCard !== null)) {
     setSourceCard(incomingCard);
-    setEditor((current) => acceptRevisionCard(current, incomingCard, dirty));
+    setEditor((current) => acceptRevisionCard(current, incomingCard, true));
   }
 
-  const publishSheetCard = assistant?.publishSheetCard;
+  const publishSheetCard = assistant.publishSheetCard;
   const publishLiveCard = () => {
-    if (!publishSheetCard) return;
     if (!open || !card) {
       publishSheetCard(null);
       return;
@@ -188,7 +191,6 @@ export function CardSheet({
     if (loadedVersion.current === editor.loadVersion) return;
     form.reset(editor.editorValues, { keepFieldsRef: true });
     loadedVersion.current = editor.loadVersion;
-    if (!publishSheetCard) return;
     if (!open || !card) {
       publishSheetCard(null);
       return;
@@ -209,53 +211,97 @@ export function CardSheet({
     publishSheetCard,
   ]);
 
+  // Base UI leaves the shell tabbable behind a non-modal sheet's scrim, so
+  // keyboard reach has to be closed to match the pointer block the scrim gives.
+  useEffect(() => {
+    if (!open) return;
+
+    const shell = document.querySelector("[data-app-shell]");
+
+    if (!shell) return;
+
+    const inerted: HTMLElement[] = [];
+
+    for (const child of shell.children) {
+      if (
+        child instanceof HTMLElement &&
+        !child.inert &&
+        !child.hasAttribute("data-assistant-fab")
+      ) {
+        child.inert = true;
+        inerted.push(child);
+      }
+    }
+
+    return () => {
+      for (const child of inerted) {
+        child.inert = false;
+      }
+    };
+  }, [open]);
+
   const setHashtagDraft = (value: string) => {
     setEditor((current) => ({ ...current, hashtagDraft: value }));
   };
 
-  const acceptCard = (next: PlatformDraftCard) => {
-    setEditor((current) => acceptRevisionCard(current, next, false));
-  };
-
-  const resetEditor = (revisionVersion: number, merged?: DraftEditorInput) => {
+  const acceptCard = (next: PlatformDraftCard, revisionId: string) => {
     setEditor((current) => {
-      if (current.card?.revisionVersion !== revisionVersion) return current;
-      const next = acceptRevisionCard(current, current.card, false);
-      return merged
-        ? { ...next, editorValues: merged, hashtagDraft: current.hashtagDraft }
-        : next;
+      const accepted = acceptRevisionCard(current, next, false);
+      const revision = next.revisions.find((entry) => entry.id === revisionId);
+      return revision
+        ? selectEditSource(accepted, revisionEditSource(revision))
+        : accepted;
     });
   };
 
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 599px)");
-    const update = () => setNarrow(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
+  const selectSource = (next: EditSource) => {
+    setEditor((current) => selectEditSource(current, next));
+  };
 
-  const requestOpenChange = (next: boolean) => {
-    if (pending) return;
+  const requestOpenChange = (
+    next: boolean,
+    eventDetails: SheetOpenChangeDetails,
+  ) => {
+    const eventTarget =
+      eventDetails.reason === "focus-out" &&
+      eventDetails.event instanceof FocusEvent
+        ? eventDetails.event.relatedTarget
+        : eventDetails.event.target;
+    const assistantInteraction =
+      !next &&
+      (eventDetails.reason === "outside-press" ||
+        eventDetails.reason === "focus-out") &&
+      eventTarget instanceof Element &&
+      eventTarget.closest("[data-assistant-surface]") !== null;
+
+    if (assistantInteraction || pending) {
+      eventDetails.cancel();
+      return;
+    }
     if (!next && dirty) {
+      eventDetails.cancel();
       setConfirmDiscard(true);
       return;
     }
-    if (!next) publishSheetCard?.(null);
+    if (!next) publishSheetCard(null);
     onOpenChange(next);
   };
 
   return (
     <>
       <Sheet
-        disablePointerDismissal
         modal={false}
         onOpenChange={requestOpenChange}
+        onOpenChangeComplete={(next) => {
+          if (next) return;
+          setSourceCard(null);
+          setEditor(revisionEditorState(null));
+        }}
         open={open}
       >
         <SheetContent
           aria-busy={loading || undefined}
-          className="w-full gap-5 max-[599px]:rounded-t-xl sm:w-[min(960px,100vw)] sm:p-5"
+          className="w-full gap-5 max-[599px]:rounded-t-xl sm:w-[min(900px,100vw)] sm:p-5"
           closeLabel={t("cardSheet.close")}
           finalFocus={() =>
             finalFocus?.isConnected
@@ -264,11 +310,11 @@ export function CardSheet({
           }
           side={narrow ? "block-end" : "inline-end"}
         >
-          <SheetHeader className="border-border border-b pe-12 pb-4">
-            <SheetTitle>{t("cardSheet.title")}</SheetTitle>
-            {assistant && card ? (
-              <Button
-                className="justify-self-start"
+          <SheetHeader className="flex-row flex-wrap items-center gap-2 pe-12">
+            <SheetTitle className="me-1">{t("cardSheet.title")}</SheetTitle>
+            {card ? (
+              <MetalButton
+                disableGlow
                 onClick={() =>
                   assistant.askAboutCard({
                     contentLocale: values.contentLocale,
@@ -279,41 +325,41 @@ export function CardSheet({
                   })
                 }
                 size="sm"
+                strength={0.25}
                 type="button"
-                variant="outline"
+                variant="ghost"
               >
                 {assistant.askAboutCardLabel}
-              </Button>
+              </MetalButton>
             ) : null}
-            <SheetDescription aria-live="polite">
-              {loading
-                ? t("cardSheet.loading")
-                : card
-                  ? t("cardSheet.description", {
-                      brand: card.brandName,
-                      platform: t(`run.platform.${card.platform}`),
-                    })
-                  : t("cardSheet.unavailable.description")}
-            </SheetDescription>
+            {freshness ? (
+              <EditorialFreshness
+                compact
+                copyOperation={card?.generation ?? null}
+                platformDraftId={card?.id}
+                {...freshness}
+              />
+            ) : null}
           </SheetHeader>
-          {freshness ? <EditorialFreshness {...freshness} /> : null}
           {loading ? (
-            <Skeleton aria-hidden="true" className="h-48 w-full" />
+            <CardSheetSkeleton />
           ) : card ? (
             <>
-              <OriginFacts card={card} />
+              <Information card={card} />
               <CardSheetBody
-                baseline={baseline}
                 card={card}
                 dirty={dirty}
+                generationBlocked={generationBlocked}
                 form={form}
                 hashtagDraft={hashtagDraft}
+                imageModels={imageModels}
                 onAcceptCard={acceptCard}
                 onEditorChange={publishLiveCard}
                 onHashtagDraftChange={setHashtagDraft}
                 onPendingChange={setPending}
-                onResetEditor={resetEditor}
+                onSelectSource={selectSource}
                 pending={pending}
+                source={source}
               />
             </>
           ) : (
@@ -325,7 +371,7 @@ export function CardSheet({
               <Button
                 className="justify-self-start"
                 onClick={() => {
-                  publishSheetCard?.(null);
+                  publishSheetCard(null);
                   onOpenChange(false);
                 }}
                 type="button"
@@ -346,7 +392,7 @@ export function CardSheet({
           setEditor((current) =>
             acceptRevisionCard(current, current.card, false),
           );
-          publishSheetCard?.(null);
+          publishSheetCard(null);
           onOpenChange(false);
         }}
         onOpenChange={setConfirmDiscard}
@@ -360,24 +406,86 @@ export function CardSheet({
 
 type Revision = PlatformDraftCard["revisions"][number];
 
-type RebaseState = {
-  conflicts: EditorField[];
-  choices: Partial<Record<EditorField, "mine" | "theirs">>;
-  mine: DraftEditorInput;
-  theirs: DraftEditorInput;
-  base: DraftEditorInput;
-  revisionNumber: number;
-  revisionVersion: number;
-};
+function CardSheetSkeleton() {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+  const rows = [0, 1, 2] as const;
 
-const EDITOR_FIELDS = [
-  "contentLocale",
-  "headline",
-  "body",
-  "hashtags",
-] as const;
+  return (
+    <div aria-busy="true" className="grid gap-5" role="status">
+      <span className="sr-only">{t("cardSheet.loading")}</span>
+      <Skeleton className="h-11 w-full rounded-xl" />
+      <div className="grid items-stretch gap-5 min-[900px]:grid-cols-[minmax(16rem,0.38fr)_minmax(0,0.62fr)]">
+        <div className="grid content-start gap-4">
+          <div className="grid gap-3 rounded-xl border border-border p-3">
+            <Skeleton className="h-4 w-36" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+          <div className="grid gap-2 rounded-xl border border-primary/20 p-3">
+            <Skeleton className="mb-1 h-5 w-32" />
+            {rows.map((row) => (
+              <SelectableItemSkeleton key={row} />
+            ))}
+          </div>
+          <div className="grid gap-2 rounded-xl border border-border p-3">
+            <Skeleton className="mb-1 h-5 w-24" />
+            <SelectableItemSkeleton />
+          </div>
+        </div>
+        <RevisionWorkspaceSkeleton />
+      </div>
+      <Skeleton className="h-12 w-full rounded-xl" />
+      <div className="grid gap-4 rounded-xl border border-border p-4">
+        <Skeleton className="h-5 w-36" />
+        <div className="flex flex-wrap gap-3">
+          <Skeleton className="h-9 w-36" />
+          <Skeleton className="h-9 w-32" />
+          <Skeleton className="h-9 w-40" />
+        </div>
+        <Skeleton className="h-4 w-full max-w-xl" />
+      </div>
+    </div>
+  );
+}
 
-type EditorField = (typeof EDITOR_FIELDS)[number];
+function SelectableItemSkeleton() {
+  return (
+    <div
+      aria-hidden="true"
+      className="grid min-h-20 gap-2 rounded-lg border border-border bg-background/70 p-2"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-3 w-20" />
+      </div>
+      <Skeleton className="h-3 w-full" />
+      <Skeleton className="h-3 w-3/4" />
+    </div>
+  );
+}
+
+function RevisionWorkspaceSkeleton() {
+  return (
+    <div
+      aria-hidden="true"
+      className="grid content-start gap-4 rounded-xl border border-border bg-card p-4 min-[900px]:h-full"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="grid flex-1 gap-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-3 w-56 max-w-full" />
+        </div>
+        <Skeleton className="h-6 w-24" />
+      </div>
+      <Skeleton className="h-16 w-full" />
+      <Skeleton className="h-40 w-full" />
+      <Skeleton className="h-16 w-full" />
+      <Skeleton className="h-12 w-full" />
+      <Skeleton className="h-4 w-36" />
+      <Skeleton className="h-10 w-full" />
+    </div>
+  );
+}
 
 const CARD_SHEET_ERROR_KEYS = {
   DRAFT_BODY_REQUIRED: "cardSheet.error.body",
@@ -386,10 +494,12 @@ const CARD_SHEET_ERROR_KEYS = {
   DRAFT_HEADLINE_REQUIRED: "cardSheet.error.headline",
   MEDIA_CONTENT_MISMATCH: "cardSheet.error.mediaContentMismatch",
   MEDIA_INVALID: "cardSheet.error.mediaInvalid",
+  MEDIA_LOCKED: "cardSheet.error.mediaLocked",
   OPERATION_IN_PROGRESS: "cardSheet.error.operationInProgress",
   OPERATOR_DIRECTION_INVALID: "cardSheet.error.imageDirection",
   REFERENCE_CONFLICT: "cardSheet.error.referenceConflict",
   IMAGE_SOURCE_EXTRACT_REQUIRED: "cardSheet.error.imageSourceExtractRequired",
+  IMAGE_INTENT_CONFLICT: "cardSheet.error.conflict",
   TEMPLATE_DRIFT: "cardSheet.error.templateDrift",
   VALIDATION_FAILED: "cardSheet.error.validation",
   VERSION_CONFLICT: "cardSheet.error.conflict",
@@ -401,135 +511,112 @@ function isCardSheetErrorCode(
   return value in CARD_SHEET_ERROR_KEYS;
 }
 
-function sameField(
-  left: DraftEditorInput,
-  right: DraftEditorInput,
-  field: EditorField,
-) {
-  return field === "hashtags"
-    ? left.hashtags.length === right.hashtags.length &&
-        left.hashtags.every((value, index) => value === right.hashtags[index])
-    : left[field] === right[field];
-}
-
-function withField(
-  values: DraftEditorInput,
-  source: DraftEditorInput,
-  field: EditorField,
-): DraftEditorInput {
-  return field === "hashtags"
-    ? { ...values, hashtags: [...source.hashtags] }
-    : { ...values, [field]: source[field] };
-}
-
-function mergeRebase(state: RebaseState) {
-  let merged = state.theirs;
-  for (const field of EDITOR_FIELDS) {
-    if (sameField(state.base, state.mine, field)) continue;
-    if (state.conflicts.includes(field) && state.choices[field] !== "mine") {
-      continue;
-    }
-    merged = withField(merged, state.mine, field);
-  }
-  return merged;
-}
-
-function OriginFacts({ card }: { card: PlatformDraftCard }) {
+function Information({ card }: { card: PlatformDraftCard }) {
   const format = useFormatter();
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const facts = card.originDetails;
 
   return (
-    <section
-      aria-labelledby={`draft-origin-${card.id}`}
-      className="grid gap-3 rounded-xl border border-border bg-card p-4"
-    >
-      <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-2">
-        <h3 className="ticket-label" id={`draft-origin-${card.id}`}>
-          {t("cardSheet.origin.title")}
-        </h3>
-        <span className="text-muted-foreground text-xs">
-          {t("cardSheet.origin.platform", {
+    <Collapsible className="rounded-xl border border-border bg-card">
+      <CollapsibleTrigger
+        render={
+          <Button
+            className="group h-11 w-full justify-start px-4"
+            variant="ghost"
+          />
+        }
+      >
+        <span className="font-medium text-sm">
+          {t("cardSheet.information.title")}
+        </span>
+        <span className="ms-auto hidden text-muted-foreground text-xs sm:inline">
+          {t("cardSheet.information.platform", {
             platform: t(`run.platform.${card.platform}`),
           })}
         </span>
-      </div>
-      <dl className="@container grid gap-3 text-xs">
-        {facts?.sourceName ? (
-          <OriginFact label={t("detail.source")}>
-            <Bdi>{facts.sourceName}</Bdi>
-          </OriginFact>
-        ) : null}
-        {facts?.publishedAt ? (
-          <OriginFact label={t("detail.publishedAt")}>
-            {format.dateTime(facts.publishedAt, {
-              dateStyle: "short",
-              timeStyle: "short",
-            })}
-          </OriginFact>
-        ) : null}
-        {facts?.contentLocale ? (
-          <OriginFact label={t("detail.contentLocale")}>
-            <span className="font-mono">{facts.contentLocale}</span>
-          </OriginFact>
-        ) : null}
-        {facts?.suggestedPlatform ? (
-          <OriginFact label={t("detail.platform")}>
-            {t(`run.platform.${facts.suggestedPlatform}`)}
-          </OriginFact>
-        ) : null}
-        {facts?.suitabilityScore !== null &&
-        facts?.suitabilityScore !== undefined ? (
-          <OriginFact label={t("selection.suitability")}>
-            <span className="tabular-nums">
-              {format.number(facts.suitabilityScore)}
-            </span>
-          </OriginFact>
-        ) : null}
-        {facts?.telegramReason ? (
-          <OriginFact label={t("detail.reason")}>
-            {t(`reason.${facts.telegramReason}`)}
-          </OriginFact>
-        ) : null}
-        {facts?.canonicalUrl ? (
-          <OriginFact label={t("detail.link")}>
-            <a
-              className="wrap-anywhere font-mono underline underline-offset-2"
-              href={facts.canonicalUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              <Bdi dir="ltr">
-                {facts.canonicalUrl.replace(/^https?:\/\//, "")}
+        <ChevronDownIcon
+          aria-hidden="true"
+          className="transition-transform group-data-panel-open:rotate-180"
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-4 pt-2 pb-4 data-closed:hidden">
+        <dl className="@container grid gap-3 text-xs">
+          {facts?.sourceName ? (
+            <InformationFact label={t("detail.source")}>
+              <Bdi>{facts.sourceName}</Bdi>
+            </InformationFact>
+          ) : null}
+          {facts?.publishedAt ? (
+            <InformationFact label={t("detail.publishedAt")}>
+              {format.dateTime(facts.publishedAt, {
+                dateStyle: "short",
+                timeStyle: "short",
+              })}
+            </InformationFact>
+          ) : null}
+          {facts?.contentLocale ? (
+            <InformationFact label={t("detail.contentLocale")}>
+              <span className="font-mono">{facts.contentLocale}</span>
+            </InformationFact>
+          ) : null}
+          {facts?.suggestedPlatform ? (
+            <InformationFact label={t("detail.platform")}>
+              {t(`run.platform.${facts.suggestedPlatform}`)}
+            </InformationFact>
+          ) : null}
+          {facts?.suitabilityScore !== null &&
+          facts?.suitabilityScore !== undefined ? (
+            <InformationFact label={t("selection.suitability")}>
+              <span className="tabular-nums">
+                {format.number(facts.suitabilityScore)}
+              </span>
+            </InformationFact>
+          ) : null}
+          {facts?.telegramReason ? (
+            <InformationFact label={t("detail.reason")}>
+              {t(`reason.${facts.telegramReason}`)}
+            </InformationFact>
+          ) : null}
+          {facts?.canonicalUrl ? (
+            <InformationFact label={t("detail.link")}>
+              <a
+                className="wrap-anywhere font-mono underline underline-offset-2"
+                href={facts.canonicalUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <Bdi dir="ltr">
+                  {facts.canonicalUrl.replace(/^https?:\/\//, "")}
+                </Bdi>
+              </a>
+            </InformationFact>
+          ) : null}
+          {facts?.summary ? (
+            <InformationFact label={t("detail.summary")}>
+              <ExpandablePreview>{facts.summary}</ExpandablePreview>
+            </InformationFact>
+          ) : null}
+          {facts?.reasoning ? (
+            <InformationFact label={t("detail.reasoning")}>
+              <Bdi className="block text-start" dir="auto">
+                {facts.reasoning}
               </Bdi>
-            </a>
-          </OriginFact>
-        ) : null}
-        {facts?.summary ? (
-          <OriginFact label={t("detail.summary")}>
-            <ExpandablePreview>{facts.summary}</ExpandablePreview>
-          </OriginFact>
-        ) : null}
-        {facts?.reasoning ? (
-          <OriginFact label={t("detail.reasoning")}>
-            <Bdi className="block text-start" dir="auto">
-              {facts.reasoning}
-            </Bdi>
-          </OriginFact>
-        ) : null}
-        {facts?.promoAngle ? (
-          <OriginFact label={t("promo.angle")}>
-            <Bdi className="block text-start" dir="auto">
-              {facts.promoAngle}
-            </Bdi>
-          </OriginFact>
-        ) : null}
-      </dl>
-    </section>
+            </InformationFact>
+          ) : null}
+          {facts?.promoAngle ? (
+            <InformationFact label={t("promo.angle")}>
+              <Bdi className="block text-start" dir="auto">
+                {facts.promoAngle}
+              </Bdi>
+            </InformationFact>
+          ) : null}
+        </dl>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
-function OriginFact({
+function InformationFact({
   children,
   label,
 }: {
@@ -544,44 +631,51 @@ function OriginFact({
   );
 }
 
-type RevisionSelection =
-  | { kind: "candidate"; id: string }
-  | { kind: "revision"; id: string };
-
 type CardSheetBodyProps = {
-  baseline: EditBaseline | null;
   card: PlatformDraftCard;
   dirty: boolean;
+  generationBlocked: boolean;
   form: UseFormReturn<DraftEditorInput>;
   hashtagDraft: string;
-  onAcceptCard: (card: PlatformDraftCard) => void;
+  imageModels: readonly { key: string; name: string }[];
+  onAcceptCard: (card: PlatformDraftCard, revisionId: string) => void;
   onEditorChange: () => void;
   onHashtagDraftChange: (value: string) => void;
   onPendingChange: (pending: boolean) => void;
-  onResetEditor: (revisionVersion: number, merged?: DraftEditorInput) => void;
+  onSelectSource: (source: EditSource) => void;
   pending: boolean;
+  source: EditSource | null;
 };
 
+function isCopyGenerationNonterminal(
+  generation: PlatformDraftCard["generation"],
+) {
+  return (
+    generation?.lifecycle === "queued" ||
+    generation?.lifecycle === "running" ||
+    generation?.lifecycle === "settling"
+  );
+}
+
 function useRevisionCommands({
-  baseline,
   card,
   dirty,
   form,
   hashtagDraft,
   onAcceptCard,
   onPendingChange,
-  onResetEditor,
+  onSelectSource,
   pending,
+  source,
 }: CardSheetBodyProps) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
-  const [selection, setSelection] = useState<RevisionSelection | null>(null);
+  const [selection, setSelection] = useState<EditSource | null>(null);
+  const [switchingRevision, setSwitchingRevision] = useState(false);
   const [serverConflict, setServerConflict] = useState<number | null>(null);
-  const [rebase, setRebase] = useState<RebaseState | null>(null);
   const updateRevision = useAction(updateDraftRevisionAction, {
     onSuccess: (data) => {
-      onAcceptCard(data.card);
+      onAcceptCard(data.card, data.revision.id);
       setServerConflict(null);
-      setRebase(null);
     },
     onSettled: () => onPendingChange(false),
   });
@@ -592,11 +686,14 @@ function useRevisionCommands({
     null;
   const waitingForRefresh =
     serverConflict !== null && card.revisionVersion <= serverConflict;
-  const stale =
-    waitingForRefresh ||
-    (baseline !== null && baseline.revisionVersion !== card.revisionVersion);
-  const currentRebase =
-    rebase?.revisionVersion === card.revisionVersion ? rebase : null;
+  const sourceIsActive =
+    source?.kind === "draft_revision" && source.id === card.activeRevisionId;
+  const effectsBlocked = dirty || waitingForRefresh || !sourceIsActive;
+  const savedChangeBlocked = !canChangeSavedCard(
+    source,
+    dirty,
+    waitingForRefresh,
+  );
 
   const resolveError = (code: string | undefined) =>
     code !== undefined && isCardSheetErrorCode(code)
@@ -631,60 +728,60 @@ function useRevisionCommands({
     version: card.revisionVersion,
   };
 
-  const applySelection = (next: RevisionSelection) => {
-    const common = {
+  const applySelection = async (next: EditSource) => {
+    form.clearErrors("root");
+    if (next.kind === "copy_variant") {
+      onSelectSource(next);
+      return true;
+    }
+    setSwitchingRevision(true);
+    const selected = await executeRevision({
+      commandKind: "select_revision",
       platformDraftId: card.id,
+      draftRevisionId: next.id,
       expectedActive,
       idempotencyKey: crypto.randomUUID(),
-    };
-    return executeRevision(
-      next.kind === "candidate"
-        ? {
-            ...common,
-            commandKind: "apply_copy_variant",
-            copyVariantId: next.id,
-          }
-        : {
-            ...common,
-            commandKind: "select_revision",
-            draftRevisionId: next.id,
-          },
-    );
+    });
+    setSwitchingRevision(false);
+    return selected;
   };
 
-  const requestSelection = async (next: RevisionSelection) => {
+  const requestSelection = (next: EditSource) => {
     if (busy) return;
-    if (next.kind === "revision" && next.id === card.activeRevisionId) return;
+    if (source?.kind === next.kind && source.id === next.id) return;
     if (dirty) {
       setSelection(next);
       return;
     }
-    await applySelection(next);
+    void applySelection(next);
   };
 
   const removeImage = async () => {
-    if (dirty || stale) return;
+    if (effectsBlocked) return;
     await executeRevision({
       commandKind: "remove_image",
       platformDraftId: card.id,
       expectedActive,
+      expectedImageIntentVersion: active?.imageIntentVersion ?? 0,
       idempotencyKey: crypto.randomUUID(),
     });
   };
 
   const adoptImage = async (finalMediaAssetId: string) => {
-    if (dirty || stale) return;
+    if (effectsBlocked) return;
     await executeRevision({
       commandKind: "adopt_image",
       platformDraftId: card.id,
       finalMediaAssetId,
       expectedActive,
+      expectedImageIntentVersion: active?.imageIntentVersion ?? 0,
       idempotencyKey: crypto.randomUUID(),
     });
   };
 
   const submit = form.handleSubmit(async (content) => {
-    if (!active || stale || !baseline || !dirty) return;
+    if (!source || waitingForRefresh) return;
+    if (!canCreateRevision(source, dirty)) return;
     if (hashtagDraft.trim() !== "") {
       form.setFocus("hashtags");
       return;
@@ -693,69 +790,16 @@ function useRevisionCommands({
       commandKind: "submit_content",
       platformDraftId: card.id,
       content,
-      expectedActive: {
-        id: baseline.id,
-        version: baseline.revisionVersion,
-      },
+      expectedActive,
       idempotencyKey: crypto.randomUUID(),
+      source: { kind: source.kind, id: source.id },
     });
   });
 
-  const reloadActive = () => {
-    if (!active || waitingForRefresh || busy) return;
-    form.clearErrors("root");
-    onResetEditor(card.revisionVersion);
-    setServerConflict(null);
-    setRebase(null);
-  };
-
-  const applyRebase = (merged: DraftEditorInput) => {
-    if (!active || waitingForRefresh || busy) return;
-    form.clearErrors("root");
-    onResetEditor(card.revisionVersion, merged);
-    setServerConflict(null);
-    setRebase(null);
-  };
-
-  const startRebase = () => {
-    if (!active || !baseline || waitingForRefresh || busy) return;
-    const base = baseline.content;
-    const mine = form.getValues();
-    const theirs = revisionValues(active);
-    const conflicts = EDITOR_FIELDS.filter(
-      (field) =>
-        !sameField(base, mine, field) &&
-        !sameField(base, theirs, field) &&
-        !sameField(mine, theirs, field),
-    );
-    const state: RebaseState = {
-      base,
-      choices: {},
-      conflicts,
-      mine,
-      revisionNumber: active.revisionNumber,
-      revisionVersion: card.revisionVersion,
-      theirs,
-    };
-    if (conflicts.length > 0) {
-      setRebase(state);
-      return;
-    }
-    applyRebase(mergeRebase(state));
-  };
-
-  const chooseRebase = (field: EditorField, choice: "mine" | "theirs") => {
-    setRebase((current) =>
-      current?.revisionVersion === card.revisionVersion
-        ? { ...current, choices: { ...current.choices, [field]: choice } }
-        : null,
-    );
-  };
-
   const confirmSelection = async () => {
     if (!selection) return;
-    const applied = await applySelection(selection);
-    return applied ? undefined : { error: t("cardSheet.error.unknown") };
+    const selected = await applySelection(selection);
+    return selected ? undefined : { error: t("cardSheet.error.unknown") };
   };
 
   const changeSelectionOpen = (open: boolean) => {
@@ -765,21 +809,18 @@ function useRevisionCommands({
   return {
     active,
     adoptImage,
-    applyRebase,
     busy,
     changeSelectionOpen,
-    chooseRebase,
     confirmSelection,
-    currentRebase,
+    effectsBlocked,
     isSubmitting,
-    reloadActive,
     removeImage,
     requestSelection,
     resolveError,
     selectionOpen: selection !== null,
-    stale,
-    startRebase,
+    savedChangeBlocked,
     submit,
+    switchingRevision,
     waitingForRefresh,
   };
 }
@@ -789,163 +830,145 @@ function CardSheetBody(props: CardSheetBodyProps) {
     card,
     dirty,
     form,
+    generationBlocked,
     hashtagDraft,
+    imageModels,
     onHashtagDraftChange,
     onPendingChange,
+    source,
   } = props;
   const t = useTranslations(EDITORIAL_NAMESPACE);
-  const locale = useLocale();
+  const [generationPending, setGenerationPending] = useState(false);
+  const generating =
+    generationPending || isCopyGenerationNonterminal(card.generation);
   const {
     active,
     adoptImage,
-    applyRebase,
     busy,
     changeSelectionOpen,
-    chooseRebase,
     confirmSelection,
-    currentRebase,
+    effectsBlocked,
     isSubmitting,
-    reloadActive,
     removeImage,
     requestSelection,
     resolveError,
     selectionOpen,
-    stale,
-    startRebase,
+    savedChangeBlocked,
     submit,
+    switchingRevision,
     waitingForRefresh,
   } = useRevisionCommands(props);
-  const [selectedCandidateId, setSelectedCandidateId] = useState(
-    card.candidates[0]?.id ?? null,
-  );
-  const selectedCandidate =
-    card.candidates.find((candidate) => candidate.id === selectedCandidateId) ??
-    card.candidates[0] ??
-    null;
 
   useEffect(() => {
-    if (!card.activeRevisionId) return;
-    document
-      .getElementById(`revision-history-${card.activeRevisionId}`)
-      ?.scrollIntoView({
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "auto"
-          : "smooth",
-        block: "nearest",
-      });
-  }, [card.activeRevisionId]);
+    if (source?.kind !== "draft_revision") return;
+    document.getElementById(`revision-history-${source.id}`)?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+      block: "nearest",
+    });
+  }, [source]);
 
   const rootError = form.formState.errors.root?.server?.message;
   return (
     <>
-      <div className="grid items-start gap-5 min-[900px]:grid-cols-[minmax(0,0.32fr)_minmax(0,0.68fr)] [&_button]:max-[599px]:min-h-11">
-        <aside className="grid min-w-0 content-start gap-4">
+      <span aria-live="polite" className="sr-only">
+        {switchingRevision ? t("cardSheet.switch.pending") : ""}
+      </span>
+      <div className="grid items-start gap-5 min-[900px]:grid-cols-[minmax(16rem,0.38fr)_minmax(0,0.62fr)] min-[900px]:items-stretch [&_button]:max-[599px]:min-h-11">
+        <aside className="flex min-w-0 flex-col gap-4 min-[900px]:min-h-0">
           <CopyControls
             card={card}
             disabled={busy}
             form={form}
+            generationBlocked={generationBlocked}
+            onGenerationPendingChange={setGenerationPending}
             onPendingChange={onPendingChange}
           />
           <CandidateHistory
             card={card}
             disabled={busy}
-            onSelectCandidate={setSelectedCandidateId}
-            onSelectRevision={(id) =>
-              requestSelection({ kind: "revision", id })
+            generating={generating}
+            onSelectCandidate={(candidate) =>
+              requestSelection(candidateEditSource(candidate))
             }
-            selectedCandidateId={selectedCandidate?.id ?? null}
-            selectedRevisionId={card.activeRevisionId}
+            onSelectRevision={(revision) =>
+              requestSelection(revisionEditSource(revision))
+            }
+            selectedSource={source}
           />
         </aside>
-        <div className="grid min-w-0 content-start gap-4">
-          <SelectedContentPreviews
-            cardId={card.id}
-            onApplyCandidate={async () => {
-              if (selectedCandidate) {
-                await requestSelection({
-                  kind: "candidate",
-                  id: selectedCandidate.id,
-                });
-              }
-            }}
-            pending={busy}
-            selectedCandidate={selectedCandidate}
-            selectedRevision={active}
-          />
-          {stale ? (
-            <StaleBanner
-              active={active}
-              disabled={waitingForRefresh || busy}
-              onApply={applyRebase}
-              onChoose={chooseRebase}
-              onDiscard={reloadActive}
-              onRebase={startRebase}
-              rebase={currentRebase}
-            />
-          ) : null}
+        <div className="min-w-0 min-[900px]:h-full">
           <RevisionEditor
-            active={active}
             dirty={dirty}
-            disabled={currentRebase !== null}
             form={form}
             hashtagDraft={hashtagDraft}
             isSubmitting={isSubmitting}
+            nextRevisionNumber={card.nextRevisionNumber}
             onEditorChange={props.onEditorChange}
             onHashtagDraftChange={onHashtagDraftChange}
             platform={card.platform}
             onSubmit={submit}
             resolveError={resolveError}
             rootError={rootError}
-            stale={stale}
+            source={source}
+            sourceLoading={generating && source === null}
+            stale={waitingForRefresh}
             updatePending={busy}
           />
-          <Collapsible className="rounded-xl border border-border bg-card">
-            <CollapsibleTrigger
-              render={
-                <Button
-                  className="group h-12 w-full justify-start px-4"
-                  variant="ghost"
-                />
-              }
-            >
-              <ImageIcon aria-hidden="true" />
-              {t("cardSheet.image")}
-              <ChevronDownIcon
-                className="ms-auto transition-transform group-data-panel-open:rotate-180"
-                aria-hidden="true"
-              />
-            </CollapsibleTrigger>
-            <CollapsibleContent
-              className="px-4 pb-4 data-closed:hidden"
-              keepMounted
-            >
-              <ImageControls
-                active={active}
-                card={card}
-                editorDirty={dirty || stale}
-                form={form}
-                key={active?.id ?? "no-active-revision"}
-                onAdopt={adoptImage}
-                onPendingChange={onPendingChange}
-                onRemove={removeImage}
-                revisionPending={busy}
-              />
-            </CollapsibleContent>
-          </Collapsible>
-          <NextIntlClientProvider
-            locale={locale}
-            messages={locale === "fa" ? publishingFa : publishingEn}
-          >
-            <PublishingTicket
-              card={card}
-              disabled={busy}
-              editorDirty={dirty || stale}
-              key={active?.id ?? "no-active-revision"}
-              onPendingChange={onPendingChange}
-            />
-          </NextIntlClientProvider>
         </div>
       </div>
+      <BackgroundGradient containerClassName="w-full" className="ring-0">
+        <Collapsible className="rounded-xl bg-card">
+          <CollapsibleTrigger
+            render={
+              <Button
+                className="group h-12 w-full justify-start px-4"
+                variant="ghost"
+              />
+            }
+          >
+            <ImageIcon aria-hidden="true" />
+            {t("cardSheet.image")}
+            {active?.imageProvenanceMismatch ? (
+              <span className="ms-auto text-working text-xs">
+                {t("cardSheet.imageMismatchSummary")}
+              </span>
+            ) : null}
+            <ChevronDownIcon
+              className={`${active?.imageProvenanceMismatch ? "" : "ms-auto"} transition-transform group-data-panel-open:rotate-180`}
+              aria-hidden="true"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent
+            className="px-4 pb-4 data-closed:hidden"
+            keepMounted
+          >
+            <ImageControls
+              active={active}
+              card={card}
+              editorDirty={effectsBlocked}
+              imageModels={imageModels}
+              key={active?.id ?? "no-active-revision"}
+              onAdopt={adoptImage}
+              onPendingChange={onPendingChange}
+              onRemove={removeImage}
+              resolveError={resolveError}
+              revisionPending={busy}
+            />
+          </CollapsibleContent>
+        </Collapsible>
+      </BackgroundGradient>
+      <PublishingTicket
+        card={card}
+        disabled={busy}
+        effectDisabled={
+          effectsBlocked || Boolean(active?.hasNonterminalImageGeneration)
+        }
+        key={active?.id ?? "no-active-revision"}
+        onPendingChange={onPendingChange}
+        savedChangeDisabled={savedChangeBlocked}
+      />
       <ConfirmDialog
         cancelLabel={t("cardSheet.discard.cancel")}
         confirmLabel={t("cardSheet.switch.confirm")}
@@ -960,197 +983,6 @@ function CardSheetBody(props: CardSheetBodyProps) {
       />
     </>
   );
-}
-
-function SelectedContentPreviews({
-  cardId,
-  onApplyCandidate,
-  pending,
-  selectedCandidate,
-  selectedRevision,
-}: {
-  cardId: string;
-  onApplyCandidate: () => Promise<void>;
-  pending: boolean;
-  selectedCandidate: PlatformDraftCard["candidates"][number] | null;
-  selectedRevision: Revision | null;
-}) {
-  const t = useTranslations(EDITORIAL_NAMESPACE);
-
-  return (
-    <>
-      <ContentPreview
-        action={
-          selectedCandidate
-            ? { label: t("cardSheet.useVariant"), run: onApplyCandidate }
-            : null
-        }
-        content={selectedCandidate}
-        emptyLabel={t("cardSheet.previewEmpty")}
-        heading={t("cardSheet.preview")}
-        id={`copy-preview-${cardId}`}
-        pending={pending}
-      />
-      {selectedRevision ? (
-        <ContentPreview
-          action={null}
-          content={selectedRevision}
-          emptyLabel={t("cardSheet.previewEmpty")}
-          heading={t("cardSheet.revision", {
-            n: selectedRevision.revisionNumber,
-          })}
-          id={`revision-preview-${cardId}`}
-          pending={pending}
-        />
-      ) : null}
-    </>
-  );
-}
-
-function StaleBanner({
-  active,
-  disabled,
-  onApply,
-  onChoose,
-  onDiscard,
-  onRebase,
-  rebase,
-}: {
-  active: Revision | null;
-  disabled: boolean;
-  onApply: (merged: DraftEditorInput) => void;
-  onChoose: (field: EditorField, choice: "mine" | "theirs") => void;
-  onDiscard: () => void;
-  onRebase: () => void;
-  rebase: RebaseState | null;
-}) {
-  const format = useFormatter();
-  const t = useTranslations(EDITORIAL_NAMESPACE);
-  const resolved =
-    rebase?.conflicts.every((field) => rebase.choices[field] !== undefined) ??
-    false;
-
-  return (
-    <Alert className="gap-2 p-4" role="status" variant="working">
-      <AlertTitle>{t("cardSheet.stale.title")}</AlertTitle>
-      <AlertDescription>
-        {active ? (
-          <p>
-            {t("cardSheet.stale.arrived", {
-              author: active.authorName,
-              n: active.revisionNumber,
-              time: format.dateTime(active.createdAt, { timeStyle: "short" }),
-            })}
-          </p>
-        ) : null}
-        <p>{t("cardSheet.stale.description")}</p>
-      </AlertDescription>
-      {rebase === null ? (
-        <div className="mt-2 flex flex-wrap gap-2">
-          <Button
-            disabled={disabled}
-            onClick={onRebase}
-            type="button"
-            variant="secondary"
-          >
-            {t("cardSheet.stale.rebase")}
-          </Button>
-          <Button
-            disabled={disabled}
-            onClick={onDiscard}
-            type="button"
-            variant="outline"
-          >
-            {t("cardSheet.stale.reload")}
-          </Button>
-        </div>
-      ) : (
-        <div className="mt-3 grid gap-3">
-          <p className="ticket-label">{t("cardSheet.rebase.title")}</p>
-          {rebase.conflicts.map((field) => (
-            <fieldset
-              className="grid gap-2 rounded-lg border border-border bg-card p-3"
-              key={field}
-            >
-              <legend className="ticket-label px-1">
-                {t(
-                  `cardSheet.editor.${field === "contentLocale" ? "locale" : field}`,
-                )}
-              </legend>
-              <RebaseChoice
-                label={t("cardSheet.rebase.mine")}
-                onSelect={() => onChoose(field, "mine")}
-                selected={rebase.choices[field] === "mine"}
-                value={fieldPreview(rebase.mine, field)}
-              />
-              <RebaseChoice
-                label={t("cardSheet.rebase.theirs", {
-                  n: rebase.revisionNumber,
-                })}
-                onSelect={() => onChoose(field, "theirs")}
-                selected={rebase.choices[field] === "theirs"}
-                value={fieldPreview(rebase.theirs, field)}
-              />
-            </fieldset>
-          ))}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              disabled={disabled || !resolved}
-              onClick={() => onApply(mergeRebase(rebase))}
-              type="button"
-            >
-              {t("cardSheet.rebase.apply")}
-            </Button>
-            <Button
-              disabled={disabled}
-              onClick={onDiscard}
-              type="button"
-              variant="outline"
-            >
-              {t("cardSheet.stale.reload")}
-            </Button>
-          </div>
-        </div>
-      )}
-    </Alert>
-  );
-}
-
-function RebaseChoice({
-  label,
-  onSelect,
-  selected,
-  value,
-}: {
-  label: string;
-  onSelect: () => void;
-  selected: boolean;
-  value: string;
-}) {
-  return (
-    <Button
-      aria-pressed={selected}
-      className="grid h-auto w-full justify-normal gap-1 whitespace-normal p-2 text-start data-selected:border-primary/40 data-selected:bg-accent data-selected:ring-1 data-selected:ring-primary/30"
-      data-selected={selected || undefined}
-      onClick={onSelect}
-      type="button"
-      variant={selected ? "secondary" : "outline"}
-    >
-      <span className="flex w-full items-center gap-1">
-        {selected ? (
-          <CheckIcon aria-hidden="true" className="size-3.5" />
-        ) : null}
-        <strong className="min-w-0 flex-1">{label}</strong>
-      </span>
-      <span className="line-clamp-3 w-full font-normal text-muted-foreground">
-        <Bdi>{value}</Bdi>
-      </span>
-    </Button>
-  );
-}
-
-function fieldPreview(values: DraftEditorInput, field: EditorField) {
-  return field === "hashtags" ? values.hashtags.join(" ") : values[field];
 }
 
 type ReferenceUpload = {
@@ -1184,28 +1016,95 @@ async function uploadImage(
   return intent.mediaAssetId;
 }
 
+function useVerifiedImageUpload(
+  platformDraftId: string,
+  kind: "image" | typeof REFERENCE_IMAGE_KIND,
+  emit: (upload: ReferenceUpload | null) => void,
+) {
+  const live = useRef(true);
+  const run = useRef(0);
+
+  useEffect(() => {
+    live.current = true;
+    return () => {
+      live.current = false;
+    };
+  }, []);
+
+  const cancel = () => {
+    run.current += 1;
+    emit(null);
+  };
+
+  const select = async (file: File | undefined) => {
+    run.current += 1;
+    const selection = run.current;
+    const current = () => live.current && run.current === selection;
+    if (!file) {
+      emit(null);
+      return;
+    }
+    emit({ fileName: file.name, mediaAssetId: null, status: "uploading" });
+    const mediaAssetId = await uploadImage(file, kind).catch(() => null);
+    if (!current()) return;
+    if (!mediaAssetId) {
+      emit({ fileName: file.name, mediaAssetId: null, status: "failed" });
+      return;
+    }
+    emit({ fileName: file.name, mediaAssetId, status: "verifying" });
+    for (let attempt = 0; attempt < REFERENCE_POLL_ATTEMPTS; attempt += 1) {
+      const confirmed = await client.media
+        .confirm({ mediaAssetId, platformDraftId })
+        .catch(() => null);
+      if (!current()) return;
+      if (!confirmed) {
+        emit({ fileName: file.name, mediaAssetId, status: "failed" });
+        return;
+      }
+      if (confirmed.lifecycle === "verified") {
+        emit({ fileName: file.name, mediaAssetId, status: "verified" });
+        return;
+      }
+      if (confirmed.lifecycle === "rejected") {
+        emit({ fileName: file.name, mediaAssetId, status: "rejected" });
+        return;
+      }
+      await new Promise((resolve) =>
+        setTimeout(resolve, REFERENCE_POLL_INTERVAL_MS),
+      );
+      if (!current()) return;
+    }
+    emit({ fileName: file.name, mediaAssetId, status: "failed" });
+  };
+
+  return { cancel, select };
+}
+
 function ImageControls({
   active,
   card,
   editorDirty,
-  form,
+  imageModels,
   onAdopt,
   onPendingChange,
   onRemove,
+  resolveError,
   revisionPending,
 }: {
   card: PlatformDraftCard;
   editorDirty: boolean;
-  form: UseFormReturn<DraftEditorInput>;
   active: Revision | null;
+  imageModels: readonly { key: string; name: string }[];
   onAdopt: (mediaAssetId: string) => Promise<void>;
   onPendingChange: (pending: boolean) => void;
   onRemove: () => Promise<void>;
+  resolveError: (code: string | undefined) => string;
   revisionPending: boolean;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
+  const [commandError, setCommandError] = useState("");
   const [modelOptionKey, setModelOptionKey] = useState(
-    card.imageGeneration?.modelOptionKey ?? card.imageModels[0]?.key ?? "",
+    card.imageGeneration?.modelOptionKey ?? imageModels[0]?.key ?? "",
   );
   const [operatorDirection, setOperatorDirection] = useState("");
   const [reference, setReference] = useState<ReferenceUpload | null>(null);
@@ -1218,32 +1117,27 @@ function ImageControls({
     operation?.lifecycle === "running" ||
     operation?.lifecycle === "settling";
   const pending = start.isPending || retry.isPending;
+  const busy = pending || nonterminal;
   const referenceBusy =
     reference?.status === "uploading" || reference?.status === "verifying";
   const imageSourceReady = active?.imageSourceReadiness === "ready";
   const disabled =
     !imageSourceReady ||
     !modelOptionKey ||
-    nonterminal ||
-    pending ||
+    busy ||
     referenceBusy ||
     revisionPending ||
-    editorDirty;
+    editorDirty ||
+    Boolean(active?.mediaLocked);
   const selectedFinalMediaAssetId = active?.selectedFinalMediaAssetId ?? null;
-  const finalMediaAssetIds = [
-    ...new Set(
-      [selectedFinalMediaAssetId, operation?.finalMediaAssetId ?? null].filter(
-        (id): id is string => id !== null,
-      ),
-    ),
-  ];
 
   const execute = async () => {
     if (!active || disabled) return;
-    form.clearErrors("root");
+    setCommandError("");
     const common = {
       draftRevisionId: active.id,
       expectedRevisionVersion: card.revisionVersion,
+      expectedImageIntentVersion: active.imageIntentVersion,
       idempotencyKey: crypto.randomUUID(),
       modelOptionKey,
       operatorDirection,
@@ -1256,15 +1150,14 @@ function ImageControls({
       ? await retry.execute({ ...common, kind: "retry" })
       : await start.execute({ ...common, kind: "start" });
     if (settled.status === "error") {
-      form.setError("root.server", {
-        message: settled.fieldErrors?.operatorDirection ?? settled.code,
-        type: "server",
-      });
+      setCommandError(
+        resolveError(settled.fieldErrors?.operatorDirection ?? settled.code),
+      );
     }
   };
 
   return (
-    <div className="mt-1 grid gap-4">
+    <div aria-busy={busy || undefined} className="mt-1 grid gap-4">
       <p
         aria-live="polite"
         className={
@@ -1279,14 +1172,24 @@ function ImageControls({
             ? t("cardSheet.imageReady")
             : t("cardSheet.imageSourceExtractRequired")}
       </p>
+      {active?.mediaLocked ? (
+        <p className="text-muted-foreground text-sm" role="status">
+          {t("cardSheet.imageLocked")}
+        </p>
+      ) : null}
+      {active?.imageProvenanceMismatch ? (
+        <p className="text-sm text-working" role="status">
+          {t("cardSheet.imageMismatch")}
+        </p>
+      ) : null}
       <LabeledSelect
-        disabled={nonterminal || pending || revisionPending || editorDirty}
+        disabled={busy || revisionPending || editorDirty || active?.mediaLocked}
         id={`image-model-${card.id}`}
         label={t("cardSheet.imageModel")}
         onValueChange={(next) => {
           if (next) setModelOptionKey(next);
         }}
-        options={card.imageModels.map((model) => ({
+        options={imageModels.map((model) => ({
           label: model.name,
           value: model.key,
         }))}
@@ -1298,31 +1201,56 @@ function ImageControls({
           {t("cardSheet.imageDirection")}
         </FieldCaption>
         <Textarea
-          disabled={nonterminal || pending || revisionPending || editorDirty}
+          aria-describedby={
+            commandError ? `image-direction-error-${card.id}` : undefined
+          }
+          aria-invalid={commandError ? true : undefined}
+          disabled={
+            busy || revisionPending || editorDirty || active?.mediaLocked
+          }
           id={`image-direction-${card.id}`}
           maxLength={1_000}
           onChange={(event) => setOperatorDirection(event.currentTarget.value)}
           value={operatorDirection}
         />
         <FieldDescription>{t("cardSheet.imageDirectionHint")}</FieldDescription>
+        {commandError ? (
+          <p
+            className="text-destructive text-xs"
+            id={`image-direction-error-${card.id}`}
+            role="alert"
+          >
+            {commandError}
+          </p>
+        ) : null}
       </Field>
       <ReferenceImageField
         cardId={card.id}
-        clearDisabled={nonterminal || pending || revisionPending || editorDirty}
+        clearDisabled={
+          busy || revisionPending || editorDirty || Boolean(active?.mediaLocked)
+        }
         disabled={
-          nonterminal ||
-          pending ||
+          busy ||
           referenceBusy ||
           revisionPending ||
-          editorDirty
+          editorDirty ||
+          Boolean(active?.mediaLocked)
         }
         onChange={setReference}
         reference={reference}
       />
       <OperatorFinalImageField
-        adoptDisabled={revisionPending || editorDirty}
+        adoptDisabled={
+          busy || revisionPending || editorDirty || Boolean(active?.mediaLocked)
+        }
         cardId={card.id}
-        inputDisabled={!active || revisionPending || editorDirty}
+        inputDisabled={
+          !active ||
+          busy ||
+          revisionPending ||
+          editorDirty ||
+          Boolean(active?.mediaLocked)
+        }
         onAdopt={onAdopt}
       />
       <p aria-live="polite" className="text-muted-foreground text-sm">
@@ -1335,11 +1263,8 @@ function ImageControls({
       {operation?.lifecycle === "failed" && imageSourceReady ? (
         <p className="text-destructive text-sm">{t("cardSheet.imageFailed")}</p>
       ) : null}
-      {finalMediaAssetIds.map((final) => (
-        <div
-          className="grid gap-3 rounded-lg border border-border p-3"
-          key={final}
-        >
+      {selectedFinalMediaAssetId ? (
+        <div className="grid gap-3 rounded-lg border border-border p-3">
           <Image
             alt={t("cardSheet.imageAlt", {
               brand: card.brandName,
@@ -1348,7 +1273,7 @@ function ImageControls({
             className="h-auto w-full rounded-lg border border-border"
             height={1350}
             sizes="(max-width: 639px) 100vw, 62vw"
-            src={`/api/media/${final}`}
+            src={`/api/media/${selectedFinalMediaAssetId}`}
             unoptimized
             width={1080}
           />
@@ -1358,7 +1283,7 @@ function ImageControls({
               <a
                 aria-label={t("cardSheet.imageDownload")}
                 download
-                href={`/api/media/${final}?download=1`}
+                href={`/api/media/${selectedFinalMediaAssetId}?download=1`}
               />
             }
             variant="outline"
@@ -1367,9 +1292,7 @@ function ImageControls({
             {t("cardSheet.imageDownload")}
           </Button>
           <p className="text-muted-foreground text-sm">
-            {selectedFinalMediaAssetId === final
-              ? t("cardSheet.imageAttached")
-              : t("cardSheet.imageNotAttached")}
+            {t("cardSheet.imageAttached")}
           </p>
           {editorDirty ? (
             <p className="text-muted-foreground text-xs">
@@ -1377,36 +1300,34 @@ function ImageControls({
             </p>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            {selectedFinalMediaAssetId === final ? (
-              <Button
-                disabled={revisionPending || editorDirty}
-                onClick={onRemove}
-                type="button"
-                variant="outline"
-              >
-                {t("cardSheet.imageRemove")}
-              </Button>
-            ) : (
-              <Button
-                disabled={!active || revisionPending || pending || editorDirty}
-                onClick={() => onAdopt(final)}
-                type="button"
-                variant="secondary"
-              >
-                {t("cardSheet.imageUse")}
-              </Button>
-            )}
+            <Button
+              disabled={
+                busy ||
+                revisionPending ||
+                editorDirty ||
+                Boolean(active?.mediaLocked)
+              }
+              onClick={onRemove}
+              type="button"
+              variant="outline"
+            >
+              {t("cardSheet.imageRemove")}
+            </Button>
           </div>
         </div>
-      ))}
+      ) : null}
       <Button disabled={disabled} onClick={execute} type="button">
-        {nonterminal || pending ? (
+        {busy ? (
           <Spinner
             data-icon="inline-start"
             label={t("cardSheet.imagePending")}
           />
         ) : null}
-        {operation ? t("cardSheet.imageRetry") : t("cardSheet.imageGenerate")}
+        {busy
+          ? t("cardSheet.imagePending")
+          : operation
+            ? t("cardSheet.imageRetry")
+            : t("cardSheet.imageGenerate")}
       </Button>
     </div>
   );
@@ -1426,75 +1347,19 @@ function ReferenceImageField({
   reference: ReferenceUpload | null;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
-  const live = useRef(true);
-  const run = useRef(0);
   const input = useRef<HTMLInputElement>(null);
+  const { cancel, select } = useVerifiedImageUpload(
+    cardId,
+    REFERENCE_IMAGE_KIND,
+    onChange,
+  );
   const busy =
     reference?.status === "uploading" || reference?.status === "verifying";
 
-  useEffect(() => {
-    live.current = true;
-    return () => {
-      live.current = false;
-    };
-  }, []);
-
   const clear = () => {
-    run.current += 1;
-    onChange(null);
+    cancel();
     if (input.current) input.current.value = "";
     input.current?.focus();
-  };
-
-  const select = async (file: File | undefined) => {
-    run.current += 1;
-    const selection = run.current;
-    const current = () => live.current && run.current === selection;
-    if (!file) {
-      onChange(null);
-      return;
-    }
-    onChange({
-      fileName: file.name,
-      mediaAssetId: null,
-      status: "uploading",
-    });
-    const mediaAssetId = await uploadImage(file, REFERENCE_IMAGE_KIND).catch(
-      () => null,
-    );
-    if (!current()) return;
-    if (!mediaAssetId) {
-      onChange({
-        fileName: file.name,
-        mediaAssetId: null,
-        status: "failed",
-      });
-      return;
-    }
-    onChange({ fileName: file.name, mediaAssetId, status: "verifying" });
-    for (let attempt = 0; attempt < REFERENCE_POLL_ATTEMPTS; attempt += 1) {
-      const confirmed = await client.media
-        .confirm({ mediaAssetId })
-        .catch(() => null);
-      if (!current()) return;
-      if (!confirmed) {
-        onChange({ fileName: file.name, mediaAssetId, status: "failed" });
-        return;
-      }
-      if (confirmed.lifecycle === "verified") {
-        onChange({ fileName: file.name, mediaAssetId, status: "verified" });
-        return;
-      }
-      if (confirmed.lifecycle === "rejected") {
-        onChange({ fileName: file.name, mediaAssetId, status: "rejected" });
-        return;
-      }
-      await new Promise((resolve) =>
-        setTimeout(resolve, REFERENCE_POLL_INTERVAL_MS),
-      );
-      if (!current()) return;
-    }
-    onChange({ fileName: file.name, mediaAssetId, status: "failed" });
   };
 
   return (
@@ -1567,64 +1432,7 @@ function OperatorFinalImageField({
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const [upload, setUpload] = useState<ReferenceUpload | null>(null);
-  const live = useRef(true);
-  const run = useRef(0);
-
-  useEffect(() => {
-    live.current = true;
-    return () => {
-      live.current = false;
-    };
-  }, []);
-
-  const select = async (file: File | undefined) => {
-    run.current += 1;
-    const selection = run.current;
-    const current = () => live.current && run.current === selection;
-    if (!file) {
-      setUpload(null);
-      return;
-    }
-    setUpload({
-      fileName: file.name,
-      mediaAssetId: null,
-      status: "uploading",
-    });
-    const mediaAssetId = await uploadImage(file, "image").catch(() => null);
-    if (!current()) return;
-    if (!mediaAssetId) {
-      setUpload({
-        fileName: file.name,
-        mediaAssetId: null,
-        status: "failed",
-      });
-      return;
-    }
-    setUpload({ fileName: file.name, mediaAssetId, status: "verifying" });
-    for (let attempt = 0; attempt < REFERENCE_POLL_ATTEMPTS; attempt += 1) {
-      const confirmed = await client.media
-        .confirm({ mediaAssetId })
-        .catch(() => null);
-      if (!current()) return;
-      if (!confirmed) {
-        setUpload({ fileName: file.name, mediaAssetId, status: "failed" });
-        return;
-      }
-      if (confirmed.lifecycle === "verified") {
-        setUpload({ fileName: file.name, mediaAssetId, status: "verified" });
-        return;
-      }
-      if (confirmed.lifecycle === "rejected") {
-        setUpload({ fileName: file.name, mediaAssetId, status: "rejected" });
-        return;
-      }
-      await new Promise((resolve) =>
-        setTimeout(resolve, REFERENCE_POLL_INTERVAL_MS),
-      );
-      if (!current()) return;
-    }
-    setUpload({ fileName: file.name, mediaAssetId, status: "failed" });
-  };
+  const { select } = useVerifiedImageUpload(cardId, "image", setUpload);
 
   return (
     <Field>
@@ -1672,21 +1480,23 @@ function OperatorFinalImageField({
 function SelectableItem({
   contentLocale,
   disabled,
+  footerMeta,
+  headerMeta,
   label,
-  meta,
   onSelect,
   preview,
   selected,
-  time,
+  statusMeta,
 }: {
   contentLocale: ContentLocale;
   disabled: boolean;
+  footerMeta?: string;
+  headerMeta: string;
   label: string;
-  meta: string;
   onSelect: () => void;
   preview: string;
   selected: boolean;
-  time: string;
+  statusMeta?: string;
 }) {
   return (
     <Button
@@ -1703,8 +1513,13 @@ function SelectableItem({
           <CheckIcon aria-hidden="true" className="size-3.5" />
         ) : null}
         <strong className="min-w-0 flex-1 truncate">{label}</strong>
+        {statusMeta ? (
+          <span className="ticket-label shrink-0 text-primary">
+            {statusMeta}
+          </span>
+        ) : null}
         <span className="shrink-0 font-normal text-muted-foreground">
-          {time}
+          {headerMeta}
         </span>
       </span>
       <span
@@ -1713,7 +1528,11 @@ function SelectableItem({
       >
         <Bdi>{preview}</Bdi>
       </span>
-      <span className="ticket-label w-full text-muted-foreground">{meta}</span>
+      {footerMeta ? (
+        <span className="ticket-label w-full text-muted-foreground">
+          {footerMeta}
+        </span>
+      ) : null}
     </Button>
   );
 }
@@ -1721,59 +1540,84 @@ function SelectableItem({
 function CandidateHistory({
   card,
   disabled,
+  generating,
   onSelectCandidate,
   onSelectRevision,
-  selectedCandidateId,
-  selectedRevisionId,
+  selectedSource,
 }: {
   card: PlatformDraftCard;
   disabled: boolean;
-  onSelectCandidate: (candidateId: string) => void;
-  onSelectRevision: (revisionId: string) => void;
-  selectedCandidateId: string | null;
-  selectedRevisionId: string | null;
+  generating: boolean;
+  onSelectCandidate: (
+    candidate: PlatformDraftCard["candidates"][number],
+  ) => void;
+  onSelectRevision: (revision: Revision) => void;
+  selectedSource: EditSource | null;
 }) {
   const format = useFormatter();
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const at = (value: Date) =>
     format.dateTime(value, { dateStyle: "short", timeStyle: "short" });
-
   return (
-    <>
+    <div className="grid min-h-0 flex-1 content-start gap-4 min-[900px]:grid-rows-[minmax(0,1fr)_auto]">
       <section
+        aria-busy={generating || undefined}
         aria-labelledby={`candidates-${card.id}`}
-        className="rounded-xl border border-border bg-card p-3"
+        className="rounded-xl border border-primary/20 bg-linear-to-br from-accent/50 via-card to-card p-3 min-[900px]:flex min-[900px]:min-h-0 min-[900px]:flex-col"
       >
-        <h3 className="ticket-label" id={`candidates-${card.id}`}>
+        <h3 className="font-medium text-sm" id={`candidates-${card.id}`}>
           {t("cardSheet.candidates")}
         </h3>
-        {card.candidates.length === 0 ? (
+        {generating ? (
+          <div
+            aria-live="polite"
+            className="mt-2 grid min-h-0 gap-2 overflow-hidden min-[900px]:flex-1"
+            role="status"
+          >
+            <span className="sr-only">{t("cardSheet.generatingStyles")}</span>
+            {[0, 1, 2].map((row) => (
+              <SelectableItemSkeleton key={row} />
+            ))}
+          </div>
+        ) : card.candidates.length === 0 ? (
           <p className="mt-2 text-muted-foreground">
             {t("cardSheet.candidatesEmpty")}
           </p>
         ) : (
-          <ul className="mt-2 grid gap-2">
-            {card.candidates.map((candidate) => (
-              <li key={candidate.id}>
-                <SelectableItem
-                  contentLocale={candidate.contentLocale}
-                  disabled={disabled}
-                  label={candidate.variantKey}
-                  meta={t("cardSheet.candidateMeta", {
-                    locale: candidate.contentLocale,
-                    model: candidate.modelOptionKey,
-                  })}
-                  onSelect={() => onSelectCandidate(candidate.id)}
-                  preview={candidate.headline}
-                  selected={selectedCandidateId === candidate.id}
-                  time={at(candidate.createdAt)}
-                />
-              </li>
-            ))}
-          </ul>
+          <div className="scrollbar-none mt-2 max-h-72 overflow-y-auto overscroll-contain p-px min-[900px]:max-h-none min-[900px]:min-h-0 min-[900px]:flex-1">
+            <ul className="grid gap-2">
+              {card.candidates.map((candidate) => (
+                <li key={candidate.id}>
+                  <SelectableItem
+                    contentLocale={candidate.contentLocale}
+                    disabled={disabled}
+                    headerMeta={t("cardSheet.candidateMeta", {
+                      locale: candidate.contentLocale,
+                      model: candidate.modelOptionKey,
+                    })}
+                    label={
+                      candidate.variantKey === "to_the_point"
+                        ? t("cardSheet.variant.toThePoint")
+                        : candidate.variantKey
+                    }
+                    onSelect={() => onSelectCandidate(candidate)}
+                    preview={candidate.headline}
+                    selected={
+                      selectedSource?.kind === "copy_variant" &&
+                      selectedSource.id === candidate.id
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </section>
-      <Collapsible className="rounded-xl border border-border bg-card">
+      <Collapsible
+        className="rounded-xl border border-border bg-card"
+        defaultOpen
+        key={card.id}
+      >
         <CollapsibleTrigger
           render={
             <Button
@@ -1783,130 +1627,57 @@ function CandidateHistory({
           }
         >
           <HistoryIcon aria-hidden="true" />
-          {t("cardSheet.more")}
+          {t("cardSheet.revisions")}
           <ChevronDownIcon
             className="ms-auto transition-transform group-data-panel-open:rotate-180"
             aria-hidden="true"
           />
         </CollapsibleTrigger>
         <CollapsibleContent className="p-3 pt-1 data-closed:hidden" keepMounted>
-          <section aria-labelledby={`history-${card.id}`}>
-            <h3 className="ticket-label" id={`history-${card.id}`}>
-              {t("cardSheet.history")}
-            </h3>
+          <div>
             {card.revisions.length === 0 ? (
-              <p className="mt-2 text-muted-foreground">
+              <p className="text-muted-foreground">
                 {t("cardSheet.historyEmpty")}
               </p>
             ) : (
-              <ol className="mt-2 grid gap-2">
-                {card.revisions.map((revision) => (
-                  <li id={`revision-history-${revision.id}`} key={revision.id}>
-                    <SelectableItem
-                      contentLocale={revision.contentLocale}
-                      disabled={disabled}
-                      label={t("cardSheet.revision", {
-                        n: revision.revisionNumber,
-                      })}
-                      meta={t("cardSheet.revisionMeta", {
-                        author: revision.authorName,
-                        locale: revision.contentLocale,
-                      })}
-                      onSelect={() => onSelectRevision(revision.id)}
-                      preview={revision.headline}
-                      selected={selectedRevisionId === revision.id}
-                      time={at(revision.createdAt)}
-                    />
-                  </li>
-                ))}
-              </ol>
+              <div className="scrollbar-none max-h-64 overflow-y-auto overscroll-contain p-px">
+                <ol className="grid gap-2">
+                  {card.revisions.map((revision) => (
+                    <li
+                      id={`revision-history-${revision.id}`}
+                      key={revision.id}
+                    >
+                      <SelectableItem
+                        contentLocale={revision.contentLocale}
+                        disabled={disabled}
+                        label={t("cardSheet.revision", {
+                          n: revision.revisionNumber,
+                        })}
+                        footerMeta={at(revision.createdAt)}
+                        headerMeta={t("cardSheet.revisionMeta", {
+                          author: revision.authorName,
+                          locale: revision.contentLocale,
+                        })}
+                        onSelect={() => onSelectRevision(revision)}
+                        preview={revision.headline}
+                        selected={
+                          selectedSource?.kind === "draft_revision" &&
+                          selectedSource.id === revision.id
+                        }
+                      />
+                    </li>
+                  ))}
+                </ol>
+              </div>
             )}
-          </section>
+          </div>
         </CollapsibleContent>
       </Collapsible>
-    </>
+    </div>
   );
 }
 
-function ContentPreview({
-  action,
-  content,
-  emptyLabel,
-  heading,
-  id,
-  pending,
-}: {
-  action: { label: string; run: () => Promise<void> } | null;
-  content: {
-    contentLocale: "en" | "fa";
-    headline: string;
-    body: string;
-    hashtags: readonly string[];
-  } | null;
-  emptyLabel: string;
-  heading: string;
-  id: string;
-  pending: boolean;
-}) {
-  const t = useTranslations(EDITORIAL_NAMESPACE);
-
-  return (
-    <section aria-labelledby={id}>
-      <h3 className="ticket-label" id={id}>
-        {heading}
-      </h3>
-      {content ? (
-        <article
-          className="mt-2 grid gap-3 rounded-xl border border-border bg-card p-4"
-          dir={DIRECTION[content.contentLocale]}
-          lang={content.contentLocale}
-        >
-          <strong className="wrap-anywhere text-sm/relaxed">
-            {content.headline}
-          </strong>
-          <p className="wrap-anywhere whitespace-pre-wrap text-sm/relaxed">
-            {content.body}
-          </p>
-          <HashtagChips hashtags={content.hashtags} />
-          {action ? (
-            <Button
-              disabled={pending}
-              onClick={action.run}
-              type="button"
-              variant="secondary"
-            >
-              {pending ? (
-                <Spinner
-                  data-icon="inline-start"
-                  label={t("cardSheet.applying")}
-                />
-              ) : null}
-              {action.label}
-            </Button>
-          ) : null}
-        </article>
-      ) : (
-        <p className="mt-2 text-muted-foreground">{emptyLabel}</p>
-      )}
-    </section>
-  );
-}
-
-function HashtagChips({ hashtags }: { hashtags: readonly string[] }) {
-  return (
-    <ul className="flex flex-wrap items-start gap-1">
-      {hashtags.map((hashtag) => (
-        <li key={hashtag}>
-          <Badge className="h-6" variant="secondary">
-            <Bdi className="max-w-48 truncate">{hashtag}</Bdi>
-          </Badge>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-const HASHTAG_SEPARATOR = /[\s,\u060C]+/u;
+const HASHTAG_SEPARATOR = /[\s,\u060C#]+/u;
 
 function hashtagKey(hashtag: string) {
   return hashtag.toLocaleLowerCase("und");
@@ -1940,7 +1711,7 @@ function HashtagField({
       name="hashtags"
       resolveError={resolveError}
     >
-      {({ controlId, controlProps, descriptionId, field }) => {
+      {({ controlId, controlProps, descriptionNode, field }) => {
         const hashtags = field.value;
         const change = (next: string[]) => {
           field.onChange(next);
@@ -2026,9 +1797,7 @@ function HashtagField({
                 </li>
               ))}
             </ul>
-            <FieldDescription id={descriptionId}>
-              {t("cardSheet.editor.hashtagHint")}
-            </FieldDescription>
+            {descriptionNode}
           </>
         );
       }}
@@ -2037,33 +1806,35 @@ function HashtagField({
 }
 
 function RevisionEditor({
-  active,
   dirty,
-  disabled,
   form,
   hashtagDraft,
   isSubmitting,
+  nextRevisionNumber,
   onEditorChange,
   onHashtagDraftChange,
   onSubmit,
   platform,
   resolveError,
   rootError,
+  source,
+  sourceLoading,
   stale,
   updatePending,
 }: {
   form: UseFormReturn<DraftEditorInput>;
   dirty: boolean;
-  disabled: boolean;
   hashtagDraft: string;
   isSubmitting: boolean;
+  nextRevisionNumber: number;
   onEditorChange: () => void;
   onHashtagDraftChange: (value: string) => void;
-  active: Revision | null;
   platform: Platform;
   onSubmit: NonNullable<ComponentProps<"form">["onSubmit"]>;
   resolveError: (code: string | undefined) => string;
   rootError: string | undefined;
+  source: EditSource | null;
+  sourceLoading: boolean;
   stale: boolean;
   updatePending: boolean;
 }) {
@@ -2072,8 +1843,6 @@ function RevisionEditor({
     control: form.control,
     name: ["contentLocale", "headline", "body", "hashtags"],
   });
-  const localeChanged =
-    active !== null && contentLocale !== active.contentLocale;
   const used = platformCopyLength(
     platform,
     assembleCopy(platform, {
@@ -2086,18 +1855,38 @@ function RevisionEditor({
   const inlineHashtag =
     headline.match(INLINE_HASHTAG_TOKEN) !== null ||
     body.match(INLINE_HASHTAG_TOKEN) !== null;
-  const blocked = used > limit || inlineHashtag;
+  const localeMismatch = contentLocale !== source?.content.contentLocale;
+  const blocked = used > limit || inlineHashtag || localeMismatch;
 
   return (
     <>
-      {active ? (
+      {source ? (
         <form
           aria-busy={updatePending}
-          className="grid gap-4 rounded-xl border border-border bg-card p-4"
+          className="grid gap-4 rounded-xl border border-border bg-card p-4 min-[900px]:h-full"
           onChange={onEditorChange}
           onSubmit={onSubmit}
         >
-          <fieldset disabled={updatePending || disabled}>
+          <header className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="font-semibold text-base">
+                {t("cardSheet.editor.workspace")}
+              </h3>
+              <p className="mt-1 text-muted-foreground text-xs">
+                {source.kind === "copy_variant"
+                  ? t("cardSheet.editor.fromVariation")
+                  : t("cardSheet.editor.fromRevision", {
+                      n: source.revisionNumber ?? 0,
+                    })}
+              </p>
+            </div>
+            <Badge variant={dirty ? "secondary" : "outline"}>
+              {dirty
+                ? t("cardSheet.editor.edited")
+                : t("cardSheet.editor.sourceReady")}
+            </Badge>
+          </header>
+          <fieldset disabled={updatePending}>
             <FieldGroup className="gap-3">
               <FormInputField
                 control={form.control}
@@ -2114,7 +1903,7 @@ function RevisionEditor({
                 label={t("cardSheet.editor.body")}
                 name="body"
                 resolveError={resolveError}
-                rows={8}
+                rows={12}
               />
               <HashtagField
                 draft={hashtagDraft}
@@ -2133,8 +1922,8 @@ function RevisionEditor({
                 ]}
                 resolveError={resolveError}
               />
-              {localeChanged ? (
-                <p className="text-muted-foreground">
+              {localeMismatch ? (
+                <p className="text-muted-foreground text-xs">
                   {t("cardSheet.editor.localeRegenerate")}
                 </p>
               ) : null}
@@ -2169,11 +1958,10 @@ function RevisionEditor({
                 disabled={
                   isSubmitting ||
                   updatePending ||
-                  localeChanged ||
                   blocked ||
                   stale ||
                   hashtagDraft.trim() !== "" ||
-                  !dirty
+                  !canCreateRevision(source, dirty)
                 }
                 type="submit"
               >
@@ -2183,15 +1971,20 @@ function RevisionEditor({
                     label={t("cardSheet.saving")}
                   />
                 ) : null}
-                {t("cardSheet.saveRevision")}
+                {t("cardSheet.createRevision", { n: nextRevisionNumber })}
               </Button>
             </FieldGroup>
           </fieldset>
         </form>
+      ) : sourceLoading ? (
+        <div aria-live="polite" className="h-full" role="status">
+          <span className="sr-only">{t("cardSheet.generatingStyles")}</span>
+          <RevisionWorkspaceSkeleton />
+        </div>
       ) : (
-        <Field>
+        <Field className="rounded-xl border border-border bg-card p-5">
           <p className="text-muted-foreground">
-            {t("cardSheet.editor.noRevision")}
+            {t("cardSheet.editor.noSource")}
           </p>
           <FormRootError
             message={rootError ? resolveError(rootError) : undefined}
@@ -2206,15 +1999,22 @@ function CopyControls({
   card,
   disabled,
   form,
+  generationBlocked,
+  onGenerationPendingChange,
   onPendingChange,
 }: {
   card: PlatformDraftCard;
   disabled: boolean;
   form: UseFormReturn<DraftEditorInput>;
+  generationBlocked: boolean;
+  onGenerationPendingChange: (pending: boolean) => void;
   onPendingChange: (pending: boolean) => void;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
-  const onSettled = () => onPendingChange(false);
+  const onSettled = () => {
+    onGenerationPendingChange(false);
+    onPendingChange(false);
+  };
   const regenerate = useAction(regenerateCopyAction, { onSettled });
   const refreshArticle = useAction(refreshArticleAndRegenerateAction, {
     onSettled,
@@ -2222,10 +2022,7 @@ function CopyControls({
   const retry = useAction(retryCopyGenerationAction, { onSettled });
   const pending =
     regenerate.isPending || refreshArticle.isPending || retry.isPending;
-  const nonterminal =
-    card.generation?.lifecycle === "queued" ||
-    card.generation?.lifecycle === "running" ||
-    card.generation?.lifecycle === "settling";
+  const nonterminal = isCopyGenerationNonterminal(card.generation);
   const failedUnits =
     card.generation?.units.filter((unit) => unit.status === "failed").length ??
     0;
@@ -2233,7 +2030,7 @@ function CopyControls({
   const run = async (
     kind: "refresh_article" | "regenerate" | "retry_failed",
   ) => {
-    if (disabled || pending || nonterminal) return;
+    if (disabled || generationBlocked || pending || nonterminal) return;
     form.clearErrors("root");
     const common = {
       platformDraftId: card.id,
@@ -2241,6 +2038,7 @@ function CopyControls({
     };
     const requestedContentLocale = form.getValues("contentLocale");
     const modelOptionKey = card.generation?.modelOptionKey ?? "";
+    onGenerationPendingChange(true);
     onPendingChange(true);
     const settled =
       kind === "retry_failed"
@@ -2268,17 +2066,34 @@ function CopyControls({
 
   return (
     <section
-      aria-busy={pending}
+      aria-busy={pending || nonterminal || undefined}
       aria-labelledby={`copy-actions-${card.id}`}
       className="grid gap-3 rounded-xl border border-border bg-card p-3"
     >
       <h3 className="ticket-label" id={`copy-actions-${card.id}`}>
         {t("cardSheet.copyActions")}
       </h3>
+      {generationBlocked ? (
+        <p
+          className="text-muted-foreground text-xs"
+          id={`copy-actions-dirty-${card.id}`}
+        >
+          {t("cardSheet.generationDirtyBlocked")}
+        </p>
+      ) : null}
       <div className="grid gap-2">
         <Button
+          aria-describedby={
+            generationBlocked ? `copy-actions-dirty-${card.id}` : undefined
+          }
           className="h-auto min-h-8 justify-start whitespace-normal py-1.5"
-          disabled={disabled || pending || nonterminal || !card.generation}
+          disabled={
+            disabled ||
+            generationBlocked ||
+            pending ||
+            nonterminal ||
+            !card.generation
+          }
           onClick={() => run("regenerate")}
           type="button"
           variant="outline"
@@ -2288,8 +2103,17 @@ function CopyControls({
         </Button>
         {card.sourceKind === "rss" ? (
           <Button
+            aria-describedby={
+              generationBlocked ? `copy-actions-dirty-${card.id}` : undefined
+            }
             className="h-auto min-h-8 justify-start whitespace-normal py-1.5"
-            disabled={disabled || pending || nonterminal || !card.generation}
+            disabled={
+              disabled ||
+              generationBlocked ||
+              pending ||
+              nonterminal ||
+              !card.generation
+            }
             onClick={() => run("refresh_article")}
             type="button"
             variant="outline"
@@ -2300,8 +2124,11 @@ function CopyControls({
         ) : null}
         {failedUnits > 0 ? (
           <Button
+            aria-describedby={
+              generationBlocked ? `copy-actions-dirty-${card.id}` : undefined
+            }
             className="h-auto min-h-8 justify-start whitespace-normal py-1.5"
-            disabled={disabled || pending || nonterminal}
+            disabled={disabled || generationBlocked || pending || nonterminal}
             onClick={() => run("retry_failed")}
             type="button"
             variant="outline"

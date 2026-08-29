@@ -18,6 +18,9 @@
       "dismiss": "Remove the pinned card",
       "truncated": "Long text was shortened for the assistant."
     },
+    "transcript": {
+      "label": "Assistant conversation"
+    },
     "scroller": {
       "toLatest": "Scroll to the latest message"
     },
@@ -30,6 +33,7 @@
     "fallback": "I do not have an answer for that in this workspace. Ask about this run, the open card, or one of your media brands.",
     "askUser": {
       "progress": "Question {current} of {total}",
+      "progressLabel": "Brand question progress",
       "brand": {
         "title": "Which media brand is this about?",
         "error": "Pick a brand to continue."
@@ -52,6 +56,6 @@
       "stop": "Stop",
       "clear": "Clear"
     },
-    "askAboutCard": "Ask assistant"
+    "askAboutCard": "Ask chatbot about story"
   }
 }

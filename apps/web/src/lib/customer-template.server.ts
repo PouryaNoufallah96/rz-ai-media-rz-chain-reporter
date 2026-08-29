@@ -87,3 +87,8 @@ export const customerEditorial = {
     ),
   },
 };
+
+export const enabledImageModels =
+  customerEditorial.drafting.image.models.flatMap(({ enabled, key, name }) =>
+    enabled ? [{ key, name }] : [],
+  );

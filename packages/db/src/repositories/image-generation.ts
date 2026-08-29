@@ -33,6 +33,7 @@ import {
 } from "../executor";
 import { inWorkspace, liveInWorkspace } from "../filters";
 import { aiUsageEvent } from "../schema/ai-usage-event";
+import { approval } from "../schema/approval";
 import { copyGeneration } from "../schema/copy-generation";
 import { copyGenerationUnit } from "../schema/copy-generation-unit";
 import { copyVariant } from "../schema/copy-variant";
@@ -71,6 +72,7 @@ export const BRANDED_FINAL_MEDIA_KIND = "image_final";
 export type StartImageGenerationInput = {
   actor: string;
   draftRevisionId: string;
+  expectedImageIntentVersion: number;
   expectedRevisionVersion: number;
   idempotencyKey: string;
   modelOptionKey: string;
@@ -89,7 +91,9 @@ export type StartImageGenerationResult =
   | {
       status:
         | "idempotency_mismatch"
+        | "image_intent_conflict"
         | "image_source_extract_required"
+        | "media_locked"
         | "not_found"
         | "operation_in_progress"
         | "reference_conflict"
@@ -128,6 +132,7 @@ export async function startImageGeneration(
     const [revision] = await tx
       .select({
         id: draftRevision.id,
+        imageIntentVersion: draftRevision.imageIntentVersion,
         originatingCopyVariantId: draftRevision.originatingCopyVariantId,
         platformDraftId: draftRevision.platformDraftId,
       })
@@ -169,10 +174,44 @@ export async function startImageGeneration(
       return { status: "version_conflict" };
     }
 
+    const [lockedRevision] = await tx
+      .select({
+        id: draftRevision.id,
+        imageIntentVersion: draftRevision.imageIntentVersion,
+        originatingCopyVariantId: draftRevision.originatingCopyVariantId,
+        platformDraftId: draftRevision.platformDraftId,
+      })
+      .from(draftRevision)
+      .where(
+        and(
+          inWorkspace(draftRevision, workspaceId),
+          eq(draftRevision.id, revision.id),
+          eq(draftRevision.platformDraftId, revision.platformDraftId),
+        ),
+      )
+      .for("update");
+    if (!lockedRevision) return { status: "not_found" };
+    if (
+      lockedRevision.imageIntentVersion !== input.expectedImageIntentVersion
+    ) {
+      return { status: "image_intent_conflict" };
+    }
+    const [existingApproval] = await tx
+      .select({ id: approval.id })
+      .from(approval)
+      .where(
+        and(
+          inWorkspace(approval, workspaceId),
+          eq(approval.draftRevisionId, lockedRevision.id),
+        ),
+      )
+      .limit(1);
+    if (existingApproval) return { status: "media_locked" };
+
     const source = await loadImageSourceAccessForCopyVariant(
       tx,
       workspaceId,
-      revision.originatingCopyVariantId,
+      lockedRevision.originatingCopyVariantId,
     );
     if (source.readiness === "not_found") return { status: "not_found" };
     if (source.readiness === "extract_required") {
@@ -194,36 +233,6 @@ export async function startImageGeneration(
         return { status: "idempotency_mismatch" };
       }
       return replayImageGeneration(conflict.operation, input.requestHash);
-    }
-
-    const [busy] = await tx
-      .select({ operationId: imageGeneration.operationId })
-      .from(imageGeneration)
-      .innerJoin(
-        operation,
-        and(
-          eq(operation.id, imageGeneration.operationId),
-          eq(operation.workspaceId, imageGeneration.workspaceId),
-        ),
-      )
-      .where(
-        and(
-          inWorkspace(imageGeneration, workspaceId),
-          eq(imageGeneration.draftRevisionId, revision.id),
-          inArray(operation.lifecycle, ["queued", "running", "settling"]),
-        ),
-      )
-      .limit(1);
-    if (busy) {
-      await tx
-        .delete(operation)
-        .where(
-          and(
-            inWorkspace(operation, workspaceId),
-            eq(operation.id, created.id),
-          ),
-        );
-      return { status: "operation_in_progress" };
     }
 
     if (input.referenceMediaAssetId) {
@@ -270,7 +279,10 @@ export async function startImageGeneration(
           ),
         )
         .limit(1);
-      if (attached && attached.platformDraftId !== revision.platformDraftId) {
+      if (
+        attached &&
+        attached.platformDraftId !== lockedRevision.platformDraftId
+      ) {
         await tx
           .delete(operation)
           .where(
@@ -297,10 +309,38 @@ export async function startImageGeneration(
         );
     }
 
+    const reservedImageIntentVersion = lockedRevision.imageIntentVersion + 1;
+    const [reserved] = await tx
+      .update(draftRevision)
+      .set({ imageIntentVersion: reservedImageIntentVersion })
+      .where(
+        and(
+          inWorkspace(draftRevision, workspaceId),
+          eq(draftRevision.id, lockedRevision.id),
+          eq(
+            draftRevision.imageIntentVersion,
+            lockedRevision.imageIntentVersion,
+          ),
+        ),
+      )
+      .returning({ id: draftRevision.id });
+    if (!reserved) {
+      await tx
+        .delete(operation)
+        .where(
+          and(
+            inWorkspace(operation, workspaceId),
+            eq(operation.id, created.id),
+          ),
+        );
+      return { status: "image_intent_conflict" };
+    }
+
     await tx.insert(imageGeneration).values({
       operationId: created.id,
       workspaceId,
-      draftRevisionId: revision.id,
+      draftRevisionId: lockedRevision.id,
+      expectedImageIntentVersion: reservedImageIntentVersion,
       expectedRevisionVersion: input.expectedRevisionVersion,
       modelOptionKey: input.modelOptionKey,
       operatorDirection: input.operatorDirection,
@@ -315,20 +355,8 @@ export async function startImageGeneration(
   });
 }
 
-export function imageSourceProjectionReadiness(
-  source:
-    | BoundCopySourceInput
-    | {
-        kind: "rss";
-        limited: boolean;
-        pageContentHash: string | null;
-        sourceItemEnrichmentId: string | null;
-      },
-) {
-  return source.kind !== "rss" ||
-    (!source.limited &&
-      source.sourceItemEnrichmentId !== null &&
-      source.pageContentHash !== null)
+export function imageSourceProjectionReadiness(source: BoundCopySourceInput) {
+  return source.kind !== "rss" || source.content.trim() !== ""
     ? ("ready" as const)
     : ("extract_required" as const);
 }
@@ -341,10 +369,7 @@ async function loadImageSourceAccessForCopyVariant(
   const [variant] = await executor
     .select({
       copyGenerationId: copyGenerationUnit.copyGenerationId,
-      limited: copyGeneration.limited,
       origin: sourceItem.origin,
-      pageContentHash: copyGeneration.pageContentHash,
-      sourceItemEnrichmentId: copyGeneration.sourceItemEnrichmentId,
     })
     .from(copyVariant)
     .innerJoin(
@@ -391,16 +416,7 @@ async function loadImageSourceAccessForCopyVariant(
     return { readiness: imageSourceProjectionReadiness(source), source };
   }
   if (variant.origin === "rss") {
-    const readiness = imageSourceProjectionReadiness({
-      kind: "rss",
-      limited: variant.limited,
-      pageContentHash: variant.pageContentHash,
-      sourceItemEnrichmentId: variant.sourceItemEnrichmentId,
-    });
-    return {
-      readiness: readiness === "extract_required" ? readiness : "not_found",
-      source: null,
-    };
+    return { readiness: "not_found" as const, source: null };
   }
   return { readiness: "not_found" as const, source: null };
 }
@@ -419,6 +435,7 @@ export async function findImageExecutionContext(
       claimedBy: operation.claimedBy,
       contentLocale: draftRevision.contentLocale,
       draftRevisionId: imageGeneration.draftRevisionId,
+      expectedImageIntentVersion: imageGeneration.expectedImageIntentVersion,
       expectedRevisionVersion: imageGeneration.expectedRevisionVersion,
       imageBriefId: imageGeneration.imageBriefId,
       modelOptionKey: imageGeneration.modelOptionKey,
@@ -725,7 +742,7 @@ export async function createImageBrief(
     expectedVersion: number;
     selectionAttemptId: string;
     source: {
-      kind: "promo_idea" | "rss_extract" | "telegram_post";
+      kind: "promo_idea" | "rss_extract" | "rss_feed" | "telegram_post";
       id: string;
       digest: string;
       version: string;
@@ -774,13 +791,19 @@ export async function createImageBrief(
             rssPageContentHash:
               input.source.secondaryDigest ?? input.source.digest,
           }
-        : input.source.kind === "telegram_post"
+        : input.source.kind === "rss_feed"
           ? {
-              telegramSourceItemRevisionId: input.source.id,
-              telegramContentHash:
+              rssSourceItemRevisionId: input.source.id,
+              rssContentHash:
                 input.source.secondaryDigest ?? input.source.digest,
             }
-          : { promoIdeaId: input.source.id };
+          : input.source.kind === "telegram_post"
+            ? {
+                telegramSourceItemRevisionId: input.source.id,
+                telegramContentHash:
+                  input.source.secondaryDigest ?? input.source.digest,
+              }
+            : { promoIdeaId: input.source.id };
     const [brief] = await tx
       .insert(imageBrief)
       .values({
@@ -1695,7 +1718,7 @@ export async function findServableFinalMedia(
   };
 }
 
-async function retainProviderOriginal(
+async function scheduleProviderOriginalCleanup(
   tx: Transaction,
   workspaceId: string,
   operationId: string,
@@ -1703,7 +1726,6 @@ async function retainProviderOriginal(
 ) {
   const [generation] = await tx
     .select({
-      finalId: imageGeneration.finalMediaAssetId,
       originalId: imageGeneration.providerOriginalMediaAssetId,
     })
     .from(imageGeneration)
@@ -1713,7 +1735,7 @@ async function retainProviderOriginal(
         eq(imageGeneration.operationId, operationId),
       ),
     );
-  if (!generation?.originalId || generation.finalId) return;
+  if (!generation?.originalId) return;
   await tx
     .update(mediaAsset)
     .set({
@@ -1760,8 +1782,121 @@ export async function releaseImageOperationAndWake(
       )
       .returning();
     if (!released) return null;
+    await advanceImageProjectionForOperation(
+      tx,
+      workspaceId,
+      input.operationId,
+    );
     await insertImageWake(tx, workspaceId, input.operationId);
     return released;
+  });
+}
+
+export async function settleSupersededImageGeneration(
+  executor: Executor,
+  workspaceId: string,
+  input: {
+    claimedBy: string;
+    expectedVersion: number;
+    mediaBrandId: string;
+    operationId: string;
+  },
+) {
+  return executor.transaction(async (tx) => {
+    await withWorkspaceContext(tx, workspaceId);
+    const [located] = await tx
+      .select({
+        draftRevisionId: imageGeneration.draftRevisionId,
+        expectedImageIntentVersion: imageGeneration.expectedImageIntentVersion,
+        platformDraftId: draftRevision.platformDraftId,
+      })
+      .from(imageGeneration)
+      .innerJoin(
+        draftRevision,
+        and(
+          eq(draftRevision.id, imageGeneration.draftRevisionId),
+          eq(draftRevision.workspaceId, imageGeneration.workspaceId),
+        ),
+      )
+      .where(
+        and(
+          inWorkspace(imageGeneration, workspaceId),
+          eq(imageGeneration.operationId, input.operationId),
+        ),
+      );
+    if (!located) return { status: "not_found" } as const;
+
+    const [lockedDraft] = await tx
+      .select({ id: platformDraft.id })
+      .from(platformDraft)
+      .where(
+        and(
+          inWorkspace(platformDraft, workspaceId),
+          eq(platformDraft.id, located.platformDraftId),
+        ),
+      )
+      .for("update");
+    if (!lockedDraft) return { status: "not_found" } as const;
+    const [lockedRevision] = await tx
+      .select({ imageIntentVersion: draftRevision.imageIntentVersion })
+      .from(draftRevision)
+      .where(
+        and(
+          inWorkspace(draftRevision, workspaceId),
+          eq(draftRevision.id, located.draftRevisionId),
+          eq(draftRevision.platformDraftId, located.platformDraftId),
+        ),
+      )
+      .for("update");
+    if (!lockedRevision) return { status: "not_found" } as const;
+    const [existingApproval] = await tx
+      .select({ id: approval.id })
+      .from(approval)
+      .where(
+        and(
+          inWorkspace(approval, workspaceId),
+          eq(approval.draftRevisionId, located.draftRevisionId),
+        ),
+      )
+      .limit(1);
+    const reason = existingApproval
+      ? ("admitted" as const)
+      : located.expectedImageIntentVersion !== null &&
+          located.expectedImageIntentVersion !==
+            lockedRevision.imageIntentVersion
+        ? ("superseded" as const)
+        : null;
+    if (!reason) return { status: "current" } as const;
+
+    const settled = await settleClaimedOperation(tx, workspaceId, {
+      claimedBy: input.claimedBy,
+      expectedVersion: input.expectedVersion,
+      id: input.operationId,
+      lifecycle: "cancelled",
+    });
+    if (!settled) return { status: "claim_conflict" } as const;
+    await scheduleProviderOriginalCleanup(
+      tx,
+      workspaceId,
+      input.operationId,
+      settled.updatedAt,
+    );
+    await advanceImageProjectionForOperation(
+      tx,
+      workspaceId,
+      input.operationId,
+    );
+    const nextOperationId = await wakeNextImageOperation(
+      tx,
+      workspaceId,
+      input.mediaBrandId,
+    );
+    return {
+      status: "settled",
+      reason,
+      lifecycle: "cancelled",
+      nextOperationId,
+    } as const;
   });
 }
 
@@ -1785,50 +1920,91 @@ export async function settleImageOperationAndWakeNext(
       lifecycle: input.lifecycle,
     });
     if (!settled) return null;
-    if (settled.lifecycle === "failed" || settled.lifecycle === "cancelled") {
-      await retainProviderOriginal(
+    if (settled.lifecycle !== "unknown") {
+      await scheduleProviderOriginalCleanup(
         tx,
         workspaceId,
         input.operationId,
         settled.updatedAt,
       );
     }
-    const [next] = await tx
-      .select({ operationId: imageGeneration.operationId })
-      .from(imageGeneration)
-      .innerJoin(
-        operation,
-        and(
-          eq(operation.id, imageGeneration.operationId),
-          eq(operation.workspaceId, imageGeneration.workspaceId),
-        ),
-      )
-      .innerJoin(
-        draftRevision,
-        and(
-          eq(draftRevision.id, imageGeneration.draftRevisionId),
-          eq(draftRevision.workspaceId, imageGeneration.workspaceId),
-        ),
-      )
-      .innerJoin(
-        platformDraft,
-        and(
-          eq(platformDraft.id, draftRevision.platformDraftId),
-          eq(platformDraft.workspaceId, imageGeneration.workspaceId),
-        ),
-      )
-      .where(
-        and(
-          inWorkspace(imageGeneration, workspaceId),
-          eq(platformDraft.mediaBrandId, input.mediaBrandId),
-          eq(operation.lifecycle, "queued"),
-        ),
-      )
-      .orderBy(asc(operation.createdAt), asc(operation.id))
-      .limit(1);
-    if (next) await insertImageWake(tx, workspaceId, next.operationId);
+    await advanceImageProjectionForOperation(
+      tx,
+      workspaceId,
+      input.operationId,
+    );
+    await wakeNextImageOperation(tx, workspaceId, input.mediaBrandId);
     return settled;
   });
+}
+
+async function advanceImageProjectionForOperation(
+  tx: Transaction,
+  workspaceId: string,
+  operationId: string,
+) {
+  await tx
+    .update(platformDraft)
+    .set({
+      projectionVersion: sql`${platformDraft.projectionVersion} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        inWorkspace(platformDraft, workspaceId),
+        sql`${platformDraft.id} = (
+          select ${draftRevision.platformDraftId}
+          from ${imageGeneration}
+          inner join ${draftRevision}
+            on ${draftRevision.id} = ${imageGeneration.draftRevisionId}
+            and ${draftRevision.workspaceId} = ${imageGeneration.workspaceId}
+          where ${imageGeneration.workspaceId} = ${workspaceId}
+            and ${imageGeneration.operationId} = ${operationId}
+        )`,
+      ),
+    );
+}
+
+async function wakeNextImageOperation(
+  tx: Transaction,
+  workspaceId: string,
+  mediaBrandId: string,
+) {
+  const [next] = await tx
+    .select({ operationId: imageGeneration.operationId })
+    .from(imageGeneration)
+    .innerJoin(
+      operation,
+      and(
+        eq(operation.id, imageGeneration.operationId),
+        eq(operation.workspaceId, imageGeneration.workspaceId),
+      ),
+    )
+    .innerJoin(
+      draftRevision,
+      and(
+        eq(draftRevision.id, imageGeneration.draftRevisionId),
+        eq(draftRevision.workspaceId, imageGeneration.workspaceId),
+      ),
+    )
+    .innerJoin(
+      platformDraft,
+      and(
+        eq(platformDraft.id, draftRevision.platformDraftId),
+        eq(platformDraft.workspaceId, imageGeneration.workspaceId),
+      ),
+    )
+    .where(
+      and(
+        inWorkspace(imageGeneration, workspaceId),
+        eq(platformDraft.mediaBrandId, mediaBrandId),
+        eq(operation.lifecycle, "queued"),
+      ),
+    )
+    .orderBy(asc(operation.createdAt), asc(operation.id))
+    .limit(1);
+  if (next) await insertImageWake(tx, workspaceId, next.operationId);
+  return next?.operationId ?? null;
 }
 
 function staleImageOperation(now: Date) {
@@ -2092,13 +2268,15 @@ async function settleOpenImageOperation(
     .returning();
   if (!settled) return null;
   if (settled.lifecycle === "failed" || settled.lifecycle === "cancelled") {
-    await retainProviderOriginal(
+    await scheduleProviderOriginalCleanup(
       tx,
       workspaceId,
       input.operationId,
       settled.updatedAt,
     );
   }
+
+  await advanceImageProjectionForOperation(tx, workspaceId, input.operationId);
 
   const [next] = await tx
     .select({ operationId: imageGeneration.operationId })

@@ -3,7 +3,17 @@ import {
   MEDIA_UPLOAD_CONFIRMED_EVENT_NAME,
   type MediaAssetLifecycle,
 } from "@rz-chain-reporter/contracts";
-import { and, asc, eq, gt, inArray, isNull, lte, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  exists,
+  gt,
+  inArray,
+  isNull,
+  lte,
+  or,
+} from "drizzle-orm";
 
 import {
   type Executor,
@@ -11,10 +21,15 @@ import {
   withWorkspaceContext,
 } from "../executor";
 import { inWorkspace } from "../filters";
+import { approval } from "../schema/approval";
+import { draftRevision } from "../schema/draft-revision";
 import { imageGeneration } from "../schema/image-generation";
 import { mediaAsset } from "../schema/media-asset";
 import { operation } from "../schema/operation";
 import { outboxEvent } from "../schema/outbox-event";
+import { publication } from "../schema/publication";
+import { publishOperation } from "../schema/publish-operation";
+import { schedule } from "../schema/schedule";
 
 type MediaAssetRow = typeof mediaAsset.$inferSelect;
 type MediaAssetChanges = Partial<typeof mediaAsset.$inferInsert>;
@@ -22,6 +37,8 @@ type MediaCleanupLifecycle = Extract<
   MediaAssetLifecycle,
   "rejected" | "expired"
 >;
+
+export const UNUSED_SELECTED_MEDIA_CLEANUP_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type MediaAssetCasResult =
   | { status: "updated"; asset: MediaAssetRow }
@@ -351,6 +368,178 @@ export function markMediaVerified(
   });
 }
 
+function selectedFinalMediaAttached(
+  tx: Transaction,
+  workspaceId: string,
+  mediaAssetId: string,
+) {
+  return or(
+    exists(
+      tx
+        .select({ id: schedule.id })
+        .from(schedule)
+        .where(
+          and(
+            inWorkspace(schedule, workspaceId),
+            eq(schedule.selectedFinalMediaAssetId, mediaAssetId),
+          ),
+        ),
+    ),
+    exists(
+      tx
+        .select({ id: draftRevision.id })
+        .from(draftRevision)
+        .where(
+          and(
+            inWorkspace(draftRevision, workspaceId),
+            eq(draftRevision.selectedFinalMediaAssetId, mediaAssetId),
+          ),
+        ),
+    ),
+    exists(
+      tx
+        .select({ id: approval.id })
+        .from(approval)
+        .where(
+          and(
+            inWorkspace(approval, workspaceId),
+            eq(approval.selectedFinalMediaAssetId, mediaAssetId),
+          ),
+        ),
+    ),
+    exists(
+      tx
+        .select({ id: publishOperation.operationId })
+        .from(publishOperation)
+        .where(
+          and(
+            inWorkspace(publishOperation, workspaceId),
+            eq(publishOperation.selectedFinalMediaAssetId, mediaAssetId),
+          ),
+        ),
+    ),
+    exists(
+      tx
+        .select({ id: publication.id })
+        .from(publication)
+        .where(
+          and(
+            inWorkspace(publication, workspaceId),
+            eq(publication.selectedFinalMediaAssetId, mediaAssetId),
+          ),
+        ),
+    ),
+  );
+}
+
+export async function retainSelectedMedia(
+  tx: Transaction,
+  workspaceId: string,
+  mediaAssetId: string,
+) {
+  const [asset] = await tx
+    .select()
+    .from(mediaAsset)
+    .where(
+      and(
+        inWorkspace(mediaAsset, workspaceId),
+        eq(mediaAsset.id, mediaAssetId),
+      ),
+    )
+    .for("update");
+  if (
+    asset?.lifecycle !== "verified" ||
+    asset.objectRemovedAt ||
+    asset.cleanupAfter === null
+  ) {
+    return asset ?? null;
+  }
+  const [retained] = await tx
+    .update(mediaAsset)
+    .set({
+      cleanupAfter: null,
+      updatedAt: new Date(),
+      version: asset.version + 1,
+    })
+    .where(
+      and(
+        inWorkspace(mediaAsset, workspaceId),
+        eq(mediaAsset.id, asset.id),
+        eq(mediaAsset.version, asset.version),
+      ),
+    )
+    .returning();
+  if (!retained) throw new Error("selected media retention lost its lock");
+  return retained;
+}
+
+export async function scheduleDetachedMediaCleanup(
+  tx: Transaction,
+  workspaceId: string,
+  mediaAssetId: string,
+  detachedAt = new Date(),
+) {
+  const [asset] = await tx
+    .select()
+    .from(mediaAsset)
+    .where(
+      and(
+        inWorkspace(mediaAsset, workspaceId),
+        eq(mediaAsset.id, mediaAssetId),
+      ),
+    )
+    .for("update");
+  if (
+    asset?.lifecycle !== "verified" ||
+    asset.objectRemovedAt ||
+    asset.cleanupAfter !== null
+  ) {
+    return asset ?? null;
+  }
+  const [reference] = await tx
+    .select({ id: imageGeneration.operationId })
+    .from(imageGeneration)
+    .where(
+      and(
+        inWorkspace(imageGeneration, workspaceId),
+        eq(imageGeneration.referenceMediaAssetId, mediaAssetId),
+      ),
+    )
+    .limit(1);
+  if (reference) return asset;
+  const [attachment] = await tx
+    .select({ id: mediaAsset.id })
+    .from(mediaAsset)
+    .where(
+      and(
+        eq(mediaAsset.id, mediaAssetId),
+        selectedFinalMediaAttached(tx, workspaceId, mediaAssetId),
+      ),
+    )
+    .limit(1);
+  if (attachment) return asset;
+  const [scheduled] = await tx
+    .update(mediaAsset)
+    .set({
+      cleanupAfter: new Date(
+        detachedAt.getTime() + UNUSED_SELECTED_MEDIA_CLEANUP_DELAY_MS,
+      ),
+      updatedAt: detachedAt,
+      version: asset.version + 1,
+    })
+    .where(
+      and(
+        inWorkspace(mediaAsset, workspaceId),
+        eq(mediaAsset.id, asset.id),
+        eq(mediaAsset.version, asset.version),
+        isNull(mediaAsset.cleanupAfter),
+      ),
+    )
+    .returning();
+  if (!scheduled) throw new Error("detached media cleanup lost its lock");
+  return scheduled;
+}
+
 export async function claimMediaCleanup(
   executor: Executor,
   workspaceId: string,
@@ -388,6 +577,18 @@ export async function claimMediaCleanup(
       )
       .limit(1);
     if (reference) return { status: "attached" };
+
+    const [attachment] = await tx
+      .select({ id: mediaAsset.id })
+      .from(mediaAsset)
+      .where(
+        and(
+          eq(mediaAsset.id, current.id),
+          selectedFinalMediaAttached(tx, workspaceId, current.id),
+        ),
+      )
+      .limit(1);
+    if (attachment) return { status: "attached" };
 
     if (
       current.version !== input.version ||

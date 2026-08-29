@@ -129,8 +129,6 @@ function toDestination(
     label: metadata.label,
     platform: row.platform,
     binding,
-    // The projection carries a timestamp only where a verdict was recorded, so
-    // an inactive destination has no as-of date to show.
     bindingCheckedAt:
       binding === "bound" || binding === "unbound"
         ? row.bindingCheckedAt

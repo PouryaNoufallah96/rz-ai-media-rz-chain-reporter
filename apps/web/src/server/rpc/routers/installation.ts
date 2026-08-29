@@ -9,7 +9,6 @@ import { rpcDb } from "../db";
 
 export const overview = installationProcedure
   .output(installationOverviewSchema)
-  .errors({ UNAUTHORIZED: { status: 401 } })
   .handler(({ context }) =>
     readInstallationOverview(rpcDb(), context.workspaceId),
   );

@@ -55,15 +55,13 @@ RUN --mount=type=secret,id=web_build \
     DATABASE_URL="${DATABASE_URL:-postgresql://build:build@127.0.0.1:1/build}" \
     BETTER_AUTH_SECRET="${BETTER_AUTH_SECRET:-build-only-placeholder-secret-32-chars}" \
     BETTER_AUTH_URL="${BETTER_AUTH_URL:-http://localhost:3001}" \
-    CORS_ORIGIN="${CORS_ORIGIN:-http://localhost:3001}" \
     APP_URL="${APP_URL:-http://localhost:3001}" \
     pnpm --dir apps/web run build
 # standalone output excludes public/; ensure it exists so the runner copy never fails
 RUN mkdir -p apps/web/public
 
-# apps/worker owns the only bundler in the workspace, so the prestart command
-# that must run without a workspace install is built there and shipped into
-# both runtime images.
+# apps/worker builds the prestart command that must run without a workspace
+# install; ship that bundle into both runtime images.
 FROM node:24.19.0-slim AS prestart
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -100,11 +98,11 @@ ENV NODE_ENV=production
 
 RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nodejs nextjs
 
-COPY --from=builder /app/apps/web/.next/standalone ./
-COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder /app/apps/web/public ./apps/web/public
-COPY --from=builder /app/apps/web/build-metadata.json ./prestart/build-metadata.json
-COPY --from=prestart /app/apps/worker/dist/prestart.js ./prestart/prestart.js
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/build-metadata.json ./prestart/build-metadata.json
+COPY --from=prestart --chown=nextjs:nodejs /app/apps/worker/dist/prestart.js ./prestart/prestart.js
 COPY --chmod=0755 apps/web/docker-entrypoint.sh ./docker-entrypoint.sh
 
 ENV HOSTNAME=0.0.0.0

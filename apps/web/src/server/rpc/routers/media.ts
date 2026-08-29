@@ -1,6 +1,8 @@
 import "server-only";
 
 import { installationProcedure } from "@rz-chain-reporter/api";
+import { confirmedMediaAssetLifecycleSchema } from "@rz-chain-reporter/contracts";
+import { readLiveDraftOrigin } from "@rz-chain-reporter/db/repositories/draft-origin";
 import { confirmMediaUpload } from "@rz-chain-reporter/db/repositories/media-asset";
 import { ObjectStoreUnboundError } from "@rz-chain-reporter/storage";
 
@@ -15,7 +17,6 @@ import {
 import { rpcDb } from "../db";
 
 const mediaErrors = {
-  UNAUTHORIZED: { status: 401 },
   OBJECT_STORE_UNBOUND: { status: 503 },
   NOT_FOUND: { status: 404 },
   UPLOAD_EXPIRED: { status: 409 },
@@ -54,6 +55,13 @@ export const confirm = installationProcedure
   .output(mediaUploadConfirmationSchema)
   .errors(mediaErrors)
   .handler(async ({ context, errors, input }) => {
+    const ownedDraft = await readLiveDraftOrigin(
+      rpcDb(),
+      context.workspaceId,
+      context.session.user.id,
+      input.platformDraftId,
+    );
+    if (!ownedDraft) throw errors.NOT_FOUND();
     const result = await confirmMediaUpload(rpcDb(), context.workspaceId, {
       id: input.mediaAssetId,
       actor: context.session.user.id,
@@ -62,17 +70,13 @@ export const confirm = installationProcedure
     if (result.status === "not_found") throw errors.NOT_FOUND();
     if (result.status === "expired") throw errors.UPLOAD_EXPIRED();
     if (result.status === "conflict") throw errors.VERSION_CONFLICT();
-    if (
-      result.asset.lifecycle !== "uploaded" &&
-      result.asset.lifecycle !== "validating" &&
-      result.asset.lifecycle !== "verified" &&
-      result.asset.lifecycle !== "rejected"
-    ) {
-      throw errors.VERSION_CONFLICT();
-    }
+    const lifecycle = confirmedMediaAssetLifecycleSchema.safeParse(
+      result.asset.lifecycle,
+    );
+    if (!lifecycle.success) throw errors.VERSION_CONFLICT();
     return {
       mediaAssetId: result.asset.id,
-      lifecycle: result.asset.lifecycle,
+      lifecycle: lifecycle.data,
       replayed: result.status === "replayed",
     };
   });

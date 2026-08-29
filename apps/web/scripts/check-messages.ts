@@ -1,6 +1,11 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import {
+  type MessageFormatElement,
+  parse,
+  TYPE,
+} from "@formatjs/icu-messageformat-parser";
 import { DEFAULT_LOCALE, LOCALES } from "@rz-chain-reporter/i18n";
 
 const EXIT_FAILURE = 1;
@@ -36,134 +41,66 @@ function flatten(
   }
 }
 
-// ICU quotes only before `{`, `}` and `#`; `''` is a literal apostrophe and a
-// lone `'` anywhere else is ordinary text.
-function skipQuote(message: string, start: number): number {
-  const next = message[start + 1];
+function readSignature(
+  elements: MessageFormatElement[],
+  signature: Map<string, string>,
+): void {
+  for (const element of elements) {
+    switch (element.type) {
+      case TYPE.argument:
+        signature.set(element.value, `{${element.value}}`);
+        break;
+      case TYPE.number:
+      case TYPE.date:
+      case TYPE.time:
+        signature.set(
+          element.value,
+          `{${element.value}, ${TYPE[element.type]}, ${JSON.stringify(element.style ?? "")}}`,
+        );
+        break;
+      case TYPE.plural:
+      case TYPE.select: {
+        const kind =
+          element.type === TYPE.select ? "select" : element.pluralType;
 
-  if (next === "'") return start + 2;
-  if (next !== "{" && next !== "}" && next !== "#") return start + 1;
+        signature.set(
+          element.value,
+          `{${element.value}, ${kind}, ${Object.keys(element.options).sort().join(" ")}}`,
+        );
 
-  const end = message.indexOf("'", start + 2);
+        for (const option of Object.values(element.options))
+          readSignature(option.value, signature);
 
-  return end === -1 ? message.length : end + 1;
+        break;
+      }
+      case TYPE.tag:
+        signature.set(`<${element.value}>`, `<${element.value}>`);
+        readSignature(element.children, signature);
+        break;
+      default:
+        break;
+    }
+  }
 }
 
-function readBraces(
+function signatureOf(
   message: string,
-  start: number,
-): { body: string; end: number } {
-  let depth = 0;
-  let index = start;
-
-  while (index < message.length) {
-    const char = message[index];
-
-    if (char === "'") {
-      index = skipQuote(message, index);
-      continue;
-    }
-    if (char === "{") depth += 1;
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0)
-        return { body: message.slice(start + 1, index), end: index + 1 };
-    }
-
-    index += 1;
-  }
-
-  return { body: message.slice(start + 1), end: message.length };
-}
-
-function splitArgument(body: string): string[] {
-  const parts: string[] = [];
-  let depth = 0;
-  let from = 0;
-  let index = 0;
-
-  while (index < body.length) {
-    const char = body[index];
-
-    if (char === "'") {
-      index = skipQuote(body, index);
-      continue;
-    }
-    if (char === "{") depth += 1;
-    if (char === "}") depth -= 1;
-    if (char === "," && depth === 0 && parts.length < 2) {
-      parts.push(body.slice(from, index));
-      from = index + 1;
-    }
-
-    index += 1;
-  }
-
-  parts.push(body.slice(from));
-
-  return parts.map((part) => part.trim());
-}
-
-function readBranches(options: string, signature: Map<string, string>): string {
-  const branches: string[] = [];
-  let index = 0;
-  let from = 0;
-
-  while (index < options.length) {
-    if (options[index] !== "{") {
-      index += 1;
-      continue;
-    }
-
-    branches.push(options.slice(from, index).trim());
-
-    const { body, end } = readBraces(options, index);
-
-    readSignature(body, signature);
-    index = end;
-    from = end;
-  }
-
-  return branches.join(" ");
-}
-
-function readSignature(message: string, signature: Map<string, string>): void {
-  let index = 0;
-
-  while (index < message.length) {
-    const char = message[index];
-
-    if (char === "'") {
-      index = skipQuote(message, index);
-      continue;
-    }
-    if (char !== "{") {
-      index += 1;
-      continue;
-    }
-
-    const { body, end } = readBraces(message, index);
-    const [name = "", type = "", options = ""] = splitArgument(body);
-
-    signature.set(
-      name,
-      type === "plural" || type === "selectordinal" || type === "select"
-        ? `${type} ${readBranches(options, signature)}`
-        : `${type} ${options}`.trim(),
-    );
-    index = end;
-  }
-}
-
-function signatureOf(message: string): string {
+  label: string,
+  problems: string[],
+): string | null {
   const signature = new Map<string, string>();
 
-  readSignature(message, signature);
+  try {
+    readSignature(parse(message), signature);
+  } catch (error) {
+    problems.push(
+      `${label} is not valid ICU: ${error instanceof Error ? error.message : String(error)}`,
+    );
 
-  return [...signature]
-    .map(([name, type]) => `{${type === "" ? name : `${name}, ${type}`}}`)
-    .sort()
-    .join(" ");
+    return null;
+  }
+
+  return [...signature.values()].sort().join(" ");
 }
 
 const slices = readdirSync(featuresPath, { withFileTypes: true })
@@ -192,8 +129,18 @@ for (const slice of slices) {
         continue;
       }
 
-      const expected = signatureOf(message);
-      const translatedSignature = signatureOf(translated);
+      const expected = signatureOf(
+        message,
+        `${DEFAULT_LOCALE} ${key}`,
+        problems,
+      );
+      const translatedSignature = signatureOf(
+        translated,
+        `${locale} ${key}`,
+        problems,
+      );
+
+      if (expected === null || translatedSignature === null) continue;
 
       if (expected !== translatedSignature) {
         problems.push(

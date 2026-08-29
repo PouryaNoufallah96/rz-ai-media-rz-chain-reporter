@@ -1,3 +1,8 @@
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "@rz-chain-reporter/ui/components/card";
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
@@ -30,14 +35,7 @@ export function UsageScreen({
           </p>
           <Suspended
             data={() => getUsageView(searchParams)}
-            fallback={
-              <div className="mt-6">
-                <DataTableSkeleton
-                  columnCount={8}
-                  labels={{ loading: t("table.loading") }}
-                />
-              </div>
-            }
+            fallback={<UsageReportSkeleton loadingLabel={t("table.loading")} />}
           >
             {(view) => (
               <Localized namespaces={[USAGE_NAMESPACE]}>
@@ -53,9 +51,66 @@ export function UsageScreen({
 
 function UsageHeadingSkeleton() {
   return (
-    <>
+    <div aria-busy="true">
       <Skeleton className="h-8 w-48" />
       <Skeleton className="mt-2 h-5 w-full max-w-3xl" />
-    </>
+    </div>
+  );
+}
+
+function UsageReportSkeleton({ loadingLabel }: { loadingLabel: string }) {
+  const filters = Array.from({ length: 6 }, (_, index) => index);
+  const facts = Array.from({ length: 5 }, (_, index) => index);
+  const modelRows = Array.from({ length: 3 }, (_, index) => index);
+
+  return (
+    <div aria-busy="true">
+      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3 sm:p-4">
+        {filters.map((filter) => (
+          <div
+            className="flex min-w-0 flex-1 flex-col gap-2 sm:w-fit sm:flex-none"
+            key={filter}
+          >
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-8 w-full sm:w-32" />
+          </div>
+        ))}
+        <div className="ms-auto flex flex-wrap items-end gap-2">
+          <Skeleton className="h-7 w-16" />
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-6 w-16" />
+        </div>
+      </div>
+      <section className="mt-6">
+        <Card className="gap-0 border ring-0">
+          <CardHeader className="border-b bg-muted/30 py-4">
+            <Skeleton className="h-4 w-32" />
+          </CardHeader>
+          <CardContent className="px-0">
+            <dl className="grid grid-cols-2 gap-4 border-b p-4 sm:grid-cols-3 sm:p-5 lg:grid-cols-5">
+              {facts.map((fact) => (
+                <div key={fact}>
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="mt-2 h-6 w-16" />
+                </div>
+              ))}
+            </dl>
+            <div className="grid gap-4 p-4">
+              {modelRows.map((row) => (
+                <Skeleton className="h-4 w-full" key={row} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+      <section className="mt-6">
+        <Skeleton className="mb-3 h-5 w-32" />
+        <DataTableSkeleton columnCount={9} labels={{ loading: loadingLabel }} />
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          <Skeleton className="h-7 w-20 max-sm:h-11" />
+          <Skeleton className="h-7 w-20 max-sm:h-11" />
+        </div>
+      </section>
+    </div>
   );
 }

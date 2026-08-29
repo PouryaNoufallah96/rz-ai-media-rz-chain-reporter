@@ -8,6 +8,7 @@ import { APIError } from "better-auth/api";
 import { z } from "zod";
 
 import { signInSchema } from "@/features/auth/schemas/sign-in";
+import { webLogger } from "@/lib/logger";
 
 const signedIn = z.object({ userId: z.string() });
 
@@ -38,13 +39,25 @@ export const signIn = publicProcedure
         body: input,
         headers: context.headers,
       });
+      webLogger.info("auth.sign_in", {
+        outcome: "succeeded",
+        requestId: context.requestId,
+        userId: result.user.id,
+      });
       return { userId: result.user.id };
     } catch (error) {
       const retryAfterSeconds = signInThrottleRetryAfter(error);
       if (retryAfterSeconds !== null) {
         throw errors.RATE_LIMITED({ data: { retryAfterSeconds } });
       }
-      if (error instanceof APIError) {
+      if (
+        error instanceof APIError &&
+        error.body?.code === "INVALID_EMAIL_OR_PASSWORD"
+      ) {
+        webLogger.warn("auth.sign_in", {
+          outcome: "invalid_credentials",
+          requestId: context.requestId,
+        });
         throw errors.INVALID_CREDENTIALS();
       }
       throw error;

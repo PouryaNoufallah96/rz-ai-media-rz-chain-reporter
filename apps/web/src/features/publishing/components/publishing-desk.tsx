@@ -23,6 +23,7 @@ import {
 import { LabeledSelect } from "@/components/form/form-field";
 import { focusOperation } from "@/features/operations/lib/focus-operation";
 import { operationsListQueriesKey } from "@/features/operations/lib/operations-list-query";
+import type { KeysetPage } from "@/features/shared/lib/keyset-cursor";
 import { useAction } from "@/hooks/use-action";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 
@@ -41,8 +42,8 @@ import {
   validFutureLocalTime,
   zonedLocalDate,
 } from "../lib/installation-time";
+import { publicationMark } from "../lib/publication-mark";
 import {
-  type KeysetPage,
   type PublishingHistoryRow,
   type PublishingQuery,
   publishingSearchParsers,
@@ -85,12 +86,23 @@ export function PublishingDesk({
   const { isPending, setValues } = useTransitionUrlState(
     publishingSearchParsers,
   );
+  const invalidateOperations = () => {
+    void queryClient.invalidateQueries({ queryKey: operationsListQueriesKey });
+  };
   const pause = useAction(pausePublishingAction);
   const resume = useAction(resumePublishingAction);
-  const recover = useAction(recoverMissedPublicationAction);
-  const reschedule = useAction(reschedulePublicationAction);
-  const retry = useAction(retryPublicationAction);
-  const reconcile = useAction(reconcilePublicationAction);
+  const recover = useAction(recoverMissedPublicationAction, {
+    onSuccess: invalidateOperations,
+  });
+  const reschedule = useAction(reschedulePublicationAction, {
+    onSuccess: invalidateOperations,
+  });
+  const retry = useAction(retryPublicationAction, {
+    onSuccess: invalidateOperations,
+  });
+  const reconcile = useAction(reconcilePublicationAction, {
+    onSuccess: invalidateOperations,
+  });
   const attest = useAction(attestTelegramPublicationAction);
   const [intent, setIntent] = useState<DeskIntent | null>(null);
   const reconciliationOperationId =
@@ -170,17 +182,9 @@ export function PublishingDesk({
     getRowId: (row) => row.id,
   });
   const executeIntent = async () => {
-    const confirmCommand = async (
-      command: Promise<{ status: string }>,
-      refreshOperations = false,
-    ) => {
+    const confirmCommand = async (command: Promise<{ status: string }>) => {
       const result = await command;
       if (result.status !== "success") return { error: t("error.command") };
-      if (refreshOperations) {
-        void queryClient.invalidateQueries({
-          queryKey: operationsListQueriesKey,
-        });
-      }
       return undefined;
     };
     if (!intent) return { error: t("error.command") };
@@ -218,7 +222,6 @@ export function PublishingDesk({
           scheduledAt: scheduledAt.toISOString(),
           idempotencyKey: crypto.randomUUID(),
         }),
-        true,
       );
     }
     if (intent.kind === "retry") {
@@ -241,9 +244,6 @@ export function PublishingDesk({
       if (result.status !== "success" || !result.data) {
         return { error: t("error.command") };
       }
-      void queryClient.invalidateQueries({
-        queryKey: operationsListQueriesKey,
-      });
       setIntent(null);
       focusOperation(result.data.operationId);
       return undefined;
@@ -340,17 +340,14 @@ export function PublishingDesk({
         table={table}
       />
       <KeysetPagination
+        ariaLabel={t("desk.caption")}
         backToLatestLabel={t("pager.latest")}
         newerLabel={t("pager.newer")}
         olderLabel={t("pager.older")}
         offLatest={page.offLatest}
-        onBackToLatest={() => setValues({ cursor: null })}
-        onNewer={() => setValues({ cursor: page.newerCursor })}
-        onOlder={
-          page.olderCursor
-            ? () => setValues({ cursor: page.olderCursor })
-            : null
-        }
+        newerCursor={page.newerCursor}
+        olderCursor={page.olderCursor}
+        onCursor={(cursor) => setValues({ cursor })}
       />
       <ConfirmDialog
         cancelLabel={t("confirm.cancel")}
@@ -463,11 +460,6 @@ function RowActions({
       <div className="grid min-w-52 gap-2 rounded-lg border bg-muted/20 p-3">
         <PublishingDateTimePicker
           label={t("schedule.rescheduleTime")}
-          min={minimumLocalTime(installationTimeZone)}
-          invalid={
-            Boolean(localTime) &&
-            !validFutureLocalTime(localTime, installationTimeZone)
-          }
           onValueChange={setLocalTime}
           timeZone={installationTimeZone}
           value={localTime}
@@ -568,7 +560,7 @@ function HistoryState({ row }: { row: PublishingHistoryRow }) {
   return (
     <span className="grid min-w-44 gap-2">
       <span className="flex items-center gap-1">
-        <StateMark state={stateOf(row.lifecycle)} />
+        <StateMark state={publicationMark(row.lifecycle)} />
         {t(`lifecycle.${row.lifecycle}`)}
       </span>
       {resolved ? (
@@ -619,20 +611,6 @@ function HistoryState({ row }: { row: PublishingHistoryRow }) {
       ) : null}
     </span>
   );
-}
-
-function stateOf(lifecycle: string) {
-  if (lifecycle === "confirmed" || lifecycle === "completed")
-    return "succeeded" as const;
-  if (lifecycle === "failed") return "failed" as const;
-  if (lifecycle === "cancelled") return "cancelled" as const;
-  if (
-    lifecycle === "delivery_unknown" ||
-    lifecycle === "missed_requires_confirmation"
-  )
-    return "unknown" as const;
-  if (lifecycle === "effect_claimed") return "running" as const;
-  return "queued" as const;
 }
 
 function intentLabel(

@@ -1,8 +1,10 @@
 import type { ActivityEventType } from "@rz-chain-reporter/contracts";
 
+import { SAVED_STATES } from "@/features/publishing/schemas/history";
+
 export const ACCOUNT_NAMESPACE = "account" as const;
 
-export const ACCOUNT_SAVED_STATES = ["active", "discarded", "all"] as const;
+export const ACCOUNT_SAVED_STATES = SAVED_STATES;
 
 export const ACCOUNT_AUDIT_PAGE_SIZE = 20;
 

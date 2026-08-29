@@ -36,8 +36,10 @@ import {
 } from "drizzle-orm";
 
 import {
+  type CreatedAtCursor,
+  createdAtCursorSchema,
   decodeKeysetCursor,
-  encodeKeysetCursor,
+  keysetPageOf,
 } from "@/features/shared/lib/keyset-cursor";
 
 import {
@@ -53,10 +55,8 @@ import type {
 import {
   type SourceItemPage,
   type SourceItemRow,
-  type StreamCursor,
   type StreamQuery,
   sourceItemBriefSchema,
-  streamCursorSchema,
 } from "../schemas/stream";
 
 export async function readSourceCatalog(
@@ -360,7 +360,7 @@ export async function readSourceItemFilters(
   executor: Executor,
   workspaceId: string,
 ) {
-  const [sourceOptions, importOptions, itemCount] = await Promise.all([
+  const [sourceOptions, importOptions, itemProbe] = await Promise.all([
     executor
       .select({ id: source.id, name: source.name })
       .from(source)
@@ -372,16 +372,19 @@ export async function readSourceItemFilters(
       .where(inWorkspace(sourceImport, workspaceId))
       .orderBy(desc(sourceImport.createdAt))
       .limit(RECENT_IMPORT_LIMIT),
-    executor.$count(
-      sourceItem,
-      and(
-        inWorkspace(sourceItem, workspaceId),
-        hasRevision(executor, workspaceId),
-      ),
-    ),
+    executor
+      .select({ matched: sql`1` })
+      .from(sourceItem)
+      .where(
+        and(
+          inWorkspace(sourceItem, workspaceId),
+          hasRevision(executor, workspaceId),
+        ),
+      )
+      .limit(1),
   ]);
 
-  return { sourceOptions, importOptions, hasAnyItem: itemCount > 0 };
+  return { sourceOptions, importOptions, hasAnyItem: itemProbe.length > 0 };
 }
 
 export async function readSourceItemPage(
@@ -389,7 +392,7 @@ export async function readSourceItemPage(
   workspaceId: string,
   query: StreamQuery,
 ): Promise<SourceItemPage> {
-  const cursor = decodeKeysetCursor(streamCursorSchema, query.cursor);
+  const cursor = decodeKeysetCursor(createdAtCursorSchema, query.cursor);
   const direction = cursor?.direction ?? "older";
   const cursorCondition = cursor
     ? direction === "older"
@@ -430,32 +433,21 @@ export async function readSourceItemPage(
     )
     .limit(SOURCE_ITEM_PAGE_SIZE + 1);
 
-  const hasExtra = rawRows.length > SOURCE_ITEM_PAGE_SIZE;
-  const bounded = rawRows.slice(0, SOURCE_ITEM_PAGE_SIZE);
-  const ordered = direction === "newer" ? bounded.toReversed() : bounded;
-  const first = ordered[0];
-  const last = ordered.at(-1);
-  const offLatest = cursor !== null;
+  const { ordered, ...page } = keysetPageOf({
+    raw: rawRows,
+    pageSize: SOURCE_ITEM_PAGE_SIZE,
+    cursor,
+    toCursor: (row, nextDirection) =>
+      ({
+        direction: nextDirection,
+        createdAt: row.cursorCreatedAt,
+        id: row.id,
+      }) satisfies CreatedAtCursor,
+  });
 
   return {
+    ...page,
     rows: await hydrateRows(executor, workspaceId, query, ordered),
-    olderCursor:
-      last && (direction === "newer" || hasExtra)
-        ? encodeKeysetCursor({
-            direction: "older",
-            createdAt: last.cursorCreatedAt,
-            id: last.id,
-          } satisfies StreamCursor)
-        : null,
-    newerCursor:
-      first && offLatest && (direction === "older" || hasExtra)
-        ? encodeKeysetCursor({
-            direction: "newer",
-            createdAt: first.cursorCreatedAt,
-            id: first.id,
-          } satisfies StreamCursor)
-        : null,
-    offLatest,
   };
 }
 

@@ -1,22 +1,16 @@
-import { DEFAULT_LOCALE, isLocale, type Locale } from "@rz-chain-reporter/i18n";
-import { locale as localeRootParam } from "next/root-params";
+import { isLocale } from "@rz-chain-reporter/i18n";
 import { getRequestConfig } from "next-intl/server";
 
 import { customerTimeZone } from "@/lib/customer-template.server";
 import { loadCatalog } from "./catalog";
-import { FORMATS, NOW } from "./config";
-
-async function resolveFromRootParams(): Promise<Locale> {
-  const value = await localeRootParam();
-  return isLocale(value) ? value : DEFAULT_LOCALE;
-}
+import { NOW } from "./config";
+import { currentLocale } from "./server";
 
 // Never read `requestLocale` — it hits `headers()`. Root param only.
 export default getRequestConfig(async ({ locale }) => {
-  const active = isLocale(locale) ? locale : await resolveFromRootParams();
+  const active = isLocale(locale) ? locale : await currentLocale();
 
   return {
-    formats: FORMATS,
     locale: active,
     now: NOW,
     messages: await loadCatalog(active),

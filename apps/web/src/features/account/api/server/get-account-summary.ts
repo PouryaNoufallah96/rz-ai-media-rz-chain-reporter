@@ -1,12 +1,12 @@
 import "server-only";
 
-import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { requireSession } from "@/features/auth/api/server/session";
 import { rpcDb } from "@/server/rpc/db";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 
+import { accountTags } from "../../db/cache/tags";
 import { readAccountSummary } from "../../db/queries";
 
 export async function getAccountSummary() {
@@ -17,10 +17,7 @@ export async function getAccountSummary() {
 
 async function readCachedAccountSummary(workspaceId: string, userId: string) {
   "use cache";
-  cacheTag(
-    workspaceCacheTag(workspaceId, "drafts"),
-    workspaceCacheTag(workspaceId, "publishing"),
-  );
+  cacheTag(...accountTags.summaryReads(workspaceId));
   cacheLife("minutes");
   return readAccountSummary(rpcDb(), workspaceId, userId);
 }

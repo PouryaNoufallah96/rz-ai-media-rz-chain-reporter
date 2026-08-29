@@ -79,7 +79,7 @@ export async function readRunContext(
   };
 }
 
-function brandName(brandKey: string) {
+export function brandName(brandKey: string) {
   return (
     customerEditorial.brands.find((brand) => brand.key === brandKey)?.name ??
     brandKey

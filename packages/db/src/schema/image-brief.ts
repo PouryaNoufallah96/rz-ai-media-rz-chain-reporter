@@ -62,6 +62,8 @@ export const imageBrief = pgTable(
     sourceProjectionDigest: text("source_projection_digest").notNull(),
     rssSourceItemEnrichmentId: uuid("rss_source_item_enrichment_id"),
     rssPageContentHash: text("rss_page_content_hash"),
+    rssSourceItemRevisionId: uuid("rss_source_item_revision_id"),
+    rssContentHash: text("rss_content_hash"),
     telegramSourceItemRevisionId: uuid("telegram_source_item_revision_id"),
     telegramContentHash: text("telegram_content_hash"),
     promoIdeaId: uuid("promo_idea_id"),
@@ -106,6 +108,11 @@ export const imageBrief = pgTable(
       foreignColumns: [sourceItemEnrichment.id],
     }).onDelete("restrict"),
     foreignKey({
+      name: "fk_image_brief_rss_source_item_revision_id",
+      columns: [t.rssSourceItemRevisionId],
+      foreignColumns: [sourceItemRevision.id],
+    }).onDelete("restrict"),
+    foreignKey({
       name: "fk_image_brief_telegram_source_item_revision_id",
       columns: [t.telegramSourceItemRevisionId],
       foreignColumns: [sourceItemRevision.id],
@@ -135,7 +142,7 @@ export const imageBrief = pgTable(
     ),
     check(
       "ck_image_brief_source_projection_owner",
-      sql`(${t.sourceProjectionKind} = 'rss_extract' and ${t.rssSourceItemEnrichmentId} is not null and ${t.rssPageContentHash} is not null and ${t.telegramSourceItemRevisionId} is null and ${t.telegramContentHash} is null and ${t.promoIdeaId} is null) or (${t.sourceProjectionKind} = 'telegram_post' and ${t.rssSourceItemEnrichmentId} is null and ${t.rssPageContentHash} is null and ${t.telegramSourceItemRevisionId} is not null and ${t.telegramContentHash} is not null and ${t.promoIdeaId} is null) or (${t.sourceProjectionKind} = 'promo_idea' and ${t.rssSourceItemEnrichmentId} is null and ${t.rssPageContentHash} is null and ${t.telegramSourceItemRevisionId} is null and ${t.telegramContentHash} is null and ${t.promoIdeaId} is not null)`,
+      sql`(${t.sourceProjectionKind} = 'rss_extract' and ${t.rssSourceItemEnrichmentId} is not null and ${t.rssPageContentHash} is not null and ${t.rssSourceItemRevisionId} is null and ${t.rssContentHash} is null and ${t.telegramSourceItemRevisionId} is null and ${t.telegramContentHash} is null and ${t.promoIdeaId} is null) or (${t.sourceProjectionKind} = 'rss_feed' and ${t.rssSourceItemEnrichmentId} is null and ${t.rssPageContentHash} is null and ${t.rssSourceItemRevisionId} is not null and ${t.rssContentHash} is not null and ${t.telegramSourceItemRevisionId} is null and ${t.telegramContentHash} is null and ${t.promoIdeaId} is null) or (${t.sourceProjectionKind} = 'telegram_post' and ${t.rssSourceItemEnrichmentId} is null and ${t.rssPageContentHash} is null and ${t.rssSourceItemRevisionId} is null and ${t.rssContentHash} is null and ${t.telegramSourceItemRevisionId} is not null and ${t.telegramContentHash} is not null and ${t.promoIdeaId} is null) or (${t.sourceProjectionKind} = 'promo_idea' and ${t.rssSourceItemEnrichmentId} is null and ${t.rssPageContentHash} is null and ${t.rssSourceItemRevisionId} is null and ${t.rssContentHash} is null and ${t.telegramSourceItemRevisionId} is null and ${t.telegramContentHash} is null and ${t.promoIdeaId} is not null)`,
     ),
     check(
       "ck_image_brief_terminal_state_consistent",

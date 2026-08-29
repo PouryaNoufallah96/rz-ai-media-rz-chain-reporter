@@ -8,9 +8,10 @@ import {
   SheetTitle,
 } from "@rz-chain-reporter/ui/components/sheet";
 import { useFormatter, useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 
 import { EDITORIAL_NAMESPACE } from "../constants";
+import { useNarrowViewport } from "../hooks/use-narrow-viewport";
 import type {
   PromoIdeaCard,
   SelectionCard,
@@ -27,19 +28,11 @@ export function CardDetailsSheet({
   title: string;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
-  const [narrow, setNarrow] = useState(false);
-
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 599px)");
-    const update = () => setNarrow(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
+  const narrow = useNarrowViewport();
 
   return (
     <SheetContent
-      className="w-full gap-5 max-[599px]:rounded-t-xl sm:w-[min(760px,100vw)] sm:p-5"
+      className="w-full gap-5 max-[599px]:rounded-t-xl sm:w-[min(720px,100vw)] sm:p-5"
       closeLabel={t("card.close")}
       side={narrow ? "block-end" : "inline-end"}
     >

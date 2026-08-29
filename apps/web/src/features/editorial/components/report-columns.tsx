@@ -224,7 +224,6 @@ function rowCaption(
   return null;
 }
 
-// Equal brand scores are adjacent; only the second row carries the tie-break caption.
 function tiedWith(previous: ReportRow | undefined, row: ReportRow) {
   return (
     previous !== undefined &&

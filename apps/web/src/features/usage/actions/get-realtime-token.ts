@@ -9,10 +9,11 @@ import { rpcDb } from "@/server/rpc/db";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 
 export async function getUsageRealtimeToken() {
-  await requireActionSession();
+  const session = await requireActionSession();
 
   const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
-  return mintSubscriptionToken(usageRealtimeChannel(workspaceId), [
-    USAGE_REALTIME_LEDGER_TOPIC,
-  ]);
+  return mintSubscriptionToken(
+    usageRealtimeChannel(workspaceId, session.user.id),
+    [USAGE_REALTIME_LEDGER_TOPIC],
+  );
 }

@@ -23,6 +23,7 @@ import {
   markPublicationCacheNotificationCompleted,
   markSettlementActivityFailed,
   readPendingPublicationFollowUps,
+  readPublicationOperationActor,
   rearmSettlementActivity,
 } from "@rz-chain-reporter/db/repositories/publication";
 
@@ -52,6 +53,7 @@ const MAX_ATTEMPTS = 8;
 const MAX_BACKOFF_MS = 60_000;
 const POLL_INTERVAL_MS = 500;
 const PUBLICATION_FOLLOW_UP_RETRY_MS = 30_000;
+const RECOVERY_SCAN_INTERVAL_MS = 10_000;
 
 function nextBackoffMs(attempt: number, maximum: number) {
   return Math.min(1_000 * 2 ** Math.max(0, attempt - 1), maximum);
@@ -68,6 +70,7 @@ export class OutboxRelay {
   readonly claimedBy: string;
   private readonly abortController = new AbortController();
   private accepting = false;
+  private lastRecoveryScanAt = 0;
   private loopPromise: Promise<void> | null = null;
 
   constructor(
@@ -100,19 +103,22 @@ export class OutboxRelay {
   private async run() {
     while (this.accepting) {
       try {
-        const recoveries = await enqueueStrandedPublicationRecoveries(
-          this.executor,
-          this.workspaceId,
-          new Date(),
-          BATCH_SIZE,
-        );
-        if (recoveries.length > 0) {
-          workerLogger.info("worker.publishing.recovery-enqueued", {
-            attempt: recoveries.length,
-            workspaceId: this.workspaceId,
-          });
+        if (Date.now() - this.lastRecoveryScanAt >= RECOVERY_SCAN_INTERVAL_MS) {
+          const recoveries = await enqueueStrandedPublicationRecoveries(
+            this.executor,
+            this.workspaceId,
+            new Date(),
+            BATCH_SIZE,
+          );
+          if (recoveries.length > 0) {
+            workerLogger.info("worker.publishing.recovery-enqueued", {
+              attempt: recoveries.length,
+              workspaceId: this.workspaceId,
+            });
+          }
+          await this.repairPublicationFollowUps();
+          this.lastRecoveryScanAt = Date.now();
         }
-        await this.repairPublicationFollowUps();
         const events = await claimOutboxEvents(
           this.executor,
           this.workspaceId,
@@ -259,6 +265,7 @@ export class OutboxRelay {
     const notification = await notifyPublishingChangedNow(
       this.client,
       this.workspaceId,
+      followUp.actorId,
       {
         operationId: followUp.operationId,
         publicationId: followUp.publicationId,
@@ -471,9 +478,15 @@ export class OutboxRelay {
     };
     if (typeof payload.publicationId !== "string") return;
     try {
+      const actorId = await readPublicationOperationActor(
+        this.executor,
+        event.workspaceId,
+        event.operationId,
+      );
       const notification = await notifyPublishingChangedNow(
         this.client,
         event.workspaceId,
+        actorId,
         {
           operationId: event.operationId,
           publicationId: payload.publicationId,

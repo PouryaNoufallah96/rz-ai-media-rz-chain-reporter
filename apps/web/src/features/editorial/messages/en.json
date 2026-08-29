@@ -47,47 +47,48 @@
         "dropped": "Draft dropped.",
         "cancelled": "Reorder cancelled.",
         "moved": "{title} moved to position {position, number}.",
+        "movedOver": "{title} is at position {position, number}.",
         "conflict": "The lane changed concurrently. The authoritative order was restored.",
         "alreadyRouted": "This draft is already routed to {platform}."
       }
     },
     "cardSheet": {
       "close": "Close draft",
-      "title": "Card sheet",
+      "title": "Panel Preview",
       "loading": "Loading draft…",
-      "description": "{brand} · {platform}. Review candidates, select revisions, and edit copy.",
       "unavailable": {
         "title": "Draft unavailable",
         "description": "This draft is no longer available.",
         "body": "It may have been deleted or the link may be outdated. Close this sheet and choose another card.",
         "dismiss": "Close sheet"
       },
-      "origin": {
-        "title": "Origin",
+      "information": {
+        "title": "Information",
         "platform": "Current platform: {platform}"
       },
-      "candidates": "Generated candidates",
+      "live": "Live",
+      "candidates": "Choose Your Style",
       "candidatesEmpty": "No successful candidates yet.",
+      "generatingStyles": "Generating new styles…",
       "candidateMeta": "{locale} · {model}",
-      "more": "More",
-      "history": "Revision history",
-      "historyEmpty": "No revision yet. Use a generated candidate first.",
+      "variant": {
+        "toThePoint": "Clear and concise"
+      },
+      "revisions": "Revisions",
+      "historyEmpty": "No revisions yet. Choose a style and create the first revision.",
       "revision": "Revision {n, number}",
       "revisionMeta": "{locale} · {author}",
-      "preview": "Candidate inspection",
-      "previewEmpty": "Select a successful candidate when one becomes available.",
-      "useVariant": "Apply variant",
-      "applying": "Applying variant",
       "saving": "Saving revision",
-      "saveRevision": "Create revision",
-      "copyActions": "Copy operations",
+      "createRevision": "Create Revision {n, number}",
+      "copyActions": "Variation Generation",
+      "generationDirtyBlocked": "Create a revision or discard your edits before generating new variations.",
       "regenerate": "Regenerate",
       "refreshArticle": "Refresh article and regenerate",
       "retryFailed": "Retry {n, number} failed variant(s)",
       "image": "Image",
       "imageReady": "Image work can use this exact revision in the next step.",
-      "imageNeedsRevision": "Use a candidate before starting image work.",
-      "imageSourceExtractRequired": "This RSS copy only has feed text. Refresh the article and regenerate the copy, then apply the new variant before generating an image.",
+      "imageNeedsRevision": "Create a revision before starting image work.",
+      "imageSourceExtractRequired": "This RSS copy only has feed text. Refresh the article, regenerate the copy, and create a revision from the new variation before generating an image.",
       "imageModel": "Image model",
       "imageStatus": "Image operation: {status}",
       "imageStatusIdle": "No image operation has started.",
@@ -97,8 +98,16 @@
       "imageRetry": "Retry image",
       "imageFailed": "Image generation failed. Retry when you are ready.",
       "imageDownload": "Download image",
-      "imagePending": "Starting image work",
+      "imagePending": "Generating image",
+      "imageLocked": "This revision's picture is frozen because it has already been approved. Save materially changed copy to create the next revision before changing its picture.",
+      "imageMismatch": "This picture was created from different saved copy or article context. You can keep it, approve it, or replace it for this revision.",
+      "imageMismatchSummary": "Review picture",
       "editor": {
+        "workspace": "Revision workspace",
+        "fromVariation": "Starting from a generated variation",
+        "fromRevision": "Starting from immutable Revision {n, number}",
+        "edited": "Edited",
+        "sourceReady": "Source content",
         "headline": "Headline",
         "body": "Body",
         "hashtags": "Ordered hashtags",
@@ -106,19 +115,16 @@
         "hashtagAdd": "Add",
         "hashtagRemove": "Remove {hashtag}",
         "locale": "Content language",
-        "localeRegenerate": "Content language changed. Use Regenerate under Copy operations to rewrite this draft in that language; you cannot create a revision until the stored copy matches.",
-        "noRevision": "Candidate inspection is read-only until you use a variant.",
+        "localeRegenerate": "Use Variation Generation to create source content in this language before creating a revision.",
+        "noSource": "Choose a generated variation or an existing revision to start editing.",
         "copyBudget": "{used, number} of {limit, number} characters used for {platform}",
         "inlineHashtag": "Keep hashtags out of the headline and body — add them as chips.",
         "hashtagPlaceholder": "#tag"
       },
       "stale": {
         "title": "This draft changed elsewhere",
-        "description": "Your unsaved edits are still here. Keep them, or use the saved version and discard them.",
-        "reload": "Use saved version",
-        "arrived": "Selected saved version: {n, number}, created by {author} at {time}.",
-        "rebase": "Keep my edits",
-        "blocked": "Choose whether to keep your edits or use the saved version before saving."
+        "description": "Your selected source and edits are preserved while the latest revision state loads.",
+        "blocked": "The latest revision state is loading. Your selected source and edits are preserved; retry when refresh finishes."
       },
       "discard": {
         "title": "Discard unsaved changes?",
@@ -137,14 +143,13 @@
         "unknown": "The draft could not be updated. Review the fields and try again.",
         "validation": "This copy does not fit the platform rules. Trim it to the character budget and keep hashtags out of the headline and body.",
         "imageDirection": "Creative direction is too long or uses unsupported characters. Keep it under 1,000 characters.",
-        "imageSourceExtractRequired": "This RSS copy needs a full article extract. Refresh the article and regenerate the copy, then apply the new variant.",
+        "imageSourceExtractRequired": "This RSS copy needs a full article extract. Refresh the article, regenerate the copy, and create a revision from the new variation.",
         "mediaContentMismatch": "The copy changed after this image was generated. Generate a new image for the current copy.",
         "mediaInvalid": "That image is not available for this draft.",
+        "mediaLocked": "This revision's picture is frozen after approval.",
         "referenceConflict": "That reference image is already used by another draft."
       },
       "imageAttached": "This image is attached to the current revision.",
-      "imageNotAttached": "This image is ready to use but is not selected.",
-      "imageUse": "Use image",
       "imageAlt": "{brand} generated image: {headline}",
       "imageRemove": "Remove image",
       "imageReference": "Reference image (optional)",
@@ -156,12 +161,6 @@
         "verified": "{file} is ready to guide the image.",
         "rejected": "{file} was rejected. Choose another image.",
         "failed": "{file} could not be uploaded. Use a JPEG, PNG or WebP image."
-      },
-      "rebase": {
-        "title": "These fields changed both here and elsewhere. Choose what to keep for each.",
-        "mine": "Keep my edit",
-        "theirs": "Use saved version {n, number}",
-        "apply": "Use these choices"
       },
       "imageReferenceClear": "Remove",
       "imageReferenceRemove": "Remove reference image {file}",
@@ -200,6 +199,8 @@
           "telegram_public": "Telegram"
         },
         "selected": "{n, number} of {m, number} selected",
+        "excluded": "{n, number} of {m, number} selected, none used",
+        "excludedReason": "Telegram only skips these sources. The selection is kept and comes back when Telegram only is off.",
         "selectAll": "All",
         "selectNone": "None"
       },
@@ -237,6 +238,7 @@
       },
       "telegramOnly": {
         "preserved": "Editorial models preserved.",
+        "preservedWithSources": "Editorial models preserved. Sources outside Telegram are excluded from this run.",
         "restored": "Editorial models restored.",
         "restoredWithDrops": "Editorial models restored. {n, number} no longer available."
       },
@@ -285,7 +287,7 @@
       },
       "unavailable": {
         "title": "Run unavailable",
-        "hint": "This run no longer exists or is outside this workspace. Start a new workspace or choose a recent run."
+        "hint": "This run no longer exists or belongs to another operator. Start a new workspace or choose a recent run."
       },
       "announce": {
         "started": "Run started.",
@@ -372,6 +374,9 @@
     "errors": {
       "fanOutExceedsMaxUnits": "This selection would start more model units than the template allows.",
       "keywordTopicRequired": "Add at least one topic for keyword-match ordering.",
+      "noBrand": "Select at least one brand.",
+      "noModel": "Select at least one model.",
+      "noPlatform": "Select at least one platform.",
       "noPromoBrand": "Select at least one promo brand.",
       "noSources": "Select at least one source.",
       "promoPromptRequired": "A prompt is required for {brand}.",
@@ -443,6 +448,7 @@
       },
       "board": {
         "zone": "Board",
+        "noBrandsTitle": "No media brand selected",
         "noBrands": "Select a media brand to open its rail.",
         "rail": "{brand} content rail",
         "railPrevious": "Scroll {brand} rail toward the start",

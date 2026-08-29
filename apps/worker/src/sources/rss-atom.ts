@@ -1,5 +1,4 @@
 import { XMLParser } from "fast-xml-parser";
-import { DomUtils, parseDocument } from "htmlparser2";
 
 import {
   SafeHttpError,
@@ -7,9 +6,12 @@ import {
   safeFetch,
 } from "../fetch/safe-http";
 import {
+  bounded,
   contentHashV1,
+  decodeEntities,
   type FetchedAdmission,
   type FetchedSourceItem,
+  parseDate,
   type SourceFetchRequest,
   type SourceFetchResult,
 } from "./types";
@@ -254,14 +256,6 @@ function absoluteHttpUrl(raw: string | null, base: string) {
   }
 }
 
-function parseDate(raw: string | null) {
-  if (raw === null) {
-    return null;
-  }
-  const at = new Date(raw);
-  return Number.isNaN(at.getTime()) ? null : at;
-}
-
 function longest(values: readonly (string | null)[]) {
   let best = "";
   for (const value of values) {
@@ -282,19 +276,6 @@ function plainText(value: string) {
     .replace(/[^\S\n]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-}
-
-// fast-xml-parser expands only the five predefined XML entities, so numeric
-// refs and HTML names reach here raw. Escaping `<` first keeps this a pure
-// decoder: no leftover angle bracket can reopen a tag for the tokenizer.
-function decodeEntities(value: string) {
-  return value.includes("&")
-    ? DomUtils.textContent(parseDocument(value.replace(/</g, "&lt;")))
-    : value;
-}
-
-function bounded(value: string, maxChars: number) {
-  return value.length > maxChars ? value.slice(0, maxChars).trim() : value;
 }
 
 function textOf(value: unknown): string | null {

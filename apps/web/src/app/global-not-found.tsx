@@ -14,7 +14,6 @@ export const metadata: Metadata = {
   title: "404 — Page not found",
 };
 
-// Bypasses [locale]; English-only (ADR 0002). Prefixed paths use [locale]/not-found.tsx.
 export default function GlobalNotFound() {
   return (
     <html

@@ -57,14 +57,11 @@ export const approval = pgTable(
       t.approvedBy,
       t.idempotencyKey,
     ),
-    unique("uq_approval_workspace_snapshot")
-      .on(
-        t.workspaceId,
-        t.draftRevisionId,
-        t.platform,
-        t.selectedFinalMediaAssetId,
-      )
-      .nullsNotDistinct(),
+    unique("uq_approval_workspace_revision_platform").on(
+      t.workspaceId,
+      t.draftRevisionId,
+      t.platform,
+    ),
     check(
       "ck_approval_platform_media",
       sql`${t.platform} <> 'instagram' or ${t.selectedFinalMediaAssetId} is not null`,

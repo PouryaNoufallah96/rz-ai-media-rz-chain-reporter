@@ -1,5 +1,6 @@
 "use client";
 
+import { DIRECTION } from "@rz-chain-reporter/i18n";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { Calendar, TZDate } from "@rz-chain-reporter/ui/components/calendar";
 import {
@@ -146,13 +147,13 @@ export function DateTimePicker({
             ) : null}
           </span>
         </PopoverTrigger>
-        <PopoverContent dir={persian ? "rtl" : "ltr"} lang={locale}>
+        <PopoverContent dir={DIRECTION[locale]} lang={locale}>
           <PopoverTitle className="border-b px-3 py-2 font-medium text-sm">
             {label}
           </PopoverTitle>
           <Calendar
             calendar={persian ? "persian" : "gregory"}
-            dir={persian ? "rtl" : "ltr"}
+            dir={DIRECTION[locale]}
             lang={locale}
             mode="single"
             required

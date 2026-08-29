@@ -137,17 +137,14 @@ export function ReportTable({
             table={table}
           />
           <KeysetPagination
+            ariaLabel={t("table.caption")}
             backToLatestLabel={t("table.pager.latest")}
             newerLabel={t("table.pager.newer")}
             offLatest={page.offFirst}
             olderLabel={t("table.pager.older")}
-            onBackToLatest={() => setValues({ cursor: null })}
-            onNewer={() => setValues({ cursor: page.previousCursor })}
-            onOlder={
-              page.nextCursor
-                ? () => setValues({ cursor: page.nextCursor })
-                : null
-            }
+            newerCursor={page.previousCursor}
+            olderCursor={page.nextCursor}
+            onCursor={(cursor) => setValues({ cursor })}
           />
         </>
       ) : filtered ? (

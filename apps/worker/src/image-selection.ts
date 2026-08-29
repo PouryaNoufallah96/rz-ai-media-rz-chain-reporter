@@ -34,10 +34,14 @@ export function buildSelectionOutputSchema(
   });
 }
 
-export function selectionSignature(selection: TemplateSelection) {
+export function selectionSignature(
+  profileFingerprint: string,
+  selection: TemplateSelection,
+) {
   return createHash("sha256")
     .update(
       JSON.stringify({
+        profileFingerprint,
         family: selection.family,
         axes: Object.fromEntries(
           Object.entries(selection.axes).sort(([left], [right]) =>
@@ -50,6 +54,7 @@ export function selectionSignature(selection: TemplateSelection) {
 }
 
 export function validateImageSelection(
+  profileFingerprint: string,
   profile: ImageProfile,
   candidate: TemplateSelection,
   latestSignatures: readonly string[],
@@ -74,7 +79,10 @@ export function validateImageSelection(
     return { status: "policy_rejected", code: "IMAGE_SELECTION_INVALID" };
   }
   const selection = { family: candidate.family, axes: normalizedAxes };
-  const signature = selectionSignature(selection);
+  if (!satisfiesAxisClauses(profile, selection)) {
+    return { status: "policy_rejected", code: "IMAGE_SELECTION_INVALID" };
+  }
+  const signature = selectionSignature(profileFingerprint, selection);
   if (latestSignatures.includes(signature)) {
     return {
       status: "repeat_rejected",
@@ -83,6 +91,33 @@ export function validateImageSelection(
     };
   }
   return { status: "accepted", selection, signature };
+}
+
+function satisfiesAxisClauses(
+  profile: ImageProfile,
+  selection: { family: string; axes: Record<string, string | null> },
+) {
+  const clauses = [
+    ...Object.entries(profile.restrictions.moodAccentRestricted),
+    ...Object.entries(profile.restrictions.environmentRestricted ?? {}),
+  ];
+  for (const [value, clause] of clauses) {
+    const axisName = Object.entries(profile.axes).find(
+      ([, values]) => value in values,
+    )?.[0];
+    if (axisName === undefined) continue;
+    if (selection.axes[axisName] !== value) continue;
+    if (!clause.families.includes(selection.family)) return false;
+    if (clause.energies && "energy" in profile.axes) {
+      if (!clause.energies.includes(selection.axes.energy ?? "")) return false;
+    }
+    if (clause.environments && "environment" in profile.axes) {
+      if (!clause.environments.includes(selection.axes.environment ?? "")) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 export type CreativeBriefFailure = "BANNED_TERM" | "IMAGE_SELECTION_INVALID";
@@ -127,11 +162,4 @@ export function normalizeCreativeBrief(
     material.includes(term.toLocaleLowerCase("und")),
   );
   return { brief: normalized, failures: banned ? ["BANNED_TERM"] : [] };
-}
-
-export function deterministicImageFallback(profile: ImageProfile) {
-  return {
-    brief: profile.fallbackBrief.brief,
-    selection: profile.fallbackBrief.selection,
-  };
 }

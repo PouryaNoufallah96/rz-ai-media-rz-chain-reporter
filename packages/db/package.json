@@ -37,7 +37,7 @@
   "devDependencies": {
     "@rz-chain-reporter/config": "workspace:*",
     "@types/node": "catalog:",
-    "@types/pg": "8.21.0",
+    "@types/pg": "8.23.1",
     "dotenv": "catalog:",
     "drizzle-kit": "0.31.10",
     "tsx": "4.23.12",

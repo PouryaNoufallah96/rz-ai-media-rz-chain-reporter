@@ -69,9 +69,8 @@ export async function createOperation(
   });
 }
 
-// The identity insert runs in its own savepoint because a 23505 aborts the
-// enclosing transaction, and the stored request_hash still has to be read from
-// it to tell a replay from a changed payload.
+// Isolate the identity insert because 23505 aborts its transaction; the caller
+// must still read `request_hash` to distinguish replay from changed payload.
 export async function insertOperationIdentity(
   tx: Transaction,
   workspaceId: string,
@@ -150,8 +149,7 @@ export async function readOperationIdentity(
   return existing ?? null;
 }
 
-// OPERATION-VOCABULARY §1.2. A pair outside this table is a caller defect, not
-// a client error: §5.2 gives it no public code.
+// An illegal lifecycle pair is a caller defect, not a public error.
 const LEGAL_TRANSITIONS: Record<
   OperationLifecycle,
   readonly OperationLifecycle[]

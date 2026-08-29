@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { Platform } from "./platform";
+import { type Platform, platformSchema } from "./platform";
 import { telegramOrderingModeSchema } from "./source";
 
 export const ANALYSIS_RUN_KINDS = ["news", "promo"] as const;
@@ -120,6 +120,34 @@ export type RunConfigurationSourceConstraints = {
   telegramSourceIds: readonly string[];
 };
 
+const transportNews = z.strictObject({
+  kind: z.literal("news"),
+  brands: z.array(z.string()),
+  models: z.array(z.string()).min(1, { error: "NO_MODEL" }),
+  platforms: z.array(platformSchema).min(1, { error: "NO_PLATFORM" }),
+  sourceIds: z.array(z.uuid()).min(1, { error: "NO_SOURCES" }).max(200),
+  windowHours: analysisRunWindowHoursSchema,
+  enrichmentEnabled: z.boolean(),
+  telegramOnly: z.boolean(),
+  orderingMode: telegramOrderingModeSchema,
+  topN: z.int().min(1),
+  topics: z.array(z.string()),
+});
+
+const transportPromo = z.strictObject({
+  kind: z.literal("promo"),
+  models: z.array(z.string()).min(1, { error: "NO_MODEL" }),
+  promo: z.strictObject({
+    brands: z.array(z.string()),
+    prompts: z.record(z.string(), z.string()),
+  }),
+});
+
+export const runConfigurationTransportSchema = z.discriminatedUnion("kind", [
+  transportNews,
+  transportPromo,
+]);
+
 export function runConfigurationSchema(
   bounds: RunConfigurationBounds,
   sourceConstraints?: RunConfigurationSourceConstraints,
@@ -128,16 +156,12 @@ export function runConfigurationSchema(
   const modelKey = z.enum(bounds.modelKeys);
   const telegramSourceIds = new Set(sourceConstraints?.telegramSourceIds ?? []);
 
-  const news = z.strictObject({
-    kind: z.literal("news"),
-    brands: z.array(brandKey).min(1),
-    models: z.array(modelKey).min(1),
-    platforms: z.array(z.enum(bounds.platforms)).min(1),
-    sourceIds: z.array(z.uuid()).min(1, { error: "NO_SOURCES" }).max(200),
-    windowHours: analysisRunWindowHoursSchema,
-    enrichmentEnabled: z.boolean(),
-    telegramOnly: z.boolean(),
-    orderingMode: telegramOrderingModeSchema,
+  const news = transportNews.extend({
+    brands: z.array(brandKey).min(1, { error: "NO_BRAND" }),
+    models: z.array(modelKey).min(1, { error: "NO_MODEL" }),
+    platforms: z
+      .array(z.enum(bounds.platforms))
+      .min(1, { error: "NO_PLATFORM" }),
     topN: z
       .int()
       .min(1)
@@ -153,9 +177,8 @@ export function runConfigurationSchema(
       .max(bounds.semanticMaxTopics, { error: "TOO_MANY_TOPICS" }),
   });
 
-  const promo = z.strictObject({
-    kind: z.literal("promo"),
-    models: z.array(modelKey).min(1),
+  const promo = transportPromo.extend({
+    models: z.array(modelKey).min(1, { error: "NO_MODEL" }),
     promo: z.strictObject({
       brands: z.array(brandKey).min(1, { error: "NO_PROMO_BRAND" }),
       prompts: z.partialRecord(
@@ -281,11 +304,22 @@ export function assemblePublishPayload(input: {
   const headline = normalizePublishText(input.draft.headline);
   const hashtags = normalizePublishHashtags(input.draft.hashtags);
   let text = assembleCopy(input.platform, { body, hashtags, headline });
+  let telegramLink: {
+    length: number;
+    offset: number;
+    url: string;
+  } | null = null;
 
   if (input.platform === "telegram" && input.source) {
     const label =
       input.contentLocale === "fa" ? "مطالعه کامل خبر" : "Read full story";
-    text = `${text}\n\n${label}: ${input.source.attribution}\n${input.source.canonicalUrl}`;
+    const linkText = `${label}: ${input.source.attribution}`;
+    text = `${text}\n\n${linkText}`;
+    telegramLink = {
+      length: linkText.length,
+      offset: text.length - linkText.length,
+      url: input.source.canonicalUrl,
+    };
   }
 
   const length = platformCopyLength(input.platform, text);
@@ -299,7 +333,14 @@ export function assemblePublishPayload(input: {
     };
   }
   return length <= maximum
-    ? { status: "ready" as const, method, length, maximum, text }
+    ? {
+        status: "ready" as const,
+        method,
+        length,
+        maximum,
+        telegramLink,
+        text,
+      }
     : { status: "overflow" as const, method, length, maximum };
 }
 

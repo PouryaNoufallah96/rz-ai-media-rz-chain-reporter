@@ -2,13 +2,19 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "tasks": {
+    "//#check:root": {
+      "outputs": []
+    },
+    "//#doctor": {
+      "cache": false,
+      "outputs": []
+    },
     "transit": {
       "dependsOn": ["^transit"]
     },
     "build": {
       "dependsOn": ["^build"],
       "env": ["CUSTOMER_TEMPLATE_KEY"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/customer-templates/**"],
       "outputs": ["dist/**"]
     },
     "check-types": {
@@ -17,6 +23,9 @@
     },
     "check": {
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/biome.json"],
+      "outputs": []
+    },
+    "i18n:check": {
       "outputs": []
     },
     "openapi:check": {

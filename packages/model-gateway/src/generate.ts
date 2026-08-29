@@ -73,37 +73,17 @@ export async function generateImageOnce(
     const observation = {
       costAuthority: "unknown" as const,
     };
-    if (input.abortSignal?.aborted) {
-      throw new AdapterInvocationError("cancelled", false, observation);
-    }
-    if (isTimeoutAbort(error)) {
-      throw new AdapterInvocationError(
-        "unknown",
-        false,
-        observation,
-        "adapter-timeout",
-      );
-    }
-    if (APICallError.isInstance(error)) {
-      const diagnosis = diagnoseProviderCall(error);
-      if (!diagnosis) {
-        throw new AdapterInvocationError("unknown", false, observation);
-      }
-      throw recordProviderFailure(
-        new AdapterInvocationError("failed", error.isRetryable, {
-          ...observation,
-          finishReason: diagnosis.code,
-        }),
-        diagnosis,
-      );
-    }
-    if (
-      NoImageGeneratedError.isInstance(error) ||
-      NoContentGeneratedError.isInstance(error)
-    ) {
-      throw noImageReturned();
-    }
-    throw new AdapterInvocationError("unknown", false, observation);
+    throw toAdapterError(
+      error,
+      input.abortSignal,
+      observation,
+      "unknown",
+      (cause) =>
+        NoImageGeneratedError.isInstance(cause) ||
+        NoContentGeneratedError.isInstance(cause)
+          ? noImageReturned()
+          : null,
+    );
   }
 }
 
@@ -127,7 +107,6 @@ export async function generateEmbeddings(
       model,
       telemetry: {
         functionId: "model-gateway.embed-many",
-        isEnabled: true,
         recordInputs: false,
         recordOutputs: false,
       },
@@ -148,38 +127,10 @@ export async function generateEmbeddings(
       throw new AdapterInvocationError("failed", false, observation);
     }
 
-    return {
-      embeddings: result.embeddings,
-      observation,
-      responseBody: result.responses?.[0]?.body,
-    };
+    return { embeddings: result.embeddings, observation };
   } catch (error) {
     if (error instanceof AdapterInvocationError) throw error;
-    if (input.abortSignal?.aborted) {
-      throw new AdapterInvocationError("cancelled", false, observation);
-    }
-    if (isTimeoutAbort(error)) {
-      throw new AdapterInvocationError(
-        "unknown",
-        false,
-        observation,
-        "adapter-timeout",
-      );
-    }
-    if (APICallError.isInstance(error)) {
-      const diagnosis = diagnoseProviderCall(error);
-      if (!diagnosis) {
-        throw new AdapterInvocationError("unknown", false, observation);
-      }
-      throw recordProviderFailure(
-        new AdapterInvocationError("failed", error.isRetryable, {
-          ...observation,
-          finishReason: diagnosis.code,
-        }),
-        diagnosis,
-      );
-    }
-    throw new AdapterInvocationError("failed", false, observation);
+    throw toAdapterError(error, input.abortSignal, observation, "failed");
   }
 }
 
@@ -222,7 +173,6 @@ export async function generateStructured<TOutput>(
           operationId: true,
           usageEventId: true,
         },
-        isEnabled: true,
         recordInputs: false,
         recordOutputs: false,
       },
@@ -240,42 +190,22 @@ export async function generateStructured<TOutput>(
 
     return { observation, output: result.output };
   } catch (error) {
-    if (
-      NoObjectGeneratedError.isInstance(error) ||
-      NoOutputGeneratedError.isInstance(error)
-    ) {
-      throw new AdapterInvocationError(
-        "structured-output-invalid",
-        false,
-        observation,
-      );
-    }
-
-    if (input.abortSignal?.aborted) {
-      throw new AdapterInvocationError("cancelled", false, observation);
-    }
-
-    if (isTimeoutAbort(error)) {
-      throw new AdapterInvocationError(
-        "unknown",
-        false,
-        observation,
-        "adapter-timeout",
-      );
-    }
-
-    if (APICallError.isInstance(error)) {
-      const diagnosis = diagnoseProviderCall(error);
-      if (!diagnosis) {
-        throw new AdapterInvocationError("unknown", false, observation);
-      }
-      throw new AdapterInvocationError("failed", error.isRetryable, {
-        ...observation,
-        finishReason: diagnosis.code,
-      });
-    }
-
-    throw new AdapterInvocationError("failed", false, observation);
+    if (error instanceof AdapterInvocationError) throw error;
+    throw toAdapterError(
+      error,
+      input.abortSignal,
+      observation,
+      "failed",
+      (cause) =>
+        NoObjectGeneratedError.isInstance(cause) ||
+        NoOutputGeneratedError.isInstance(cause)
+          ? new AdapterInvocationError(
+              "structured-output-invalid",
+              false,
+              observation,
+            )
+          : null,
+    );
   }
 }
 
@@ -308,7 +238,6 @@ export function streamSynthesis(
         operationId: true,
         usageEventId: true,
       },
-      isEnabled: true,
       recordInputs: false,
       recordOutputs: false,
     },
@@ -343,7 +272,7 @@ export function streamSynthesis(
     }
 
     if (failure !== undefined) {
-      throw toAdapterError(failure, input.abortSignal, observation);
+      throw toAdapterError(failure, input.abortSignal, observation, "unknown");
     }
   }
 
@@ -358,6 +287,8 @@ function toAdapterError(
   error: unknown,
   abortSignal: AbortSignal | undefined,
   observation: ModelCallObservation,
+  fallbackKind: "unknown" | "failed",
+  specialCase?: (error: unknown) => AdapterInvocationError | null,
 ) {
   if (abortSignal?.aborted) {
     return new AdapterInvocationError("cancelled", false, observation);
@@ -372,6 +303,11 @@ function toAdapterError(
     );
   }
 
+  const special = specialCase?.(error);
+  if (special) {
+    return special;
+  }
+
   if (APICallError.isInstance(error)) {
     const diagnosis = diagnoseProviderCall(error);
 
@@ -384,7 +320,9 @@ function toAdapterError(
         diagnosis,
       );
     }
+
+    return new AdapterInvocationError("unknown", false, observation);
   }
 
-  return new AdapterInvocationError("unknown", false, observation);
+  return new AdapterInvocationError(fallbackKind, false, observation);
 }

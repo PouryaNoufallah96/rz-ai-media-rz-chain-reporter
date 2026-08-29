@@ -1,4 +1,4 @@
-import { and, eq, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import {
@@ -12,8 +12,9 @@ import { approval } from "../schema/approval";
 import { draftRevision } from "../schema/draft-revision";
 import { imageGeneration } from "../schema/image-generation";
 import { mediaAsset } from "../schema/media-asset";
+import { operation } from "../schema/operation";
 import { platformDraft } from "../schema/platform-draft";
-import { appendActivityEvent } from "./activity-event";
+import { appendActivityEvent, lockActivityIdentity } from "./activity-event";
 import { ownedDraftExists } from "./draft-origin";
 
 type ApprovalRow = typeof approval.$inferSelect;
@@ -23,6 +24,7 @@ type ApprovalCommandResult =
   | {
       status:
         | "idempotency_mismatch"
+        | "image_generation_in_progress"
         | "media_not_publishable"
         | "not_found"
         | "snapshot_stale"
@@ -43,8 +45,11 @@ export async function grantApproval(
 ): Promise<ApprovalCommandResult> {
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`${workspaceId}:approval:${input.idempotencyKey}`}, 0))`,
+    await lockActivityIdentity(
+      tx,
+      workspaceId,
+      "approval.granted",
+      input.idempotencyKey,
     );
     const [receipt] = await tx
       .select({ event: activityEvent, approval })
@@ -89,11 +94,10 @@ export async function grantApproval(
         : { status: "idempotency_mismatch" };
     }
 
-    const [snapshot] = await tx
+    const [located] = await tx
       .select({
         draftRevisionId: draftRevision.id,
         platformDraftId: draftRevision.platformDraftId,
-        selectedFinalMediaAssetId: draftRevision.selectedFinalMediaAssetId,
       })
       .from(draftRevision)
       .where(
@@ -102,7 +106,7 @@ export async function grantApproval(
           eq(draftRevision.id, input.draftRevisionId),
         ),
       );
-    if (!snapshot) return { status: "not_found" };
+    if (!located) return { status: "not_found" };
     const [draft] = await tx
       .select({
         activeRevisionId: platformDraft.activeRevisionId,
@@ -113,12 +117,27 @@ export async function grantApproval(
       .where(
         and(
           liveInWorkspace(platformDraft, workspaceId),
-          eq(platformDraft.id, snapshot.platformDraftId),
+          eq(platformDraft.id, located.platformDraftId),
           ownedDraftExists(workspaceId, input.actorId),
         ),
       )
       .for("update");
     if (!draft) return { status: "not_found" };
+    const [snapshot] = await tx
+      .select({
+        draftRevisionId: draftRevision.id,
+        selectedFinalMediaAssetId: draftRevision.selectedFinalMediaAssetId,
+      })
+      .from(draftRevision)
+      .where(
+        and(
+          inWorkspace(draftRevision, workspaceId),
+          eq(draftRevision.id, input.draftRevisionId),
+          eq(draftRevision.platformDraftId, located.platformDraftId),
+        ),
+      )
+      .for("update");
+    if (!snapshot) return { status: "not_found" };
     if (
       draft.activeRevisionId !== input.draftRevisionId ||
       draft.revisionVersion !== input.expectedRevisionVersion ||
@@ -126,6 +145,25 @@ export async function grantApproval(
     ) {
       return { status: "snapshot_stale" };
     }
+    const [inFlightImage] = await tx
+      .select({ id: imageGeneration.operationId })
+      .from(imageGeneration)
+      .innerJoin(
+        operation,
+        and(
+          eq(operation.id, imageGeneration.operationId),
+          eq(operation.workspaceId, imageGeneration.workspaceId),
+        ),
+      )
+      .where(
+        and(
+          inWorkspace(imageGeneration, workspaceId),
+          eq(imageGeneration.draftRevisionId, input.draftRevisionId),
+          inArray(operation.lifecycle, ["queued", "running", "settling"]),
+        ),
+      )
+      .limit(1);
+    if (inFlightImage) return { status: "image_generation_in_progress" };
     if (
       draft.platform === "instagram" &&
       input.selectedFinalMediaAssetId === null
@@ -144,6 +182,35 @@ export async function grantApproval(
       return { status: "media_not_publishable" };
     }
 
+    const [admitted] = await tx
+      .select()
+      .from(approval)
+      .where(
+        and(
+          inWorkspace(approval, workspaceId),
+          eq(approval.draftRevisionId, input.draftRevisionId),
+          eq(approval.platform, draft.platform),
+        ),
+      );
+    if (admitted) {
+      if (
+        admitted.selectedFinalMediaAssetId !== input.selectedFinalMediaAssetId
+      ) {
+        return { status: "snapshot_stale" };
+      }
+      const activity = await appendActivityEvent(tx, workspaceId, {
+        actorId: input.actorId,
+        eventType: "approval.granted",
+        idempotencyKey: input.idempotencyKey,
+        requestHash: input.requestHash,
+        approvalId: admitted.id,
+      });
+      if (activity.status === "mismatch") {
+        throw new Error("approval activity identity mismatch");
+      }
+      return { status: "replayed", approval: admitted };
+    }
+
     const [created] = await tx
       .insert(approval)
       .values({
@@ -160,7 +227,6 @@ export async function grantApproval(
           approval.workspaceId,
           approval.draftRevisionId,
           approval.platform,
-          approval.selectedFinalMediaAssetId,
         ],
       })
       .returning();
@@ -175,12 +241,6 @@ export async function grantApproval(
               inWorkspace(approval, workspaceId),
               eq(approval.draftRevisionId, input.draftRevisionId),
               eq(approval.platform, draft.platform),
-              input.selectedFinalMediaAssetId
-                ? eq(
-                    approval.selectedFinalMediaAssetId,
-                    input.selectedFinalMediaAssetId,
-                  )
-                : isNull(approval.selectedFinalMediaAssetId),
             ),
           )
       )[0];
@@ -196,7 +256,10 @@ export async function grantApproval(
     if (activity.status === "mismatch") {
       throw new Error("approval activity identity mismatch");
     }
-    return { status: "created", approval: approved };
+    return {
+      status: created ? "created" : "replayed",
+      approval: approved,
+    };
   });
 }
 
@@ -282,10 +345,6 @@ async function isPublishableSelectedMedia(
               generatedRevision.platformDraftId,
               draftRevision.platformDraftId,
             ),
-            eq(generatedRevision.contentLocale, draftRevision.contentLocale),
-            eq(generatedRevision.headline, draftRevision.headline),
-            eq(generatedRevision.body, draftRevision.body),
-            eq(generatedRevision.hashtags, draftRevision.hashtags),
           ),
         ),
       ),

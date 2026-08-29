@@ -69,6 +69,10 @@
           "backend": "remote",
           "model": "google/gemini-3.1-flash-image"
         }
+      },
+      "assistant-synthesis": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini"
       }
     }
   },

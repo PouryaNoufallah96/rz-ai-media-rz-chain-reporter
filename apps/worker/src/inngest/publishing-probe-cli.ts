@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import {
   cacheInvalidationRequestSchema,
@@ -54,7 +52,6 @@ import { workerLogger } from "../logging/logger";
 import {
   scrubWorkerErrorEvent,
   scrubWorkerLog,
-  scrubWorkerTransaction,
 } from "../observability/privacy";
 import { createPublisher } from "../publishing/factory";
 import { createInstagramPublisher } from "../publishing/instagram";
@@ -80,7 +77,6 @@ import {
   exactRecentTimelineCandidate,
   oauthAuthorization,
 } from "../publishing/x";
-import { settlePublishingNotification } from "../web-cache/publishing";
 import { publishingEffectInputSchema } from "./publishing-effect";
 
 const args = process.argv.slice(2);
@@ -180,6 +176,12 @@ function formFieldType(body: RequestInit["body"], field: string) {
   if (!(body instanceof FormData)) return null;
   const part = body.get(field);
   return part instanceof Blob ? part.type : null;
+}
+
+function formFieldText(body: RequestInit["body"], field: string) {
+  if (!(body instanceof FormData)) return null;
+  const part = body.get(field);
+  return typeof part === "string" ? part : null;
 }
 
 function fakeRuntime(
@@ -1592,12 +1594,14 @@ async function runZeroKey() {
   };
 
   const textCalls: string[] = [];
+  const textInits: RequestInit[] = [];
   const textRuntime = fakeRuntime(baseMaterial);
   const telegramText = createTelegramPublisher({
     credential: { botToken: "local-fixture", channel: "@fixture" },
     fetch: fakeFetch(
       [jsonResponse({ ok: true, result: { message_id: 41, text: "ignored" } })],
       textCalls,
+      textInits,
     ),
     runtime: textRuntime.runtime,
   });
@@ -1608,6 +1612,24 @@ async function runZeroKey() {
   const textResult = await telegramText.publish(textPrepared.prepared);
   assert.equal(textResult.status, "confirmed");
   assert.equal(textCalls.length, 1);
+  const textLink = "Read full story: Trusted Desk";
+  const textRequest = JSON.parse(String(textInits[0]?.body)) as {
+    entities: unknown;
+    text: string;
+  };
+  assert.equal(textRequest.text.endsWith(`\n\n${textLink}`), true);
+  assert.equal(
+    textRequest.text.includes(baseMaterial.source?.canonicalUrl ?? ""),
+    false,
+  );
+  assert.deepEqual(textRequest.entities, [
+    {
+      length: textLink.length,
+      offset: textRequest.text.length - textLink.length,
+      type: "text_link",
+      url: baseMaterial.source?.canonicalUrl,
+    },
+  ]);
 
   const deadlineSignals: (AbortSignal | null)[] = [];
   const deadlineTimeouts: number[] = [];
@@ -1841,6 +1863,25 @@ async function runZeroKey() {
     "confirmed",
   );
   assert.equal(formFieldType(photoInits[0]?.body, "photo"), "image/jpeg");
+  const photoCaption = formFieldText(photoInits[0]?.body, "caption");
+  assert.equal(photoCaption?.endsWith(`\n\n${textLink}`), true);
+  assert.equal(
+    photoCaption?.includes(baseMaterial.source?.canonicalUrl ?? ""),
+    false,
+  );
+  assert.deepEqual(
+    JSON.parse(
+      formFieldText(photoInits[0]?.body, "caption_entities") ?? "null",
+    ),
+    [
+      {
+        length: textLink.length,
+        offset: (photoCaption?.length ?? 0) - textLink.length,
+        type: "text_link",
+        url: baseMaterial.source?.canonicalUrl,
+      },
+    ],
+  );
 
   const overflowRuntime = fakeRuntime({
     ...baseMaterial,
@@ -2498,23 +2539,6 @@ async function runZeroKey() {
     type: undefined,
   });
   assert.equal(JSON.stringify(scrubbedError).includes(PRIVACY_SENTINEL), false);
-  const scrubbedTransaction = scrubWorkerTransaction({
-    spans: [
-      {
-        data: { content: PRIVACY_SENTINEL },
-        description: `worker/publish?content=${PRIVACY_SENTINEL}`,
-        span_id: "0000000000000001",
-        start_timestamp: replayStartedAt / 1_000,
-        trace_id: "00000000000000000000000000000001",
-      },
-    ],
-    transaction: `worker/publish?content=${PRIVACY_SENTINEL}`,
-    type: "transaction",
-  });
-  assert.equal(
-    JSON.stringify(scrubbedTransaction).includes(PRIVACY_SENTINEL),
-    false,
-  );
   const scrubbedLog = scrubWorkerLog({
     attributes: { content: PRIVACY_SENTINEL },
     level: "info",
@@ -2585,183 +2609,6 @@ async function runZeroKey() {
   );
   assert.equal(recoverable.length, 1);
 
-  const notificationOrder: string[] = [];
-  const notification = await settlePublishingNotification(
-    async () => {
-      notificationOrder.push("lane2");
-      return "accepted";
-    },
-    async () => {
-      notificationOrder.push("settle");
-    },
-  );
-  if (notification === "accepted") notificationOrder.push("lane3");
-  assert.deepEqual(notificationOrder, ["lane2", "settle", "lane3"]);
-
-  for (const failureOutcome of ["disabled", "failed", "rejected"] as const) {
-    const failureOrder: string[] = [];
-    const outcome = await settlePublishingNotification(
-      async () => {
-        failureOrder.push("lane2");
-        return failureOutcome;
-      },
-      async () => {
-        failureOrder.push("settle");
-      },
-    );
-    assert.equal(outcome, failureOutcome);
-    assert.deepEqual(failureOrder, ["lane2"]);
-  }
-
-  const parentSource = readFileSync(
-    fileURLToPath(new URL("./publishing.ts", import.meta.url)),
-    "utf8",
-  );
-  assert.ok(
-    parentSource.indexOf("wait-until-publication-effective-at") <
-      parentSource.indexOf("claim-publication-after-wake"),
-  );
-  assert.ok(parentSource.includes("Date.parse(timing.effectiveAt) + 1_000"));
-  assert.ok(
-    parentSource.indexOf('step.invoke("invoke-publication-provider-effect"') <
-      parentSource.indexOf('"settled",'),
-  );
-  assert.ok(parentSource.includes("settleTimedOutPublicationExecution"));
-  assert.ok(parentSource.includes("readPublicationExecutionSummary"));
-  assert.ok(!parentSource.includes("loadPublicationExecutionContext"));
-  const missedBranch = parentSource.slice(
-    parentSource.indexOf('if (claim.status === "missed")'),
-    parentSource.indexOf("return { operationId, status: claim.status }"),
-  );
-  assert.ok(missedBranch.includes("publishOperationStatus("));
-  assert.ok(
-    missedBranch.indexOf("publishOperationStatus(") <
-      missedBranch.indexOf("notifyPublishingChanged("),
-  );
-  assert.ok(
-    parentSource.includes("attemptCount: claimed.operation.attemptSeq"),
-  );
-  const relaySource = readFileSync(
-    fileURLToPath(new URL("../relay/relay.ts", import.meta.url)),
-    "utf8",
-  );
-  assert.ok(
-    relaySource.indexOf("await markOutboxDispatched") <
-      relaySource.indexOf("await this.notifyPublishingDispatchChanged(event)"),
-  );
-  assert.ok(relaySource.includes("readPendingPublicationFollowUps"));
-  assert.ok(relaySource.includes("repairSettlementActivity"));
-  assert.ok(relaySource.includes("repairPublishingNotification"));
-  assert.ok(relaySource.includes("recordPublicationSettlementActivity("));
-  assert.equal(relaySource.includes("appendActivityEvent("), false);
-  assert.equal(relaySource.includes("markSettlementActivityRecorded("), false);
-  const effectSource = readFileSync(
-    fileURLToPath(new URL("./publishing-effect.ts", import.meta.url)),
-    "utf8",
-  );
-  assert.ok(effectSource.includes("settlePublicationExecution"));
-  assert.ok(effectSource.includes("recordPublicationSettlementActivity("));
-  assert.equal(effectSource.includes("appendActivityEvent("), false);
-  assert.equal(effectSource.includes("markSettlementActivityRecorded("), false);
-  assert.ok(effectSource.includes("const PUBLISH_EFFECT_RETRIES = 0 as const"));
-  assert.ok(effectSource.includes("retries: PUBLISH_EFFECT_RETRIES"));
-  assert.ok(
-    effectSource.indexOf("settle-publication-confirmed") <
-      effectSource.indexOf(
-        'recordSettlementActivity(runtime, input, "publication.confirmed")',
-      ),
-  );
-  assert.ok(effectSource.includes("withMaterial: async"));
-  assert.equal(effectSource.includes("load-publication-material"), false);
-  assert.equal(effectSource.includes("record-final-checkpoint"), false);
-  const publishingSource = readFileSync(
-    fileURLToPath(new URL("./publishing.ts", import.meta.url)),
-    "utf8",
-  );
-  assert.ok(publishingSource.includes("onFailure: async"));
-  assert.ok(
-    publishingSource.includes("settle-failed-publication-reconciliation"),
-  );
-  assert.ok(publishingSource.includes("settleReconciliationOperationFailure("));
-  assert.ok(
-    publishingSource.includes(
-      "claimedBy: `publishing-reconciliation:$" + "{event.data.run_id}`",
-    ),
-  );
-  assert.ok(publishingSource.includes("publicationFailureCodeSchema"));
-  const telegramSource = readFileSync(
-    fileURLToPath(new URL("../publishing/telegram.ts", import.meta.url)),
-    "utf8",
-  );
-  assert.ok(
-    telegramSource.includes(
-      'async reconcile() {\n      return { status: "still_unknown" };',
-    ),
-  );
-  const factorySource = readFileSync(
-    fileURLToPath(new URL("../publishing/factory.ts", import.meta.url)),
-    "utf8",
-  );
-  assert.ok(factorySource.includes("providerRequestTimeoutMs(init)"));
-  assert.equal(factorySource.includes("PROVIDER_REQUEST_TIMEOUT_MS"), false);
-  const reconciliationSource = readFileSync(
-    fileURLToPath(new URL("../publishing/reconcile.ts", import.meta.url)),
-    "utf8",
-  );
-  assert.ok(reconciliationSource.includes('result.status === "failed"'));
-  assert.ok(
-    reconciliationSource.includes("throw new Error(result.failure.code)"),
-  );
-  assert.ok(
-    reconciliationSource.includes(
-      'return { operation: settled, status: "still_unknown" as const }',
-    ),
-  );
-  assert.ok(
-    reconciliationSource.match(/publishOperationStatus\(/gu)?.length === 3,
-  );
-  const attemptRepositorySource = readFileSync(
-    fileURLToPath(
-      new URL(
-        "../../../../packages/db/src/repositories/operation-attempt.ts",
-        import.meta.url,
-      ),
-    ),
-    "utf8",
-  );
-  assert.ok(
-    attemptRepositorySource.includes(
-      'eq(operation.commandType, "publishing:reconciliation")',
-    ),
-  );
-  assert.ok(
-    attemptRepositorySource.includes("isNull(operationAttempt.outcome)"),
-  );
-  assert.ok(attemptRepositorySource.includes('outcome: "failed_terminal"'));
-  assert.ok(attemptRepositorySource.includes('lifecycle: "failed"'));
-  assert.ok(
-    attemptRepositorySource.includes(
-      "providerFailureCode: input.providerFailureCode",
-    ),
-  );
-  const activityRepositorySource = readFileSync(
-    fileURLToPath(
-      new URL(
-        "../../../../packages/db/src/repositories/activity-event.ts",
-        import.meta.url,
-      ),
-    ),
-    "utf8",
-  );
-  assert.ok(
-    activityRepositorySource.includes("recordPublicationSettlementActivity("),
-  );
-  assert.ok(
-    activityRepositorySource.includes(
-      'current.settlementActivityStatus === "recorded"',
-    ),
-  );
-  assert.ok(activityRepositorySource.includes('status: "replayed" as const'));
   assert.equal(
     providerCheckpointSchema.safeParse({
       kind: "x_post",

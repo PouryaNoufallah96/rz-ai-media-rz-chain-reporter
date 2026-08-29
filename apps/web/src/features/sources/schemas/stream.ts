@@ -16,6 +16,8 @@ import {
 } from "nuqs/server";
 import { z } from "zod";
 
+import { keysetCursorParam } from "@/features/shared/lib/keyset-cursor";
+
 export const streamSearchParsers = {
   source: parseAsString,
   admission: parseAsStringLiteral(ADMISSION_OUTCOMES),
@@ -37,7 +39,7 @@ const streamQuerySchema = z.object({
   source: optionalIdSchema,
   admission: admissionOutcomeSchema.nullable(),
   import: optionalIdSchema,
-  cursor: z.string().min(1).max(512).nullable().catch(null),
+  cursor: keysetCursorParam,
 });
 
 export type StreamQuery = z.infer<typeof streamQuerySchema>;
@@ -48,15 +50,7 @@ export function normalizeStreamQuery(
   return streamQuerySchema.parse(input);
 }
 
-export const streamCursorSchema = z.object({
-  direction: z.enum(["older", "newer"]),
-  createdAt: z.iso.datetime(),
-  id: z.uuid(),
-});
-
-export type StreamCursor = z.infer<typeof streamCursorSchema>;
-
-export const sourceItemBriefSchema = z.object({ summary: z.string() });
+export { sourceItemBriefSchema } from "@rz-chain-reporter/contracts";
 
 const sourceItemRowSchema = z.object({
   id: z.uuid(),

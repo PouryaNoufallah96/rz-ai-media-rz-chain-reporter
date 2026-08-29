@@ -1,8 +1,7 @@
 name: rz-chain-reporter
 
-# Deploy order: migrate, then template:reconcile from a checkout, then web and
-# worker. Their prestart assertions refuse to start until the loaded template
-# is the applied one, so bringing the stack up before reconciling fails loudly.
+# Deploy order: migrate, reconcile the template from a checkout, then start web
+# and worker; prestart refuses a template that is not yet applied.
 
 services:
   migrate:
@@ -36,7 +35,6 @@ services:
     environment:
       CUSTOMER_TEMPLATE_KEY: ${CUSTOMER_TEMPLATE_KEY}
       BETTER_AUTH_URL: http://localhost:3001
-      CORS_ORIGIN: http://localhost:3001
       APP_URL: http://localhost:3001
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/rz-chain-reporter
     depends_on:

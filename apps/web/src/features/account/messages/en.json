@@ -33,7 +33,7 @@
       "showAll": "Show all {n, number} recent events",
       "showLess": "Show less",
       "empty": "No operator activity has been recorded yet.",
-      "global": "Workspace publishing",
+      "global": "Installation publishing",
       "events": {
         "saved_card": {
           "saved": "Saved a card",

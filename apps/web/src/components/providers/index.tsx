@@ -4,18 +4,17 @@ import { DIRECTION, type Locale } from "@rz-chain-reporter/i18n";
 import { DirectionProvider } from "@rz-chain-reporter/ui/components/direction-provider";
 import { Toaster } from "@rz-chain-reporter/ui/components/sonner";
 import { QueryClientProvider } from "@tanstack/react-query";
-// import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import {
   type IntlError,
   IntlErrorCode,
   NextIntlClientProvider,
 } from "next-intl";
+import { ThemeProvider } from "next-themes";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
-import { FORMATS, NOW } from "@/i18n/config";
+import { NOW } from "@/i18n/config";
 import { getQueryClient } from "@/lib/query-client";
 
-import { ThemeProvider } from "./theme-provider";
 import { WebVitals } from "./web-vitals";
 
 function onIntlError(error: IntlError) {
@@ -40,13 +39,11 @@ export default function Providers({
   const queryClient = getQueryClient();
   const direction = DIRECTION[locale];
 
-  // The adapter only publishes the framework binding through context; nothing
-  // reads `useSearchParams` until a `useQueryStates` consumer mounts, so the
-  // static shell survives mounting it above every boundary.
+  // The adapter reads no search params until a `useQueryStates` consumer mounts,
+  // so placing it above every boundary preserves the static shell.
   return (
     <NuqsAdapter>
       <NextIntlClientProvider
-        formats={FORMATS}
         locale={locale}
         now={NOW}
         onError={onIntlError}
@@ -61,9 +58,6 @@ export default function Providers({
           >
             <QueryClientProvider client={queryClient}>
               {children}
-              {/* {process.env.NODE_ENV === "development" ? (
-                <ReactQueryDevtools />
-              ) : null} */}
             </QueryClientProvider>
             <Toaster dir={direction} richColors />
             <WebVitals />

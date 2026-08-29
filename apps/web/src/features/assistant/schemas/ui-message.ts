@@ -1,9 +1,10 @@
+import { LOCALES } from "@rz-chain-reporter/i18n";
 import { z } from "zod";
 
 export const assistantCitationSchema = z.strictObject({
   sourceId: z.string().min(1).max(128),
   title: z.string().min(1).max(200),
-  locale: z.enum(["en", "fa"]).nullable(),
+  locale: z.enum(LOCALES).nullable(),
   templateFingerprint: z.string().regex(/^[a-f0-9]{16}$/),
 });
 

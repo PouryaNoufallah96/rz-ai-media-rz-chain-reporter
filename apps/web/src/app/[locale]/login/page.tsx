@@ -1,22 +1,13 @@
-import { Suspended } from "@/components/fetcher/suspended";
-import { requireGuest } from "@/features/auth/api/server/session";
-import SignInForm from "@/features/auth/components/sign-in-form";
-import { AUTH_NAMESPACE } from "@/features/auth/constants";
-import { SHARED_NAMESPACE } from "@/features/shared/constants";
-import { Localized } from "@/i18n/client";
+import { SignInScreen } from "@/features/auth/components/sign-in-screen";
 
 export default function LoginPage() {
   return (
     <main
-      className="flex items-center justify-center px-5 py-12 sm:py-20"
+      className="relative flex min-h-0 flex-col"
       id="main-content"
+      tabIndex={-1}
     >
-      <Suspended data={requireGuest} fallback={null}>
-        {() => null}
-      </Suspended>
-      <Localized namespaces={[SHARED_NAMESPACE, AUTH_NAMESPACE]}>
-        <SignInForm />
-      </Localized>
+      <SignInScreen />
     </main>
   );
 }

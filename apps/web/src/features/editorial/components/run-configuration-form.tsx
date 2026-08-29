@@ -6,7 +6,8 @@ import {
   type Platform,
   type RunConfiguration,
   runConfigurationSchema,
-  type SourceOrigin,
+  type runConfigurationTransportSchema,
+  SOURCE_ORIGINS,
   TELEGRAM_ORDERING_MODES,
 } from "@rz-chain-reporter/contracts";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
@@ -32,17 +33,24 @@ import {
   FieldLegend,
   FieldSet,
 } from "@rz-chain-reporter/ui/components/field";
-import { Input } from "@rz-chain-reporter/ui/components/input";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
 } from "@rz-chain-reporter/ui/components/input-group";
+import { MetalButton } from "@rz-chain-reporter/ui/components/metal-button";
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
-import { XIcon } from "lucide-react";
+import { ChevronDownIcon, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type Ref, useId, useRef, useState } from "react";
+import {
+  type Ref,
+  useEffect,
+  useEffectEvent,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { type Control, useController, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -50,6 +58,7 @@ import {
   FieldCaption,
   FormField,
   type FormFieldRenderProps,
+  FormNumberField,
   FormRootError,
   FormSelectField,
   FormSwitchField,
@@ -59,19 +68,14 @@ import type { SourceCatalogEntry } from "@/features/sources/schemas/catalog";
 import { applyActionErrorToForm, useAction } from "@/hooks/use-action";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 
-import { startAnalysisRunAction } from "../actions/start-analysis-run";
+import { startAnalysisRunAction } from "../actions/commands";
 import { EDITORIAL_NAMESPACE } from "../constants";
 import { useEditorialErrorMessage } from "../hooks/use-editorial-error-message";
-import type {
-  RunOptions,
-  startAnalysisRunInputSchema,
-} from "../schemas/workspace";
+import type { RunOptions } from "../schemas/workspace";
 import { workspaceSearchParsers } from "../schemas/workspace";
 import type { BoardPresentation } from "./lane-board";
 
-const SOURCE_KINDS: readonly SourceOrigin[] = ["rss", "telegram_public"];
-
-type RunSubmission = z.input<typeof startAnalysisRunInputSchema>;
+type RunSubmission = z.input<typeof runConfigurationTransportSchema>;
 
 type RunFormValues = Omit<Extract<RunSubmission, { kind: "news" }>, "kind"> & {
   kind: RunSubmission["kind"];
@@ -111,6 +115,7 @@ export function RunConfigurationForm({
     entry.origin === "telegram_public" ? [entry.id] : [],
   );
   const selectableSourceIdSet = new Set(selectable.map((entry) => entry.id));
+  const hasExcludableSource = selectable.length > telegramSourceIds.length;
   const telegramSourceIdSet = new Set(telegramSourceIds);
   const promoBrands = options.brands.filter((brand) => brand.promoEnabled);
 
@@ -128,6 +133,7 @@ export function RunConfigurationForm({
     setError,
     setFocus,
     setValue,
+    subscribe,
   } = useForm<RunFormValues>({
     defaultValues: initialValues(options, selectable, initialConfiguration),
     mode: "onSubmit",
@@ -143,7 +149,7 @@ export function RunConfigurationForm({
           ctx.addIssue({
             code: "custom",
             message: issue.message,
-            path: issue.path,
+            path: issue.path.length > 0 ? issue.path : ["root", "server"],
           });
         }
       }),
@@ -155,16 +161,24 @@ export function RunConfigurationForm({
     control,
     name: "kind",
   });
-  const publishPresentation = () => {
-    const values = getValues();
+  const publish = useEffectEvent((values: RunFormValues) =>
     onPresentationChange({
       brandKeys: values.kind === "promo" ? values.promo.brands : values.brands,
       kind: values.kind,
       platforms: values.kind === "promo" ? options.platforms : values.platforms,
       telegramOnly: values.kind === "news" && values.telegramOnly,
-    });
-  };
-  const publishPresentationSoon = () => queueMicrotask(publishPresentation);
+    }),
+  );
+
+  useEffect(
+    () =>
+      subscribe({
+        callback: ({ values }) => publish(values),
+        formState: { values: true },
+        name: ["kind", "brands", "promo.brands", "platforms", "telegramOnly"],
+      }),
+    [subscribe],
+  );
 
   const onSubmit = handleSubmit(async (values) => {
     clearErrors("root");
@@ -211,7 +225,6 @@ export function RunConfigurationForm({
         ? t("run.usePrevious.partial", { n: previous.dropped.length })
         : t("run.usePrevious.loaded"),
     );
-    publishPresentationSoon();
   };
 
   const toggleTelegramOnly = (
@@ -223,7 +236,13 @@ export function RunConfigurationForm({
         models: getValues("models"),
         platforms: getValues("platforms"),
       };
-      setAnnouncement(t("run.telegramOnly.preserved"));
+      setAnnouncement(
+        t(
+          hasExcludableSource
+            ? "run.telegramOnly.preservedWithSources"
+            : "run.telegramOnly.preserved",
+        ),
+      );
     } else if (preserved.current) {
       const liveModels = new Set(options.models.map((model) => model.key));
       const livePlatforms = new Set<string>(options.platforms);
@@ -263,7 +282,6 @@ export function RunConfigurationForm({
         shouldValidate: true,
       }),
     );
-    publishPresentationSoon();
   };
 
   return (
@@ -275,14 +293,12 @@ export function RunConfigurationForm({
         aria-busy={isPending}
         className="max-sm:**:data-[slot=input-group-control]:min-h-11 max-sm:**:data-[slot=input-group]:min-h-11 max-sm:**:data-[slot=input]:min-h-11 max-sm:**:data-[slot=select-trigger]:min-h-11 max-sm:**:data-[slot=checkbox]:after:-inset-3.75 max-sm:[&_button]:min-h-11 max-sm:[&_button]:min-w-11 max-sm:[&_li]:min-h-11 max-sm:[&_summary]:min-h-11"
         noValidate
-        onChange={publishPresentationSoon}
         onSubmit={onSubmit}
       >
         <FieldGroup>
           <KindField
             control={control}
             disabled={isPending}
-            onKindChange={publishPresentationSoon}
             resolveError={resolveError}
           />
           {kind.value === "promo" ? (
@@ -351,14 +367,15 @@ function RunFooter({
   return (
     <div className="mt-1 grid gap-2 border-border border-t pt-3">
       <div className="grid gap-2">
-        <Button
-          className="h-auto min-h-8 w-full whitespace-normal py-1.5"
+        <MetalButton
+          className="h-auto min-h-10 w-full whitespace-normal py-2"
           disabled={isPending || noPromoBrand}
+          paused={isPending}
           type="submit"
         >
           {isPending ? <Spinner data-icon="inline-start" /> : null}
           {isPending ? t("run.starting") : t("run.start")}
-        </Button>
+        </MetalButton>
         <Button
           className="h-auto min-h-8 w-full whitespace-normal py-1.5"
           disabled={isPending || !hasPreviousRun}
@@ -519,6 +536,7 @@ function NewsFields({
         onToggleTelegramOnly={onToggleTelegramOnly}
         resolveError={resolveError}
         selectable={selectable}
+        telegramOnly={telegramOnly.value}
       />
       <RecencyField
         control={control}
@@ -538,22 +556,20 @@ function NewsFields({
         recentTopics={options.recentTopics}
         resolveError={resolveError}
       />
-      <TopNField
+      <FormNumberField
         control={control}
+        description={t("run.topNHint", { max: options.bounds.selectionCap })}
         disabled={disabled}
+        label={t("run.topN")}
         max={options.bounds.selectionCap}
+        name="topN"
         resolveError={resolveError}
       />
     </>
   );
 }
 
-function KindField({
-  control,
-  disabled,
-  onKindChange,
-  resolveError,
-}: FieldProps & { onKindChange: () => void }) {
+function KindField({ control, disabled, resolveError }: FieldProps) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
 
   return (
@@ -576,10 +592,7 @@ function KindField({
                 disabled={disabled}
                 key={value}
                 onBlur={field.onBlur}
-                onClick={() => {
-                  field.onChange(value);
-                  onKindChange();
-                }}
+                onClick={() => field.onChange(value)}
                 size="xs"
                 type="button"
                 variant={field.value === value ? "default" : "outline"}
@@ -642,8 +655,11 @@ function CheckboxListField({
                 value={field.value}
               />
             ) : (
-              <ul className="grid gap-0.5 min-[1100px]:grid-cols-2">
-                {options.map((option) => (
+              <ul
+                aria-describedby={controlProps["aria-describedby"]}
+                className="grid gap-0.5 min-[1100px]:grid-cols-2"
+              >
+                {options.map((option, index) => (
                   <li
                     className="flex min-w-0 items-center gap-2 rounded-md py-1"
                     key={option.value}
@@ -652,12 +668,14 @@ function CheckboxListField({
                       checked={selected.has(option.value)}
                       disabled={disabled}
                       id={`${controlId}-${option.value}`}
+                      onBlur={index === 0 ? field.onBlur : undefined}
                       onCheckedChange={(checked) => {
                         const next = new Set(selected);
                         if (checked === true) next.add(option.value);
                         else next.delete(option.value);
                         field.onChange([...next]);
                       }}
+                      ref={index === 0 ? field.ref : undefined}
                     />
                     <FieldLabel
                       className="min-w-0 truncate font-normal"
@@ -683,6 +701,7 @@ function SourceSubsetField({
   onToggleTelegramOnly,
   resolveError,
   selectable,
+  telegramOnly,
 }: FieldProps & {
   onSourceIdsChange: (sourceIds: readonly string[]) => void;
   onToggleTelegramOnly: (
@@ -690,6 +709,7 @@ function SourceSubsetField({
     commit: (value: boolean) => void,
   ) => void;
   selectable: readonly SourceCatalogEntry[];
+  telegramOnly: boolean;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const { field: sourceIds } = useController({
@@ -711,6 +731,9 @@ function SourceSubsetField({
       >
         {({ controlId, controlProps, field }) => {
           const selected = new Set(field.value);
+          const refOrigin = SOURCE_ORIGINS.find((origin) =>
+            selectable.some((entry) => entry.origin === origin),
+          );
 
           return (
             <>
@@ -721,42 +744,54 @@ function SourceSubsetField({
               >
                 {t("run.sources.label")}
               </FieldLegend>
-              {SOURCE_KINDS.map((origin) => {
+              {SOURCE_ORIGINS.map((origin) => {
                 const entries = selectable.filter(
                   (entry) => entry.origin === origin,
                 );
                 if (entries.length === 0) return null;
 
                 const kindIds = entries.map((entry) => entry.id);
-                const kindIdSet = new Set(kindIds);
                 const selectedCount = kindIds.filter((id) =>
                   selected.has(id),
                 ).length;
                 const allSelected = selectedCount === kindIds.length;
+                const excluded = telegramOnly && origin !== "telegram_public";
                 return (
                   <Collapsible
-                    className="group rounded-lg border border-border bg-card p-3"
+                    className={
+                      excluded
+                        ? "group rounded-lg border border-border border-dashed bg-muted/40 p-3 text-muted-foreground"
+                        : "group rounded-lg border border-border bg-card p-3"
+                    }
+                    defaultOpen={origin === "rss"}
                     key={origin}
                   >
                     <div className="flex items-center gap-2">
                       <CollapsibleTrigger
-                        className="h-auto min-w-0 flex-1 flex-wrap justify-start gap-x-2 gap-y-0.5 px-0"
+                        className="group/source-trigger h-auto min-w-0 flex-1 flex-wrap justify-start gap-x-2 gap-y-0.5 px-0"
+                        ref={origin === refOrigin ? field.ref : undefined}
                         render={<Button variant="ghost" />}
                       >
                         <span className="ticket-label">
                           {t(`run.sources.kind.${origin}`)}
                         </span>
                         <span className="text-muted-foreground text-xs tabular-nums">
-                          {t("run.sources.selected", {
-                            m: kindIds.length,
-                            n: selectedCount,
-                          })}
+                          {t(
+                            excluded
+                              ? "run.sources.excluded"
+                              : "run.sources.selected",
+                            { m: kindIds.length, n: selectedCount },
+                          )}
                         </span>
+                        <ChevronDownIcon
+                          aria-hidden="true"
+                          className="ms-auto transition-transform group-data-panel-open/source-trigger:rotate-180 motion-reduce:transition-none"
+                        />
                       </CollapsibleTrigger>
 
                       <Button
                         className="shrink-0"
-                        disabled={disabled}
+                        disabled={disabled || excluded}
                         onClick={() => {
                           const next = new Set(selected);
                           for (const id of kindIds) {
@@ -778,64 +813,57 @@ function SourceSubsetField({
                         )}
                       </Button>
                     </div>
+                    {excluded ? (
+                      <p className="mt-1 text-xs">
+                        {t("run.sources.excludedReason")}
+                      </p>
+                    ) : null}
                     <CollapsibleContent
                       className="data-closed:hidden"
                       keepMounted
                     >
-                      {entries.length > 5 ? (
-                        <SearchableOptions
-                          controlProps={{
-                            ...controlProps,
-                            id: `${controlId}-${origin}`,
-                          }}
-                          inputRef={field.ref}
-                          showSummary={false}
-                          label={t(`run.sources.kind.${origin}`)}
-                          onBlur={field.onBlur}
-                          onValueChange={(values) => {
-                            const nextIds = [
-                              ...field.value.filter((id) => !kindIdSet.has(id)),
-                              ...values,
-                            ];
-                            field.onChange(nextIds);
-                            onSourceIdsChange(nextIds);
-                          }}
-                          options={entries.map((entry) => ({
-                            label: entry.name,
-                            value: entry.id,
-                          }))}
-                          value={field.value.filter((id) => kindIdSet.has(id))}
-                        />
-                      ) : (
-                        <ul className="max-h-40 overflow-y-auto px-1 py-2">
-                          {entries.map((entry) => (
-                            <li
-                              className="flex items-center gap-2 py-0.5"
-                              key={entry.id}
-                            >
-                              <Checkbox
-                                checked={selected.has(entry.id)}
-                                disabled={disabled}
-                                id={`${controlId}-${entry.id}`}
-                                onCheckedChange={(checked) => {
+                      <ul
+                        aria-describedby={controlProps["aria-describedby"]}
+                        aria-labelledby={controlId}
+                        className="flex max-h-40 flex-wrap content-start gap-1.5 overflow-y-auto pt-2"
+                      >
+                        {entries.map((entry) => {
+                          const isSelected = selected.has(entry.id);
+
+                          return (
+                            <li className="max-w-full" key={entry.id}>
+                              <Button
+                                aria-describedby={
+                                  controlProps["aria-describedby"]
+                                }
+                                aria-invalid={controlProps["aria-invalid"]}
+                                aria-pressed={isSelected}
+                                className="h-auto min-w-0 max-w-full whitespace-normal py-1 text-start"
+                                disabled={disabled || excluded}
+                                onBlur={field.onBlur}
+                                onClick={() => {
                                   const next = new Set(selected);
-                                  if (checked === true) next.add(entry.id);
-                                  else next.delete(entry.id);
+                                  if (isSelected) next.delete(entry.id);
+                                  else next.add(entry.id);
                                   const nextIds = [...next];
                                   field.onChange(nextIds);
                                   onSourceIdsChange(nextIds);
                                 }}
-                              />
-                              <FieldLabel
-                                className="min-w-0 truncate font-normal"
-                                htmlFor={`${controlId}-${entry.id}`}
+                                size="xs"
+                                type="button"
+                                variant={isSelected ? "default" : "outline"}
                               >
-                                <Bdi>{entry.name}</Bdi>
-                              </FieldLabel>
+                                <Bdi
+                                  className="wrap-anywhere min-w-0"
+                                  translate="no"
+                                >
+                                  {entry.name}
+                                </Bdi>
+                              </Button>
                             </li>
-                          ))}
-                        </ul>
-                      )}
+                          );
+                        })}
+                      </ul>
                     </CollapsibleContent>
                   </Collapsible>
                 );
@@ -1023,49 +1051,6 @@ function OrderingField({ control, disabled, resolveError }: FieldProps) {
   );
 }
 
-function TopNField({
-  control,
-  disabled,
-  max,
-  resolveError,
-}: FieldProps & { max: number }) {
-  const t = useTranslations(EDITORIAL_NAMESPACE);
-
-  return (
-    <FormField
-      control={control}
-      description={t("run.topNHint", { max })}
-      disabled={disabled}
-      name="topN"
-      resolveError={resolveError}
-    >
-      {({ controlId, controlProps, descriptionId, field }) => (
-        <>
-          <FieldCaption htmlFor={controlId}>{t("run.topN")}</FieldCaption>
-          <Input
-            {...controlProps}
-            className="w-24"
-            inputMode="numeric"
-            max={max}
-            min={1}
-            name={field.name}
-            onBlur={field.onBlur}
-            onChange={(event) =>
-              field.onChange(event.currentTarget.valueAsNumber)
-            }
-            ref={field.ref}
-            type="number"
-            value={Number.isNaN(field.value) ? "" : field.value}
-          />
-          <FieldDescription id={descriptionId}>
-            {t("run.topNHint", { max })}
-          </FieldDescription>
-        </>
-      )}
-    </FormField>
-  );
-}
-
 function PromptField({
   brand,
   control,
@@ -1105,15 +1090,10 @@ function TopicsField({
       description={t("run.topics.hint")}
       disabled={disabled}
       name="topics"
-      resolveError={(code) => (code === undefined ? "" : resolveError(code))}
+      resolveError={resolveError}
     >
-      {({ controlId, controlProps, descriptionId, field, fieldState }) => {
+      {({ controlId, controlProps, descriptionNode, field }) => {
         const topics = field.value;
-        // A per-topic issue lands at `topics.<i>`, which the shared field error
-        // region cannot reach; the offending chip carries it instead.
-        const topicErrors = Array.isArray(fieldState.error)
-          ? fieldState.error
-          : undefined;
         const add = (topic: string) => {
           const value = topic.trim();
           if (value === "" || topics.includes(value)) return;
@@ -1135,8 +1115,8 @@ function TopicsField({
               </p>
             ) : (
               <ul className="flex flex-wrap items-start gap-1">
-                {topics.map((topic, index) => (
-                  <li className="grid gap-0.5" key={topic}>
+                {topics.map((topic) => (
+                  <li key={topic}>
                     <span className="flex items-center gap-1 rounded-md border border-input bg-accent ps-2 text-accent-foreground text-xs">
                       <Bdi className="max-w-48 truncate">{topic}</Bdi>
                       <Button
@@ -1154,19 +1134,16 @@ function TopicsField({
                         <XIcon />
                       </Button>
                     </span>
-                    {topicErrors?.[index] ? (
-                      <span className="text-destructive text-xs">
-                        {resolveError(topicErrors[index]?.message)}
-                      </span>
-                    ) : null}
                   </li>
                 ))}
               </ul>
             )}
-            <div className="flex flex-wrap items-center gap-2">
-              <InputGroup className="max-w-64 flex-1">
+            <div className="grid gap-1">
+              <InputGroup className="w-full">
                 <InputGroupInput
                   {...controlProps}
+                  autoComplete="off"
+                  name={field.name}
                   onBlur={field.onBlur}
                   onChange={(event) => setDraft(event.currentTarget.value)}
                   onKeyDown={(event) => {
@@ -1188,6 +1165,7 @@ function TopicsField({
               </InputGroup>
               {topics.length > 0 ? (
                 <Button
+                  className="w-fit px-0"
                   disabled={disabled}
                   onClick={() => {
                     field.onChange([]);
@@ -1201,9 +1179,7 @@ function TopicsField({
                 </Button>
               ) : null}
             </div>
-            <FieldDescription id={descriptionId}>
-              {t("run.topics.hint")}
-            </FieldDescription>
+            {descriptionNode}
             {recentTopics.length > 0 ? (
               <FieldSet className="mt-1 grid gap-1">
                 <FieldLegend className="ticket-label" variant="label">
@@ -1240,18 +1216,12 @@ function initialValues(
   selectable: readonly SourceCatalogEntry[],
   initialConfiguration: RunConfiguration | null,
 ): RunFormValues {
-  const sourceKeys = options.defaults.sourceKeys;
-  const defaultKeys = sourceKeys ? new Set<string>(sourceKeys) : null;
-  const defaultSources = defaultKeys
-    ? selectable.filter((entry) => defaultKeys.has(entry.key))
-    : selectable;
-
   const defaults: RunFormValues = {
     kind: "news",
     brands: [...options.defaults.brands],
     models: [...options.defaults.models],
     platforms: [...options.defaults.platforms],
-    sourceIds: defaultSources.map((entry) => entry.id),
+    sourceIds: [],
     windowHours: options.defaults.windowHours,
     enrichmentEnabled: options.defaults.enrichment,
     telegramOnly: false,
@@ -1275,8 +1245,6 @@ function initialValues(
   };
 }
 
-// The one owner of the branch projection: the resolver and the submitted
-// payload are the same strict object.
 function toConfiguration(
   values: RunFormValues,
   telegramSourceIds: readonly string[],

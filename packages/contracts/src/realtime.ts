@@ -9,8 +9,12 @@ export function getOperationsRealtimeChannelName(workspaceId: string) {
   return `operations:${workspaceId}` as const;
 }
 
+// The channel is workspace-wide, so every message carries the audience it is
+// for: its own operator, or everyone when the work is a shared source import.
 export const operationStatusRealtimeMessageSchema = z.strictObject({
   operationId: z.uuid(),
+  actorId: z.string(),
+  sharedImport: z.boolean(),
   lifecycle: operationLifecycleSchema,
   operationVersion: z.int().positive(),
   attemptCount: z.int().nonnegative().optional(),
@@ -24,8 +28,11 @@ export type OperationStatusRealtimeMessage = z.infer<
 const PUBLISHING_REALTIME_TOPICS = ["changed"] as const;
 export const PUBLISHING_REALTIME_CHANGED_TOPIC = PUBLISHING_REALTIME_TOPICS[0];
 
-export function getPublishingRealtimeChannelName(workspaceId: string) {
-  return `publishing:${workspaceId}` as const;
+export function getPublishingRealtimeChannelName(
+  workspaceId: string,
+  actorId: string,
+) {
+  return `publishing:${workspaceId}:${actorId}` as const;
 }
 
 export const publishingChangedRealtimeMessageSchema = z.strictObject({
@@ -43,8 +50,13 @@ export type PublishingChangedRealtimeMessage = z.infer<
 export const USAGE_REALTIME_TOPICS = ["ledger"] as const;
 export const USAGE_REALTIME_LEDGER_TOPIC = USAGE_REALTIME_TOPICS[0];
 
-export function getUsageRealtimeChannelName(workspaceId: string) {
-  return `usage:${workspaceId}` as const;
+// Every usage row is owned by the operator who ran the work, so the ping is
+// addressed to that operator instead of the whole installation.
+export function getUsageRealtimeChannelName(
+  workspaceId: string,
+  actorId: string,
+) {
+  return `usage:${workspaceId}:${actorId}` as const;
 }
 
 export const usageLedgerRealtimeMessageSchema = z.strictObject({

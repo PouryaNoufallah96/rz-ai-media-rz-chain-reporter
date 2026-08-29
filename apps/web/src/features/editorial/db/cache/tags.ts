@@ -9,6 +9,10 @@ export const editorialTags = {
 
 export const draftsTags = {
   reads: (workspaceId: string) => workspaceCacheTag(workspaceId, "drafts"),
+  platformDraftReads: (workspaceId: string) => [
+    workspaceCacheTag(workspaceId, "drafts"),
+    workspaceCacheTag(workspaceId, "publishing"),
+  ],
 };
 
 export function updateEditorialTags(workspaceId: string) {

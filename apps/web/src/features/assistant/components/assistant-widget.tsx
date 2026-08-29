@@ -12,26 +12,32 @@ import {
 import { DefaultChatTransport } from "ai";
 import { MessageCircleIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useId,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 
 import { usePathname } from "@/i18n/navigation";
 
 import { ASSISTANT_NAMESPACE } from "../constants";
-import {
-  type AssistantIdentity,
-  useRequiredAssistant,
-} from "../lib/assistant-context";
+import { type AssistantIdentity, useAssistant } from "../lib/assistant-context";
 import {
   clearHistory,
   expiresAt,
   historyKey,
   readHistory,
   saveHistory,
+  subscribeToStoredHistory,
 } from "../lib/local-history";
 import type { AssistantUIMessage } from "../schemas/assistant-message";
 import type { AssistantAnswer } from "./assistant-ask-user";
 import { AssistantComposer } from "./assistant-composer";
 import { AssistantTranscript } from "./assistant-transcript";
+
+const PENDING_RESTORE_ID = "assistant:pending-restore";
 
 export function AssistantWidget({ identity }: { identity: AssistantIdentity }) {
   const t = useTranslations(ASSISTANT_NAMESPACE);
@@ -45,13 +51,15 @@ export function AssistantWidget({ identity }: { identity: AssistantIdentity }) {
     open,
     setOpen,
     sheetCardRef,
-  } = useRequiredAssistant();
+  } = useAssistant();
   const panelId = useId();
   const storageKey = historyKey(identity.workspaceId, identity.operatorId);
-  const [aborted, setAborted] = useState(false);
-  // A chooser answer scopes the brands the next turn is sent with. It replaces
-  // the previous scope and is read at send time, so a freshly typed question
-  // clears it in the same tick it is sent.
+  const restoreKey = useSyncExternalStore(
+    subscribeToStoredHistory,
+    () => storageKey,
+    () => null,
+  );
+  const restored = restoreKey === null ? [] : readHistory(restoreKey);
   const brandScope = useRef<string | null>(null);
 
   const transport = new DefaultChatTransport<AssistantUIMessage>({
@@ -66,55 +74,73 @@ export function AssistantWidget({ identity }: { identity: AssistantIdentity }) {
     }),
   });
 
-  const chat = useChat<AssistantUIMessage>({ transport });
+  const chat = useChat<AssistantUIMessage>({
+    id: restoreKey ?? PENDING_RESTORE_ID,
+    messages: restored,
+    onFinish: ({ isAbort, isDisconnect, isError, messages: settled }) => {
+      if (isAbort || isDisconnect || isError) {
+        return;
+      }
+
+      saveHistory(storageKey, settled);
+    },
+    transport,
+  });
   const { messages, setMessages, status, stop } = chat;
 
-  // `useChat` only reads its initial messages once, so restoring runs here.
-  useEffect(() => {
-    setMessages(readHistory(storageKey));
-  }, [setMessages, storageKey]);
+  const sweep = useEffectEvent(() => {
+    const deadline = expiresAt(storageKey);
 
-  // An aborted, failed or partial turn stays visible but is never saved and
-  // never extends expiry.
-  useEffect(() => {
-    if (status === "ready" && messages.length > 0 && !aborted) {
-      saveHistory(storageKey, messages);
+    if (deadline !== null && deadline <= Date.now()) {
+      clearHistory(storageKey);
+      setMessages([]);
     }
+  });
 
-    const dropExpired = () => {
+  useEffect(() => {
+    let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
+
+    const arm = () => {
+      globalThis.clearTimeout(timer);
       const deadline = expiresAt(storageKey);
 
-      if (deadline !== null && deadline <= Date.now()) {
-        clearHistory(storageKey);
-        setMessages([]);
+      if (deadline === null) {
+        return;
       }
+
+      timer = globalThis.setTimeout(
+        () => {
+          sweep();
+          arm();
+        },
+        Math.max(deadline - Date.now(), 0),
+      );
     };
 
-    const deadline = expiresAt(storageKey);
-    const timer =
-      deadline === null
-        ? undefined
-        : globalThis.setTimeout(
-            dropExpired,
-            Math.max(deadline - Date.now(), 0),
-          );
+    const onWake = () => {
+      sweep();
+      arm();
+    };
 
-    globalThis.addEventListener("focus", dropExpired);
-    globalThis.document.addEventListener("visibilitychange", dropExpired);
+    arm();
+    globalThis.addEventListener("focus", onWake);
+    globalThis.document.addEventListener("visibilitychange", onWake);
 
     return () => {
       globalThis.clearTimeout(timer);
-      globalThis.removeEventListener("focus", dropExpired);
-      globalThis.document.removeEventListener("visibilitychange", dropExpired);
+      globalThis.removeEventListener("focus", onWake);
+      globalThis.document.removeEventListener("visibilitychange", onWake);
     };
-  }, [aborted, messages, setMessages, status, storageKey]);
+  }, [storageKey]);
 
   const pathname = usePathname();
+  const lastPathname = useRef(pathname);
 
   // Stale Card context must never follow the operator to another route. The
   // read lives here because this widget is already inside a Suspense boundary.
   useEffect(() => {
-    if (pathname.length === 0) return;
+    if (lastPathname.current === pathname) return;
+    lastPathname.current = pathname;
     clearCard();
   }, [pathname, clearCard]);
 
@@ -129,7 +155,6 @@ export function AssistantWidget({ identity }: { identity: AssistantIdentity }) {
   const busy = status === "submitted" || status === "streaming";
 
   const send = (text: string) => {
-    setAborted(false);
     void chat.sendMessage(
       { text },
       {
@@ -147,7 +172,6 @@ export function AssistantWidget({ identity }: { identity: AssistantIdentity }) {
     send(text);
   };
 
-  // The question the operator typed is never rewritten; only the scope changes.
   const answer = (chosen: AssistantAnswer) => {
     const asked =
       chosen.detail.trim() || latestUserTurn(messages).parts[0]?.text;
@@ -160,13 +184,14 @@ export function AssistantWidget({ identity }: { identity: AssistantIdentity }) {
 
   return (
     <>
-      {/* Base UI stamps `data-base-ui-inert` on every body child outside an open
-          popup, so a sheet opened before this streamed slot hydrates leaves the
-          button carrying an attribute React never rendered. */}
+      {/* Base UI may stamp `data-base-ui-inert` before this streamed slot hydrates,
+          leaving an attribute React never rendered. */}
       <Button
         aria-controls={panelId}
         aria-expanded={open}
         className="fixed inset-e-4 bottom-4 z-60 shadow-lg"
+        data-assistant-fab
+        data-assistant-surface
         onClick={() => setOpen(!open)}
         size="icon-lg"
         suppressHydrationWarning
@@ -185,6 +210,7 @@ export function AssistantWidget({ identity }: { identity: AssistantIdentity }) {
           <DialogPopup
             className="fixed inset-e-4 bottom-20 z-70 flex h-[min(32rem,70svh)] w-[min(24rem,calc(100vw-2rem))] flex-col gap-3 max-[600px]:inset-e-0 max-[600px]:inset-s-0 max-[600px]:bottom-0 max-[600px]:h-[70svh] max-[600px]:w-auto max-[600px]:rounded-b-none"
             closeLabel={t("panel.close")}
+            data-assistant-surface
             id={panelId}
           >
             <div className="grid gap-1">
@@ -207,13 +233,9 @@ export function AssistantWidget({ identity }: { identity: AssistantIdentity }) {
               onClear={() => {
                 clearHistory(storageKey);
                 setMessages([]);
-                setAborted(false);
               }}
               onSend={ask}
-              onStop={() => {
-                setAborted(true);
-                void stop();
-              }}
+              onStop={() => void stop()}
               ref={composer}
             />
           </DialogPopup>

@@ -3,7 +3,7 @@ import {
   DURABLE_EVENT_SCHEMA_VERSION,
   OPERATION_PUBLICATION_REQUESTED_EVENT_NAME,
 } from "@rz-chain-reporter/contracts";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import {
   type Executor,
@@ -16,7 +16,7 @@ import { operation } from "../schema/operation";
 import { outboxEvent } from "../schema/outbox-event";
 import { publishOperation } from "../schema/publish-operation";
 import { schedule } from "../schema/schedule";
-import { appendActivityEvent } from "./activity-event";
+import { appendActivityEvent, lockActivityIdentity } from "./activity-event";
 import { readLiveDraftRevisionOrigin } from "./draft-origin";
 import { insertOperationIdentity, readOperationIdentity } from "./operation";
 import {
@@ -507,8 +507,11 @@ async function mutateScheduleIdentity(
 ) {
   return executor.transaction(async (tx): Promise<ScheduleCommandResult> => {
     await withWorkspaceContext(tx, workspaceId);
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`${workspaceId}:${input.actorId}:${eventType}:${input.idempotencyKey}`}, 0))`,
+    await lockActivityIdentity(
+      tx,
+      workspaceId,
+      eventType,
+      input.idempotencyKey,
     );
     const activity = await appendActivityEvent(tx, workspaceId, {
       actorId: input.actorId,

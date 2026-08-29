@@ -80,6 +80,9 @@ assert_version() {
   case "$APP_VERSION" in
     dev | latest | "") fail MUTABLE_VERSION "APP_VERSION must be an immutable tag" ;;
   esac
+  case "$APP_VERSION" in
+    *replace-me*) fail PLACEHOLDER_ENV_VALUE "$CONFIG_FILE still holds a placeholder for APP_VERSION" ;;
+  esac
   echo "$APP_VERSION" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*$' \
     || fail MUTABLE_VERSION "APP_VERSION is not a usable image tag"
 }
@@ -120,6 +123,10 @@ assert_env_files() {
   assert_env_key "$ENV_DIR/web.env" OPENROUTER_API_KEY
   assert_env_key "$ENV_DIR/web.env" BETTER_AUTH_SECRET
   assert_env_key "$ENV_DIR/web.env" CACHE_INVALIDATION_WEBHOOK_SECRET
+  assert_env_key "$ENV_DIR/web.env" CORS_ORIGIN
+  assert_env_key "$ENV_DIR/web.env" S3_ENDPOINT
+  assert_env_key "$ENV_DIR/web.env" S3_SECRET_ACCESS_KEY
+  assert_env_key "$ENV_DIR/build.env" NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
   assert_env_key "$ENV_DIR/worker.env" INNGEST_EVENT_KEY
   assert_env_key "$ENV_DIR/worker.env" INNGEST_SIGNING_KEY
   refuse_env_key "$ENV_DIR/worker.env" INNGEST_DEV
@@ -128,6 +135,13 @@ assert_env_files() {
   refuse_env_key "$ENV_DIR/worker.env" SENTRY_AUTH_TOKEN
   refuse_env_key "$ENV_DIR/worker.env" OLLAMA_BASE_URL
   refuse_env_key "$ENV_DIR/web.env" OLLAMA_BASE_URL
+
+  local placeholder_file placeholder_key
+  for placeholder_file in "${ENV_FILES[@]}"; do
+    placeholder_key="$(sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*replace-me.*/\1/p' "$ENV_DIR/$placeholder_file" | head -n 1)"
+    [ -z "$placeholder_key" ] \
+      || fail PLACEHOLDER_ENV_VALUE "$ENV_DIR/$placeholder_file still holds a placeholder for $placeholder_key"
+  done
 
   local superuser migration_role app_role
   superuser="$(env_value "$ENV_DIR/postgres.env" POSTGRES_USER)"
@@ -193,6 +207,7 @@ assert_nginx() {
   site="$(render_nginx)"
   echo "$site" | grep -q "@" && fail NGINX_TEMPLATE "rendered site still holds a placeholder"
   echo "$site" | grep -q "location ^~ /api/internal/" || fail NGINX_INTERNAL "site does not block /api/internal/"
+  echo "$site" | grep -q "location ^~ /api/health" || fail NGINX_HEALTH "site does not block /api/health"
   echo "$site" | grep -q "return 301 https://$PUBLIC_HOST" || fail NGINX_REDIRECT "site does not redirect to HTTPS"
   echo "$site" | grep -q "proxy_buffering off" || fail NGINX_STREAMING "site buffers proxied responses"
   echo "$site" | grep -q "access_log off" || fail NGINX_MEDIA_LOG "site logs publishing-media grants"
@@ -241,16 +256,10 @@ prepare_host_paths() {
 }
 
 build_images() {
-  local secret
-  secret="$(mktemp)"
-  chmod 600 "$secret"
-  trap 'rm -f "$secret"' RETURN
-  cat "$BUILD_SECRET_FILE" > "$secret"
-
   # web and admin share the same builder stage; one invocation lets the second
   # reuse the first's layers instead of repeating next build and tsc.
-  BUILD_SECRET_FILE="$secret" compose --env-file "$CONFIG_FILE" build web admin
-  BUILD_SECRET_FILE="$secret" compose --env-file "$CONFIG_FILE" build worker migrate
+  compose --env-file "$CONFIG_FILE" build web admin
+  compose --env-file "$CONFIG_FILE" build worker migrate
 }
 
 reconcile_template() {
@@ -265,6 +274,7 @@ bootstrap_data_services() {
 
 run_database_steps() {
   compose --env-file "$CONFIG_FILE" run --rm migrate
+  compose --env-file "$CONFIG_FILE" run --rm --entrypoint node bindings dist/bindings-check.js preflight
   local reconcile_status=0
   reconcile_template --check || reconcile_status=$?
   [ "$reconcile_status" -eq 0 ] || [ "$reconcile_status" -eq 2 ] \

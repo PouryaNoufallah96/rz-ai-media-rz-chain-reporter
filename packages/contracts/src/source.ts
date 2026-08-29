@@ -84,6 +84,8 @@ export type EnrichmentReason = (typeof ENRICHMENT_REASONS)[number];
 
 export const enrichmentReasonSchema = z.enum(ENRICHMENT_REASONS);
 
+export const sourceItemBriefSchema = z.object({ summary: z.string() });
+
 export const ARTICLE_ADAPTERS = ["feed", "direct", "firecrawl"] as const;
 
 export type ArticleAdapter = (typeof ARTICLE_ADAPTERS)[number];

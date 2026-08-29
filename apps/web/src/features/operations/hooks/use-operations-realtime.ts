@@ -29,6 +29,7 @@ export function useOperationsRealtime({
 }) {
   const queryClient = useQueryClient();
   const hasConnected = useRef(false);
+  const [viewerId, setViewerId] = useState<string>();
   const [initialConnectionUnavailable, setInitialConnectionUnavailable] =
     useState(false);
   const realtimeEnabled = enabled && !initialConnectionUnavailable;
@@ -43,6 +44,7 @@ export function useOperationsRealtime({
         if (result.status === "unavailable") {
           throw new Error("Realtime subscription is unavailable");
         }
+        setViewerId(result.viewerId);
         return result.token;
       })
       .catch((error: unknown) => {
@@ -65,60 +67,67 @@ export function useOperationsRealtime({
     }
 
     let requiresSnapshot = false;
+    const statuses: OperationStatusRealtimeMessage[] = [];
+    for (const message of realtime.messages.delta) {
+      const parsed = operationStatusRealtimeMessageSchema.safeParse(
+        message.data,
+      );
+      if (!parsed.success) {
+        requiresSnapshot = true;
+        continue;
+      }
+      if (addressesViewer(parsed.data, viewerId)) {
+        statuses.push(parsed.data);
+      }
+    }
 
-    queryClient.setQueryData<OperationSummary[]>(
-      operationsListQueryKey(focusedOperationId),
-      (current) => {
-        if (!current) {
-          requiresSnapshot = true;
-          return current;
-        }
-
-        let next = current;
-        for (const message of realtime.messages.delta) {
-          const parsed = operationStatusRealtimeMessageSchema.safeParse(
-            message.data,
-          );
-          if (!parsed.success) {
+    if (statuses.length > 0) {
+      queryClient.setQueryData<OperationSummary[]>(
+        operationsListQueryKey(focusedOperationId),
+        (current) => {
+          if (!current) {
             requiresSnapshot = true;
-            continue;
-          }
-          const status = parsed.data;
-          const index = next.findIndex(
-            (operation) => operation.id === status.operationId,
-          );
-          if (index === -1) {
-            requiresSnapshot = true;
-            continue;
+            return current;
           }
 
-          const operation = next[index];
-          if (!operation || status.operationVersion <= operation.version) {
-            continue;
-          }
-          if (status.operationVersion > operation.version + 1) {
-            requiresSnapshot = true;
-            continue;
-          }
+          let next = current;
+          for (const status of statuses) {
+            const index = next.findIndex(
+              (operation) => operation.id === status.operationId,
+            );
+            if (index === -1) {
+              requiresSnapshot = true;
+              continue;
+            }
 
-          const updated: OperationSummary = {
-            ...operation,
-            attemptCount: status.attemptCount ?? operation.attemptCount,
-            latestAttemptOutcome:
-              status.latestAttemptOutcome ?? operation.latestAttemptOutcome,
-            lifecycle: status.lifecycle,
-            version: status.operationVersion,
-          };
-          next = next.with(index, updated);
-        }
-        return next;
-      },
-    );
+            const operation = next[index];
+            if (!operation || status.operationVersion <= operation.version) {
+              continue;
+            }
+            if (status.operationVersion > operation.version + 1) {
+              requiresSnapshot = true;
+              continue;
+            }
+
+            const updated: OperationSummary = {
+              ...operation,
+              attemptCount: status.attemptCount ?? operation.attemptCount,
+              latestAttemptOutcome:
+                status.latestAttemptOutcome ?? operation.latestAttemptOutcome,
+              lifecycle: status.lifecycle,
+              version: status.operationVersion,
+            };
+            next = next.with(index, updated);
+          }
+          return next;
+        },
+      );
+    }
 
     if (requiresSnapshot) {
       refetchSnapshot();
     }
-  }, [focusedOperationId, queryClient, realtime.messages.delta]);
+  }, [focusedOperationId, queryClient, realtime.messages.delta, viewerId]);
 
   const handleConnectionOpen = useEffectEvent(() => {
     if (hasConnected.current) {
@@ -147,7 +156,7 @@ export function useOperationsRealtime({
   }, []);
 
   return {
-    announcement: parseAnnouncement(realtime.messages.last?.data),
+    announcement: parseAnnouncement(realtime.messages.last?.data, viewerId),
     retry: () => {
       if (enabled) {
         setInitialConnectionUnavailable(false);
@@ -161,11 +170,23 @@ export function useOperationsRealtime({
   };
 }
 
+// The channel is workspace-wide: a message reaches its own operator, and a
+// shared source import reaches everyone.
+function addressesViewer(
+  message: OperationStatusRealtimeMessage,
+  viewerId: string | undefined,
+) {
+  return message.sharedImport || message.actorId === viewerId;
+}
+
 function parseAnnouncement(
   value: unknown,
+  viewerId: string | undefined,
 ): OperationStatusRealtimeMessage | undefined {
   const parsed = operationStatusRealtimeMessageSchema.safeParse(value);
-  return parsed.success ? parsed.data : undefined;
+  return parsed.success && addressesViewer(parsed.data, viewerId)
+    ? parsed.data
+    : undefined;
 }
 
 function transportOf(

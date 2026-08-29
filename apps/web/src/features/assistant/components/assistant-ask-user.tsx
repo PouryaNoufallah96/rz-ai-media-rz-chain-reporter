@@ -33,15 +33,11 @@ export function AssistantAskUser({
   input,
   onAnswer,
 }: {
-  input: AskUserInput | undefined;
+  input: AskUserInput;
   onAnswer: (answer: AssistantAnswer) => void;
 }) {
   const t = useTranslations(ASSISTANT_NAMESPACE);
   const [item, setItem] = useState(BRAND);
-
-  if (!input) {
-    return null;
-  }
 
   const progress = t("askUser.progress", {
     current: ORDER.indexOf(item) + 1,
@@ -74,7 +70,10 @@ export function AssistantAskUser({
         }
       }}
     >
-      <QuestionnaireProgress aria-valuetext={progress}>
+      <QuestionnaireProgress
+        aria-label={t("askUser.progressLabel")}
+        aria-valuetext={progress}
+      >
         {progress}
       </QuestionnaireProgress>
 

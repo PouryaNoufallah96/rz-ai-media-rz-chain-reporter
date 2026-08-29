@@ -66,6 +66,10 @@ const draftRevisionProjectionSchema = z.strictObject({
   hashtags: z.array(z.string()),
   originatingCopyVariantId: z.uuid(),
   selectedFinalMediaAssetId: z.uuid().nullable(),
+  imageIntentVersion: z.int().nonnegative(),
+  hasNonterminalImageGeneration: z.boolean(),
+  imageProvenanceMismatch: z.boolean(),
+  mediaLocked: z.boolean(),
   authoredBy: z.string(),
   authorName: z.string(),
   createdAt: z.date(),
@@ -85,6 +89,8 @@ export const platformDraftCardSchema = z.strictObject({
   version: z.int().positive(),
   activeRevisionId: z.uuid().nullable(),
   revisionVersion: z.int().nonnegative(),
+  projectionVersion: z.int().nonnegative(),
+  nextRevisionNumber: z.int().positive(),
   origin: cardOriginReferenceSchema,
   originTitle: z.string(),
   sourceKind: z.enum(["promo", "rss", "telegram"]),
@@ -112,7 +118,6 @@ export const platformDraftCardSchema = z.strictObject({
     }),
   ),
   imageGeneration: imageGenerationProjectionSchema.nullable(),
-  imageModels: z.array(z.strictObject({ key: z.string(), name: z.string() })),
   publishing: z.strictObject({
     savedCard: z
       .strictObject({
@@ -289,6 +294,7 @@ export const copyOperationResultSchema = z.strictObject({
 const imageGenerationCommandBase = {
   draftRevisionId: z.uuid(),
   expectedRevisionVersion: z.int().nonnegative(),
+  expectedImageIntentVersion: z.int().nonnegative(),
   idempotencyKey: z.uuid({ error: "IDEMPOTENCY_KEY_REQUIRED" }),
   modelOptionKey: z.string().trim().min(1, { error: "MODEL_REQUIRED" }),
   operatorDirection: operatorImageDirectionSchema.optional(),
@@ -321,32 +327,35 @@ export const draftEditorSchema = draftRevisionMaterialSchema.omit({
   selectedFinalMediaAssetId: true,
 });
 
+const draftRevisionSourceSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("copy_variant"), id: z.uuid() }),
+  z.strictObject({ kind: z.literal("draft_revision"), id: z.uuid() }),
+]);
+
 export const updateDraftRevisionInputSchema = z.discriminatedUnion(
   "commandKind",
   [
+    z.strictObject({
+      commandKind: z.literal("submit_content"),
+      ...revisionCommandBase,
+      source: draftRevisionSourceSchema,
+      content: draftEditorSchema,
+    }),
     z.strictObject({
       commandKind: z.literal("select_revision"),
       ...revisionCommandBase,
       draftRevisionId: z.uuid(),
     }),
     z.strictObject({
-      commandKind: z.literal("apply_copy_variant"),
-      ...revisionCommandBase,
-      copyVariantId: z.uuid(),
-    }),
-    z.strictObject({
-      commandKind: z.literal("submit_content"),
-      ...revisionCommandBase,
-      content: draftEditorSchema,
-    }),
-    z.strictObject({
       commandKind: z.literal("adopt_image"),
       ...revisionCommandBase,
       finalMediaAssetId: z.uuid(),
+      expectedImageIntentVersion: z.int().nonnegative(),
     }),
     z.strictObject({
       commandKind: z.literal("remove_image"),
       ...revisionCommandBase,
+      expectedImageIntentVersion: z.int().nonnegative(),
     }),
   ],
 );
@@ -356,8 +365,12 @@ export type UpdateDraftRevisionInput = z.input<
 >;
 
 export const updateDraftRevisionResultSchema = z.strictObject({
-  status: z.enum(["appended", "no_op", "replayed"]),
+  status: z.enum(["appended", "no_op", "replayed", "selected", "updated"]),
   appendedRevision: z.boolean(),
+  revision: z.strictObject({
+    id: z.uuid(),
+    revisionNumber: z.int().positive(),
+  }),
   card: platformDraftCardSchema,
 });
 

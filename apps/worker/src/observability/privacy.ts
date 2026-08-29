@@ -4,9 +4,6 @@ import { WORKER_LOG_FIELDS } from "../logging/logger";
 
 type ErrorEvent = Parameters<NonNullable<NodeOptions["beforeSend"]>>[0];
 type SentryLog = Parameters<NonNullable<NodeOptions["beforeSendLog"]>>[0];
-type TransactionEvent = Parameters<
-  NonNullable<NodeOptions["beforeSendTransaction"]>
->[0];
 
 const SAFE_LOG_ATTRIBUTES = new Set(WORKER_LOG_FIELDS);
 
@@ -35,28 +32,6 @@ export function scrubWorkerErrorEvent(event: ErrorEvent): ErrorEvent {
     tags: event.tags?.errorCode
       ? { errorCode: event.tags.errorCode }
       : undefined,
-    user: undefined,
-  };
-}
-
-export function scrubWorkerTransaction(
-  event: TransactionEvent,
-): TransactionEvent {
-  return {
-    ...event,
-    breadcrumbs: undefined,
-    contexts: event.contexts?.trace
-      ? { trace: event.contexts.trace }
-      : undefined,
-    extra: undefined,
-    request: undefined,
-    spans: event.spans?.map((span) => ({
-      ...span,
-      data: {},
-      description: sanitizeOperationName(span.description),
-    })),
-    tags: undefined,
-    transaction: sanitizeOperationName(event.transaction),
     user: undefined,
   };
 }

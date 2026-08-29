@@ -21,6 +21,8 @@ import {
 } from "nuqs/server";
 import { z } from "zod";
 
+import { keysetCursorParam } from "@/features/shared/lib/keyset-cursor";
+
 // The grid's sixth value is derived: `analysis_run_item.eligibility = 'duplicate'`
 // has no filter_result row, so the stored tuple is never widened for it.
 export const REPORT_DISPOSITIONS = [
@@ -49,7 +51,7 @@ const reportQuerySchema = z.object({
   brand: z.uuid().nullable().catch(null),
   disposition: z.enum(REPORT_DISPOSITIONS).nullable().catch(null),
   semantic: z.enum(SEMANTIC_PARTICIPATIONS).nullable().catch(null),
-  cursor: z.string().min(1).max(512).nullable().catch(null),
+  cursor: keysetCursorParam,
 });
 
 export type ReportQuery = z.infer<typeof reportQuerySchema>;

@@ -23,6 +23,7 @@ import {
 import type { Storage } from "@rz-chain-reporter/storage";
 import { NonRetriableError } from "inngest";
 import { z } from "zod";
+import { stableFailureCode, workerLogger } from "../logging/logger";
 import { type DraftChange, notifyDraftsChanged } from "../web-cache/drafts";
 import type { WorkerInngestClient } from "./client";
 import { durableEvents } from "./events";
@@ -114,29 +115,39 @@ export async function reconcileStorage(
           now,
           staleBefore: new Date(now.getTime() - VALIDATION_STALE_MS),
         });
+  let failedCandidates = 0;
   for (const asset of candidates) {
-    if (asset.lifecycle === "pending") {
-      const expired = await expirePendingMedia(executor, workspaceId, {
-        id: asset.id,
-        version: asset.version,
-        expiredAt: now,
-      });
-      if (expired.status === "updated") {
-        await cleanupTerminal(executor, storage, workspaceId, expired.asset);
-      }
-    } else if (asset.lifecycle === "uploaded") {
-      await verifyMediaUpload(executor, storage, workspaceId, asset.id);
-    } else if (asset.lifecycle === "validating") {
-      const requeued = await requeueStaleMediaValidation(
-        executor,
-        workspaceId,
-        { id: asset.id, version: asset.version, changedAt: now },
-      );
-      if (requeued.status === "updated") {
+    try {
+      if (asset.lifecycle === "pending") {
+        const expired = await expirePendingMedia(executor, workspaceId, {
+          id: asset.id,
+          version: asset.version,
+          expiredAt: now,
+        });
+        if (expired.status === "updated") {
+          await cleanupTerminal(executor, storage, workspaceId, expired.asset);
+        }
+      } else if (asset.lifecycle === "uploaded") {
         await verifyMediaUpload(executor, storage, workspaceId, asset.id);
+      } else if (asset.lifecycle === "validating") {
+        const requeued = await requeueStaleMediaValidation(
+          executor,
+          workspaceId,
+          { id: asset.id, version: asset.version, changedAt: now },
+        );
+        if (requeued.status === "updated") {
+          await verifyMediaUpload(executor, storage, workspaceId, asset.id);
+        }
+      } else {
+        await cleanupTerminal(executor, storage, workspaceId, asset);
       }
-    } else {
-      await cleanupTerminal(executor, storage, workspaceId, asset);
+    } catch (error) {
+      failedCandidates += 1;
+      workerLogger.error("worker.storage.reconciliation-candidate-failed", {
+        errorCode: stableFailureCode(error, "MEDIA_RECONCILIATION_FAILED"),
+        mediaAssetId: asset.id,
+        workspaceId,
+      });
     }
   }
 
@@ -149,18 +160,27 @@ export async function reconcileStorage(
           limit: RECONCILIATION_BATCH_SIZE,
         });
   let orphanObjectsRemoved = 0;
+  let failedObjects = 0;
   for (const object of objectPage.items) {
-    const existing = await getMediaAssetByObjectKey(
-      executor,
-      workspaceId,
-      object.key,
-    );
-    if (
-      !existing &&
-      object.lastModified.getTime() <= now.getTime() - OBJECT_ORPHAN_GRACE_MS
-    ) {
-      await storage.delete([object.key]);
-      orphanObjectsRemoved += 1;
+    try {
+      const existing = await getMediaAssetByObjectKey(
+        executor,
+        workspaceId,
+        object.key,
+      );
+      if (
+        !existing &&
+        object.lastModified.getTime() <= now.getTime() - OBJECT_ORPHAN_GRACE_MS
+      ) {
+        await storage.delete([object.key]);
+        orphanObjectsRemoved += 1;
+      }
+    } catch (error) {
+      failedObjects += 1;
+      workerLogger.error("worker.storage.reconciliation-object-failed", {
+        errorCode: stableFailureCode(error, "OBJECT_RECONCILIATION_FAILED"),
+        workspaceId,
+      });
     }
   }
 
@@ -173,6 +193,8 @@ export async function reconcileStorage(
       : null;
   return {
     candidatesObserved: candidates.length,
+    failedCandidates,
+    failedObjects,
     nextCursor: encodeCursor({
       db: nextDb,
       objects: objectPage.nextCursor ?? null,

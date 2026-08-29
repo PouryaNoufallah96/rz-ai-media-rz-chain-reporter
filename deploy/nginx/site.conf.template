@@ -40,6 +40,10 @@ server {
         return 404;
     }
 
+    location ^~ /api/health {
+        return 404;
+    }
+
     location ^~ /api/publishing-media/ {
         access_log off;
         limit_req zone=chainreporter_app burst=20 nodelay;

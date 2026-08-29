@@ -3,11 +3,12 @@ import "server-only";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import { ownedDraftExists } from "@rz-chain-reporter/db/repositories/draft-origin";
 import { sql } from "drizzle-orm";
-import type {
-  HistoryCursor,
-  KeysetPage,
-} from "@/features/publishing/schemas/history";
-import { encodeKeysetCursor } from "@/features/shared/lib/keyset-cursor";
+
+import {
+  type KeysetPage,
+  keysetPageOf,
+  type OccurredAtCursor,
+} from "@/features/shared/lib/keyset-cursor";
 
 import { ACCOUNT_AUDIT_PAGE_SIZE } from "../constants";
 import type {
@@ -152,7 +153,7 @@ export async function readActivityLedger(
   executor: Executor,
   workspaceId: string,
   userId: string,
-  cursor: HistoryCursor | null,
+  cursor: OccurredAtCursor | null,
 ): Promise<KeysetPage<ActivityLedgerRow>> {
   const older = (cursor?.direction ?? "older") === "older";
   const bound = cursor
@@ -197,26 +198,20 @@ export async function readActivityLedger(
     limit ${ACCOUNT_AUDIT_PAGE_SIZE + 1}
   `);
 
-  const hasExtra = result.rows.length > ACCOUNT_AUDIT_PAGE_SIZE;
-  const bounded = result.rows.slice(0, ACCOUNT_AUDIT_PAGE_SIZE);
-  const ordered = older ? bounded : bounded.toReversed();
-  const first = ordered[0];
-  const last = ordered.at(-1);
-  const make = (
-    row: ActivityLedgerRow & { cursorOccurredAt: string },
-    nextDirection: HistoryCursor["direction"],
-  ) =>
-    encodeKeysetCursor({
-      direction: nextDirection,
-      occurredAt: row.cursorOccurredAt,
-      id: row.id,
-    } satisfies HistoryCursor);
+  const { ordered, ...page } = keysetPageOf({
+    raw: result.rows,
+    pageSize: ACCOUNT_AUDIT_PAGE_SIZE,
+    cursor,
+    toCursor: (row, nextDirection) =>
+      ({
+        direction: nextDirection,
+        occurredAt: row.cursorOccurredAt,
+        id: row.id,
+      }) satisfies OccurredAtCursor,
+  });
 
   return {
+    ...page,
     rows: ordered.map(({ cursorOccurredAt: _cursor, ...row }) => row),
-    olderCursor: last && (!older || hasExtra) ? make(last, "older") : null,
-    newerCursor:
-      first && cursor && (older || hasExtra) ? make(first, "newer") : null,
-    offLatest: cursor !== null,
   };
 }

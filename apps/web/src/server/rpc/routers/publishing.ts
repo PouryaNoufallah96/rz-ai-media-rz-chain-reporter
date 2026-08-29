@@ -49,7 +49,6 @@ import { customerTimeZone } from "@/lib/customer-template.server";
 import { rpcDb } from "../db";
 
 const publishingErrors = {
-  UNAUTHORIZED: { status: 401 },
   VALIDATION_FAILED: { status: 400 },
   NOT_FOUND: { status: 404 },
   IDEMPOTENCY_KEY_REUSED: { status: 409 },
@@ -58,6 +57,7 @@ const publishingErrors = {
   SAVED_CARD_ALREADY_ACTIVE: { status: 409 },
   APPROVAL_REQUIRED: { status: 409 },
   APPROVAL_SNAPSHOT_STALE: { status: 409 },
+  IMAGE_GENERATION_IN_PROGRESS: { status: 409 },
   MEDIA_NOT_PUBLISHABLE: { status: 409 },
   TEXT_ONLY_NOT_SUPPORTED: { status: 409 },
   DESTINATION_DISABLED: { status: 409 },
@@ -65,7 +65,6 @@ const publishingErrors = {
   DESTINATION_NOT_MAPPED: { status: 409 },
   PUBLISHING_PAUSED: { status: 409 },
   SCHEDULE_IN_PAST: { status: 409 },
-  SCHEDULE_VERSION_CONFLICT: { status: 409 },
   SCHEDULE_EFFECT_ALREADY_STARTED: { status: 409 },
   SCHEDULE_MISSED_CONFIRMATION_REQUIRED: { status: 409 },
   PUBLICATION_ALREADY_CLAIMED: { status: 409 },
@@ -103,6 +102,7 @@ const publishingRepositoryErrorNames = {
   destination_not_mapped: "DESTINATION_NOT_MAPPED",
   destination_unbound: "DESTINATION_UNBOUND",
   evidence_insufficient: "RECONCILIATION_EVIDENCE_INSUFFICIENT",
+  image_generation_in_progress: "IMAGE_GENERATION_IN_PROGRESS",
   idempotency_mismatch: "IDEMPOTENCY_KEY_REUSED",
   media_not_publishable: "MEDIA_NOT_PUBLISHABLE",
   not_found: "NOT_FOUND",

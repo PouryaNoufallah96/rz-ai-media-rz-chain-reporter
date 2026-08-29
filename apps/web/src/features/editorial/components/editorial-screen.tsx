@@ -2,6 +2,7 @@ import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
 
 import { Suspended } from "@/components/fetcher/suspended";
 import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
+import { PUBLISHING_NAMESPACE } from "@/features/publishing/constants";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
 import { getSourceCatalog } from "@/features/sources/api/server/get-source-catalog";
 import { Localized } from "@/i18n/client";
@@ -9,6 +10,7 @@ import { getT } from "@/i18n/server";
 import {
   customerBrandPolicy,
   customerEditorial,
+  enabledImageModels,
 } from "@/lib/customer-template.server";
 
 import { getEditorialWorkspace } from "../api/server/get-editorial-workspace";
@@ -21,6 +23,24 @@ import { EditorialCoordinator } from "./editorial-coordinator";
 const LIMITED_GUIDANCE_BRANDS = customerBrandPolicy
   .filter((brand) => brand.brandBible === null)
   .map((brand) => brand.key);
+
+const SKELETON_BRANDS = customerEditorial.defaults.brands;
+const SKELETON_MODELS = customerEditorial.models;
+const SKELETON_LANES = [
+  ...customerEditorial.defaults.platforms,
+  "fresh-card-1",
+  "fresh-card-2",
+];
+const SKELETON_SOURCE_CHIPS = [
+  "source-1",
+  "source-2",
+  "source-3",
+  "source-4",
+  "source-5",
+  "source-6",
+  "source-7",
+  "source-8",
+];
 
 export function EditorialScreen({
   searchParams,
@@ -57,6 +77,7 @@ export function EditorialScreen({
                   SHARED_NAMESPACE,
                   EDITORIAL_NAMESPACE,
                   OPERATIONS_NAMESPACE,
+                  PUBLISHING_NAMESPACE,
                 ]}
               >
                 <div className="min-w-0 p-3 sm:px-6 sm:pt-4 sm:pb-6">
@@ -66,6 +87,7 @@ export function EditorialScreen({
                       customerEditorial.models[0]?.key ??
                       ""
                     }
+                    imageModels={enabledImageModels}
                     key={workspace.head?.id ?? "fresh-workspace"}
                     limitedGuidanceBrands={LIMITED_GUIDANCE_BRANDS}
                     options={options}
@@ -94,7 +116,7 @@ function ConfigurationSkeleton({ label }: { label: string }) {
       <span className="sr-only" role="status">
         {label}
       </span>
-      <div className="relative grid min-w-0 grid-cols-[0rem_minmax(0,1fr)] items-start gap-y-3 min-[900px]:grid-cols-[20rem_minmax(0,1fr)] min-[900px]:gap-x-5">
+      <div className="relative grid min-w-0 grid-cols-[0rem_minmax(0,1fr)] items-start gap-y-3 min-[900px]:grid-cols-[22rem_minmax(0,1fr)] min-[900px]:gap-x-5">
         <div className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5 min-[900px]:grid-cols-subgrid">
           <div className="flex items-center gap-2">
             <Skeleton className="h-9 w-20 max-sm:h-11" />
@@ -102,8 +124,95 @@ function ConfigurationSkeleton({ label }: { label: string }) {
           </div>
           <Skeleton className="h-4 w-12" />
         </div>
-        <Skeleton className="col-start-1 row-start-2 h-96 w-80 max-[899px]:absolute max-[899px]:inset-s-0 max-[899px]:top-0 max-[899px]:z-30 max-[899px]:max-h-[calc(100dvh-10rem)] max-[899px]:max-w-[calc(100vw-2rem)]" />
-        <Skeleton className="col-start-2 row-start-2 h-120 w-full" />
+        <aside
+          aria-hidden="true"
+          className="col-start-1 row-start-2 flex h-[calc(100dvh-10rem)] min-h-96 w-88 flex-col gap-5 overflow-hidden rounded-xl border border-sidebar-border bg-sidebar p-3 max-[899px]:absolute max-[899px]:inset-s-0 max-[899px]:top-0 max-[899px]:z-30 max-[899px]:max-h-[calc(100dvh-10rem)] max-[899px]:max-w-[calc(100vw-2rem)]"
+        >
+          <div className="grid gap-2">
+            <Skeleton className="h-4 w-16" />
+            <div className="grid grid-cols-2 gap-1">
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-full" />
+            </div>
+          </div>
+          <div className="grid gap-3">
+            <Skeleton className="h-4 w-24" />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              {SKELETON_BRANDS.map((brandKey) => (
+                <div className="flex items-center gap-2" key={brandKey}>
+                  <Skeleton className="size-4 shrink-0" />
+                  <Skeleton className="h-4 w-24 max-w-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-3">
+            <Skeleton className="h-4 w-28" />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              {SKELETON_MODELS.map((model) => (
+                <div className="flex items-center gap-2" key={model.key}>
+                  <Skeleton className="size-4 shrink-0" />
+                  <Skeleton className="h-4 w-20 max-w-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-3">
+            <Skeleton className="h-4 w-20" />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              {customerEditorial.platforms.map((platform) => (
+                <div className="flex items-center gap-2" key={platform}>
+                  <Skeleton className="size-4 shrink-0" />
+                  <Skeleton className="h-4 w-20 max-w-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Skeleton className="h-4 w-16" />
+            <div className="grid h-44 content-start gap-2 rounded-xl border border-sidebar-border p-3">
+              <Skeleton className="h-7 w-full" />
+              <div className="flex flex-wrap gap-2">
+                {SKELETON_SOURCE_CHIPS.map((chipKey) => (
+                  <Skeleton className="h-6 w-20" key={chipKey} />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-3">
+            <Skeleton className="h-4 w-20" />
+            <div className="flex gap-2">
+              <Skeleton className="h-7 w-10" />
+              <Skeleton className="h-7 w-10" />
+              <Skeleton className="h-7 w-10" />
+              <Skeleton className="h-7 w-10" />
+            </div>
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        </aside>
+        <div className="col-start-2 row-start-2 grid min-w-0 gap-4">
+          {SKELETON_BRANDS.map((brandKey) => (
+            <section
+              aria-hidden="true"
+              className="min-w-0 rounded-xl border border-border bg-card/40 p-3"
+              key={brandKey}
+            >
+              <div className="flex items-center gap-2 pb-1">
+                <Skeleton className="size-7" />
+                <Skeleton className="h-5 w-28" />
+              </div>
+              <div className="flex min-w-0 gap-3 overflow-hidden py-1">
+                {SKELETON_LANES.map((laneKey) => (
+                  <Skeleton
+                    className="min-h-48 w-[clamp(260px,30vw,320px)] shrink-0 rounded-lg max-[599px]:w-[min(300px,calc(100vw-32px))]"
+                    key={laneKey}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
       </div>
     </div>
   );

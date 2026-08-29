@@ -22,11 +22,6 @@ import type {
   SourceOrigin,
   TelegramOrderingMode,
 } from "@rz-chain-reporter/contracts";
-import {
-  analysisRunWindowHoursSchema,
-  platformSchema,
-  telegramOrderingModeSchema,
-} from "@rz-chain-reporter/contracts";
 import type { AnalysisRunProgress } from "@rz-chain-reporter/db/repositories/analysis-run";
 import { createLoader, parseAsString, type SearchParams } from "nuqs/server";
 import { z } from "zod";
@@ -52,36 +47,6 @@ export function normalizeWorkspaceQuery(
 ): WorkspaceQuery {
   return workspaceQuerySchema.parse(input);
 }
-
-// Transport shape only, so openapi.json stays customer-independent: the router
-// re-parses it with `runConfigurationSchema(bounds)`, which owns every bound.
-const startAnalysisRunNewsSchema = z.strictObject({
-  kind: z.literal("news"),
-  brands: z.array(z.string()),
-  models: z.array(z.string()),
-  platforms: z.array(platformSchema),
-  sourceIds: z.array(z.uuid()),
-  windowHours: analysisRunWindowHoursSchema,
-  enrichmentEnabled: z.boolean(),
-  telegramOnly: z.boolean(),
-  orderingMode: telegramOrderingModeSchema,
-  topN: z.int(),
-  topics: z.array(z.string()),
-});
-
-const startAnalysisRunPromoSchema = z.strictObject({
-  kind: z.literal("promo"),
-  models: z.array(z.string()),
-  promo: z.strictObject({
-    brands: z.array(z.string()),
-    prompts: z.record(z.string(), z.string()),
-  }),
-});
-
-export const startAnalysisRunInputSchema = z.discriminatedUnion("kind", [
-  startAnalysisRunNewsSchema,
-  startAnalysisRunPromoSchema,
-]);
 
 export const analysisRunIdSchema = z.uuid();
 

@@ -11,6 +11,8 @@ const targetOperationId = operationId.data;
 
 async function main() {
   const {
+    OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME,
+    OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME,
     OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
     OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME,
     OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME,
@@ -87,6 +89,14 @@ async function main() {
             OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME
         ) {
           return await notifyPublishingCacheChanged(installation.workspaceId);
+        }
+        if (
+          event.eventType === OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME ||
+          event.eventType === OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME
+        ) {
+          return await notifyCacheInvalidation([
+            workspaceCacheTag(installation.workspaceId, "editorial"),
+          ]);
         }
         if (
           event.eventType !== OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME

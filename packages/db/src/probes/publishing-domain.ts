@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { validateMigrationEnv } from "@rz-chain-reporter/env/migration";
 import dotenv from "dotenv";
-import pg from "pg";
+import pg, { DatabaseError } from "pg";
 
 import { createDb } from "../index";
 import { recordPublicationSettlementActivity } from "../repositories/activity-event";
@@ -9,7 +9,10 @@ import {
   grantApproval,
   readActionableApproval,
 } from "../repositories/approval";
-import { executeDraftRevisionCommand } from "../repositories/draft-revision";
+import {
+  FAILED_ORIGINAL_CLEANUP_DELAY_MS,
+  settleImageOperationAndWakeNext,
+} from "../repositories/image-generation";
 import { claimOperationExecution } from "../repositories/operation";
 import {
   allocateOperationAttempt,
@@ -63,8 +66,8 @@ const telegramDestinationId = randomUUID();
 const instagramDestinationId = randomUUID();
 const genericImageId = randomUUID();
 const orphanGeneratedImageId = randomUUID();
-const xDraftIds = Array.from({ length: 13 }, () => randomUUID());
-const xRevisionIds = Array.from({ length: 13 }, () => randomUUID());
+const xDraftIds = Array.from({ length: 16 }, () => randomUUID());
+const xRevisionIds = Array.from({ length: 16 }, () => randomUUID());
 const historicalSuccessorId = randomUUID();
 const telegramDraftId = randomUUID();
 const telegramRevisionId = randomUUID();
@@ -74,6 +77,7 @@ const originOperationId = randomUUID();
 const originRunId = randomUUID();
 const originUnitId = randomUUID();
 const originSelectionId = randomUUID();
+let draftSelectionRank = 100;
 const observed: string[] = [];
 
 await client.connect();
@@ -83,6 +87,9 @@ try {
   await proveSavedCards();
   await proveApprovalSnapshots();
   await proveApprovalKeyConcurrency();
+  await proveApprovalAndMediaDatabaseGuards();
+  await proveConcurrentApprovalAndMediaFreeze();
+  await proveSuccessfulProviderOriginalCleanup();
   await proveActiveRevisionFences();
   await proveConcurrentAdmission();
   await proveScheduleCas();
@@ -282,17 +289,7 @@ async function proveActiveRevisionFences() {
   if (!("schedule" in scheduled) || !scheduled.operationId) {
     throw new Error("active revision schedule missing");
   }
-  const switched = await executeDraftRevisionCommand(database.db, workspaceId, {
-    actorId,
-    commandKind: "select_revision",
-    draftRevisionId: historicalSuccessorId,
-    expectedActive: { id: revisionId, version: 1 },
-    idempotencyKey: "activate-successor",
-    platformDraftId: draftId,
-    requestHash: "activate-successor-hash",
-  });
-  if (!("revision" in switched))
-    throw new Error("active successor selection failed");
+  await activateRevisionFixture(draftId, revisionId, historicalSuccessorId, 1);
   const duplicateReplay = await grantApproval(
     database.db,
     workspaceId,
@@ -415,16 +412,7 @@ async function proveActiveRevisionFences() {
     "ready",
     "pinned schedule after active switch",
   );
-  const returned = await executeDraftRevisionCommand(database.db, workspaceId, {
-    actorId,
-    commandKind: "select_revision",
-    draftRevisionId: revisionId,
-    expectedActive: { id: historicalSuccessorId, version: 2 },
-    idempotencyKey: "activate-original",
-    platformDraftId: draftId,
-    requestHash: "activate-original-hash",
-  });
-  if (!("revision" in returned)) throw new Error("original selection failed");
+  await activateRevisionFixture(draftId, historicalSuccessorId, revisionId, 2);
   const staleReturned = await grantApproval(database.db, workspaceId, {
     actorId,
     draftRevisionId: revisionId,
@@ -460,6 +448,294 @@ async function proveActiveRevisionFences() {
     "scheduled-snapshot-pinned-after-selection",
     "reused-revision-publication-uniqueness",
   );
+}
+
+async function proveApprovalAndMediaDatabaseGuards() {
+  const frozenRevisionId = xRevisionIds[13] as string;
+  const frozenApprovalId = await approveX(13, "database-freeze");
+
+  await expectConstraint(
+    "approved revision media intent",
+    "ck_draft_revision_media_locked_after_approval",
+    () =>
+      client.query(
+        `update draft_revision
+            set image_intent_version = image_intent_version + 1
+          where workspace_id = $1 and id = $2`,
+        [workspaceId, frozenRevisionId],
+      ),
+  );
+  await expectConstraint("approval update", "ck_approval_immutable", () =>
+    client.query(
+      "update approval set approved_at = now() where workspace_id = $1 and id = $2",
+      [workspaceId, frozenApprovalId],
+    ),
+  );
+  await expectConstraint("approval delete", "ck_approval_immutable", () =>
+    client.query("delete from approval where workspace_id = $1 and id = $2", [
+      workspaceId,
+      frozenApprovalId,
+    ]),
+  );
+  await expectConstraint(
+    "approval revision platform uniqueness",
+    "uq_approval_workspace_revision_platform",
+    () =>
+      client.query(
+        `insert into approval
+          (id, workspace_id, draft_revision_id, platform, selected_final_media_asset_id,
+           approved_by, idempotency_key, request_hash)
+         values ($1, $2, $3, 'x', null, $4, $5, $6)`,
+        [
+          randomUUID(),
+          workspaceId,
+          frozenRevisionId,
+          actorId,
+          `database-freeze-duplicate-${randomUUID()}`,
+          "database-freeze-duplicate-hash",
+        ],
+      ),
+  );
+
+  const inFlightRevisionId = xRevisionIds[14] as string;
+  const imageOperationId = randomUUID();
+  await client.query(
+    `insert into operation
+      (id, workspace_id, actor, command_type, idempotency_key, request_hash,
+       lifecycle, effective_at, attempt_seq, version, created_at, updated_at)
+     values ($1, $2, $3, 'probe-image-generation', $4, $5,
+       'queued', now(), 0, 1, now(), now())`,
+    [
+      imageOperationId,
+      workspaceId,
+      actorId,
+      `probe-image-generation-${imageOperationId}`,
+      `probe-image-generation-${imageOperationId}`,
+    ],
+  );
+  await client.query(
+    `insert into image_generation
+      (operation_id, workspace_id, draft_revision_id,
+       expected_revision_version, expected_image_intent_version, model_option_key)
+     values ($1, $2, $3, 1, null, 'probe-model')`,
+    [imageOperationId, workspaceId, inFlightRevisionId],
+  );
+
+  const blocked = await grantApproval(database.db, workspaceId, {
+    actorId,
+    expectedRevisionVersion: 1,
+    draftRevisionId: inFlightRevisionId,
+    selectedFinalMediaAssetId: null,
+    idempotencyKey: "approval-image-in-flight",
+    requestHash: "approval-image-in-flight-hash",
+  });
+  assertStatus(
+    blocked.status,
+    "image_generation_in_progress",
+    "repository approval in-flight image gate",
+  );
+  await expectConstraint(
+    "direct approval in-flight image gate",
+    "ck_approval_no_nonterminal_image_generation",
+    () =>
+      client.query(
+        `insert into approval
+          (id, workspace_id, draft_revision_id, platform, selected_final_media_asset_id,
+           approved_by, idempotency_key, request_hash)
+         values ($1, $2, $3, 'x', null, $4, $5, $6)`,
+        [
+          randomUUID(),
+          workspaceId,
+          inFlightRevisionId,
+          actorId,
+          "approval-image-in-flight-direct",
+          "approval-image-in-flight-direct-hash",
+        ],
+      ),
+  );
+  await client.query(
+    `update operation
+        set lifecycle = 'cancelled', version = version + 1, updated_at = now()
+      where workspace_id = $1 and id = $2`,
+    [workspaceId, imageOperationId],
+  );
+  const admitted = await grantApproval(database.db, workspaceId, {
+    actorId,
+    expectedRevisionVersion: 1,
+    draftRevisionId: inFlightRevisionId,
+    selectedFinalMediaAssetId: null,
+    idempotencyKey: "approval-image-settled",
+    requestHash: "approval-image-settled-hash",
+  });
+  assertStatus(admitted.status, "created", "settled image approval");
+
+  observed.push(
+    "database-enforced-revision-media-freeze",
+    "immutable-approval-update-delete",
+    "unique-revision-platform-approval",
+    "all-nonterminal-image-work-blocks-approval",
+  );
+}
+
+async function proveConcurrentApprovalAndMediaFreeze() {
+  const revisionId = xRevisionIds[15] as string;
+  const approvalId = randomUUID();
+  const approvalClient = new pg.Client({
+    connectionString: MIGRATION_DATABASE_URL,
+  });
+  const mediaClient = new pg.Client({
+    connectionString: MIGRATION_DATABASE_URL,
+  });
+  await Promise.all([approvalClient.connect(), mediaClient.connect()]);
+
+  try {
+    await Promise.all([
+      approvalClient.query("begin"),
+      mediaClient.query("begin"),
+    ]);
+    await Promise.all([
+      approvalClient.query("set local lock_timeout = '5s'"),
+      mediaClient.query("set local lock_timeout = '5s'"),
+    ]);
+    const [approvalResult, mediaResult] = await Promise.allSettled([
+      approvalClient.query(
+        `insert into approval
+          (id, workspace_id, draft_revision_id, platform, selected_final_media_asset_id,
+           approved_by, idempotency_key, request_hash)
+         values ($1, $2, $3, 'x', null, $4, $5, $6)`,
+        [
+          approvalId,
+          workspaceId,
+          revisionId,
+          actorId,
+          `concurrent-freeze-${approvalId}`,
+          "concurrent-freeze-hash",
+        ],
+      ),
+      mediaClient.query(
+        `update draft_revision
+            set selected_final_media_asset_id = $1,
+                image_intent_version = image_intent_version + 1
+          where workspace_id = $2 and id = $3`,
+        [genericImageId, workspaceId, revisionId],
+      ),
+    ]);
+    const results = [approvalResult, mediaResult];
+    if (
+      results.filter((result) => result.status === "fulfilled").length !== 1
+    ) {
+      throw new Error(
+        `concurrent approval/media freeze had ${results.filter((result) => result.status === "fulfilled").length} winners`,
+      );
+    }
+    for (const result of results) {
+      if (result.status !== "rejected") continue;
+      if (
+        !(result.reason instanceof DatabaseError) ||
+        result.reason.code === "40P01" ||
+        ![
+          "ck_approval_exact_snapshot",
+          "ck_draft_revision_media_locked_after_approval",
+          "ck_draft_revision_projection_serialization",
+        ].includes(result.reason.constraint ?? "")
+      ) {
+        throw result.reason;
+      }
+    }
+    await Promise.all([
+      approvalResult.status === "fulfilled"
+        ? approvalClient.query("commit")
+        : approvalClient.query("rollback"),
+      mediaResult.status === "fulfilled"
+        ? mediaClient.query("commit")
+        : mediaClient.query("rollback"),
+    ]);
+  } finally {
+    await Promise.allSettled([
+      approvalClient.query("rollback"),
+      mediaClient.query("rollback"),
+    ]);
+    await Promise.all([approvalClient.end(), mediaClient.end()]);
+  }
+
+  const state = await client.query<{
+    approval_media_id: string | null;
+    approval_count: number;
+    revision_media_id: string | null;
+  }>(
+    `select
+      (select count(*)::int from approval where workspace_id = $1 and draft_revision_id = $2) as approval_count,
+      (select selected_final_media_asset_id from approval where workspace_id = $1 and draft_revision_id = $2) as approval_media_id,
+      (select selected_final_media_asset_id from draft_revision where workspace_id = $1 and id = $2) as revision_media_id`,
+    [workspaceId, revisionId],
+  );
+  const row = state.rows[0];
+  if (
+    !row ||
+    (row.approval_count === 1 &&
+      (row.approval_media_id !== null || row.revision_media_id !== null)) ||
+    (row.approval_count === 0 && row.revision_media_id !== genericImageId)
+  ) {
+    throw new Error(
+      `concurrent approval/media freeze leaked ${JSON.stringify(row)}`,
+    );
+  }
+  observed.push("concurrent-raw-approval-media-freeze-no-deadlock");
+}
+
+async function proveSuccessfulProviderOriginalCleanup() {
+  const operationId = randomUUID();
+  const originalId = randomUUID();
+  const claimedBy = `provider-original-cleanup-${operationId}`;
+  await client.query(
+    `insert into media_asset
+      (id, workspace_id, kind, object_key, mime_type, declared_bytes, actual_bytes,
+       checksum, lifecycle, verified_at)
+     values ($1, $2, 'provider_original', $3, 'image/png', 1, 1,
+       'provider-original', 'verified', now())`,
+    [originalId, workspaceId, `probe/${originalId}`],
+  );
+  await client.query(
+    `insert into operation
+      (id, workspace_id, actor, command_type, idempotency_key, request_hash,
+       lifecycle, effective_at, claimed_at, claimed_by, lease_expires_at,
+       attempt_seq, version, created_at, updated_at)
+     values ($1, $2, $3, 'probe-provider-original-cleanup', $4, $5,
+       'running', now(), now(), $6, now() + interval '1 minute', 0, 1, now(), now())`,
+    [operationId, workspaceId, actorId, operationId, operationId, claimedBy],
+  );
+  await client.query(
+    `insert into image_generation
+      (operation_id, workspace_id, draft_revision_id, model_option_key,
+       provider_original_media_asset_id)
+     values ($1, $2, $3, 'probe-model', $4)`,
+    [operationId, workspaceId, xRevisionIds[11], originalId],
+  );
+  const settled = await settleImageOperationAndWakeNext(
+    database.db,
+    workspaceId,
+    {
+      claimedBy,
+      expectedVersion: 1,
+      lifecycle: "succeeded",
+      mediaBrandId: brandId,
+      operationId,
+    },
+  );
+  if (!settled) throw new Error("provider original cleanup did not settle");
+  const retained = await client.query<{ cleanup_after: Date | null }>(
+    "select cleanup_after from media_asset where workspace_id = $1 and id = $2",
+    [workspaceId, originalId],
+  );
+  const cleanupAfter = retained.rows[0]?.cleanup_after;
+  if (
+    !cleanupAfter ||
+    cleanupAfter.getTime() - settled.updatedAt.getTime() !==
+      FAILED_ORIGINAL_CLEANUP_DELAY_MS
+  ) {
+    throw new Error("successful provider original lacked cleanup retention");
+  }
+  observed.push("successful-provider-original-seven-day-cleanup");
 }
 
 async function proveApprovalKeyConcurrency() {
@@ -1977,11 +2253,25 @@ async function insertDraft(
   mediaAssetId: string | null,
   lanePosition: number,
 ) {
+  const draftSelectionId = randomUUID();
+  await client.query(
+    `insert into editorial_selection
+      (id, workspace_id, analysis_model_unit_id, rank, source_item_id, suggested_platform, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, now(), now())`,
+    [
+      draftSelectionId,
+      workspaceId,
+      originUnitId,
+      draftSelectionRank++,
+      randomUUID(),
+      platform,
+    ],
+  );
   await client.query(
     `insert into platform_draft
       (id, workspace_id, media_brand_id, platform, editorial_selection_id, lane_position)
      values ($1, $2, $3, $4, $5, $6)`,
-    [draftId, workspaceId, brandId, platform, originSelectionId, lanePosition],
+    [draftId, workspaceId, brandId, platform, draftSelectionId, lanePosition],
   );
   await client.query(
     `insert into draft_revision
@@ -1996,6 +2286,35 @@ async function insertDraft(
   );
 }
 
+async function activateRevisionFixture(
+  draftId: string,
+  currentRevisionId: string,
+  nextRevisionId: string,
+  expectedVersion: number,
+) {
+  const result = await client.query(
+    `update platform_draft
+        set active_revision_id = $1,
+            revision_version = revision_version + 1,
+            updated_at = now()
+      where workspace_id = $2
+        and id = $3
+        and active_revision_id = $4
+        and revision_version = $5
+        and exists (
+          select 1 from draft_revision
+           where workspace_id = $2
+             and platform_draft_id = $3
+             and id = $1
+        )
+      returning id`,
+    [nextRevisionId, workspaceId, draftId, currentRevisionId, expectedVersion],
+  );
+  if (result.rowCount !== 1) {
+    throw new Error("publishing active-revision fixture did not advance");
+  }
+}
+
 async function cleanup() {
   await client.query("set session_replication_role = replica");
   for (const table of [
@@ -2008,6 +2327,7 @@ async function cleanup() {
     "publish_operation",
     "operation_attempt",
     "publication",
+    "image_generation",
     "operation",
     "approval",
     "saved_card",
@@ -2041,4 +2361,20 @@ function assertStatus(actual: string, expected: string, label: string) {
   if (actual !== expected) {
     throw new Error(`${label}: expected ${expected}, received ${actual}`);
   }
+}
+
+async function expectConstraint(
+  label: string,
+  constraint: string,
+  action: () => Promise<unknown>,
+) {
+  try {
+    await action();
+  } catch (error) {
+    if (error instanceof DatabaseError && error.constraint === constraint) {
+      return;
+    }
+    throw error;
+  }
+  throw new Error(`${label}: expected ${constraint}`);
 }

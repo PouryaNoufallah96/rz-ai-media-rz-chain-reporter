@@ -70,7 +70,6 @@ export type StartSourceImportResult =
   | { status: "template_drift" }
   | { status: "empty_selection" };
 
-// 23505 on uq_source_import_workspace_id_unsettled maps to SOURCE_IMPORT_IN_PROGRESS.
 export async function startSourceImport(
   executor: Executor,
   workspaceId: string,
@@ -251,7 +250,6 @@ export type SourceImportSourceUnitInput = {
   sourceId: string;
 };
 
-// Newest prior row that actually carried etag/last-modified.
 export async function findSourceImportSourceUnit(
   executor: Executor,
   workspaceId: string,
