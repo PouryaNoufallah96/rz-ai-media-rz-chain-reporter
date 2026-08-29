@@ -6,19 +6,17 @@ import { z } from "zod";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { Suspended } from "@/components/fetcher/suspended";
-import { getEditorialWorkspace } from "@/features/editorial/api/server/get-editorial-workspace";
-import { getRunReport } from "@/features/editorial/api/server/get-run-report";
-import { FunnelBlock } from "@/features/editorial/components/funnel-block";
-import {
-  MutedTag,
-  ProvenanceLine,
-} from "@/features/editorial/components/provenance-line";
-import { ReportTable } from "@/features/editorial/components/report-table";
-import { EDITORIAL_NAMESPACE } from "@/features/editorial/constants";
-import type { ReportSearchParams } from "@/features/editorial/schemas/report";
 import { Localized } from "@/i18n/client";
 import { Link } from "@/i18n/navigation";
 import { getFormatter, getT } from "@/i18n/server";
+
+import { getEditorialWorkspace } from "../api/server/get-editorial-workspace";
+import { getRunReport } from "../api/server/get-run-report";
+import { EDITORIAL_NAMESPACE } from "../constants";
+import type { ReportSearchParams } from "../schemas/report";
+import { FunnelBlock } from "./funnel-block";
+import { MutedTag, ProvenanceLine } from "./provenance-line";
+import { ReportTable } from "./report-table";
 
 const REPORT_COLUMN_COUNT = 8;
 

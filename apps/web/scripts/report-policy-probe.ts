@@ -1,4 +1,4 @@
-import { reportLowScoreFailures } from "../schemas/report";
+import { reportLowScoreFailures } from "../src/features/editorial/schemas/report";
 
 const thresholds = {
   lexicalTopicScore: 40,

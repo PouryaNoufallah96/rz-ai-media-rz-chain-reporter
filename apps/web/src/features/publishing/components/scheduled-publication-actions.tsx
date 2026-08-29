@@ -89,11 +89,6 @@ export function ScheduledPublicationActions({
     <div className="grid min-w-52 gap-2 rounded-lg border bg-muted/20 p-3">
       <PublishingDateTimePicker
         label={t("schedule.rescheduleTime")}
-        min={minimumLocalTime(installationTimeZone)}
-        invalid={
-          Boolean(localTime) &&
-          !validFutureLocalTime(localTime, installationTimeZone)
-        }
         onValueChange={setLocalTime}
         timeZone={installationTimeZone}
         value={localTime}

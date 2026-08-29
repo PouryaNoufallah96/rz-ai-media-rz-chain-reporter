@@ -33,24 +33,22 @@ import {
   schedulePublicationAction,
 } from "../actions/commands";
 import { PUBLISHING_NAMESPACE } from "../constants";
-import {
-  minimumLocalTime,
-  validFutureLocalTime,
-  zonedLocalDate,
-} from "../lib/installation-time";
+import { validFutureLocalTime, zonedLocalDate } from "../lib/installation-time";
 import { PublishingDateTimePicker } from "./publishing-date-time-picker";
 import { PublishingFreshness } from "./publishing-freshness";
 
 function usePublishingTicket({
   card,
   disabled,
-  editorDirty,
+  effectDisabled,
   onPendingChange,
+  savedChangeDisabled,
 }: {
   card: PlatformDraftCard;
   disabled: boolean;
-  editorDirty: boolean;
+  effectDisabled: boolean;
   onPendingChange: (pending: boolean) => void;
+  savedChangeDisabled: boolean;
 }) {
   const t = useTranslations(PUBLISHING_NAMESPACE);
   const format = useFormatter();
@@ -122,7 +120,7 @@ function usePublishingTicket({
   const finalReady =
     active !== null &&
     !disabled &&
-    !editorDirty &&
+    !effectDisabled &&
     approved &&
     destinationReady &&
     deliveryAvailable &&
@@ -141,7 +139,12 @@ function usePublishingTicket({
 
   const confirmSavedChange = async () => {
     const savedCard = publishing.savedCard;
-    if (disabled || !savedIntent || (savedIntent !== "save" && !savedCard)) {
+    if (
+      disabled ||
+      savedChangeDisabled ||
+      !savedIntent ||
+      (savedIntent !== "save" && !savedCard)
+    ) {
       return { error: t("error.command") };
     }
     onPendingChange(true);
@@ -168,7 +171,7 @@ function usePublishingTicket({
   };
 
   const requestSavedChange = () => {
-    if (disabled) return;
+    if (disabled || savedChangeDisabled) return;
     if (publishing.savedCard?.discardedAt) {
       setSavedIntent("restore");
       return;
@@ -181,7 +184,7 @@ function usePublishingTicket({
   };
 
   const approveActive = async () => {
-    if (!active || editorDirty || disabled) return;
+    if (!active || effectDisabled || disabled) return;
     onPendingChange(true);
     await approve.execute({
       draftRevisionId: active.id,
@@ -263,13 +266,15 @@ function usePublishingTicket({
 export function PublishingTicket({
   card,
   disabled,
-  editorDirty,
+  effectDisabled,
   onPendingChange,
+  savedChangeDisabled,
 }: {
   card: PlatformDraftCard;
   disabled: boolean;
-  editorDirty: boolean;
+  effectDisabled: boolean;
   onPendingChange: (pending: boolean) => void;
+  savedChangeDisabled: boolean;
 }) {
   const {
     activeSaved,
@@ -307,8 +312,13 @@ export function PublishingTicket({
     setSavedIntent,
     t,
     timeZone,
-  } = usePublishingTicket({ card, disabled, editorDirty, onPendingChange });
-
+  } = usePublishingTicket({
+    card,
+    disabled,
+    effectDisabled,
+    onPendingChange,
+    savedChangeDisabled,
+  });
   return (
     <section
       aria-labelledby={`publishing-ticket-${card.id}`}
@@ -323,8 +333,10 @@ export function PublishingTicket({
       <div className="mt-3 grid gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <Button
+            className="max-sm:min-h-11"
             disabled={
               disabled ||
+              savedChangeDisabled ||
               save.isPending ||
               discard.isPending ||
               restore.isPending
@@ -332,7 +344,9 @@ export function PublishingTicket({
             onClick={requestSavedChange}
             size="sm"
             type="button"
-            variant="outline"
+            variant={
+              activeSaved || publishing.savedCard ? "outline" : "secondary"
+            }
           >
             {save.isPending || discard.isPending || restore.isPending ? (
               <Spinner data-icon="inline-start" label={t("ticket.pending")} />
@@ -341,7 +355,7 @@ export function PublishingTicket({
               ? t("saved.discard")
               : publishing.savedCard
                 ? t("saved.restore")
-                : t("ticket.save")}
+                : t("ticket.saveForLater")}
           </Button>
           <span className="flex items-start gap-2 text-sm">
             <StateMark state={approved ? "succeeded" : "queued"} />
@@ -351,7 +365,7 @@ export function PublishingTicket({
             disabled={
               disabled ||
               !active ||
-              editorDirty ||
+              effectDisabled ||
               approved ||
               approve.isPending
             }
@@ -367,8 +381,15 @@ export function PublishingTicket({
               : t("approval.needsRevision")}
           </Button>
         </div>
-        {editorDirty ? (
-          <p className="text-sm text-working">{t("approval.dirty")}</p>
+        <p className="text-muted-foreground text-xs">
+          {savedChangeDisabled
+            ? t("ticket.saveBlocked")
+            : t("ticket.saveScope")}
+        </p>
+        {effectDisabled ? (
+          <p className="text-sm text-working">
+            {t("approval.savedRevisionRequired")}
+          </p>
         ) : null}
         <PublishingReadiness
           control={publishing.control}
@@ -414,10 +435,6 @@ export function PublishingTicket({
               disabled={disabled}
               id={`publishing-time-${card.id}`}
               label={t("schedule.time")}
-              min={minimumLocalTime(timeZone)}
-              invalid={
-                Boolean(localTime) && !validFutureLocalTime(localTime, timeZone)
-              }
               onValueChange={setLocalTime}
               timeZone={timeZone}
               value={localTime}
@@ -459,7 +476,7 @@ export function PublishingTicket({
             ? t("saved.discard")
             : savedIntent === "restore"
               ? t("saved.restore")
-              : t("ticket.save")
+              : t("ticket.saveForLater")
         }
         description={t("saved.confirmDescription")}
         fallbackError={t("error.command")}

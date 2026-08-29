@@ -8,17 +8,11 @@ import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 
 import { publishingTags } from "../../db/cache/tags";
 import { readSavedHistory } from "../../db/queries";
-import {
-  loadSavedSearchParams,
-  normalizeSavedQuery,
-  type PublishingSearchParams,
-  type SavedQuery,
-} from "../../schemas/history";
+import type { SavedQuery } from "../../schemas/history";
 
-export async function getSavedHistory(searchParams: PublishingSearchParams) {
+export async function getSavedHistory(query: SavedQuery) {
   const session = await requireSession();
   const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
-  const query = normalizeSavedQuery(await loadSavedSearchParams(searchParams));
   return {
     page: await readCachedSavedHistory(workspaceId, session.user.id, query),
     query,

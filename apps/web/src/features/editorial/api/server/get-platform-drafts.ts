@@ -1,6 +1,6 @@
 import "server-only";
 
-import { type Platform, workspaceCacheTag } from "@rz-chain-reporter/contracts";
+import type { Platform } from "@rz-chain-reporter/contracts";
 import { env } from "@rz-chain-reporter/env/server";
 import { cacheLife, cacheTag } from "next/cache";
 
@@ -34,7 +34,6 @@ export async function getPlatformDrafts(
     analysisRunId,
     customerEditorial.brands,
     customerEditorial.platforms,
-    customerEditorial.drafting.image.models.filter((model) => model.enabled),
   );
 }
 
@@ -46,11 +45,9 @@ async function readCachedPlatformDrafts(
   analysisRunId: string,
   enabledBrands: readonly { key: string; name: string }[],
   enabledPlatforms: readonly Platform[],
-  enabledImageModels: readonly { key: string; name: string }[],
 ): Promise<PlatformDraftLane[]> {
   "use cache";
-  cacheTag(draftsTags.reads(workspaceId));
-  cacheTag(workspaceCacheTag(workspaceId, "publishing"));
+  cacheTag(...draftsTags.platformDraftReads(workspaceId));
   cacheLife("minutes");
 
   const [configuration, storedBrands, drafts] = await Promise.all([
@@ -68,7 +65,6 @@ async function readCachedPlatformDrafts(
       userId,
       environmentForcedPause,
       timeZone,
-      enabledImageModels,
     ),
   ]);
   if (!configuration) return [];

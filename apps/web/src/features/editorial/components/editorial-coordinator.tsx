@@ -35,6 +35,7 @@ import { RunHead as RunHeadPanel } from "./run-head";
 
 export function EditorialCoordinator({
   defaultModelOptionKey,
+  imageModels,
   limitedGuidanceBrands,
   options,
   platformDraftLanes,
@@ -43,6 +44,7 @@ export function EditorialCoordinator({
   workspace,
 }: {
   defaultModelOptionKey: string;
+  imageModels: readonly { key: string; name: string }[];
   limitedGuidanceBrands: readonly string[];
   options: RunOptions;
   platformDraftLanes: readonly PlatformDraftLane[];
@@ -56,17 +58,13 @@ export function EditorialCoordinator({
     initialPresentation(workspace.head, options, templatePlatforms),
   );
   const [finalFocus, setFinalFocus] = useState<HTMLElement | null>(null);
-  const assistant = useAssistant();
-  const setAssistantBrandKeys = assistant?.setBrandKeys;
-  const pinCard = assistant?.pinCard;
-  const clearCard = assistant?.clearCard;
+  const { clearCard, pinCard, setBrandKeys } = useAssistant();
 
-  // Only this board supplies brand keys; every other route passes none.
   useEffect(() => {
-    setAssistantBrandKeys?.(presentation.brandKeys);
+    setBrandKeys(presentation.brandKeys);
 
-    return () => setAssistantBrandKeys?.([]);
-  }, [presentation.brandKeys, setAssistantBrandKeys]);
+    return () => setBrandKeys([]);
+  }, [presentation.brandKeys, setBrandKeys]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarPanel = useRef<HTMLDivElement>(null);
   const sidebarTrigger = useRef<HTMLButtonElement>(null);
@@ -78,6 +76,7 @@ export function EditorialCoordinator({
   return (
     <>
       <Sidebar
+        className="min-[900px]:data-open:grid-cols-[22rem_minmax(0,1fr)]"
         onKeyDown={(event) => {
           if (
             event.key === "Escape" &&
@@ -117,6 +116,7 @@ export function EditorialCoordinator({
         </SidebarHeader>
         <SidebarContent
           aria-label={t("run.title")}
+          className="w-88"
           inert={!sidebarOpen}
           ref={sidebarPanel}
         >
@@ -131,6 +131,7 @@ export function EditorialCoordinator({
             readAt={workspace.readAt}
             runs={options.runs}
             selectedRunId={workspace.query.run}
+            showFreshness={values.draft === null}
           />
         </SidebarContent>
         <section
@@ -140,6 +141,9 @@ export function EditorialCoordinator({
           <LaneBoard
             brands={options.brands}
             defaultModelOptionKey={defaultModelOptionKey}
+            freshWorkspace={
+              workspace.head === null && workspace.query.run === null
+            }
             head={workspace.head}
             limitedGuidanceBrands={limitedGuidanceBrands}
             models={options.models}
@@ -151,7 +155,7 @@ export function EditorialCoordinator({
                   (revision) => revision.id === card.activeRevisionId,
                 ) ?? card.revisions.at(-1);
               if (active) {
-                pinCard?.({
+                pinCard({
                   contentLocale: active.contentLocale,
                   copy: active.body,
                   draftId: card.id,
@@ -159,7 +163,7 @@ export function EditorialCoordinator({
                   platform: card.platform,
                 });
               }
-              void setValues({ draft: card.id });
+              void setValues({ draft: card.id }, { shallow: true });
             }}
             platformDraftLanes={platformDraftLanes}
             presentation={presentation}
@@ -180,11 +184,11 @@ export function EditorialCoordinator({
               }
             : undefined
         }
-        key={values.draft ?? "missing-draft"}
+        imageModels={imageModels}
         onOpenChange={(open) => {
           if (!open) {
-            clearCard?.();
-            void setValues({ draft: null });
+            clearCard();
+            void setValues({ draft: null }, { shallow: true });
           }
         }}
         open={values.draft !== null}

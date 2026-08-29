@@ -6,10 +6,16 @@ import { Button } from "@rz-chain-reporter/ui/components/button";
 import {
   Empty,
   EmptyContent,
+  EmptyDescription,
   EmptyHeader,
+  EmptyMedia,
   EmptyTitle,
 } from "@rz-chain-reporter/ui/components/empty";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PanelsTopLeftIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type ReactNode,
@@ -91,6 +97,7 @@ export function LaneBoardHeader({
 export function LaneBoard({
   brands,
   defaultModelOptionKey,
+  freshWorkspace,
   head,
   limitedGuidanceBrands,
   models,
@@ -103,6 +110,7 @@ export function LaneBoard({
 }: {
   brands: RunOptions["brands"];
   defaultModelOptionKey: string;
+  freshWorkspace: boolean;
   head: RunHead | null;
   limitedGuidanceBrands: readonly string[];
   models: RunOptions["models"];
@@ -167,11 +175,15 @@ export function LaneBoard({
           <div className="grid min-w-0 gap-3">
             {head ? <TelegramAcquisitionNotice head={head} /> : null}
             {selectedBrands.length === 0 ? (
-              <Empty className="rounded-xl border border-border bg-card p-8">
+              <Empty className="rounded-xl border border-border bg-card/60 py-10">
                 <EmptyHeader>
-                  <EmptyTitle className="text-sm">
+                  <EmptyMedia variant="icon">
+                    <PanelsTopLeftIcon aria-hidden="true" />
+                  </EmptyMedia>
+                  <EmptyTitle>{t("lane.board.noBrandsTitle")}</EmptyTitle>
+                  <EmptyDescription>
                     {t("lane.board.noBrands")}
-                  </EmptyTitle>
+                  </EmptyDescription>
                 </EmptyHeader>
               </Empty>
             ) : (
@@ -226,6 +238,7 @@ export function LaneBoard({
                           brandName={brand.name}
                           platforms={board.platforms}
                         />
+                        {freshWorkspace ? <FreshCardTemplates /> : null}
                       </BrandRail>
                     </section>
                   );
@@ -236,6 +249,15 @@ export function LaneBoard({
         </PlatformLanes>
       </RouteProvider>
     </>
+  );
+}
+
+function FreshCardTemplates() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none contents">
+      <Empty className="min-h-48 w-[clamp(260px,30vw,320px)] flex-none snap-start rounded-lg border border-border/70 bg-muted/20 p-0 max-[599px]:w-[min(300px,calc(100vw-32px))] md:p-0" />
+      <Empty className="min-h-48 w-[clamp(260px,30vw,320px)] flex-none snap-start rounded-lg border border-border/50 bg-muted/10 p-0 max-[599px]:w-[min(300px,calc(100vw-32px))] md:p-0" />
+    </div>
   );
 }
 

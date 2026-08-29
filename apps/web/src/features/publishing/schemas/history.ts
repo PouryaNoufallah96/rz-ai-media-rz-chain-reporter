@@ -16,14 +16,14 @@ import {
 } from "nuqs/server";
 import { z } from "zod";
 
+import { keysetCursorParam } from "@/features/shared/lib/keyset-cursor";
+
 import { PUBLISHING_VIEWS } from "../constants";
 
+export const SAVED_STATES = ["active", "discarded", "all"] as const;
+
 export const savedSearchParsers = {
-  state: parseAsStringLiteral([
-    "active",
-    "discarded",
-    "all",
-  ] as const).withDefault("active"),
+  state: parseAsStringLiteral(SAVED_STATES).withDefault("active"),
   cursor: parseAsString,
 };
 export const publishingSearchParsers = {
@@ -34,14 +34,13 @@ export const loadSavedSearchParams = createLoader(savedSearchParsers);
 export const loadPublishingSearchParams = createLoader(publishingSearchParsers);
 export type PublishingSearchParams = Promise<SearchParams>;
 
-const cursorValue = z.string().min(1).max(512).nullable().catch(null);
 const savedQuerySchema = z.strictObject({
-  state: z.enum(["active", "discarded", "all"]),
-  cursor: cursorValue,
+  state: z.enum(SAVED_STATES),
+  cursor: keysetCursorParam,
 });
 const publishingQuerySchema = z.strictObject({
   view: z.enum(PUBLISHING_VIEWS),
-  cursor: cursorValue,
+  cursor: keysetCursorParam,
 });
 export type SavedQuery = z.infer<typeof savedQuerySchema>;
 export type PublishingQuery = z.infer<typeof publishingQuerySchema>;
@@ -56,13 +55,6 @@ export function normalizePublishingQuery(
 ) {
   return publishingQuerySchema.parse(input);
 }
-
-export const historyCursorSchema = z.strictObject({
-  direction: z.enum(["older", "newer"]),
-  occurredAt: z.iso.datetime(),
-  id: z.uuid(),
-});
-export type HistoryCursor = z.infer<typeof historyCursorSchema>;
 
 export type SavedHistoryRow = {
   id: string;
@@ -116,11 +108,4 @@ export type PublishingHistoryRow = {
   reconciledAt: Date | null;
   activityStatus: SettlementActivityStatus;
   timezone: string | null;
-};
-
-export type KeysetPage<TRow> = {
-  rows: TRow[];
-  olderCursor: string | null;
-  newerCursor: string | null;
-  offLatest: boolean;
 };

@@ -17,8 +17,14 @@ import {
 
 import { getEditorialRealtimeTokens } from "../actions/get-realtime-token";
 import { refreshEditorialReadsAction } from "../actions/refresh-editorial-reads";
+import {
+  cardSheetDraftChangeKey,
+  type FreshnessOperation,
+} from "../lib/editorial-freshness";
 
 type EditorialTransport = "live" | "reconnecting" | "stale" | "unavailable";
+
+const REALTIME_BUFFER_INTERVAL_MS = 250;
 
 const SETTLED_LIFECYCLES: readonly OperationLifecycle[] = [
   "succeeded",
@@ -30,15 +36,18 @@ const SETTLED_LIFECYCLES: readonly OperationLifecycle[] = [
 export function useEditorialFreshness(
   analysisRunId: string,
   lifecycle: OperationLifecycle,
+  compact = false,
+  platformDraftId: string | null = null,
+  copyOperation: FreshnessOperation | null = null,
 ) {
   const router = useRouter();
   const [isRefreshing, startRefresh] = useTransition();
   const [subscriptionUnavailable, setSubscriptionUnavailable] = useState(false);
+  const connectionActive = useRef(false);
   const hasConnected = useRef(false);
-
-  const [settledWhenSelected] = useState(() =>
-    SETTLED_LIFECYCLES.includes(lifecycle),
-  );
+  const seenDraftChanges = useRef({ scope: "", values: new Set<string>() });
+  const copyOperationId = copyOperation?.operationId ?? null;
+  const copyOperationLifecycle = copyOperation?.lifecycle ?? null;
 
   const rerenderNow = () => {
     startRefresh(() => {
@@ -62,9 +71,13 @@ export function useEditorialFreshness(
       });
 
   const realtimeEnabled = !subscriptionUnavailable;
-  const editorialEnabled = realtimeEnabled && !settledWhenSelected;
+  const draftsEnabled =
+    realtimeEnabled && (!compact || platformDraftId !== null);
+  const editorialEnabled =
+    realtimeEnabled && !compact && !SETTLED_LIFECYCLES.includes(lifecycle);
   const editorialRealtime = useRealtime({
     autoCloseOnTerminal: false,
+    bufferInterval: REALTIME_BUFFER_INTERVAL_MS,
     enabled: editorialEnabled,
     historyLimit: 1,
     key: `editorial:${analysisRunId}`,
@@ -75,11 +88,12 @@ export function useEditorialFreshness(
   });
   const draftsRealtime = useRealtime({
     autoCloseOnTerminal: false,
-    enabled: realtimeEnabled,
+    bufferInterval: REALTIME_BUFFER_INTERVAL_MS,
+    enabled: draftsEnabled,
     historyLimit: 1,
     key: `drafts:${analysisRunId}`,
     pauseOnHidden: true,
-    ...(realtimeEnabled
+    ...(draftsEnabled
       ? { token: () => requestTokens().then((result) => result.drafts) }
       : {}),
   });
@@ -88,8 +102,11 @@ export function useEditorialFreshness(
     rerenderNow();
   });
 
-  // Ignore late pings from the previously selected run.
   useEffect(() => {
+    const scope = `${analysisRunId}:${platformDraftId ?? "workspace"}`;
+    if (seenDraftChanges.current.scope !== scope) {
+      seenDraftChanges.current = { scope, values: new Set<string>() };
+    }
     const editorialChanged = editorialRealtime.messages.delta.some(
       (message) => {
         const parsed = editorialChangedRealtimeMessageSchema.safeParse(
@@ -98,48 +115,65 @@ export function useEditorialFreshness(
         return parsed.success && parsed.data.analysisRunId === analysisRunId;
       },
     );
-    const draftChanged = draftsRealtime.messages.delta.some((message) => {
+    let draftChanged = false;
+    for (const message of draftsRealtime.messages.delta) {
+      if (compact && platformDraftId !== null) {
+        const key = cardSheetDraftChangeKey(
+          message.data,
+          analysisRunId,
+          platformDraftId,
+          copyOperationId && copyOperationLifecycle
+            ? {
+                lifecycle: copyOperationLifecycle,
+                operationId: copyOperationId,
+              }
+            : null,
+        );
+        if (key && !seenDraftChanges.current.values.has(key)) {
+          seenDraftChanges.current.values.add(key);
+          draftChanged = true;
+        }
+        continue;
+      }
       const parsed = draftsChangedRealtimeMessageSchema.safeParse(message.data);
-      return parsed.success && parsed.data.analysisRunId === analysisRunId;
-    });
+      if (parsed.success && parsed.data.analysisRunId === analysisRunId) {
+        draftChanged = true;
+      }
+    }
 
     if (editorialChanged || draftChanged) {
       rerenderLatest();
     }
   }, [
     analysisRunId,
+    compact,
+    copyOperationId,
+    copyOperationLifecycle,
     draftsRealtime.messages.delta,
     editorialRealtime.messages.delta,
+    platformDraftId,
   ]);
 
   useEffect(() => {
     const editorialConnected =
       !editorialEnabled || editorialRealtime.connectionStatus === "open";
-    if (!editorialConnected || draftsRealtime.connectionStatus !== "open") {
+    const draftsConnected =
+      !draftsEnabled || draftsRealtime.connectionStatus === "open";
+    if (!editorialConnected || !draftsConnected) {
+      connectionActive.current = false;
       return;
     }
-    if (hasConnected.current) {
+    if (hasConnected.current && !connectionActive.current) {
       rerenderLatest();
-      return;
     }
     hasConnected.current = true;
+    connectionActive.current = true;
   }, [
     draftsRealtime.connectionStatus,
+    draftsEnabled,
     editorialEnabled,
     editorialRealtime.connectionStatus,
   ]);
-
-  const rerenderWhenVisible = useEffectEvent(() => {
-    if (document.visibilityState === "visible") {
-      rerenderNow();
-    }
-  });
-
-  useEffect(() => {
-    document.addEventListener("visibilitychange", rerenderWhenVisible);
-    return () =>
-      document.removeEventListener("visibilitychange", rerenderWhenVisible);
-  }, []);
 
   return {
     isRefreshing,
@@ -149,7 +183,7 @@ export function useEditorialFreshness(
     },
     transport: transportOf(
       realtimeEnabled,
-      draftsRealtime.connectionStatus,
+      draftsEnabled ? draftsRealtime.connectionStatus : "open",
       editorialEnabled ? editorialRealtime.connectionStatus : "open",
     ),
   };

@@ -28,6 +28,7 @@ import {
   createContext,
   type ReactNode,
   startTransition,
+  use,
   useContext,
   useEffect,
   useOptimistic,
@@ -38,8 +39,10 @@ import { toast } from "sonner";
 
 import { useAction } from "@/hooks/use-action";
 
-import { reorderPlatformDraftsAction } from "../actions/reorder-platform-drafts";
-import { routePlatformDraftAction } from "../actions/route-platform-draft";
+import {
+  reorderPlatformDraftsAction,
+  routePlatformDraftAction,
+} from "../actions/commands";
 import { EDITORIAL_NAMESPACE } from "../constants";
 import type {
   PlatformDraftCard,
@@ -131,6 +134,12 @@ export function useRouteContext() {
   return value;
 }
 
+function usePlatformBoard() {
+  const value = use(PlatformBoardContext);
+  if (!value) throw new Error("Platform lanes require PlatformLanes");
+  return value;
+}
+
 export function RouteProvider({
   children,
   defaultModelOptionKey,
@@ -185,20 +194,37 @@ export function RouteProvider({
   );
 }
 
+function reorderedDrafts(
+  lanes: readonly PlatformDraftLaneValue[],
+  laneKey: string,
+  cardId: string,
+  destinationIndex: number,
+): {
+  laneIndex: number;
+  moved: PlatformDraftCard;
+  ordered: PlatformDraftCard[];
+} | null {
+  const laneIndex = lanes.findIndex((lane) => keyOf(lane) === laneKey);
+  const lane = lanes[laneIndex];
+  if (!lane) return null;
+  const sourceIndex = lane.drafts.findIndex((draft) => draft.id === cardId);
+  if (sourceIndex < 0 || sourceIndex === destinationIndex) return null;
+
+  const ordered = [...lane.drafts];
+  const [moved] = ordered.splice(sourceIndex, 1);
+  if (!moved) return null;
+  ordered.splice(destinationIndex, 0, moved);
+
+  return { laneIndex, moved, ordered };
+}
+
 function predictReorder(
   lanes: readonly PlatformDraftLaneValue[],
   { cardId, destinationIndex, laneKey }: ReorderPrediction,
 ) {
-  const laneIndex = lanes.findIndex((lane) => keyOf(lane) === laneKey);
-  const lane = lanes[laneIndex];
-  if (!lane) return lanes;
-  const sourceIndex = lane.drafts.findIndex((draft) => draft.id === cardId);
-  if (sourceIndex < 0 || sourceIndex === destinationIndex) return lanes;
-
-  const ordered = [...lane.drafts];
-  const [moved] = ordered.splice(sourceIndex, 1);
-  if (!moved) return lanes;
-  ordered.splice(destinationIndex, 0, moved);
+  const result = reorderedDrafts(lanes, laneKey, cardId, destinationIndex);
+  if (!result) return lanes;
+  const { laneIndex, ordered } = result;
 
   return lanes.map((value, index) =>
     index === laneIndex
@@ -241,6 +267,16 @@ export function PlatformLanes({
             originData(operation.source?.data)?.title ??
             "",
         }),
+      dragover: ({ operation }) => {
+        const source = operation.source;
+        if (!isSortable(source)) return;
+        const title =
+          draftData(source.data)?.title ?? originData(source.data)?.title ?? "";
+        return translatorRef.current("platformDraft.a11y.movedOver", {
+          position: source.index + 1,
+          title,
+        });
+      },
       dragend: ({ operation }) =>
         operation.canceled || !operation.target
           ? translatorRef.current("platformDraft.a11y.cancelled")
@@ -269,16 +305,9 @@ export function PlatformLanes({
     cardId: string,
     destinationIndex: number,
   ) => {
-    const laneIndex = lanes.findIndex((lane) => keyOf(lane) === laneKey);
-    const lane = lanes[laneIndex];
-    if (!lane) return;
-    const sourceIndex = lane.drafts.findIndex((draft) => draft.id === cardId);
-    if (sourceIndex < 0 || sourceIndex === destinationIndex) return;
-
-    const ordered = [...lane.drafts];
-    const [moved] = ordered.splice(sourceIndex, 1);
-    if (!moved) return;
-    ordered.splice(destinationIndex, 0, moved);
+    const result = reorderedDrafts(lanes, laneKey, cardId, destinationIndex);
+    if (!result) return;
+    const { moved, ordered } = result;
     announce(
       t("platformDraft.a11y.moved", {
         position: destinationIndex + 1,
@@ -413,8 +442,7 @@ export function PlatformLaneGroup({
   platforms: readonly Platform[];
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
-  const context = useContext(PlatformBoardContext);
-  if (!context) throw new Error("Platform lanes require PlatformLanes");
+  const context = usePlatformBoard();
 
   return requestedPlatforms.map((platform) => {
     const lane = context.lanes.find(
@@ -423,15 +451,7 @@ export function PlatformLaneGroup({
     );
 
     return lane ? (
-      <PlatformLane
-        key={keyOf(lane)}
-        lane={lane}
-        lanes={context.lanes}
-        move={context.move}
-        onOpenCard={context.onOpenCard}
-        onSendTo={context.sendTo}
-        platforms={context.platforms}
-      />
+      <PlatformLane key={keyOf(lane)} lane={lane} />
     ) : (
       <section
         aria-label={t("platformDraft.lane", {
@@ -452,25 +472,7 @@ export function PlatformLaneGroup({
   });
 }
 
-function PlatformLane({
-  lane,
-  lanes,
-  move,
-  onOpenCard,
-  onSendTo,
-  platforms,
-}: {
-  lane: PlatformDraftLaneValue;
-  lanes: readonly PlatformDraftLaneValue[];
-  move: (laneKey: string, cardId: string, destinationIndex: number) => void;
-  onOpenCard: (card: PlatformDraftCard, trigger: HTMLButtonElement) => void;
-  onSendTo: (
-    card: PlatformDraftCard,
-    platform: Platform,
-    returnFocusId: string,
-  ) => void;
-  platforms: readonly Platform[];
-}) {
+function PlatformLane({ lane }: { lane: PlatformDraftLaneValue }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const laneKey = keyOf(lane);
   const { isDropTarget, ref } = useDroppable<DragData>({
@@ -516,12 +518,7 @@ function PlatformLane({
             card={card}
             index={index}
             key={card.id}
-            lanes={lanes}
             laneKey={laneKey}
-            move={move}
-            onOpenCard={onOpenCard}
-            onSendTo={onSendTo}
-            platforms={platforms}
           />
         ))
       )}
@@ -532,27 +529,14 @@ function PlatformLane({
 function SortablePlatformDraft({
   card,
   index,
-  lanes,
   laneKey,
-  move,
-  onOpenCard,
-  onSendTo,
-  platforms,
 }: {
   card: PlatformDraftCard;
   index: number;
-  lanes: readonly PlatformDraftLaneValue[];
   laneKey: string;
-  move: (laneKey: string, cardId: string, destinationIndex: number) => void;
-  onOpenCard: (card: PlatformDraftCard, trigger: HTMLButtonElement) => void;
-  onSendTo: (
-    card: PlatformDraftCard,
-    platform: Platform,
-    returnFocusId: string,
-  ) => void;
-  platforms: readonly Platform[];
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
+  const { lanes, move, onOpenCard, platforms, sendTo } = usePlatformBoard();
   const data: DraftDragData = {
     kind: "draft",
     cardId: card.id,
@@ -651,7 +635,7 @@ function SortablePlatformDraft({
                     className="max-[599px]:min-h-11"
                     id={buttonId}
                     key={platform}
-                    onClick={() => onSendTo(card, platform, buttonId)}
+                    onClick={() => sendTo(card, platform, buttonId)}
                     size="xs"
                     type="button"
                     variant="outline"

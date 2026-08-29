@@ -19,13 +19,17 @@ import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { StateMark, type StateMarkState } from "@/components/common/state-mark";
+import {
+  StateMark,
+  type StateMarkState,
+  stateTone,
+} from "@/components/common/state-mark";
 import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
 import { OPERATION_ERROR_KEYS } from "@/features/operations/lib/panel-state";
 import { useAction } from "@/hooks/use-action";
 import { Link } from "@/i18n/navigation";
 
-import { cancelAnalysisRunAction } from "../actions/cancel-analysis-run";
+import { cancelAnalysisRunAction } from "../actions/commands";
 import { EDITORIAL_NAMESPACE } from "../constants";
 import { useEditorialErrorMessage } from "../hooks/use-editorial-error-message";
 import type { RunHead as RunHeadView, RunOption } from "../schemas/workspace";
@@ -56,11 +60,13 @@ export function RunHead({
   readAt,
   runs,
   selectedRunId,
+  showFreshness = true,
 }: {
   head: RunHeadView | null;
   readAt: Date;
   runs: readonly RunOption[];
   selectedRunId: string | null;
+  showFreshness?: boolean;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const titleId = useId();
@@ -73,7 +79,7 @@ export function RunHead({
       <h2 className="ticket-label border-b pb-2" id={titleId}>
         {t("run.head.title")}
       </h2>
-      {head ? (
+      {head && showFreshness ? (
         <EditorialFreshness
           analysisRunId={head.id}
           key={head.id}
@@ -82,7 +88,7 @@ export function RunHead({
         />
       ) : null}
       <div className="mt-3 grid gap-3">
-        <Collapsible className="rounded-lg border border-border">
+        <Collapsible className="rounded-lg border border-border" defaultOpen>
           <CollapsibleTrigger
             render={
               <Button
@@ -94,8 +100,8 @@ export function RunHead({
             <HistoryIcon aria-hidden="true" />
             {t("run.selector.recent")}
             <ChevronDownIcon
-              className="ms-auto transition-transform group-data-panel-open:rotate-180"
               aria-hidden="true"
+              className="ms-auto transition-transform group-data-panel-open:rotate-180 motion-reduce:transition-none"
             />
           </CollapsibleTrigger>
           <CollapsibleContent
@@ -416,13 +422,4 @@ function elapsedClock(
       }),
     )
     .join(":");
-}
-
-function stateTone(state: StateMarkState) {
-  if (state === "failed") return "text-destructive text-sm";
-  if (state === "succeeded") return "text-proof-text text-sm";
-  if (["running", "retrying", "unknown"].includes(state)) {
-    return "text-working text-sm";
-  }
-  return "text-sm";
 }

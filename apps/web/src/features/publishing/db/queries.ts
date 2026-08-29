@@ -6,56 +6,38 @@ import { type SQL, sql } from "drizzle-orm";
 
 import {
   decodeKeysetCursor,
-  encodeKeysetCursor,
+  keysetPageOf,
+  type OccurredAtCursor,
+  occurredAtCursorSchema,
 } from "@/features/shared/lib/keyset-cursor";
 
 import { PUBLISHING_PAGE_SIZE } from "../constants";
-import {
-  type HistoryCursor,
-  historyCursorSchema,
-  type KeysetPage,
-  type PublishingHistoryRow,
-  type PublishingQuery,
-  type SavedHistoryRow,
-  type SavedQuery,
+import type {
+  PublishingHistoryRow,
+  PublishingQuery,
+  SavedHistoryRow,
+  SavedQuery,
 } from "../schemas/history";
 
 type CursorRow = { id: string; occurredAt: Date; cursorOccurredAt: string };
 
-function cursorCondition(cursor: HistoryCursor | null, column: SQL, id: SQL) {
+function cursorCondition(
+  cursor: OccurredAtCursor | null,
+  column: SQL,
+  id: SQL,
+) {
   if (!cursor) return sql`true`;
   return cursor.direction === "older"
     ? sql`(${column}, ${id}) < (${cursor.occurredAt}::timestamptz, ${cursor.id}::uuid)`
     : sql`(${column}, ${id}) > (${cursor.occurredAt}::timestamptz, ${cursor.id}::uuid)`;
 }
 
-function finishPage<TRow extends CursorRow>(
-  raw: TRow[],
-  cursor: HistoryCursor | null,
-): KeysetPage<Omit<TRow, "cursorOccurredAt">> {
-  const direction = cursor?.direction ?? "older";
-  const hasExtra = raw.length > PUBLISHING_PAGE_SIZE;
-  const bounded = raw.slice(0, PUBLISHING_PAGE_SIZE);
-  const ordered = direction === "newer" ? bounded.toReversed() : bounded;
-  const rows = ordered.map(({ cursorOccurredAt: _cursor, ...row }) => row);
-  const first = ordered[0];
-  const last = ordered.at(-1);
-  const make = (row: TRow, nextDirection: "older" | "newer") =>
-    encodeKeysetCursor({
-      direction: nextDirection,
-      occurredAt: row.cursorOccurredAt,
-      id: row.id,
-    } satisfies HistoryCursor);
+function occurredAtCursorOf(row: CursorRow, direction: "older" | "newer") {
   return {
-    rows,
-    olderCursor:
-      last && (direction === "newer" || hasExtra) ? make(last, "older") : null,
-    newerCursor:
-      first && cursor && (direction === "older" || hasExtra)
-        ? make(first, "newer")
-        : null,
-    offLatest: cursor !== null,
-  };
+    direction,
+    occurredAt: row.cursorOccurredAt,
+    id: row.id,
+  } satisfies OccurredAtCursor;
 }
 
 export async function readSavedHistory(
@@ -64,7 +46,7 @@ export async function readSavedHistory(
   userId: string,
   query: SavedQuery,
 ) {
-  const cursor = decodeKeysetCursor(historyCursorSchema, query.cursor);
+  const cursor = decodeKeysetCursor(occurredAtCursorSchema, query.cursor);
   const direction = cursor?.direction ?? "older";
   const orderDirection = direction === "older" ? sql`desc` : sql`asc`;
   const state =
@@ -111,7 +93,16 @@ export async function readSavedHistory(
     order by saved.created_at ${orderDirection}, saved.id ${orderDirection}
     limit ${PUBLISHING_PAGE_SIZE + 1}
   `);
-  return finishPage([...result.rows], cursor);
+  const { ordered, ...page } = keysetPageOf({
+    raw: result.rows,
+    pageSize: PUBLISHING_PAGE_SIZE,
+    cursor,
+    toCursor: occurredAtCursorOf,
+  });
+  return {
+    ...page,
+    rows: ordered.map(({ cursorOccurredAt: _cursor, ...row }) => row),
+  };
 }
 
 export async function readPublishingHistory(
@@ -120,7 +111,7 @@ export async function readPublishingHistory(
   userId: string,
   query: PublishingQuery,
 ) {
-  const cursor = decodeKeysetCursor(historyCursorSchema, query.cursor);
+  const cursor = decodeKeysetCursor(occurredAtCursorSchema, query.cursor);
   const direction = cursor?.direction ?? "older";
   const orderDirection = direction === "older" ? sql`desc` : sql`asc`;
   const source =
@@ -256,7 +247,16 @@ export async function readPublishingHistory(
     order by history."occurredAt" ${orderDirection}, history.id ${orderDirection}
     limit ${PUBLISHING_PAGE_SIZE + 1}
   `);
-  return finishPage([...result.rows], cursor);
+  const { ordered, ...page } = keysetPageOf({
+    raw: result.rows,
+    pageSize: PUBLISHING_PAGE_SIZE,
+    cursor,
+    toCursor: occurredAtCursorOf,
+  });
+  return {
+    ...page,
+    rows: ordered.map(({ cursorOccurredAt: _cursor, ...row }) => row),
+  };
 }
 
 export async function readPublishingControl(

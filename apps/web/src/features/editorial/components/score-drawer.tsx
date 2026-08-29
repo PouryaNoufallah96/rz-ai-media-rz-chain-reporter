@@ -62,7 +62,7 @@ export function ScoreDrawer({
         <DrawerOverlay />
         <DrawerViewport className="max-[599px]:items-end max-[599px]:justify-stretch">
           <DrawerPopup
-            className="w-[min(520px,95vw)] max-[599px]:h-auto max-[599px]:max-h-[88dvh] max-[599px]:w-full max-[599px]:rounded-t-xl"
+            className="w-[min(480px,95vw)] max-[599px]:h-auto max-[599px]:max-h-[88dvh] max-[599px]:w-full max-[599px]:rounded-t-xl"
             showHandle={false}
           >
             <DrawerClose

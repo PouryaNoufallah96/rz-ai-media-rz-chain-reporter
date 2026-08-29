@@ -7,6 +7,9 @@ import { EDITORIAL_NAMESPACE } from "../constants";
 const EDITORIAL_ERROR_KEYS = {
   FAN_OUT_EXCEEDS_MAX_UNITS: "errors.fanOutExceedsMaxUnits",
   KEYWORD_TOPIC_REQUIRED: "errors.keywordTopicRequired",
+  NO_BRAND: "errors.noBrand",
+  NO_MODEL: "errors.noModel",
+  NO_PLATFORM: "errors.noPlatform",
   NO_PROMO_BRAND: "errors.noPromoBrand",
   NO_SOURCES: "errors.noSources",
   PROMO_PROMPT_REQUIRED: "errors.promoPromptRequired",

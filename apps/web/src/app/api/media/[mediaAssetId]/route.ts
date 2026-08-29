@@ -2,9 +2,11 @@ import "server-only";
 
 import { problemResponse, withRequestId } from "@rz-chain-reporter/api/request";
 import { findServableFinalMedia } from "@rz-chain-reporter/db/repositories/image-generation";
+import { isMissingStorageObject } from "@rz-chain-reporter/storage";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 
+import { canReadOwnedCardMedia } from "@/features/editorial/api/server/authorize-card-media";
 import { mediaStorage } from "@/features/media/lib/storage";
 import { createInstallationContext } from "@/server/rpc/context";
 import { rpcDb } from "@/server/rpc/db";
@@ -31,9 +33,16 @@ export async function GET(
   if (!parsed.success) {
     return problemResponse(requestId, 404, "not_found", "Not found");
   }
+  const workspaceId = await installation.getWorkspaceId();
+  if (
+    !(await canReadOwnedCardMedia(workspaceId, session.user.id, parsed.data))
+  ) {
+    return problemResponse(requestId, 404, "not_found", "Not found");
+  }
+  const database = rpcDb();
   const asset = await findServableFinalMedia(
-    rpcDb(),
-    await installation.getWorkspaceId(),
+    database,
+    workspaceId,
     parsed.data,
   );
   if (!asset) {
@@ -42,7 +51,7 @@ export async function GET(
   const opened = await mediaStorage()
     .openRead(asset.objectKey)
     .catch((error: unknown) => {
-      if (isMissingObject(error)) return null;
+      if (isMissingStorageObject(error)) return null;
       throw error;
     });
   if (!opened) {
@@ -63,12 +72,5 @@ export async function GET(
       },
     }),
     requestId,
-  );
-}
-
-function isMissingObject(error: unknown) {
-  return (
-    error instanceof Error &&
-    (error.name === "NotFound" || error.name === "NoSuchKey")
   );
 }

@@ -1,4 +1,5 @@
 import {
+  confirmedMediaAssetLifecycleSchema,
   MAX_REFERENCE_IMAGE_BYTES,
   REFERENCE_IMAGE_KIND,
   referenceImageMimeTypeSchema,
@@ -21,10 +22,11 @@ export const mediaUploadIntentSchema = z.strictObject({
 
 export const confirmMediaUploadInputSchema = z.strictObject({
   mediaAssetId: z.uuid(),
+  platformDraftId: z.uuid(),
 });
 
 export const mediaUploadConfirmationSchema = z.strictObject({
   mediaAssetId: z.uuid(),
-  lifecycle: z.enum(["uploaded", "validating", "verified", "rejected"]),
+  lifecycle: confirmedMediaAssetLifecycleSchema,
   replayed: z.boolean(),
 });

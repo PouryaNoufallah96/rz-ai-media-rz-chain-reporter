@@ -1,3 +1,5 @@
+import "server-only";
+
 import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
 import { updateTag } from "next/cache";
 
