@@ -10,7 +10,11 @@ import {
   type WorkerStep,
 } from "../inngest/channels";
 import type { WorkerInngestClient } from "../inngest/client";
-import { notifyCacheInvalidation, waitForCacheFlush } from "./notify";
+import {
+  notifyCacheInvalidation,
+  notifyCacheInvalidationForDurableStep,
+  waitForCacheFlush,
+} from "./notify";
 
 export type DraftChange = Omit<
   DraftsChangedRealtimeMessage,
@@ -23,7 +27,7 @@ export function notifyDraftsChanged(
   change: DraftChange,
   callSite: string,
 ) {
-  return notifyDrafts(step, workspaceId, change, callSite, false);
+  return notifyDrafts(step, workspaceId, change, callSite, false, null);
 }
 
 export function notifyDraftsAndUsageChanged(
@@ -31,8 +35,9 @@ export function notifyDraftsAndUsageChanged(
   workspaceId: string,
   change: DraftChange,
   callSite: string,
+  usageActorId: string | null,
 ) {
-  return notifyDrafts(step, workspaceId, change, callSite, true);
+  return notifyDrafts(step, workspaceId, change, callSite, true, usageActorId);
 }
 
 async function notifyDrafts(
@@ -41,6 +46,7 @@ async function notifyDrafts(
   change: DraftChange,
   callSite: string,
   withUsage: boolean,
+  usageActorId: string | null,
 ) {
   const tags = withUsage
     ? [
@@ -51,7 +57,7 @@ async function notifyDrafts(
 
   const cacheInvalidation = await step.run(
     `notify-drafts-cache-${callSite}`,
-    () => notifyCacheInvalidation(tags),
+    () => notifyCacheInvalidationForDurableStep(tags),
   );
 
   if (cacheInvalidation !== "accepted") {
@@ -73,7 +79,7 @@ async function notifyDrafts(
       callSite,
     ),
     usageRealtimePublished: withUsage
-      ? await publishUsageLedgerChanged(step, workspaceId)
+      ? await publishUsageLedgerChanged(step, workspaceId, usageActorId)
       : false,
   };
 }

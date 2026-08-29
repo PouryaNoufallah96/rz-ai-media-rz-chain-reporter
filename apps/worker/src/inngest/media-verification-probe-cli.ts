@@ -6,6 +6,7 @@ import {
   REFERENCE_IMAGE_KIND,
 } from "@rz-chain-reporter/contracts";
 import { createDb } from "@rz-chain-reporter/db";
+import { executeDraftRevisionCommand } from "@rz-chain-reporter/db/repositories/draft-revision";
 import {
   claimMediaValidation,
   createMediaUploadIntent,
@@ -39,12 +40,16 @@ const databaseUrl: string = configuredDatabaseUrl;
 const databaseTarget = new URL(databaseUrl);
 if (
   !["127.0.0.1", "localhost", "::1"].includes(databaseTarget.hostname) ||
-  databaseTarget.pathname !== "/rz-chain-reporter"
+  !["/rz-chain-reporter", "/rz_chain_reporter_lifecycle_probe"].includes(
+    databaseTarget.pathname,
+  )
 ) {
   throw new Error(
     "media verification probe requires the local project database",
   );
 }
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 type StoredObject = {
   bytes: Uint8Array;
@@ -480,6 +485,7 @@ async function proveVerification() {
     bytes: await paddedPng(4096),
     kind: "image",
   });
+  const verifiedFrom = Date.now();
   assert.deepEqual(
     await verifyMediaUpload(database.db, storage, ids.workspace, ordinary.id),
     { status: "verified" },
@@ -489,10 +495,13 @@ async function proveVerification() {
     ids.workspace,
     ordinary.id,
   );
-  assert.equal(ordinaryRow?.cleanupAfter, null);
+  const ordinaryDeadline = ordinaryRow?.cleanupAfter?.getTime();
+  assert(ordinaryDeadline);
+  assert(ordinaryDeadline > verifiedFrom + 6 * ONE_DAY_MS);
+  assert(ordinaryDeadline <= Date.now() + 7 * ONE_DAY_MS);
   observed.push(
     "mime-decode-dimension-pixel-checks",
-    "non-reference-regression",
+    "unattached-image-expiry",
   );
 }
 
@@ -609,6 +618,73 @@ async function proveCleanupAttachmentRace() {
   );
   assert.equal(removed?.lifecycle, "expired");
   assert(removed?.objectRemovedAt);
+
+  const adoptable = await createUploaded({
+    bytes: await paddedPng(4096),
+    kind: "image",
+  });
+  assert.equal(
+    (await verifyMediaUpload(database.db, storage, ids.workspace, adoptable.id))
+      .status,
+    "verified",
+  );
+  assert(
+    (await getMediaAsset(database.db, ids.workspace, adoptable.id))
+      ?.cleanupAfter,
+  );
+  const adopted = await executeDraftRevisionCommand(
+    database.db,
+    ids.workspace,
+    {
+      actorId: ids.actor,
+      commandKind: "adopt_image",
+      expectedActive: { id: ids.revision, version: 1 },
+      expectedImageIntentVersion: 0,
+      finalMediaAssetId: adoptable.id,
+      idempotencyKey: `media-probe-adopt-${adoptable.id}`,
+      platformDraftId: ids.draft,
+      requestHash: `media-probe-adopt-${adoptable.id}`,
+    },
+  );
+  assert.equal(adopted.status, "updated");
+  assert(
+    "revision" in adopted &&
+      adopted.revision.selectedFinalMediaAssetId === adoptable.id,
+  );
+  const adoptedRow = await getMediaAsset(
+    database.db,
+    ids.workspace,
+    adoptable.id,
+  );
+  assert.equal(adoptedRow?.cleanupAfter, null);
+
+  await database.db
+    .update(mediaAsset)
+    .set({ cleanupAfter: new Date(Date.now() - 1000) })
+    .where(eq(mediaAsset.id, adoptable.id));
+  const staleDeadline = await getMediaAsset(
+    database.db,
+    ids.workspace,
+    adoptable.id,
+  );
+  assert(staleDeadline);
+  assert.equal(
+    (
+      await cleanupMediaAsset(
+        database.db,
+        storage,
+        ids.workspace,
+        staleDeadline,
+      )
+    ).status,
+    "attached",
+  );
+  assert(storage.objects.has(adoptable.objectKey));
+  await database.db
+    .update(mediaAsset)
+    .set({ cleanupAfter: null })
+    .where(eq(mediaAsset.id, adoptable.id));
+  observed.push("adopt-clears-expiry", "attached-image-cleanup-fenced");
 }
 
 async function proveReconciliation() {
@@ -773,9 +849,11 @@ async function cleanupFixture() {
   const statements = [
     sql`update platform_draft set active_revision_id = null
       where id = ${ids.draft} and workspace_id = ${ids.workspace}`,
+    sql`delete from draft_revision_command_receipt
+      where workspace_id = ${ids.workspace}`,
     sql`delete from image_generation where workspace_id = ${ids.workspace}`,
-    sql`delete from media_asset where workspace_id = ${ids.workspace}`,
     sql`delete from draft_revision where workspace_id = ${ids.workspace}`,
+    sql`delete from media_asset where workspace_id = ${ids.workspace}`,
     sql`delete from copy_variant where workspace_id = ${ids.workspace}`,
     sql`delete from copy_generation_unit where workspace_id = ${ids.workspace}`,
     sql`delete from operation_attempt where workspace_id = ${ids.workspace}`,

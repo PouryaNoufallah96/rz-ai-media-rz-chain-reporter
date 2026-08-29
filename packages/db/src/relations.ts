@@ -41,10 +41,8 @@ import { sourceItem } from "./schema/source-item";
 import { sourceItemEnrichment } from "./schema/source-item-enrichment";
 import { sourceItemRevision } from "./schema/source-item-revision";
 
-// Relations mirror the foreign keys the tables already declare, minus the
-// workspace edge: workspace_id is the installation-identity filter every query
-// carries, not an association anything traverses. A collection is declared
-// where the parent owns the rows.
+// Relations mirror foreign keys except `workspace_id`, which scopes installation
+// queries but is not a traversable association. Parents declare owned collections.
 
 export const analysisRunRelations = relations(analysisRun, ({ one, many }) => ({
   operation: one(operation, {

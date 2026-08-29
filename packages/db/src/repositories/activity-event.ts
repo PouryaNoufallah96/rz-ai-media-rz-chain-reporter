@@ -1,5 +1,5 @@
 import type { ActivityEventType } from "@rz-chain-reporter/contracts";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import {
   type Executor,
@@ -45,6 +45,17 @@ type PublicationSettlementActivityInput = {
   scheduleId?: string | null;
   occurredAt: Date;
 };
+
+export async function lockActivityIdentity(
+  executor: Executor | Transaction,
+  workspaceId: string,
+  eventType: ActivityEventType,
+  idempotencyKey: string,
+) {
+  await executor.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`${workspaceId}:${eventType}:${idempotencyKey}`}, 0))`,
+  );
+}
 
 export async function appendActivityEvent(
   executor: Executor | Transaction,

@@ -28,6 +28,7 @@ import { analysisRunItem } from "../schema/analysis-run-item";
 import { copyGeneration } from "../schema/copy-generation";
 import { copyGenerationUnit } from "../schema/copy-generation-unit";
 import { copyVariant } from "../schema/copy-variant";
+import { draftRevision } from "../schema/draft-revision";
 import { editorialSelection } from "../schema/editorial-selection";
 import { filterResult } from "../schema/filter-result";
 import { mediaBrand } from "../schema/media-brand";
@@ -103,6 +104,7 @@ export type BoundCopySourceInput =
       attribution: string;
       canonicalUrl: string;
       content: string;
+      contentHash: string;
       limited: boolean;
       pageContentHash: string | null;
       sourceItemEnrichmentId: string | null;
@@ -810,6 +812,7 @@ export async function loadBoundCopyGenerationSourceInput(
       attribution: origin.attribution,
       canonicalUrl: origin.canonicalUrl,
       content: enrichment.extract,
+      contentHash: origin.contentHash,
       limited: false,
       pageContentHash: enrichment.pageContentHash,
       sourceItemEnrichmentId: generation.sourceItemEnrichmentId,
@@ -822,6 +825,7 @@ export async function loadBoundCopyGenerationSourceInput(
     attribution: origin.attribution,
     canonicalUrl: origin.canonicalUrl,
     content: sourceText(origin),
+    contentHash: origin.contentHash,
     limited: true,
     pageContentHash: null,
     sourceItemEnrichmentId: null,
@@ -1774,7 +1778,13 @@ export async function settleCopyGeneration(
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
     const [current] = await tx
-      .select({ lifecycle: operation.lifecycle, version: operation.version })
+      .select({
+        commandType: operation.commandType,
+        lifecycle: operation.lifecycle,
+        platformDraftId: copyGeneration.platformDraftId,
+        requestedContentLocale: copyGeneration.requestedContentLocale,
+        version: operation.version,
+      })
       .from(operation)
       .innerJoin(copyGeneration, eq(copyGeneration.operationId, operation.id))
       .where(
@@ -1787,7 +1797,7 @@ export async function settleCopyGeneration(
         current.lifecycle,
       )
     ) {
-      return current;
+      return { lifecycle: current.lifecycle, version: current.version };
     }
 
     const units = await tx
@@ -1811,7 +1821,11 @@ export async function settleCopyGeneration(
         (unit) => unit.status === "pending" || unit.status === "running",
       )
     ) {
-      return { ...current, waiting: true as const };
+      return {
+        lifecycle: current.lifecycle,
+        version: current.version,
+        waiting: true as const,
+      };
     }
 
     const lifecycle: OperationLifecycle = forcedFailure
@@ -1823,6 +1837,24 @@ export async function settleCopyGeneration(
           : units.every((unit) => unit.status === "cancelled")
             ? "cancelled"
             : "failed";
+    const replacesLocaleVariants =
+      lifecycle === "succeeded" &&
+      (current.commandType === `${COPY_GENERATION_COMMAND_PREFIX}regenerate` ||
+        current.commandType ===
+          `${COPY_GENERATION_COMMAND_PREFIX}refresh_article`);
+    if (replacesLocaleVariants) {
+      const [draft] = await tx
+        .select({ id: platformDraft.id })
+        .from(platformDraft)
+        .where(
+          and(
+            inWorkspace(platformDraft, workspaceId),
+            eq(platformDraft.id, current.platformDraftId),
+          ),
+        )
+        .for("update");
+      if (!draft) throw new Error("copy generation draft missing");
+    }
     const [settled] = await tx
       .update(operation)
       .set({
@@ -1842,6 +1874,27 @@ export async function settleCopyGeneration(
         lifecycle: operation.lifecycle,
         version: operation.version,
       });
+    if (settled?.lifecycle === "succeeded" && replacesLocaleVariants) {
+      await tx.execute(sql`
+        delete from ${copyVariant}
+        using ${copyGenerationUnit}, ${copyGeneration}
+        where ${copyVariant.workspaceId} = ${workspaceId}
+          and ${copyVariant.contentLocale} = ${current.requestedContentLocale}
+          and ${copyGenerationUnit.workspaceId} = ${workspaceId}
+          and ${copyGenerationUnit.id} = ${copyVariant.copyGenerationUnitId}
+          and ${copyGeneration.workspaceId} = ${workspaceId}
+          and ${copyGeneration.operationId} = ${copyGenerationUnit.copyGenerationId}
+          and ${copyGeneration.platformDraftId} = ${current.platformDraftId}
+          and ${copyGeneration.requestedContentLocale} = ${current.requestedContentLocale}
+          and ${copyGeneration.operationId} <> ${operationId}
+          and not exists (
+            select 1
+            from ${draftRevision}
+            where ${draftRevision.workspaceId} = ${workspaceId}
+              and ${draftRevision.originatingCopyVariantId} = ${copyVariant.id}
+          )
+      `);
+    }
     return settled ?? null;
   });
 }

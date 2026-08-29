@@ -20,6 +20,37 @@ const SUPPORTED_IMAGE_MIME_TYPES: ReadonlySet<string> = new Set(
   REFERENCE_IMAGE_MIME_TYPES,
 );
 
+export async function decodeStaticRaster(
+  bytes: Uint8Array,
+  bounds: { maxDimension: number; maxPixels: number },
+) {
+  try {
+    const image = sharp(bytes, {
+      failOn: "warning",
+      limitInputPixels: bounds.maxPixels,
+    });
+    const metadata = await image.metadata();
+    await image.stats();
+    const mimeType = metadata.format
+      ? MIME_BY_FORMAT[metadata.format as keyof typeof MIME_BY_FORMAT]
+      : undefined;
+    if (
+      !mimeType ||
+      !metadata.width ||
+      !metadata.height ||
+      metadata.width > bounds.maxDimension ||
+      metadata.height > bounds.maxDimension ||
+      metadata.width * metadata.height > bounds.maxPixels ||
+      (metadata.pages ?? 1) !== 1
+    ) {
+      return null;
+    }
+    return { height: metadata.height, mimeType, width: metadata.width };
+  } catch {
+    return null;
+  }
+}
+
 export async function validateStaticRaster(
   bytes: Uint8Array,
   input: {
@@ -36,42 +67,14 @@ export async function validateStaticRaster(
   ) {
     throw new ImagePreparationError({ outcome: "definite" });
   }
-  const metadata = await sharp(bytes, {
-    failOn: "warning",
-    limitInputPixels: input.maxPixels,
-  })
-    .metadata()
-    .catch(() => {
-      throw new ImagePreparationError({ outcome: "definite" });
-    });
-  const decodedMime = metadata.format
-    ? MIME_BY_FORMAT[metadata.format as keyof typeof MIME_BY_FORMAT]
-    : undefined;
-  if (
-    !decodedMime ||
-    decodedMime !== input.mimeType ||
-    !metadata.width ||
-    !metadata.height ||
-    metadata.width > input.maxDimension ||
-    metadata.height > input.maxDimension ||
-    metadata.width * metadata.height > input.maxPixels ||
-    (metadata.pages ?? 1) !== 1
-  ) {
+  const decoded = await decodeStaticRaster(bytes, {
+    maxDimension: input.maxDimension,
+    maxPixels: input.maxPixels,
+  });
+  if (!decoded || decoded.mimeType !== input.mimeType) {
     throw new ImagePreparationError({ outcome: "definite" });
   }
-  await sharp(bytes, {
-    failOn: "warning",
-    limitInputPixels: input.maxPixels,
-  })
-    .stats()
-    .catch(() => {
-      throw new ImagePreparationError({ outcome: "definite" });
-    });
-  return {
-    height: metadata.height,
-    mimeType: decodedMime,
-    width: metadata.width,
-  };
+  return decoded;
 }
 
 export function workerStorage() {

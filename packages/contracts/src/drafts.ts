@@ -32,7 +32,7 @@ export const cardOriginReferenceSchema = z.discriminatedUnion("kind", [
 
 export type CardOriginReference = z.infer<typeof cardOriginReferenceSchema>;
 
-export const DRAFT_REVISION_COMMAND_KINDS = [
+export const PERSISTED_DRAFT_REVISION_COMMAND_KINDS = [
   "apply_copy_variant",
   "submit_content",
   "adopt_image",
@@ -40,8 +40,8 @@ export const DRAFT_REVISION_COMMAND_KINDS = [
   "select_revision",
 ] as const;
 
-export type DraftRevisionCommandKind =
-  (typeof DRAFT_REVISION_COMMAND_KINDS)[number];
+export type PersistedDraftRevisionCommandKind =
+  (typeof PERSISTED_DRAFT_REVISION_COMMAND_KINDS)[number];
 
 const draftHashtagSchema = z
   .string()
@@ -62,6 +62,7 @@ export type DraftRevisionMaterial = z.infer<typeof draftRevisionMaterialSchema>;
 
 export const IMAGE_SOURCE_PROJECTION_KINDS = [
   "rss_extract",
+  "rss_feed",
   "telegram_post",
   "promo_idea",
 ] as const;

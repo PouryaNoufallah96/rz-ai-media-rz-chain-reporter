@@ -51,6 +51,7 @@ import {
   settleCancelledImageOperationAndWakeNext,
   settleFailedImageOperationAndWakeNext,
   settleImageOperationAndWakeNext,
+  settleSupersededImageGeneration,
   stableImageIdentity,
 } from "@rz-chain-reporter/db/repositories/image-generation";
 import {
@@ -81,16 +82,13 @@ import {
 import {
   buildSelectionOutputSchema,
   type CreativeBriefFailure,
-  deterministicImageFallback,
   normalizeCreativeBrief,
   selectionSignature,
   validateImageSelection,
 } from "../image-selection";
 import { workerLogger } from "../logging/logger";
-
-import { createWorkerModelGateway } from "../model-gateway/worker-gateway";
+import { workerModelGateway } from "../model-gateway/worker-gateway";
 import { resolveArtifactRoot } from "../runtime/artifact-root";
-import { workerEnv } from "../runtime/env";
 import {
   notifyDraftsAndUsageChanged,
   notifyDraftsChanged,
@@ -110,6 +108,7 @@ import {
 import type { WorkerRuntime } from "./runtime";
 import { assertWorkspace } from "./runtime";
 
+const IMAGE_GENERATION_FUNCTION_ID = "image-generation" as const;
 export const IMAGE_PARENT_RETRIES = 2 as const;
 export const IMAGE_STAGE_RETRIES = 0 as const;
 export const IMAGE_STAGE_INVOKE_TIMEOUT = "10m";
@@ -146,7 +145,11 @@ const stageInvokeSchema = z.object({
 
 const stageResultSchema = z.strictObject({
   operationId: z.uuid(),
-  status: z.enum(["failed", "succeeded", "waiting"]),
+  status: z.enum(["failed", "succeeded", "superseded", "waiting"]),
+});
+
+const cancelledIdsSchema = z.object({
+  data: z.object({ function_id: z.string(), run_id: z.string() }),
 });
 
 const interruptedEnvelopeSchema = z.object({
@@ -164,18 +167,6 @@ type ImageArtifacts = {
   profile: ImageProfile;
   profileFingerprint: string;
 };
-
-function imageGateway(runtime: WorkerRuntime) {
-  return createWorkerModelGateway({
-    bindings: {
-      OLLAMA_BASE_URL: workerEnv.OLLAMA_BASE_URL,
-      OPENROUTER_API_KEY: workerEnv.OPENROUTER_API_KEY,
-    },
-    executor: runtime.db,
-    identity: runtime.identity,
-    template: runtime.template,
-  });
-}
 
 function loadArtifacts(
   runtime: WorkerRuntime,
@@ -216,10 +207,19 @@ function selectionPrompt(
   if (!source) throw new NonRetriableError("NOT_FOUND");
   return [
     "Select exactly one declared family and one allowed value for every declared axis; use null only for an axis whose response schema allows it.",
+    "The selection must satisfy every declared restriction clause.",
     imageTextLanguageInstruction(source.context.contentLocale),
     JSON.stringify({
       families: artifacts.profile.families,
       axes: artifacts.profile.axes,
+      restrictions: {
+        antiRepetition: artifacts.profile.restrictions.antiRepetition,
+        moodAccentDefault: artifacts.profile.restrictions.moodAccentDefault,
+        moodAccentRestricted:
+          artifacts.profile.restrictions.moodAccentRestricted,
+        environmentRestricted:
+          artifacts.profile.restrictions.environmentRestricted,
+      },
     }),
     JSON.stringify(source.source),
   ].join("\n\n");
@@ -287,28 +287,33 @@ async function publishImageTransition(
     step,
     workspaceId,
     {
+      actorId: context.actor,
       lifecycle: operation.lifecycle,
       operationId: context.operationId,
       operationVersion: operation.version,
+      sharedImport: false,
     },
     "worker.image-generation.realtime-unavailable",
   );
-  const notify = usageChanged
-    ? notifyDraftsAndUsageChanged
-    : notifyDraftsChanged;
-  await notify(
+  const change = await loadImageDraftChange(
     step,
+    runtime,
     workspaceId,
-    await loadImageDraftChange(
-      step,
-      runtime,
-      workspaceId,
-      context,
-      code,
-      callSite,
-    ),
+    context,
+    code,
     callSite,
   );
+  if (usageChanged) {
+    await notifyDraftsAndUsageChanged(
+      step,
+      workspaceId,
+      change,
+      callSite,
+      context.actor,
+    );
+  } else {
+    await notifyDraftsChanged(step, workspaceId, change, callSite);
+  }
 }
 
 function hasSettledUsage(
@@ -342,6 +347,41 @@ async function claimStage(
     operationId: input.operationId,
     stage,
   });
+}
+
+async function stopSupersededPaidStage(
+  runtime: WorkerRuntime,
+  input: z.infer<typeof stageInvokeSchema>,
+  expectedVersion: number,
+) {
+  const context = await findImageExecutionContext(
+    runtime.db,
+    input.workspaceId,
+    input.operationId,
+  );
+  if (
+    !context ||
+    context.claimedBy !== input.token ||
+    context.operationLifecycle !== "running" ||
+    context.operationVersion !== expectedVersion
+  ) {
+    return "waiting" as const;
+  }
+  const result = await settleSupersededImageGeneration(
+    runtime.db,
+    input.workspaceId,
+    {
+      claimedBy: input.token,
+      expectedVersion,
+      mediaBrandId: context.mediaBrandId,
+      operationId: input.operationId,
+    },
+  );
+  if (result.status === "current") return "current" as const;
+  if (result.status === "settled") {
+    return "superseded" as const;
+  }
+  return "waiting" as const;
 }
 
 async function renewImageSlotClaim(
@@ -685,6 +725,14 @@ export async function executeImageSelection(
     if (!renewed) {
       return { operationId: input.operationId, status: "waiting" } as const;
     }
+    const supersession = await stopSupersededPaidStage(
+      runtime,
+      input,
+      renewed.version,
+    );
+    if (supersession !== "current") {
+      return { operationId: input.operationId, status: supersession } as const;
+    }
     try {
       await gateway.invokeStructured({
         claimFence: {
@@ -707,6 +755,7 @@ export async function executeImageSelection(
           }),
         persistResult: async (tx, candidate) => {
           const checked = validateImageSelection(
+            artifacts.profileFingerprint,
             artifacts.profile,
             candidate,
             latest.map((item) => item.signature),
@@ -794,7 +843,7 @@ export async function executeImageSelection(
     input.operationId,
   );
   if (!rejected) throw new NonRetriableError("NOT_FOUND");
-  const fallback = deterministicImageFallback(artifacts.profile);
+  const fallback = artifacts.profile.fallbackBrief;
   const renewed = await renewImageSlotClaim(runtime, input);
   if (!renewed) {
     return { operationId: input.operationId, status: "waiting" } as const;
@@ -857,7 +906,7 @@ export async function executeImageCreativeBrief(
     const renewed = await renewImageSlotClaim(runtime, input);
     if (!renewed)
       return { operationId: input.operationId, status: "waiting" } as const;
-    const fallback = deterministicImageFallback(artifacts.profile);
+    const fallback = artifacts.profile.fallbackBrief;
     const assembled = assembleImagePrompt({
       brief: fallback.brief,
       brandBible: artifacts.brandBible,
@@ -937,6 +986,14 @@ export async function executeImageCreativeBrief(
     const renewed = await renewImageSlotClaim(runtime, input);
     if (!renewed) {
       return { operationId: input.operationId, status: "waiting" } as const;
+    }
+    const supersession = await stopSupersededPaidStage(
+      runtime,
+      input,
+      renewed.version,
+    );
+    if (supersession !== "current") {
+      return { operationId: input.operationId, status: supersession } as const;
     }
     const slot: { rejected: readonly CreativeBriefFailure[] } = {
       rejected: [],
@@ -1157,6 +1214,15 @@ export async function executeImageProvider(
     if (!renewed)
       return { operationId: input.operationId, status: "waiting" } as const;
 
+    const supersession = await stopSupersededPaidStage(
+      runtime,
+      input,
+      renewed.version,
+    );
+    if (supersession !== "current") {
+      return { operationId: input.operationId, status: supersession } as const;
+    }
+
     const providerInput = await loadImageProviderInput(
       runtime.db,
       input.workspaceId,
@@ -1333,12 +1399,13 @@ export async function executeImageBrandedFinal(
     input.operationId,
   );
   if (existing?.finalMediaAssetId) {
-    await attachFinalToGeneratingRevision(
+    const status = await attachFinalToGeneratingRevision(
       runtime,
+      input,
       existing,
       existing.finalMediaAssetId,
     );
-    return { operationId: input.operationId, status: "succeeded" } as const;
+    return { operationId: input.operationId, status } as const;
   }
   if (
     !existing ||
@@ -1426,7 +1493,10 @@ export async function executeImageBrandedFinal(
         width: prepared.width,
       },
       operationId: input.operationId,
-      selectionSignature: selectionSignature(selection),
+      selectionSignature: selectionSignature(
+        artifacts.profileFingerprint,
+        selection,
+      ),
     });
     if (attached === "not_owned") {
       return { operationId: input.operationId, status: "waiting" } as const;
@@ -1444,7 +1514,15 @@ export async function executeImageBrandedFinal(
       return { operationId: input.operationId, status: "waiting" } as const;
     }
   }
-  await attachFinalToGeneratingRevision(runtime, existing, mediaAssetId);
+  const attachment = await attachFinalToGeneratingRevision(
+    runtime,
+    input,
+    existing,
+    mediaAssetId,
+  );
+  if (attachment !== "succeeded") {
+    return { operationId: input.operationId, status: attachment } as const;
+  }
   const settled = await settleClaimedImageAttempt(
     runtime,
     input,
@@ -1459,31 +1537,46 @@ export async function executeImageBrandedFinal(
 
 async function attachFinalToGeneratingRevision(
   runtime: WorkerRuntime,
+  input: z.infer<typeof stageInvokeSchema>,
   context: NonNullable<Awaited<ReturnType<typeof findImageExecutionContext>>>,
   finalMediaAssetId: string,
 ) {
-  if (context.expectedRevisionVersion === null) return;
+  if (context.expectedImageIntentVersion === null) return "succeeded" as const;
   const result = await attachGeneratedFinalToRevision(
     runtime.db,
     context.workspaceId,
     {
-      actorId: context.actor,
-      draftRevisionId: context.draftRevisionId,
       finalMediaAssetId,
       operationId: context.operationId,
-      platformDraftId: context.platformDraftId,
-      expectedRevisionVersion: context.expectedRevisionVersion,
     },
   );
-  if (
-    "revision" in result ||
-    result.status === "media_content_mismatch" ||
-    result.status === "not_found" ||
-    result.status === "version_conflict"
-  ) {
-    return;
+  if (result.status === "attached" || result.status === "replayed") {
+    return "succeeded" as const;
   }
-  throw new Error(`automatic final image attachment failed: ${result.status}`);
+  if (result.status === "superseded" || result.status === "media_locked") {
+    const current = await findImageExecutionContext(
+      runtime.db,
+      input.workspaceId,
+      input.operationId,
+    );
+    if (
+      !current ||
+      current.claimedBy !== input.token ||
+      current.operationLifecycle !== "running"
+    ) {
+      return "superseded" as const;
+    }
+    const stopped = await stopSupersededPaidStage(
+      runtime,
+      input,
+      current.operationVersion,
+    );
+    if (stopped === "current") {
+      throw new Error("final image attachment supersession was not durable");
+    }
+    return stopped;
+  }
+  throw new Error(`final image attachment failed: ${result.status}`);
 }
 
 async function isBrandedFinalCommitted(
@@ -1542,7 +1635,15 @@ function toSourceProjection(
       version: "telegram-v1",
     };
   }
-  if (!source.sourceItemEnrichmentId || !source.pageContentHash) return null;
+  if (!source.sourceItemEnrichmentId || !source.pageContentHash) {
+    return {
+      digest,
+      id: source.sourceItemRevisionId,
+      kind: "rss_feed" as const,
+      secondaryDigest: source.contentHash,
+      version: "rss-feed-v1",
+    };
+  }
   return {
     digest,
     id: source.sourceItemEnrichmentId,
@@ -1622,7 +1723,7 @@ async function settleInterruptedImage(
 export function createImageGenerationFunctions(
   client: WorkerInngestClient,
   runtime: WorkerRuntime,
-  gatewayFactory: () => ModelGateway = () => imageGateway(runtime),
+  gatewayFactory: () => ModelGateway = () => workerModelGateway(runtime),
 ) {
   const stageConcurrency: [{ limit: number }] = [
     { limit: runtime.template.editorial.fanOut.unitConcurrency },
@@ -1677,7 +1778,7 @@ export function createImageGenerationFunctions(
   );
   const parent = client.createFunction(
     {
-      id: "image-generation",
+      id: IMAGE_GENERATION_FUNCTION_ID,
       retries: IMAGE_PARENT_RETRIES,
       triggers: [durableEvents.operationImageGenerationRequested],
       onFailure: async ({ event, step }) => {
@@ -1756,6 +1857,35 @@ export function createImageGenerationFunctions(
             timeout: IMAGE_STAGE_INVOKE_TIMEOUT,
           }),
         );
+        if (result.status === "superseded") {
+          context = await step.run(`reload-image-${id}-superseded`, () =>
+            findImageExecutionContext(runtime.db, workspaceId, operationId),
+          );
+          if (
+            context &&
+            IMAGE_TERMINAL_LIFECYCLES.includes(context.operationLifecycle)
+          ) {
+            const supersededTruth = await step.run(
+              `inspect-image-${id}-superseded-truth`,
+              () =>
+                inspectImageAttemptTruth(runtime.db, workspaceId, operationId),
+            );
+            await publishImageTransition(
+              step,
+              runtime,
+              workspaceId,
+              context,
+              {
+                lifecycle: context.operationLifecycle,
+                version: context.operationVersion,
+              },
+              "cancelled",
+              `image-${id}-superseded`,
+              hasSettledUsage(supersededTruth.rows),
+            );
+          }
+          return { operationId, status: "superseded" as const };
+        }
         if (result.status !== "succeeded") {
           if (result.status === "failed") {
             context = await step.run(`reload-image-${id}-failed`, () =>
@@ -1883,13 +2013,27 @@ export function createImageGenerationFunctions(
       triggers: [
         {
           event: "inngest/function.cancelled",
-          if: `event.data.function_id == '${client.id}-image-generation'`,
+          if: `event.data.function_id == '${client.id}-${IMAGE_GENERATION_FUNCTION_ID}'`,
         },
       ],
     },
     async ({ event, step }) => {
       const envelope = interruptedEnvelopeSchema.safeParse(event);
-      if (!envelope.success) return { settled: false };
+      if (!envelope.success) {
+        const ids = cancelledIdsSchema.safeParse(event);
+        await step.run("report-cancelled-event-invalid", async () => {
+          workerLogger.error(
+            "worker.image-generation.cancelled-event-invalid",
+            {
+              errorCode: "VALIDATION_FAILED",
+              functionId: ids.success ? ids.data.data.function_id : undefined,
+              runId: ids.success ? ids.data.data.run_id : undefined,
+            },
+          );
+          return { parsed: false };
+        });
+        return { settled: false };
+      }
       const { operationId, workspaceId } = envelope.data.data.event.data;
       return settleInterruptedImage(
         step,

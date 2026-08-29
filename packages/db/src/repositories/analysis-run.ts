@@ -875,8 +875,6 @@ type SettledAnalysisRun = {
   cancelled: boolean;
 };
 
-// Boundaries (i)-(iv): the cancellation reached the run before any unit could
-// be invoked, so it is effective by construction and no progress read applies.
 export async function cancelAnalysisRunInBand(
   executor: Executor,
   workspaceId: string,

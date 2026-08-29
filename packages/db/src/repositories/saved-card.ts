@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { classifyDbError } from "../db-error";
 import {
   type Executor,
@@ -9,7 +9,7 @@ import { inWorkspace, liveInWorkspace } from "../filters";
 import { activityEvent } from "../schema/activity-event";
 import { platformDraft } from "../schema/platform-draft";
 import { savedCard } from "../schema/saved-card";
-import { appendActivityEvent } from "./activity-event";
+import { appendActivityEvent, lockActivityIdentity } from "./activity-event";
 import { ownedDraftExists } from "./draft-origin";
 
 type SavedCardRow = typeof savedCard.$inferSelect;
@@ -37,7 +37,12 @@ export async function savePlatformDraft(
   return executor
     .transaction(async (tx): Promise<SavedCardCommandResult> => {
       await withWorkspaceContext(tx, workspaceId);
-      await lockIdentity(tx, workspaceId, input.actorId, input.idempotencyKey);
+      await lockActivityIdentity(
+        tx,
+        workspaceId,
+        "saved_card.saved",
+        input.idempotencyKey,
+      );
       const activity = await appendActivityEvent(tx, workspaceId, {
         actorId: input.actorId,
         eventType: "saved_card.saved",
@@ -144,7 +149,12 @@ export async function mutateSavedCard(
   return executor
     .transaction(async (tx): Promise<SavedCardCommandResult> => {
       await withWorkspaceContext(tx, workspaceId);
-      await lockIdentity(tx, workspaceId, input.actorId, input.idempotencyKey);
+      await lockActivityIdentity(
+        tx,
+        workspaceId,
+        eventType,
+        input.idempotencyKey,
+      );
       const activity = await appendActivityEvent(tx, workspaceId, {
         actorId: input.actorId,
         eventType,
@@ -225,15 +235,4 @@ async function readSavedCard(
     .from(savedCard)
     .where(and(inWorkspace(savedCard, workspaceId), eq(savedCard.id, id)));
   return row ?? null;
-}
-
-async function lockIdentity(
-  executor: Executor,
-  workspaceId: string,
-  actorId: string,
-  idempotencyKey: string,
-) {
-  await executor.execute(
-    sql`select pg_advisory_xact_lock(hashtextextended(${`${workspaceId}:${actorId}:${idempotencyKey}`}, 0))`,
-  );
 }

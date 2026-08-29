@@ -659,11 +659,21 @@ async function nextLanePosition(
   const result = await tx.execute<{ lanePosition: number }>(sql`
     select coalesce(max(draft.lane_position), 0)::int + 1 as "lanePosition"
     from platform_draft draft
-    left join editorial_selection selection on selection.id = draft.editorial_selection_id
-    left join analysis_model_unit selection_unit on selection_unit.id = selection.analysis_model_unit_id
-    left join filter_result telegram on telegram.id = draft.telegram_filter_result_id
-    left join promo_idea promo on promo.id = draft.promo_idea_id
-    left join analysis_model_unit promo_unit on promo_unit.id = promo.analysis_model_unit_id
+    left join editorial_selection selection
+      on selection.id = draft.editorial_selection_id
+      and selection.workspace_id = draft.workspace_id
+    left join analysis_model_unit selection_unit
+      on selection_unit.id = selection.analysis_model_unit_id
+      and selection_unit.workspace_id = draft.workspace_id
+    left join filter_result telegram
+      on telegram.id = draft.telegram_filter_result_id
+      and telegram.workspace_id = draft.workspace_id
+    left join promo_idea promo
+      on promo.id = draft.promo_idea_id
+      and promo.workspace_id = draft.workspace_id
+    left join analysis_model_unit promo_unit
+      on promo_unit.id = promo.analysis_model_unit_id
+      and promo_unit.workspace_id = draft.workspace_id
     where draft.workspace_id = ${workspaceId}::uuid
       and draft.media_brand_id = ${mediaBrandId}::uuid
       and draft.platform = ${platform}::platform
