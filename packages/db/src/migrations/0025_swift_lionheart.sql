@@ -1,0 +1,1 @@
+DROP INDEX "ix_activity_event_workspace_occurred_id";

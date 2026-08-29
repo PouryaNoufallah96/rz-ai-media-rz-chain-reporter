@@ -37,6 +37,7 @@ export const platformDraft = pgTable(
     version: integer("version").default(1).notNull(),
     activeRevisionId: uuid("active_revision_id"),
     revisionVersion: integer("revision_version").default(0).notNull(),
+    projectionVersion: integer("projection_version").default(0).notNull(),
     ...timestamps,
     ...softDelete,
   },
@@ -87,6 +88,10 @@ export const platformDraft = pgTable(
     check(
       "ck_platform_draft_revision_version_nonnegative",
       sql`${t.revisionVersion} >= 0`,
+    ),
+    check(
+      "ck_platform_draft_projection_version_nonnegative",
+      sql`${t.projectionVersion} >= 0`,
     ),
     uniqueIndex("uq_platform_draft_active_editorial_selection_route")
       .on(t.workspaceId, t.editorialSelectionId, t.mediaBrandId, t.platform)

@@ -27,6 +27,7 @@ export const imageGeneration = pgTable(
     ...workspaceScope,
     draftRevisionId: uuid("draft_revision_id").notNull(),
     expectedRevisionVersion: integer("expected_revision_version"),
+    expectedImageIntentVersion: integer("expected_image_intent_version"),
     imageBriefId: uuid("image_brief_id"),
     operatorDirection: text("operator_direction"),
     modelOptionKey: text("model_option_key").notNull(),
@@ -42,6 +43,10 @@ export const imageGeneration = pgTable(
     check(
       "ck_image_generation_expected_revision_version_nonnegative",
       sql`${t.expectedRevisionVersion} is null or ${t.expectedRevisionVersion} >= 0`,
+    ),
+    check(
+      "ck_image_generation_expected_image_intent_version_nonnegative",
+      sql`${t.expectedImageIntentVersion} is null or ${t.expectedImageIntentVersion} >= 0`,
     ),
     foreignKey({
       name: "fk_image_generation_operation_id",
@@ -117,6 +122,12 @@ export const imageGeneration = pgTable(
     index("ix_image_generation_workspace_image_brief_created_at").on(
       t.workspaceId,
       t.imageBriefId,
+      t.createdAt.desc(),
+      t.operationId,
+    ),
+    index("ix_image_generation_workspace_draft_revision_created_at").on(
+      t.workspaceId,
+      t.draftRevisionId,
       t.createdAt.desc(),
       t.operationId,
     ),
