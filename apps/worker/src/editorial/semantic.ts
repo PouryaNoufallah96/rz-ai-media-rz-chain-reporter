@@ -3,6 +3,7 @@ import { cosineSimilarity } from "ai";
 
 import type { SimilarityPair } from "./dedup";
 import type { Prepared } from "./pipeline";
+import type { TopicGroup } from "./scoring";
 
 export class SemanticVectorError extends Error {
   readonly reason: SemanticDegradedReason;
@@ -35,9 +36,11 @@ export function planSemanticStage(
   const embedded = prepared.items.filter(
     (item) => item.semanticParticipation === "included",
   );
-  const topics = prepared.topics
-    .slice(0, semantic.maxTopics)
-    .map((topic) => bound(topic, semantic.maxChars));
+  const topics = semanticTopicValues(
+    prepared.topicGroups,
+    semantic.maxTopics,
+    semantic.maxChars,
+  );
 
   const values = [
     ...embedded.map((item) => bound(item.projection, semantic.maxChars)),
@@ -69,6 +72,16 @@ export function planSemanticStage(
       brands: layoutBrands,
     },
   };
+}
+
+export function semanticTopicValues(
+  topicGroups: readonly TopicGroup[],
+  maxTopics: number,
+  maxChars: number,
+) {
+  return topicGroups
+    .slice(0, maxTopics)
+    .map((group) => bound(group.effective, maxChars));
 }
 
 export function rankFromVectors(
