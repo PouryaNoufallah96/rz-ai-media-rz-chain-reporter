@@ -75,7 +75,7 @@ export default async function RootLayout({
       <body className="min-w-0 antialiased">
         <Providers locale={locale} timeZone={customerTimeZone}>
           <div
-            className="grid min-h-svh min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]"
+            className="grid min-h-svh min-w-0 grid-cols-1 grid-rows-[auto_minmax(0,1fr)_auto]"
             data-app-shell
           >
             <Header />

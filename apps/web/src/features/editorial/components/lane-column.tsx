@@ -23,6 +23,7 @@ import {
   SelectionLaneCard,
   TelegramLaneCard,
 } from "./lane-card";
+import { LANE_WIDTH_CLASS_NAME } from "./lane-layout";
 
 const UNIT_MARK: Record<ModelUnitStatus, StateMarkState> = {
   pending: "queued",
@@ -31,12 +32,6 @@ const UNIT_MARK: Record<ModelUnitStatus, StateMarkState> = {
   failed: "failed",
   cancelled: "cancelled",
 };
-
-const SKELETON_BARS = [
-  "[animation-delay:0s]",
-  "[animation-delay:-0.8s]",
-  "[animation-delay:-1.6s]",
-];
 
 export type ModelSlot = {
   brandKey: string;
@@ -69,6 +64,9 @@ export function ModelLaneColumn({
   const fallback = lane?.invocationKey === "fallback";
   const cardCount =
     (promo ? lane?.promoIdeas.length : lane?.selections.length) ?? 0;
+  const waitingForCards =
+    cardCount === 0 &&
+    (lane?.status === "pending" || lane?.status === "running");
   const recovered =
     lane?.status === "succeeded" && cardCount > 0 && lane.failureCode !== null;
 
@@ -110,7 +108,7 @@ export function ModelLaneColumn({
         ) : (
           <LaneSkeleton />
         )
-      ) : lane.status === "pending" ? (
+      ) : waitingForCards ? (
         <LaneSkeleton />
       ) : promo ? (
         <>
@@ -219,19 +217,22 @@ function LaneColumn({
   return (
     <section
       aria-label={title}
-      className="flex w-[clamp(260px,30vw,320px)] shrink-0 snap-start flex-col rounded-lg bg-muted/60 max-[599px]:w-[min(300px,calc(100vw-32px))]"
+      className={cn(
+        "flex shrink-0 snap-start flex-col rounded-lg bg-muted/60",
+        LANE_WIDTH_CLASS_NAME,
+      )}
     >
       <header className="px-3 py-3">
         <div className="flex items-start gap-2">
           {mark}
-          <h3 className="ticket-label wrap-anywhere min-w-0 flex-1">{title}</h3>
+          <h4 className="ticket-label wrap-anywhere min-w-0 flex-1">{title}</h4>
           <span className="rounded-md bg-background px-1.5 text-muted-foreground text-xs tabular-nums">
             {format.number(count)}
           </span>
         </div>
         <p className="mt-1 flex flex-wrap gap-1 text-muted-foreground text-xs">
           {status}
-          <span className="min-[600px]:hidden">
+          <span className="compact:hidden">
             {t("lane.position", { i: index + 1, n: total })}
           </span>
         </p>
@@ -249,10 +250,6 @@ function LaneEmpty({
   status: ModelUnitStatus | null;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
-
-  if (status === "running") {
-    return null;
-  }
 
   return (
     <Empty className="p-4">
@@ -286,8 +283,8 @@ function LaneSkeleton() {
       <span className="sr-only" role="status">
         {t("table.loading")}
       </span>
-      {SKELETON_BARS.map((delay) => (
-        <Skeleton className={cn("h-12 w-full", delay)} key={delay} />
+      {Array.from({ length: 3 }, (_, index) => (
+        <Skeleton className="h-12 w-full" key={index} pace="live" />
       ))}
     </div>
   );

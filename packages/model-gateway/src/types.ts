@@ -159,6 +159,7 @@ export type StructuredModelResult<TOutput> = {
 
 export type EmbeddingModelInvocation = {
   abortSignal?: AbortSignal;
+  claimFence?: ModelInvocationClaimFence;
   deadlineMs: number;
   invocationKey: InvocationKey;
   operationAttemptId: string;

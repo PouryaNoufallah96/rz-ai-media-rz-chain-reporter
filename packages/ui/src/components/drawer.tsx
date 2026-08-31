@@ -36,10 +36,22 @@ const POPUP_GEOMETRY: Record<DrawerSide, string> = {
   "block-start":
     "max-h-[85dvh] w-full flex-col border-b after:inset-x-0 after:bottom-full after:h-(--drawer-bleed)",
   "inline-end":
-    "h-full w-[min(400px,95vw)] flex-row border-s after:inset-y-0 after:start-full after:w-(--drawer-bleed)",
+    "h-full w-[min(400px,95vw)] flex-row border-s after:inset-y-0 after:inset-s-full after:w-(--drawer-bleed)",
   "inline-start":
-    "h-full w-[min(400px,95vw)] flex-row border-e after:inset-y-0 after:end-full after:w-(--drawer-bleed)",
+    "h-full w-[min(400px,95vw)] flex-row border-e after:inset-y-0 after:inset-e-full after:w-(--drawer-bleed)",
 };
+
+const BODY_SAFE_AREA_PADDING: Record<DrawerSide, string> = {
+  "block-end": "pb-[calc(var(--drawer-padding)+env(safe-area-inset-bottom))]",
+  "block-start": "pt-[calc(var(--drawer-padding)+env(safe-area-inset-top))]",
+  "inline-end":
+    "ltr:pr-[calc(var(--drawer-padding)+env(safe-area-inset-right))] rtl:pl-[calc(var(--drawer-padding)+env(safe-area-inset-left))]",
+  "inline-start":
+    "ltr:pl-[calc(var(--drawer-padding)+env(safe-area-inset-left))] rtl:pr-[calc(var(--drawer-padding)+env(safe-area-inset-right))]",
+};
+
+const CLOSE_SAFE_AREA_POSITION =
+  "top-[calc(--spacing(4)+env(safe-area-inset-top))] ltr:right-[calc(--spacing(4)+env(safe-area-inset-right))] rtl:left-[calc(--spacing(4)+env(safe-area-inset-left))]";
 
 // Base UI's physical `SwipeDirection` ignores the direction provider, so resolve
 // inline sides here instead of using a direction-scoped override.
@@ -182,7 +194,7 @@ function DrawerPopup({
     <DrawerPrimitive.Popup
       data-slot="drawer-popup"
       className={cn(
-        "data-ending-style:transform-(--drawer-closed-transform) data-starting-style:transform-(--drawer-closed-transform) group/drawer-popup transform-(--drawer-open-transform) pointer-events-auto relative flex select-none bg-popover bg-clip-padding text-popover-foreground text-xs/relaxed shadow-lg outline-none transition-transform duration-200 ease-out [--drawer-bleed:3rem] after:pointer-events-none after:absolute after:bg-popover data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*200ms)] data-swiping:duration-0 motion-reduce:transition-none",
+        "data-ending-style:transform-(--drawer-closed-transform) data-starting-style:transform-(--drawer-closed-transform) group/drawer-popup transform-(--drawer-open-transform) pointer-events-auto relative flex select-none bg-popover bg-clip-padding text-popover-foreground text-xs/relaxed shadow-lg outline-none transition-transform duration-200 ease-out [--drawer-bleed:3rem] [--drawer-padding:--spacing(4)] after:pointer-events-none after:absolute after:bg-popover data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*200ms)] data-swiping:duration-0 motion-reduce:transition-none",
         POPUP_GEOMETRY[side],
         POPUP_TRANSFORM[swipeDirection],
         className,
@@ -192,7 +204,10 @@ function DrawerPopup({
       {showHandle ? <DrawerHandle /> : null}
       <DrawerPrimitive.Content
         data-slot="drawer-body"
-        className="flex min-h-0 flex-1 select-text flex-col gap-4 overflow-y-auto overscroll-contain p-4 group-data-swiping/drawer-popup:select-none"
+        className={cn(
+          "flex min-h-0 flex-1 select-text flex-col gap-4 overflow-y-auto overscroll-contain p-(--drawer-padding) group-data-swiping/drawer-popup:select-none",
+          BODY_SAFE_AREA_PADDING[side],
+        )}
       >
         {children}
       </DrawerPrimitive.Content>
@@ -201,7 +216,7 @@ function DrawerPopup({
           data-slot="drawer-close"
           render={
             <Button
-              className="absolute inset-e-4 top-4"
+              className={cn("absolute", CLOSE_SAFE_AREA_POSITION)}
               size="icon-sm"
               variant="ghost"
             />

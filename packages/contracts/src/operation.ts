@@ -2,25 +2,60 @@ import { z } from "zod";
 
 import {
   ANALYSIS_RUN_COMMAND_PREFIX,
+  COPY_VARIANT_TRANSLATION_COMMAND_TYPE,
   GENERATION_PROBE_COMMAND_PREFIX,
   MEDIA_UPLOAD_CONFIRMED_EVENT_NAME,
+  PRESENTATION_TRANSLATION_COMMAND_TYPE,
   SCHEDULED_EFFECT_PROBE_COMMAND_PREFIX,
   SOURCE_IMPORT_COMMAND_PREFIX,
 } from "./events";
 
-export const OPERATION_LIFECYCLES = [
+export const OPERATION_IN_PROGRESS_LIFECYCLES = [
   "queued",
   "running",
   "settling",
+] as const;
+
+export const OPERATION_SETTLED_LIFECYCLES = [
   "succeeded",
   "failed",
   "cancelled",
   "unknown",
 ] as const;
 
+export const OPERATION_LIFECYCLES = [
+  ...OPERATION_IN_PROGRESS_LIFECYCLES,
+  ...OPERATION_SETTLED_LIFECYCLES,
+] as const;
+
 export type OperationLifecycle = (typeof OPERATION_LIFECYCLES)[number];
+export type InProgressOperationLifecycle =
+  (typeof OPERATION_IN_PROGRESS_LIFECYCLES)[number];
+export type SettledOperationLifecycle =
+  (typeof OPERATION_SETTLED_LIFECYCLES)[number];
 
 export const operationLifecycleSchema = z.enum(OPERATION_LIFECYCLES);
+
+export function isOperationInProgress(
+  lifecycle: OperationLifecycle | null | undefined,
+): lifecycle is InProgressOperationLifecycle {
+  return (
+    lifecycle === "queued" ||
+    lifecycle === "running" ||
+    lifecycle === "settling"
+  );
+}
+
+export function isOperationSettled(
+  lifecycle: OperationLifecycle | null | undefined,
+): lifecycle is SettledOperationLifecycle {
+  return (
+    lifecycle === "succeeded" ||
+    lifecycle === "failed" ||
+    lifecycle === "cancelled" ||
+    lifecycle === "unknown"
+  );
+}
 
 export const ATTEMPT_OUTCOMES = [
   "succeeded",
@@ -118,6 +153,8 @@ export const OPERATION_COMMAND_KINDS = [
   "media-verification",
   "source-import",
   "analysis-run",
+  "presentation-translation",
+  "copy-variant-translation",
   "other",
 ] as const;
 
@@ -137,6 +174,12 @@ export function operationCommandKind(
   }
   if (commandType.startsWith(ANALYSIS_RUN_COMMAND_PREFIX)) {
     return "analysis-run";
+  }
+  if (commandType === PRESENTATION_TRANSLATION_COMMAND_TYPE) {
+    return "presentation-translation";
+  }
+  if (commandType === COPY_VARIANT_TRANSLATION_COMMAND_TYPE) {
+    return "copy-variant-translation";
   }
   if (commandType === MEDIA_UPLOAD_CONFIRMED_EVENT_NAME) {
     return "media-verification";

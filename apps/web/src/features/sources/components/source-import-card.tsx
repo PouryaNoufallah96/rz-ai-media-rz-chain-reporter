@@ -65,7 +65,7 @@ export function SourceImportRuns({ imports }: { imports: SourceImportsView }) {
             </h2>
             <SourcesFreshness readAt={imports.readAt} />
           </header>
-          <div className="lg:scrollbar-gutter-stable lg:min-h-0 lg:overflow-y-auto lg:px-1">
+          <div className="lg:scrollbar-gutter-stable lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:px-1">
             {current ? (
               <SourceImportRunCard card={current} />
             ) : (
@@ -91,7 +91,7 @@ export function SourceImportRuns({ imports }: { imports: SourceImportsView }) {
             >
               {t("import.recent.title")}
             </h2>
-            <ul className="scrollbar-gutter-stable max-h-128 overflow-y-auto px-1 lg:max-h-none lg:min-h-0 lg:flex-1">
+            <ul className="scrollbar-gutter-stable max-h-128 overflow-y-auto overscroll-contain px-1 lg:max-h-none lg:min-h-0 lg:flex-1">
               {older.map((card) => (
                 <li
                   className="border-border border-b last:border-b-0"
@@ -122,7 +122,7 @@ function SourceImportRunCard({ card }: { card: ImportCard }) {
       <CollapsibleTrigger
         render={<Button variant="ghost" />}
         aria-label={t("import.toggle", { id: shortId })}
-        className="group h-auto w-full min-w-0 items-start justify-start gap-3 whitespace-normal p-2 text-start font-normal"
+        className="group h-auto w-full min-w-0 items-start justify-start gap-3 whitespace-normal p-2 text-start font-normal max-sm:min-h-11"
         type="button"
       >
         <StateMark
@@ -150,7 +150,7 @@ function SourceImportRunCard({ card }: { card: ImportCard }) {
         >
           {format.dateTime(card.createdAt, { timeStyle: "short" })}
         </time>
-        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-180" />
+        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-180 motion-reduce:transition-none" />
       </CollapsibleTrigger>
       <CollapsibleContent>
         <section

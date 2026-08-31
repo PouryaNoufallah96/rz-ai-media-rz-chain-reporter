@@ -28,6 +28,7 @@ export function SourcesFreshness({ readAt }: { readAt: Date }) {
       </div>
       <Button
         aria-busy={isRefreshing}
+        className="max-sm:min-h-11"
         disabled={isRefreshing}
         onClick={refresh}
         size="xs"

@@ -7,7 +7,6 @@ import {
 import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
-import { useQueryClient } from "@tanstack/react-query";
 import type { TableOptions } from "@tanstack/react-table";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
@@ -21,8 +20,10 @@ import {
   useKeysetDataTable,
 } from "@/components/data-table/use-keyset-data-table";
 import { LabeledSelect } from "@/components/form/form-field";
-import { focusOperation } from "@/features/operations/lib/focus-operation";
-import { operationsListQueriesKey } from "@/features/operations/lib/operations-list-query";
+import {
+  focusOperation,
+  operationCreated,
+} from "@/features/operations/lib/focus-operation";
 import type { KeysetPage } from "@/features/shared/lib/keyset-cursor";
 import { useAction } from "@/hooks/use-action";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
@@ -82,27 +83,15 @@ export function PublishingDesk({
 }) {
   const t = useTranslations(PUBLISHING_NAMESPACE);
   const format = useFormatter();
-  const queryClient = useQueryClient();
   const { isPending, setValues } = useTransitionUrlState(
     publishingSearchParsers,
   );
-  const invalidateOperations = () => {
-    void queryClient.invalidateQueries({ queryKey: operationsListQueriesKey });
-  };
   const pause = useAction(pausePublishingAction);
   const resume = useAction(resumePublishingAction);
-  const recover = useAction(recoverMissedPublicationAction, {
-    onSuccess: invalidateOperations,
-  });
-  const reschedule = useAction(reschedulePublicationAction, {
-    onSuccess: invalidateOperations,
-  });
-  const retry = useAction(retryPublicationAction, {
-    onSuccess: invalidateOperations,
-  });
-  const reconcile = useAction(reconcilePublicationAction, {
-    onSuccess: invalidateOperations,
-  });
+  const recover = useAction(recoverMissedPublicationAction);
+  const reschedule = useAction(reschedulePublicationAction);
+  const retry = useAction(retryPublicationAction);
+  const reconcile = useAction(reconcilePublicationAction);
   const attest = useAction(attestTelegramPublicationAction);
   const [intent, setIntent] = useState<DeskIntent | null>(null);
   const reconciliationOperationId =
@@ -187,6 +176,10 @@ export function PublishingDesk({
       if (result.status !== "success") return { error: t("error.command") };
       return undefined;
     };
+    const confirmOperationCommand = async (command: OperationCommand) =>
+      (await signalCreatedOperation(command))
+        ? undefined
+        : { error: t("error.command") };
     if (!intent) return { error: t("error.command") };
     if (intent.kind === "pause" || intent.kind === "resume") {
       const input = {
@@ -200,7 +193,7 @@ export function PublishingDesk({
     }
     const row = intent.row;
     if (intent.kind === "recover" && row.scheduleId) {
-      return confirmCommand(
+      return confirmOperationCommand(
         recover.execute({
           scheduleId: row.scheduleId,
           expectedVersion: row.version,
@@ -215,7 +208,7 @@ export function PublishingDesk({
         installationTimeZone,
       );
       if (!scheduledAt) return { error: t("error.command") };
-      return confirmCommand(
+      return confirmOperationCommand(
         reschedule.execute({
           scheduleId: row.scheduleId,
           expectedVersion: row.version,
@@ -225,7 +218,7 @@ export function PublishingDesk({
       );
     }
     if (intent.kind === "retry") {
-      return confirmCommand(
+      return confirmOperationCommand(
         retry.execute({
           publicationId: row.publicationId,
           expectedVersion: row.publicationVersion,
@@ -295,7 +288,10 @@ export function PublishingDesk({
       : t("desk.confirmRecordDescription", facts);
   })();
   return (
-    <section className="mt-6" aria-labelledby="dispatch-ledger-title">
+    <section
+      className="mt-6 max-sm:**:data-[slot=button]:min-h-11 max-sm:**:data-[slot=input]:min-h-11 max-sm:**:data-[slot=select-trigger]:min-h-11 max-sm:**:data-[slot=button]:min-w-11"
+      aria-labelledby="dispatch-ledger-title"
+    >
       <PublishingDeskToolbar
         environmentForcedPause={environmentForcedPause}
         onPauseToggle={() => setIntent({ kind: paused ? "resume" : "pause" })}
@@ -362,6 +358,23 @@ export function PublishingDesk({
       />
     </section>
   );
+}
+
+type OperationCommand = Promise<{
+  data?: {
+    operationId: string;
+    status: "created" | "replayed";
+  };
+  status: string;
+}>;
+
+async function signalCreatedOperation(command: OperationCommand) {
+  const result = await command;
+  if (result.status !== "success" || !result.data) return false;
+  if (result.data.status === "created") {
+    operationCreated(result.data.operationId);
+  }
+  return true;
 }
 
 function PublishingDeskToolbar({

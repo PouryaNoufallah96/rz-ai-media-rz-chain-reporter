@@ -164,7 +164,12 @@ try {
     "instagram",
     "news-telegram-platform",
   );
-  observed.push("news-selected-platform-admission-no-effects");
+  await assertRejectedWithoutEffects(
+    { kind: "promo_idea", promoIdeaId },
+    "x",
+    "promo-platform",
+  );
+  observed.push("selected-platform-admission-no-effects");
 
   assertStatus(
     (
@@ -362,6 +367,7 @@ function copyInput(
       ...base,
       ...versionIdentity,
       mode,
+      requestedContentLocale: "en" as const,
     };
   }
   return {
@@ -1034,7 +1040,11 @@ async function proveVisibleCopyVariantSources(input: {
     actorId: actor,
     platformDraftId: input.draftId,
     commandKind: "submit_content",
-    source: { kind: "copy_variant", id: baselineVariantId },
+    source: {
+      kind: "copy_variant",
+      id: baselineVariantId,
+      contentLocale: input.currentContent.contentLocale,
+    },
     content: input.currentContent,
     expectedActive: {
       id: input.activeRevisionId,
@@ -1077,7 +1087,11 @@ async function proveVisibleCopyVariantSources(input: {
     actorId: actor,
     platformDraftId: input.draftId,
     commandKind: "submit_content",
-    source: { kind: "copy_variant", id: baselineVariantId },
+    source: {
+      kind: "copy_variant",
+      id: baselineVariantId,
+      contentLocale: input.currentContent.contentLocale,
+    },
     content: input.currentContent,
     expectedActive: {
       id: input.activeRevisionId,
@@ -1113,7 +1127,11 @@ async function proveVisibleCopyVariantSources(input: {
       actorId: actor,
       platformDraftId: input.draftId,
       commandKind: "submit_content",
-      source: { kind: "copy_variant", id: baselineVariantId },
+      source: {
+        kind: "copy_variant",
+        id: baselineVariantId,
+        contentLocale: input.currentContent.contentLocale,
+      },
       content: input.currentContent,
       expectedActive: {
         id: input.activeRevisionId,
@@ -1133,7 +1151,11 @@ async function proveVisibleCopyVariantSources(input: {
     actorId: actor,
     platformDraftId: input.draftId,
     commandKind: "submit_content",
-    source: { kind: "copy_variant", id: replacementVariantId },
+    source: {
+      kind: "copy_variant",
+      id: replacementVariantId,
+      contentLocale: input.currentContent.contentLocale,
+    },
     content: input.currentContent,
     expectedActive: {
       id: input.activeRevisionId,
@@ -1169,7 +1191,7 @@ async function proveVisibleCopyVariantSources(input: {
     actorId: actor,
     platformDraftId: input.draftId,
     commandKind: "submit_content",
-    source: { kind: "copy_variant", id: retryVariantId },
+    source: { kind: "copy_variant", id: retryVariantId, contentLocale: "en" },
     content: generationContent("retry"),
     expectedActive: {
       id: replacementRevision.revision.id,
@@ -1335,7 +1357,11 @@ async function revisionSubmitInput(
     actorId: actor,
     platformDraftId,
     commandKind: "submit_content",
-    source: { kind: "copy_variant", id: copyVariantId },
+    source: {
+      kind: "copy_variant",
+      id: copyVariantId,
+      contentLocale: content.contentLocale,
+    },
     content,
     idempotencyKey,
     requestHash,
@@ -1618,6 +1644,7 @@ async function insertFixture() {
       JSON.stringify({
         kind: "promo",
         models: ["probe-model"],
+        platforms: ["instagram"],
         promo: { brands: ["probe"], prompts: { probe: "Probe" } },
       }),
     ],

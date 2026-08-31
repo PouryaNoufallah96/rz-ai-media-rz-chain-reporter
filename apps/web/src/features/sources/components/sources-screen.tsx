@@ -30,7 +30,7 @@ export function SourcesScreen({
     >
       {([t, format]) => (
         <>
-          <h1 className="font-semibold text-2xl tracking-display">
+          <h1 className="text-balance font-semibold text-2xl tracking-display">
             {t("title")}
           </h1>
           <Suspended
@@ -39,7 +39,7 @@ export function SourcesScreen({
           >
             {(catalog) => (
               <>
-                <p className="mt-2 text-muted-foreground text-sm/relaxed">
+                <p className="mt-2 text-pretty text-muted-foreground text-sm/relaxed">
                   {catalog.lastImportAt
                     ? t("caption.sourceCount", {
                         rss: countOf(catalog.entries, "rss"),

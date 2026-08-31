@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "./dotmatrix-loader.css";
-@source "../../../../apps/**/*.{ts,tsx}";
+@source "../../../../apps/web/src/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
 @custom-variant dark (&:is(.dark *));
@@ -107,6 +107,9 @@
 }
 
 @theme inline {
+  --breakpoint-compact: 37.5rem;
+  --breakpoint-workspace: 56.25rem;
+  --breakpoint-wide: 75rem;
   --font-sans: var(--font-ui-sans), sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -147,6 +150,17 @@
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
   --animate-dmx-spiral: dmx-spiral-snake 1110ms linear infinite;
+  --animate-ready-ring: ready-ring 2s ease-in-out infinite;
+}
+
+@keyframes ready-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--primary) 32%, transparent);
+  }
 }
 
 @layer base {
@@ -172,11 +186,11 @@
   #main-content {
     scroll-margin-block-start: 7rem;
   }
-}
 
-@media (min-width: 40rem) {
-  #main-content {
-    scroll-margin-block-start: 4rem;
+  @variant sm {
+    #main-content {
+      scroll-margin-block-start: 4rem;
+    }
   }
 }
 

@@ -17,7 +17,7 @@ export type { ImageProfile } from "./image-profile";
 export { imageProfileSchema } from "./image-profile";
 
 // Bump only when a previously valid customer template no longer loads.
-export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 7;
+export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 8;
 
 const trimmedText = z
   .string()
@@ -123,6 +123,7 @@ export const MODEL_TASK_KEYS = [
   "generation-probe",
   "keyword-embedding",
   "enrichment-brief",
+  "text-translation",
   "image-template-selection",
   "image-creative-brief",
 ] as const;
@@ -646,6 +647,7 @@ function reportEditorialIssues(
   const requiredTaskKeys = [
     "assistant-synthesis",
     "keyword-embedding",
+    "text-translation",
     "image-template-selection",
     "image-creative-brief",
     ...(template.enrichment.enabled ? (["enrichment-brief"] as const) : []),

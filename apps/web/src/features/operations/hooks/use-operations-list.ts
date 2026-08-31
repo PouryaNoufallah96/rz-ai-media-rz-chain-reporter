@@ -1,20 +1,22 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { orpc } from "@/lib/orpc";
 
 import {
   operationsListInput,
-  operationsListQueriesKey,
+  operationsListQueryKey,
+  operationsSnapshotRefetchInterval,
 } from "../lib/operations-list-query";
 
 function operationsListQueryOptions(
-  enabled: boolean,
+  viewerId: string,
   focusedOperationId?: string,
 ) {
   return orpc.operations.list.queryOptions({
-    enabled,
     input: operationsListInput(focusedOperationId),
+    queryKey: operationsListQueryKey(viewerId, focusedOperationId),
+    refetchInterval: (query) =>
+      operationsSnapshotRefetchInterval(query.state.data),
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     retry: false,
@@ -23,16 +25,8 @@ function operationsListQueryOptions(
 }
 
 export function useOperationsList(
-  enabled: boolean,
+  viewerId: string,
   focusedOperationId?: string,
 ) {
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    if (!enabled) {
-      queryClient.removeQueries({ queryKey: operationsListQueriesKey });
-    }
-  }, [enabled, queryClient]);
-
-  return useQuery(operationsListQueryOptions(enabled, focusedOperationId));
+  return useQuery(operationsListQueryOptions(viewerId, focusedOperationId));
 }

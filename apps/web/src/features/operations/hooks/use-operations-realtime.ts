@@ -1,16 +1,24 @@
 "use client";
 
 import {
+  OPERATIONS_REALTIME_CHANGED_TOPIC,
+  OPERATIONS_REALTIME_STATUS_TOPIC,
   type OperationStatusRealtimeMessage,
   operationStatusRealtimeMessageSchema,
+  operationsChangedRealtimeMessageSchema,
 } from "@rz-chain-reporter/contracts";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRealtime } from "inngest/react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
+import {
+  type RealtimeConnectionState,
+  type RealtimeRefreshQueue,
+  requestRealtimeRefresh,
+  settleRealtimeRefresh,
+  transitionRealtimeConnection,
+} from "@/lib/realtime-freshness";
+
 import { getOperationsRealtimeToken } from "../actions/get-realtime-token";
-import { operationsListQueryKey } from "../lib/operations-list-query";
-import type { OperationSummary } from "../schemas/operation-summary";
 
 export type RealtimeTransport =
   | "live"
@@ -18,43 +26,39 @@ export type RealtimeTransport =
   | "stale"
   | "unavailable";
 
+const REALTIME_BUFFER_INTERVAL_MS = 250;
+
 export function useOperationsRealtime({
-  enabled,
-  focusedOperationId,
+  isFetching,
   refetch,
+  viewerId,
 }: {
-  enabled: boolean;
-  focusedOperationId?: string;
+  isFetching: boolean;
   refetch: () => Promise<unknown>;
+  viewerId: string;
 }) {
-  const queryClient = useQueryClient();
-  const hasConnected = useRef(false);
-  const [viewerId, setViewerId] = useState<string>();
-  const [initialConnectionUnavailable, setInitialConnectionUnavailable] =
-    useState(false);
-  const realtimeEnabled = enabled && !initialConnectionUnavailable;
-  const refetchSnapshot = useEffectEvent(() => {
-    if (enabled) {
-      void refetch();
-    }
+  const [subscriptionUnavailable, setSubscriptionUnavailable] = useState(false);
+  const realtimeEnabled = !subscriptionUnavailable;
+  const snapshot = useOperationsSnapshotRefresh({
+    isFetching,
+    refetch,
   });
-  const requestToken = () =>
-    getOperationsRealtimeToken()
-      .then((result) => {
-        if (result.status === "unavailable") {
-          throw new Error("Realtime subscription is unavailable");
-        }
-        setViewerId(result.viewerId);
-        return result.token;
-      })
-      .catch((error: unknown) => {
-        if (!hasConnected.current) {
-          setInitialConnectionUnavailable(true);
-        }
-        throw error;
-      });
+  const refetchSnapshot = useEffectEvent(snapshot.requestRefresh);
+  const connection = useRef<RealtimeConnectionState>({
+    active: false,
+    needsCatchUp: false,
+  });
+  const requestToken = async () => {
+    const result = await getOperationsRealtimeToken();
+    if (result.status === "unavailable") {
+      setSubscriptionUnavailable(true);
+      throw new Error("Realtime subscription is unavailable");
+    }
+    return result.token;
+  };
   const realtime = useRealtime({
     autoCloseOnTerminal: false,
+    bufferInterval: REALTIME_BUFFER_INTERVAL_MS,
     enabled: realtimeEnabled,
     historyLimit: 50,
     pauseOnHidden: true,
@@ -67,126 +71,107 @@ export function useOperationsRealtime({
     }
 
     let requiresSnapshot = false;
-    const statuses: OperationStatusRealtimeMessage[] = [];
     for (const message of realtime.messages.delta) {
+      if (message.topic === OPERATIONS_REALTIME_CHANGED_TOPIC) {
+        const parsed = operationsChangedRealtimeMessageSchema.safeParse(
+          message.data,
+        );
+        if (parsed.success && addressesViewer(parsed.data, viewerId)) {
+          requiresSnapshot = true;
+        }
+        continue;
+      }
+      if (message.topic !== OPERATIONS_REALTIME_STATUS_TOPIC) continue;
       const parsed = operationStatusRealtimeMessageSchema.safeParse(
         message.data,
       );
-      if (!parsed.success) {
-        requiresSnapshot = true;
-        continue;
-      }
+      if (!parsed.success) continue;
       if (addressesViewer(parsed.data, viewerId)) {
-        statuses.push(parsed.data);
+        requiresSnapshot = true;
       }
-    }
-
-    if (statuses.length > 0) {
-      queryClient.setQueryData<OperationSummary[]>(
-        operationsListQueryKey(focusedOperationId),
-        (current) => {
-          if (!current) {
-            requiresSnapshot = true;
-            return current;
-          }
-
-          let next = current;
-          for (const status of statuses) {
-            const index = next.findIndex(
-              (operation) => operation.id === status.operationId,
-            );
-            if (index === -1) {
-              requiresSnapshot = true;
-              continue;
-            }
-
-            const operation = next[index];
-            if (!operation || status.operationVersion <= operation.version) {
-              continue;
-            }
-            if (status.operationVersion > operation.version + 1) {
-              requiresSnapshot = true;
-              continue;
-            }
-
-            const updated: OperationSummary = {
-              ...operation,
-              attemptCount: status.attemptCount ?? operation.attemptCount,
-              latestAttemptOutcome:
-                status.latestAttemptOutcome ?? operation.latestAttemptOutcome,
-              lifecycle: status.lifecycle,
-              version: status.operationVersion,
-            };
-            next = next.with(index, updated);
-          }
-          return next;
-        },
-      );
     }
 
     if (requiresSnapshot) {
       refetchSnapshot();
     }
-  }, [focusedOperationId, queryClient, realtime.messages.delta, viewerId]);
-
-  const handleConnectionOpen = useEffectEvent(() => {
-    if (hasConnected.current) {
-      refetchSnapshot();
-      return;
-    }
-    hasConnected.current = true;
-  });
+  }, [realtime.messages.delta, viewerId]);
 
   useEffect(() => {
-    if (realtime.connectionStatus === "open") {
-      handleConnectionOpen();
+    const transition = transitionRealtimeConnection(connection.current, [
+      realtime.connectionStatus,
+    ]);
+    connection.current = transition.connection;
+    if (transition.catchUp) {
+      refetchSnapshot();
     }
   }, [realtime.connectionStatus]);
 
-  const refetchVisibleSnapshot = useEffectEvent(() => {
-    if (document.visibilityState === "visible") {
-      refetchSnapshot();
+  return {
+    announcement: latestAnnouncement(realtime.messages.all, viewerId),
+    isRefreshing: snapshot.isRefreshing,
+    refresh: snapshot.requestRefresh,
+    retry: () => setSubscriptionUnavailable(false),
+    transport: transportOf(!subscriptionUnavailable, realtime.connectionStatus),
+  };
+}
+
+function useOperationsSnapshotRefresh({
+  isFetching,
+  refetch,
+}: {
+  isFetching: boolean;
+  refetch: () => Promise<unknown>;
+}) {
+  const queue = useRef<RealtimeRefreshQueue>("idle");
+  const refetchLatest = useEffectEvent(refetch);
+
+  const requestRefresh = () => {
+    const transition = requestRealtimeRefresh(queue.current);
+    queue.current = transition.queue;
+    if (!transition.start) return;
+    if (isFetching) {
+      queue.current = "trailing";
+      return;
     }
-  });
+    void refetch();
+  };
 
   useEffect(() => {
-    document.addEventListener("visibilitychange", refetchVisibleSnapshot);
-    return () =>
-      document.removeEventListener("visibilitychange", refetchVisibleSnapshot);
-  }, []);
+    if (isFetching || queue.current === "idle") return;
+    const transition = settleRealtimeRefresh(queue.current);
+    queue.current = transition.queue;
+    if (transition.start) void refetchLatest();
+  }, [isFetching]);
 
   return {
-    announcement: parseAnnouncement(realtime.messages.last?.data, viewerId),
-    retry: () => {
-      if (enabled) {
-        setInitialConnectionUnavailable(false);
-      }
-    },
-    transport: transportOf(
-      !initialConnectionUnavailable,
-      realtime.connectionStatus,
-      realtime.runStatus !== "unknown",
-    ),
+    isRefreshing: isFetching,
+    requestRefresh,
   };
 }
 
 // The channel is workspace-wide: a message reaches its own operator, and a
 // shared source import reaches everyone.
 function addressesViewer(
-  message: OperationStatusRealtimeMessage,
-  viewerId: string | undefined,
+  message: Pick<OperationStatusRealtimeMessage, "actorId" | "sharedImport">,
+  viewerId: string,
 ) {
   return message.sharedImport || message.actorId === viewerId;
 }
 
-function parseAnnouncement(
-  value: unknown,
-  viewerId: string | undefined,
+function latestAnnouncement(
+  messages: readonly { data: unknown; topic?: string }[],
+  viewerId: string,
 ): OperationStatusRealtimeMessage | undefined {
-  const parsed = operationStatusRealtimeMessageSchema.safeParse(value);
-  return parsed.success && addressesViewer(parsed.data, viewerId)
-    ? parsed.data
-    : undefined;
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (!message || message.topic !== OPERATIONS_REALTIME_STATUS_TOPIC)
+      continue;
+    const parsed = operationStatusRealtimeMessageSchema.safeParse(message.data);
+    if (parsed.success && addressesViewer(parsed.data, viewerId)) {
+      return parsed.data;
+    }
+  }
+  return undefined;
 }
 
 function transportOf(
@@ -198,7 +183,6 @@ function transportOf(
     | "paused"
     | "closed"
     | "error",
-  hasConnected: boolean,
 ): RealtimeTransport {
   if (!available) {
     return "unavailable";
@@ -209,5 +193,5 @@ function transportOf(
   if (connectionStatus === "connecting" || connectionStatus === "idle") {
     return "reconnecting";
   }
-  return hasConnected ? "stale" : "unavailable";
+  return "stale";
 }

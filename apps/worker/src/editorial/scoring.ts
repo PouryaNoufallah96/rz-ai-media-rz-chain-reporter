@@ -3,10 +3,15 @@ import { VALUE_SIGNAL_KINDS } from "@rz-chain-reporter/customer-template/schema"
 
 import { matchTerms } from "./text";
 
-export const SCORING_VERSION = "4";
+export const SCORING_VERSION = "5";
 
 type WeightedTerms = readonly { term: string; weight: number }[];
 type Aliases = readonly { canonical: string; surfaces: readonly string[] }[];
+
+export type TopicGroup = {
+  original: string;
+  effective: string;
+};
 
 type ViralityPolicy = {
   powerTerms: WeightedTerms;
@@ -44,7 +49,7 @@ type PolicyWeights = {
 type PolicyInput = {
   normalizedTitle: string;
   normalizedText: string;
-  topics: readonly string[];
+  topicGroups: readonly TopicGroup[];
   aliases: Aliases;
   sourceKey: string;
   preferredSourceKeys: readonly string[];
@@ -220,11 +225,11 @@ export function scorePolicy(input: PolicyInput): {
   const topic = scoreLexicalTopic(
     input.normalizedTitle,
     input.normalizedText,
-    input.topics,
+    input.topicGroups,
     input.aliases,
   );
 
-  const hasTopics = input.topics.length > 0;
+  const hasTopics = input.topicGroups.length > 0;
   const weights = hasTopics
     ? input.weights.withTopics
     : input.weights.withoutTopics;
@@ -273,27 +278,33 @@ export function scoreRank(input: {
   );
 }
 
-function scoreLexicalTopic(
+export function scoreLexicalTopic(
   normalizedTitle: string,
   normalizedText: string,
-  topics: readonly string[],
+  topicGroups: readonly TopicGroup[],
   aliases: Aliases,
 ): { score: number | null; index: number | null } {
-  if (topics.length === 0) {
+  if (topicGroups.length === 0) {
     return { score: null, index: null };
   }
 
   let score = 0;
   let index: number | null = null;
 
-  for (const [position, topic] of topics.entries()) {
-    const terms = [{ term: topic, weight: 1 }];
-    let hit = 0;
-    if (matchTerms(normalizedTitle, terms, aliases).hits > 0) {
-      hit = TITLE_TOPIC_SCORE;
-    } else if (matchTerms(normalizedText, terms, aliases).hits > 0) {
-      hit = BODY_TOPIC_SCORE;
-    }
+  for (const [position, group] of topicGroups.entries()) {
+    const original = topicHit(
+      normalizedTitle,
+      normalizedText,
+      group.original,
+      aliases,
+    );
+    const effective = topicHit(
+      normalizedTitle,
+      normalizedText,
+      group.effective,
+      NO_ALIASES,
+    );
+    const hit = Math.max(original, effective);
 
     if (hit > score) {
       score = hit;
@@ -302,6 +313,21 @@ function scoreLexicalTopic(
   }
 
   return { score, index };
+}
+
+function topicHit(
+  normalizedTitle: string,
+  normalizedText: string,
+  topic: string,
+  aliases: Aliases,
+) {
+  const terms = [{ term: topic, weight: 1 }];
+  if (matchTerms(normalizedTitle, terms, aliases).hits > 0) {
+    return TITLE_TOPIC_SCORE;
+  }
+  return matchTerms(normalizedText, terms, aliases).hits > 0
+    ? BODY_TOPIC_SCORE
+    : 0;
 }
 
 function clampScore(value: number): number {

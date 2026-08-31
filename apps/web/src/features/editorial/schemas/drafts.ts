@@ -14,6 +14,12 @@ import {
 } from "@rz-chain-reporter/contracts";
 import { z } from "zod";
 
+import {
+  presentationTranslationStatusSchema,
+  translationCommandResultSchema,
+  translationStatusSchema,
+} from "./workspace";
+
 const platformDraftGenerationSchema = z.strictObject({
   operationId: z.uuid(),
   lifecycle: operationLifecycleSchema,
@@ -42,6 +48,7 @@ const copyVariantProjectionSchema = z.strictObject({
   limited: z.boolean(),
   modelOptionKey: z.string(),
   createdAt: z.date(),
+  translation: translationStatusSchema.nullable(),
 });
 
 const imageGenerationProjectionSchema = z.strictObject({
@@ -93,6 +100,8 @@ export const platformDraftCardSchema = z.strictObject({
   nextRevisionNumber: z.int().positive(),
   origin: cardOriginReferenceSchema,
   originTitle: z.string(),
+  presentationReady: z.boolean(),
+  presentationTranslation: presentationTranslationStatusSchema.nullable(),
   sourceKind: z.enum(["promo", "rss", "telegram"]),
   originDetails: z
     .strictObject({
@@ -221,9 +230,13 @@ export type RoutePlatformDraftResult = z.infer<
 
 export const reorderPlatformDraftsInputSchema = z.strictObject({
   platformDraftId: z.uuid(),
-  expectedVersion: z.int().positive(),
-  orderedDraftIds: z
-    .array(z.uuid())
+  orderedDrafts: z
+    .array(
+      z.strictObject({
+        id: z.uuid(),
+        expectedVersion: z.int().positive(),
+      }),
+    )
     .min(1, { error: "DRAFT_ORDER_REQUIRED" })
     .max(100, { error: "DRAFT_ORDER_TOO_LARGE" }),
 });
@@ -275,6 +288,7 @@ export const refreshArticleAndRegenerateInputSchema = z.strictObject({
 export const retryCopyGenerationInputSchema = z.strictObject({
   kind: z.literal("retry_failed"),
   ...copyOperationBase,
+  requestedContentLocale: contentLocaleSchema,
 });
 
 export const copyOperationInputSchema = z.discriminatedUnion("kind", [
@@ -290,6 +304,15 @@ export const copyOperationResultSchema = z.strictObject({
   operationId: z.uuid(),
   lifecycle: operationLifecycleSchema,
 });
+
+export const startCopyVariantTranslationInputSchema = z.strictObject({
+  copyVariantId: z.uuid(),
+  contentLocale: contentLocaleSchema,
+  idempotencyKey: z.uuid({ error: "IDEMPOTENCY_KEY_REQUIRED" }),
+});
+
+export const copyVariantTranslationCommandResultSchema =
+  translationCommandResultSchema;
 
 const imageGenerationCommandBase = {
   draftRevisionId: z.uuid(),
@@ -321,6 +344,7 @@ const revisionCommandBase = {
   platformDraftId: z.uuid(),
   idempotencyKey: z.uuid({ error: "IDEMPOTENCY_KEY_REQUIRED" }),
   expectedActive: expectedActiveRevisionSchema,
+  presentationLocale: contentLocaleSchema,
 };
 
 export const draftEditorSchema = draftRevisionMaterialSchema.omit({
@@ -328,7 +352,11 @@ export const draftEditorSchema = draftRevisionMaterialSchema.omit({
 });
 
 const draftRevisionSourceSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("copy_variant"), id: z.uuid() }),
+  z.strictObject({
+    kind: z.literal("copy_variant"),
+    id: z.uuid(),
+    contentLocale: contentLocaleSchema,
+  }),
   z.strictObject({ kind: z.literal("draft_revision"), id: z.uuid() }),
 ]);
 

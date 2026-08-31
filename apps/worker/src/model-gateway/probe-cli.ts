@@ -4,6 +4,7 @@ import { createOllamaAdapter } from "@rz-chain-reporter/model-gateway/ollama";
 import { createOpenRouterAdapter } from "@rz-chain-reporter/model-gateway/openrouter";
 import { diagnoseProviderCall } from "@rz-chain-reporter/model-gateway/usage";
 import { APICallError } from "ai";
+import { z } from "zod";
 
 const LOCAL_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
@@ -112,6 +113,92 @@ async function proveSuccessfulImageDoesNotWaitForAccounting() {
   assert.deepEqual(Buffer.from(generated.bytes), LOCAL_PNG);
 }
 
+async function proveStructuredRoutingRequiresParameters() {
+  let requestBody: unknown;
+  const adapter = createOpenRouterAdapter("synthetic", {
+    fetch: async (_input, init) => {
+      requestBody = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({ error: { code: 400, message: "synthetic" } }),
+        {
+          headers: { "content-type": "application/json" },
+          status: 400,
+        },
+      );
+    },
+  });
+
+  await assert.rejects(
+    adapter.generateStructured({
+      deadlineMs: 5_000,
+      maxOutputTokens: 100,
+      model: "synthetic/model",
+      outputName: "synthetic_output",
+      prompt: "synthetic",
+      schema: z.strictObject({ value: z.string() }),
+      telemetry: {
+        operationAttemptId: "synthetic-attempt",
+        operationId: "synthetic-operation",
+        usageEventId: "synthetic-usage",
+      },
+    }),
+    AdapterInvocationError,
+  );
+
+  assert.equal(
+    z
+      .object({
+        provider: z.object({ require_parameters: z.literal(true) }),
+      })
+      .parse(requestBody).provider.require_parameters,
+    true,
+  );
+}
+
+async function proveStructuredDeadlineAbortsTransport() {
+  const safetyTimeoutMs = 1_000;
+  const adapter = createOpenRouterAdapter("synthetic", {
+    fetch: async (_input, init) =>
+      new Promise<Response>((_resolve, reject) => {
+        const safetyTimeout = setTimeout(
+          () => reject(new Error("structured deadline probe timed out")),
+          safetyTimeoutMs,
+        );
+        init?.signal?.addEventListener(
+          "abort",
+          () => {
+            clearTimeout(safetyTimeout);
+            reject(init.signal?.reason);
+          },
+          { once: true },
+        );
+      }),
+  });
+  const startedAt = performance.now();
+
+  await assert.rejects(
+    adapter.generateStructured({
+      deadlineMs: 50,
+      maxOutputTokens: 100,
+      model: "synthetic/model",
+      outputName: "synthetic_output",
+      prompt: "synthetic",
+      schema: z.strictObject({ value: z.string() }),
+      telemetry: {
+        operationAttemptId: "synthetic-attempt",
+        operationId: "synthetic-operation",
+        usageEventId: "synthetic-usage",
+      },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AdapterInvocationError);
+      assert.equal(error.reason, "adapter-timeout");
+      return true;
+    },
+  );
+  assert.ok(performance.now() - startedAt < safetyTimeoutMs);
+}
+
 async function proveLocalEmbedding() {
   const adapter = createOllamaAdapter("http://ollama.invalid", {
     fetch: async (input, init) => {
@@ -154,6 +241,8 @@ async function main() {
   await proveObservedNoImageIdentity();
   await proveAmbiguousSuccessfulParseFailure();
   await proveSuccessfulImageDoesNotWaitForAccounting();
+  await proveStructuredRoutingRequiresParameters();
+  await proveStructuredDeadlineAbortsTransport();
   await proveLocalEmbedding();
   console.log("model-gateway probe passed");
 }

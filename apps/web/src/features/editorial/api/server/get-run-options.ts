@@ -83,7 +83,16 @@ function previousCompatibleRun(
 
     if (configuration.kind === "promo") {
       const brands = keep(configuration.promo.brands, liveBrands);
-      if (models.length === 0 || brands.length === 0) continue;
+      const runPlatforms = keep(
+        configuration.platforms ?? customerEditorial.platforms,
+        livePlatforms,
+      );
+      if (
+        models.length === 0 ||
+        brands.length === 0 ||
+        runPlatforms.length === 0
+      )
+        continue;
 
       return {
         id,
@@ -91,6 +100,7 @@ function previousCompatibleRun(
         configuration: {
           ...configuration,
           models,
+          platforms: runPlatforms,
           promo: {
             brands,
             prompts: Object.fromEntries(

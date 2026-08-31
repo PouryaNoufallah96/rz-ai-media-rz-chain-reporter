@@ -1,0 +1,2 @@
+ALTER TABLE "ai_usage_event" ADD COLUMN "failure_retryable" boolean;--> statement-breakpoint
+ALTER TABLE "ai_usage_event" ADD CONSTRAINT "ck_ai_usage_event_failure_retryable" CHECK ("ai_usage_event"."failure_retryable" is null or "ai_usage_event"."status" = 'failed');

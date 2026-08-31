@@ -3,6 +3,15 @@ import assert from "node:assert/strict";
 import { DRAFT_CHANGE_CODES } from "@rz-chain-reporter/contracts";
 
 import { cardSheetDraftChangeKey } from "../src/features/editorial/lib/editorial-freshness";
+import {
+  OPERATIONS_ACTIVE_REFETCH_INTERVAL_MS,
+  operationsSnapshotRefetchInterval,
+} from "../src/features/operations/lib/operations-list-query";
+import {
+  requestRealtimeRefresh,
+  settleRealtimeRefresh,
+  transitionRealtimeConnection,
+} from "../src/lib/realtime-freshness";
 
 const analysisRunId = "019b76da-a800-7000-8000-000000000001";
 const platformDraftId = "019b76da-a800-7000-8000-000000000002";
@@ -83,6 +92,105 @@ assert.equal(
     operationId: platformDraftId,
   }),
   `${operationId}:running`,
+);
+
+let queue = requestRealtimeRefresh("idle");
+assert.deepEqual(queue, { queue: "refreshing", start: true });
+queue = requestRealtimeRefresh(queue.queue);
+assert.deepEqual(queue, { queue: "trailing", start: false });
+queue = requestRealtimeRefresh(queue.queue);
+assert.deepEqual(queue, { queue: "trailing", start: false });
+queue = settleRealtimeRefresh(queue.queue);
+assert.deepEqual(queue, { queue: "refreshing", start: true });
+queue = settleRealtimeRefresh(queue.queue);
+assert.deepEqual(queue, { queue: "idle", start: false });
+
+let connection = transitionRealtimeConnection(
+  { active: false, needsCatchUp: false },
+  ["open"],
+);
+assert.deepEqual(connection, {
+  connection: { active: true, needsCatchUp: false },
+  catchUp: false,
+});
+connection = transitionRealtimeConnection(connection.connection, ["open"]);
+assert.deepEqual(connection, {
+  connection: { active: true, needsCatchUp: false },
+  catchUp: false,
+});
+connection = transitionRealtimeConnection(connection.connection, ["closed"]);
+assert.deepEqual(connection, {
+  connection: { active: false, needsCatchUp: true },
+  catchUp: false,
+});
+connection = transitionRealtimeConnection(connection.connection, ["open"]);
+assert.deepEqual(connection, {
+  connection: { active: true, needsCatchUp: false },
+  catchUp: true,
+});
+connection = transitionRealtimeConnection(connection.connection, ["paused"]);
+assert.deepEqual(connection, {
+  connection: { active: false, needsCatchUp: true },
+  catchUp: false,
+});
+connection = transitionRealtimeConnection(connection.connection, ["open"]);
+assert.deepEqual(connection, {
+  connection: { active: true, needsCatchUp: false },
+  catchUp: true,
+});
+
+const coldPaused = transitionRealtimeConnection(
+  { active: false, needsCatchUp: false },
+  ["paused"],
+);
+assert.deepEqual(coldPaused, {
+  connection: { active: false, needsCatchUp: true },
+  catchUp: false,
+});
+assert.deepEqual(
+  transitionRealtimeConnection(coldPaused.connection, ["open"]),
+  {
+    connection: { active: true, needsCatchUp: false },
+    catchUp: true,
+  },
+);
+
+const coldError = transitionRealtimeConnection(
+  { active: false, needsCatchUp: false },
+  ["error"],
+);
+assert.deepEqual(coldError, {
+  connection: { active: false, needsCatchUp: true },
+  catchUp: false,
+});
+assert.deepEqual(transitionRealtimeConnection(coldError.connection, ["open"]), {
+  connection: { active: true, needsCatchUp: false },
+  catchUp: true,
+});
+
+const partialConnection = transitionRealtimeConnection(
+  { active: false, needsCatchUp: false },
+  ["open", "connecting"],
+);
+assert.deepEqual(partialConnection, {
+  connection: { active: false, needsCatchUp: false },
+  catchUp: false,
+});
+
+assert.equal(operationsSnapshotRefetchInterval(undefined), false);
+assert.equal(
+  operationsSnapshotRefetchInterval([
+    { lifecycle: "succeeded" },
+    { lifecycle: "failed" },
+  ]),
+  false,
+);
+assert.equal(
+  operationsSnapshotRefetchInterval([
+    { lifecycle: "succeeded" },
+    { lifecycle: "running" },
+  ]),
+  OPERATIONS_ACTIVE_REFETCH_INTERVAL_MS,
 );
 
 console.log("editorial freshness policy probe passed");

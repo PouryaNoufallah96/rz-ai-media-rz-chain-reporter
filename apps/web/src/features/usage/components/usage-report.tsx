@@ -36,7 +36,7 @@ import {
 import type { TableOptions } from "@tanstack/react-table";
 import { ChevronDownIcon, FileTextIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import type { FormEvent } from "react";
+import type { SubmitEventHandler } from "react";
 import { StateMark } from "@/components/common/state-mark";
 import { CoreDataTable } from "@/components/data-table/data-table";
 import { KeysetPagination } from "@/components/data-table/keyset-pagination";
@@ -192,7 +192,7 @@ export function UsageReport({ page, query, summary }: UsageReportProps) {
       cursor: null,
     });
 
-  const handleTextFilters = (event: FormEvent<HTMLFormElement>) => {
+  const handleTextFilters: SubmitEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     setFilters({
@@ -203,7 +203,7 @@ export function UsageReport({ page, query, summary }: UsageReportProps) {
 
   return (
     <>
-      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3 sm:p-4">
+      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3 max-sm:**:data-[slot=input]:min-h-11 max-sm:**:data-[slot=select-trigger]:min-h-11 sm:p-4">
         <UsageFilters
           onSubmit={handleTextFilters}
           onValueChange={setFilters}
@@ -211,6 +211,7 @@ export function UsageReport({ page, query, summary }: UsageReportProps) {
         />
         <div className="ms-auto flex flex-wrap items-end gap-2">
           <Button
+            className="max-sm:min-h-11"
             form="usage-filters"
             size="sm"
             type="submit"
@@ -231,7 +232,12 @@ export function UsageReport({ page, query, summary }: UsageReportProps) {
         ) : page.rows.length === 0 ? (
           <UsageEmpty
             action={
-              <Button onClick={clearFilters} size="sm" variant="outline">
+              <Button
+                className="max-sm:min-h-11"
+                onClick={clearFilters}
+                size="sm"
+                variant="outline"
+              >
                 {t("empty.clearFilters")}
               </Button>
             }
@@ -271,7 +277,7 @@ function UsageFilters({
   onValueChange,
   query,
 }: {
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit: SubmitEventHandler<HTMLFormElement>;
   onValueChange: (patch: UsageSearchPatch) => void;
   query: UsageQuery;
 }) {
@@ -548,9 +554,11 @@ function UsageDetails({ row }: { row: UsageRow }) {
   return (
     <Collapsible>
       <CollapsibleTrigger
-        render={<Button className="group" size="xs" variant="ghost" />}
+        render={
+          <Button className="group max-sm:min-h-11" size="xs" variant="ghost" />
+        }
       >
-        <ChevronDownIcon className="transition-transform group-data-panel-open:rotate-180" />
+        <ChevronDownIcon className="transition-transform group-data-panel-open:rotate-180 motion-reduce:transition-none" />
         {t("details.open")}
       </CollapsibleTrigger>
       <CollapsibleContent keepMounted className="data-closed:hidden">

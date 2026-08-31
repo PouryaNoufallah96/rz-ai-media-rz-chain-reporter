@@ -38,12 +38,18 @@ export function NotFoundScreen() {
   );
 }
 
-function NotFoundSkeleton() {
+async function NotFoundSkeleton() {
+  const t = await getT(SHARED_NAMESPACE);
+
   return (
-    <>
+    <div aria-busy="true">
+      <span className="sr-only" role="status">
+        {t("loader.loading")}
+      </span>
+      <Skeleton className="mb-5 size-8" />
       <Skeleton className="h-9 w-64" />
       <Skeleton className="mt-3 h-6 w-full max-w-xl" />
-      <Skeleton className="mt-6 h-9 w-32" />
-    </>
+      <Skeleton className="mt-6 h-8 w-32" />
+    </div>
   );
 }

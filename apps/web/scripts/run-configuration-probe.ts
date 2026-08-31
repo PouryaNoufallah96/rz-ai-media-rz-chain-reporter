@@ -3,14 +3,15 @@ import {
   type RunConfigurationBounds,
   runConfigurationSchema,
 } from "@rz-chain-reporter/contracts";
+import { resolveBoardPresentation } from "../src/features/editorial/lib/board-presentation";
 
 const RSS_SOURCE_ID = "00000000-0000-4000-8000-000000000001";
 const TELEGRAM_SOURCE_ID = "00000000-0000-4000-8000-000000000002";
 
 const bounds = {
-  brandKeys: ["brand"],
-  modelKeys: ["model"],
-  platforms: ["telegram"],
+  brandKeys: ["brand", "other"],
+  modelKeys: ["model", "other-model"],
+  platforms: ["telegram", "x"],
   selectionCap: 20,
   shortlistCap: 20,
   promoPromptMaxChars: 500,
@@ -92,6 +93,65 @@ if (mixedNewsRun.kind !== "news") {
 }
 if (effectiveNewsSourceIds(mixedNewsRun, [TELEGRAM_SOURCE_ID]).length !== 2) {
   throw new Error("normal news run dropped a selected source");
+}
+
+const promoRun = schema.safeParse({
+  kind: "promo",
+  models: ["model"],
+  platforms: ["telegram"],
+  promo: {
+    brands: ["brand"],
+    prompts: { brand: "Launch campaign" },
+  },
+});
+if (!promoRun.success) {
+  throw new Error("promo configuration rejected a platform selection");
+}
+if (
+  promoRun.data.platforms.length !== 1 ||
+  promoRun.data.platforms[0] !== "telegram"
+) {
+  throw new Error(
+    "promo configuration did not preserve its platform selection",
+  );
+}
+
+const promoPresentation = resolveBoardPresentation(
+  promoRun.data,
+  true,
+  {
+    brandKeys: ["brand", "other"],
+    kind: "promo",
+    modelKeys: ["model", "other-model"],
+    platforms: ["telegram", "x"],
+    telegramOnly: false,
+  },
+  bounds.platforms,
+);
+if (
+  promoPresentation.brandKeys.length !== 1 ||
+  promoPresentation.brandKeys[0] !== "brand" ||
+  promoPresentation.modelKeys.length !== 1 ||
+  promoPresentation.modelKeys[0] !== "model" ||
+  promoPresentation.platforms.length !== 1 ||
+  promoPresentation.platforms[0] !== "telegram"
+) {
+  throw new Error("settled promo presentation expanded beyond its snapshot");
+}
+
+const legacyPromoRun = schema.parse({
+  kind: "promo",
+  models: ["model"],
+  promo: {
+    brands: ["brand"],
+    prompts: { brand: "Launch campaign" },
+  },
+});
+if (
+  legacyPromoRun.platforms.length !== bounds.platforms.length ||
+  legacyPromoRun.platforms[0] !== bounds.platforms[0]
+) {
+  throw new Error("legacy promo configuration did not restore all platforms");
 }
 
 process.stdout.write("PASS editorial run configuration\n");

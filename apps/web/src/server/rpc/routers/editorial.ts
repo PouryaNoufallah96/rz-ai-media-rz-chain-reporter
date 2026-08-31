@@ -9,6 +9,7 @@ import {
   COPY_PROMPT_VERSION,
   effectiveNewsSourceIds,
   INLINE_HASHTAG_TOKEN,
+  isOperationSettled,
   okSchema,
   PLATFORM_COPY_HARD_MAX,
   platformCopyLength,
@@ -22,10 +23,12 @@ import {
   startAnalysisRun,
 } from "@rz-chain-reporter/db/repositories/analysis-run";
 import { startCopyOperation } from "@rz-chain-reporter/db/repositories/copy-generation";
+import { startCopyVariantTranslation as startCopyVariantTranslationCommand } from "@rz-chain-reporter/db/repositories/copy-variant-localization";
 import {
   executeDraftRevisionCommand,
   readDraftRevisionCommandContext,
 } from "@rz-chain-reporter/db/repositories/draft-revision";
+import { startEditorialPresentationTranslation } from "@rz-chain-reporter/db/repositories/editorial-presentation-localization-request";
 import { startImageGeneration as startImageGenerationCommand } from "@rz-chain-reporter/db/repositories/image-generation";
 import {
   readRouteOriginContext,
@@ -42,6 +45,7 @@ import {
 } from "@/features/editorial/db/queries";
 import {
   copyOperationResultSchema,
+  copyVariantTranslationCommandResultSchema,
   imageGenerationCommandResultSchema,
   refreshArticleAndRegenerateInputSchema,
   regenerateCopyInputSchema,
@@ -51,13 +55,16 @@ import {
   retryImageGenerationInputSchema,
   routePlatformDraftInputSchema,
   routePlatformDraftResultSchema,
+  startCopyVariantTranslationInputSchema,
   startImageGenerationInputSchema,
   updateDraftRevisionInputSchema,
   updateDraftRevisionResultSchema,
 } from "@/features/editorial/schemas/drafts";
 import {
   cancelAnalysisRunInputSchema,
+  presentationTranslationCommandResultSchema,
   startAnalysisRunResultSchema,
+  startPresentationTranslationInputSchema,
 } from "@/features/editorial/schemas/workspace";
 import {
   customerBrandPolicyFingerprints,
@@ -67,8 +74,6 @@ import {
 } from "@/lib/customer-template.server";
 
 import { rpcDb } from "../db";
-
-const TERMINAL_LIFECYCLES = ["succeeded", "failed", "cancelled", "unknown"];
 
 const customerRunConfigurationSchema = runConfigurationSchema(
   customerEditorial.bounds,
@@ -231,6 +236,7 @@ export const retryCopyGeneration = installationProcedure
       await startCopyOperation(rpcDb(), context.workspaceId, {
         ...copyOperationIdentity(context, input),
         mode: "retry_failed",
+        requestedContentLocale: input.requestedContentLocale,
         copyPolicy: copyCommandPolicy(),
         customerTemplateFingerprint,
         promptVersion: COPY_PROMPT_VERSION,
@@ -238,6 +244,46 @@ export const retryCopyGeneration = installationProcedure
       }),
       errors,
     );
+  });
+
+export const startCopyVariantTranslation = installationProcedure
+  .input(startCopyVariantTranslationInputSchema)
+  .output(copyVariantTranslationCommandResultSchema)
+  .errors({
+    VALIDATION_FAILED: { status: 400 },
+    NOT_FOUND: { status: 404 },
+    IDEMPOTENCY_KEY_REUSED: { status: 409 },
+  })
+  .handler(async ({ context, errors, input }) => {
+    const result = await startCopyVariantTranslationCommand(
+      rpcDb(),
+      context.workspaceId,
+      {
+        actor: context.session.user.id,
+        copyVariantId: input.copyVariantId,
+        contentLocale: input.contentLocale,
+        idempotencyKey: input.idempotencyKey,
+        requestHash: hashPayload({
+          copyVariantId: input.copyVariantId,
+          contentLocale: input.contentLocale,
+        }),
+        requestId: context.requestId,
+      },
+    );
+
+    if (result.status === "not_found") throw errors.NOT_FOUND();
+    if (result.status === "idempotency_mismatch") {
+      throw errors.IDEMPOTENCY_KEY_REUSED();
+    }
+    if (result.status === "already_available") {
+      return { status: result.status };
+    }
+    if (!("operationId" in result)) throw errors.VALIDATION_FAILED();
+    return {
+      status: result.status,
+      operationId: result.operationId,
+      lifecycle: result.lifecycle,
+    };
   });
 
 export const updateDraftRevision = installationProcedure
@@ -303,6 +349,7 @@ export const updateDraftRevision = installationProcedure
       context.session.user.id,
       env.PUBLISHING_EMERGENCY_PAUSED,
       customerTimeZone,
+      input.presentationLocale,
     );
     if (!snapshot) throw errors.NOT_FOUND();
     return {
@@ -615,6 +662,48 @@ export const routeDraft = installationProcedure
     };
   });
 
+export const startPresentationTranslation = installationProcedure
+  .input(startPresentationTranslationInputSchema)
+  .output(presentationTranslationCommandResultSchema)
+  .errors({
+    VALIDATION_FAILED: { status: 400 },
+    NOT_FOUND: { status: 404 },
+    IDEMPOTENCY_KEY_REUSED: { status: 409 },
+  })
+  .handler(async ({ context, errors, input }) => {
+    const result = await startEditorialPresentationTranslation(
+      rpcDb(),
+      context.workspaceId,
+      {
+        actor: context.session.user.id,
+        idempotencyKey: input.idempotencyKey,
+        origin: input.origin,
+        presentationLocale: input.presentationLocale,
+        requestHash: hashPayload({
+          origin: input.origin,
+          presentationLocale: input.presentationLocale,
+        }),
+        requestId: context.requestId,
+      },
+    );
+
+    if (result.status === "not_found") throw errors.NOT_FOUND();
+    if (result.status === "invalid_origin") {
+      throw errors.VALIDATION_FAILED();
+    }
+    if (result.status === "idempotency_mismatch") {
+      throw errors.IDEMPOTENCY_KEY_REUSED();
+    }
+    if (result.status === "already_available") {
+      return { status: result.status };
+    }
+    return {
+      status: result.status,
+      operationId: result.operationId,
+      lifecycle: result.lifecycle,
+    };
+  });
+
 export const startRun = installationProcedure
   .input(runConfigurationTransportSchema)
   .output(startAnalysisRunResultSchema)
@@ -721,7 +810,7 @@ export const cancelRun = installationProcedure
     );
 
     // A settled run keeps its real outcome: no timestamp, no outbox event.
-    if (TERMINAL_LIFECYCLES.includes(run.lifecycle)) {
+    if (isOperationSettled(run.lifecycle)) {
       return { ok: true };
     }
 

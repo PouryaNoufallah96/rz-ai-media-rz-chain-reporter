@@ -125,7 +125,7 @@ function SourceRow({ entry }: { entry: SourceCatalogEntry }) {
         type="button"
       >
         <span className="flex min-w-0 flex-1 items-center gap-3">
-          <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-180" />
+          <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-180 motion-reduce:transition-none" />
           <span className="min-w-0 flex-1 truncate text-sm">
             <Bdi>{entry.name}</Bdi>
           </span>

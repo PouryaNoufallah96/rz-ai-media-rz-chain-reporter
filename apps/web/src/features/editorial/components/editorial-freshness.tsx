@@ -1,6 +1,5 @@
 "use client";
 
-import type { OperationLifecycle } from "@rz-chain-reporter/contracts";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
 import { RefreshCwIcon } from "lucide-react";
@@ -14,14 +13,12 @@ export function EditorialFreshness({
   analysisRunId,
   compact = false,
   copyOperation,
-  lifecycle,
   platformDraftId,
   readAt,
 }: {
   analysisRunId: string;
   compact?: boolean;
   copyOperation?: FreshnessOperation | null;
-  lifecycle: OperationLifecycle;
   platformDraftId?: string;
   readAt: Date;
 }) {
@@ -29,7 +26,6 @@ export function EditorialFreshness({
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const { isRefreshing, refresh, transport } = useEditorialFreshness(
     analysisRunId,
-    lifecycle,
     compact,
     platformDraftId ?? null,
     copyOperation ?? null,

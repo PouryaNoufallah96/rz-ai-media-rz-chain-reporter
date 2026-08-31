@@ -72,18 +72,19 @@ function MetalButton({
 
   return (
     <MetalFx
-      className="active:scale-[0.99] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/50 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background data-disabled:active:scale-100 motion-reduce:transition-none! motion-reduce:active:scale-100"
+      className="active:scale-99 has-focus-visible:ring-2 has-focus-visible:ring-ring/50 has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-background data-disabled:active:scale-100 motion-reduce:transition-none! motion-reduce:active:scale-100"
       data-disabled={disabled || undefined}
       disableGlow={disableGlow}
       paused={paused || reducedMotion}
       preset={preset}
+      ringCssPx={2}
       strength={strength}
       theme={isLight ? "light" : "dark"}
       variant={icon ? "circle" : "button"}
     >
       <Button
         className={cn(
-          "rounded-full",
+          "rounded-full font-semibold",
           isLight ? "text-foreground" : "text-primary-foreground",
           className,
         )}

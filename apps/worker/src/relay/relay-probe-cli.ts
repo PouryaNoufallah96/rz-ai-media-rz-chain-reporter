@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   DURABLE_EVENT_SCHEMA_VERSION,
   OPERATION_GENERATION_REQUESTED_EVENT_NAME,
+  operationsChangedRealtimeMessageSchema,
 } from "@rz-chain-reporter/contracts";
 import { createDb } from "@rz-chain-reporter/db";
 import { createOperation } from "@rz-chain-reporter/db/repositories/operation";
@@ -14,6 +15,7 @@ import { workspace } from "@rz-chain-reporter/db/schema/workspace";
 import { asc, eq, inArray } from "drizzle-orm";
 
 import { createInngestClient } from "../inngest/client";
+import { workerLogger } from "../logging/logger";
 import { workerEnv } from "../runtime/env";
 import { OutboxRelay } from "./relay";
 
@@ -38,6 +40,14 @@ const batchEntered = new Promise<void>((resolve) => {
   batchEnteredResolve = resolve;
 });
 let relay: OutboxRelay | null = null;
+const operationChangeAttempts: unknown[] = [];
+const operationChanges: unknown[] = [];
+const warningEvents: string[] = [];
+const originalWarn = workerLogger.warn;
+workerLogger.warn = (event, fields) => {
+  warningEvents.push(event);
+  originalWarn(event, fields);
+};
 
 try {
   const [actor] = await database.db
@@ -78,6 +88,15 @@ try {
   const sentIds: string[] = [];
   let activeSends = 0;
   let maximumActiveSends = 0;
+  let rejectOperationChange = true;
+  client.realtime.publish = (async (_topic, data) => {
+    operationChangeAttempts.push(data);
+    if (rejectOperationChange) {
+      rejectOperationChange = false;
+      throw new Error("RELAY_PROBE_REALTIME_FAILED");
+    }
+    operationChanges.push(data);
+  }) as typeof client.realtime.publish;
   client.send = (async (input: unknown) => {
     if (
       typeof input !== "object" ||
@@ -173,10 +192,22 @@ try {
     settled.every((event) => event.dispatchClaimedBy === null),
     true,
   );
+  assert.equal(operationChangeAttempts.length, 1);
+  assert.equal(operationChanges.length, 0);
+  const operationChange = operationsChangedRealtimeMessageSchema.parse(
+    operationChangeAttempts[0],
+  );
+  assert.equal(operationChange.actorId, actor.id);
+  assert.equal(operationChange.sharedImport, false);
+  assert.equal(
+    warningEvents.includes("worker.operations.realtime-unavailable"),
+    true,
+  );
   console.log(
-    "relay probe batch=5 parallel=5 lease-ms=120000 stable-ids=true wrong-owner-rejected=true one-send-failed-isolated=true drain-waited=true post-stop-intake=0 status=pass",
+    "relay probe batch=5 parallel=5 lease-ms=120000 stable-ids=true wrong-owner-rejected=true one-send-failed-isolated=true operations-changed-attempts=1 operations-changed-failed=1 audience-scoped=true failure-observable=true drain-waited=true post-stop-intake=0 status=pass",
   );
 } finally {
+  workerLogger.warn = originalWarn;
   releaseBatch();
   await relay?.stopIntakeAndDrain().catch(() => undefined);
   if (operationIds.length > 0) {

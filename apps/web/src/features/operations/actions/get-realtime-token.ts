@@ -1,6 +1,6 @@
 "use server";
 
-import { OPERATIONS_REALTIME_STATUS_TOPIC } from "@rz-chain-reporter/contracts";
+import { OPERATIONS_REALTIME_TOPICS } from "@rz-chain-reporter/contracts";
 import { operationsRealtimeChannel } from "@rz-chain-reporter/contracts/realtime-channels";
 
 import { requireActionSession } from "@/features/auth/api/server/session";
@@ -9,12 +9,11 @@ import { rpcDb } from "@/server/rpc/db";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 
 export async function getOperationsRealtimeToken() {
-  const session = await requireActionSession();
+  await requireActionSession();
 
   const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
-  const minted = await mintSubscriptionToken(
+  return mintSubscriptionToken(
     operationsRealtimeChannel(workspaceId),
-    [OPERATIONS_REALTIME_STATUS_TOPIC],
+    OPERATIONS_REALTIME_TOPICS,
   );
-  return { ...minted, viewerId: session.user.id };
 }

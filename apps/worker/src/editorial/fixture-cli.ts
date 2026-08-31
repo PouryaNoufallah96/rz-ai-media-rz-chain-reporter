@@ -255,7 +255,10 @@ function prepare(
     ),
     runStartedAt: new Date(fixture.runStartedAt),
     configuration,
-    topics: fixture.topics,
+    topicGroups: fixture.topics.map((topic) => ({
+      original: topic,
+      effective: topic,
+    })),
   });
 }
 

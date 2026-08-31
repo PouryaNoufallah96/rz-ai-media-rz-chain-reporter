@@ -18,6 +18,7 @@ import { imageGeneration } from "../schema/image-generation";
 import { mediaAsset } from "../schema/media-asset";
 import { operation } from "../schema/operation";
 import { platformDraft } from "../schema/platform-draft";
+import { readCopyVariantLocalizations } from "./copy-variant-localization";
 import { ownedDraftExists } from "./draft-origin";
 import {
   retainSelectedMedia,
@@ -43,7 +44,7 @@ type RevisionContent = {
 };
 
 export type DraftRevisionSource =
-  | { kind: "copy_variant"; id: string }
+  | { kind: "copy_variant"; id: string; contentLocale: ContentLocale }
   | { kind: "draft_revision"; id: string };
 
 type RevisionCommandBase = {
@@ -777,8 +778,20 @@ async function readRevisionSource(
       ),
     );
   if (!variant) return null;
+  const localized =
+    variant.contentLocale === source.contentLocale
+      ? variant
+      : (
+          await readCopyVariantLocalizations(
+            executor,
+            workspaceId,
+            [variant.id],
+            source.contentLocale,
+          )
+        )[0];
+  if (!localized) return null;
   return {
-    ...normalizeContent(variant),
+    ...normalizeContent(localized),
     originatingCopyVariantId: variant.id,
     selectedFinalMediaAssetId: null,
   };

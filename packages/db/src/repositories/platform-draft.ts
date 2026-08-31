@@ -83,8 +83,7 @@ export type RoutePlatformDraftResult =
 export type ReorderPlatformDraftsInput = {
   actorId: string;
   platformDraftId: string;
-  expectedVersion: number;
-  orderedDraftIds: readonly string[];
+  orderedDrafts: readonly { id: string; expectedVersion: number }[];
 };
 
 export type ReorderPlatformDraftsResult =
@@ -109,7 +108,6 @@ export async function reorderPlatformDrafts(
       mediaBrandId: string;
       platform: Platform;
       runId: string;
-      version: number;
     }>(sql`
       select
         draft.id,
@@ -119,8 +117,7 @@ export async function reorderPlatformDrafts(
           selection_unit.analysis_run_id,
           telegram.analysis_run_id,
           promo_unit.analysis_run_id
-        ) as "runId",
-        draft.version
+        ) as "runId"
       from platform_draft draft
       left join editorial_selection selection
         on selection.id = draft.editorial_selection_id
@@ -197,26 +194,33 @@ export async function reorderPlatformDrafts(
       order by draft.lane_position, draft.id
       for update of draft
     `);
-    const authoritativeTarget = current.rows.find(
+    const authoritativeTarget = current.rows.some(
       (draft) => draft.id === input.platformDraftId,
     );
     if (!authoritativeTarget) return { status: "not_found" };
-    if (authoritativeTarget.version !== input.expectedVersion) {
-      return { status: "version_conflict" };
-    }
 
-    const submitted = new Set(input.orderedDraftIds);
+    const submitted = new Map(
+      input.orderedDrafts.map((draft) => [draft.id, draft]),
+    );
     if (
-      submitted.size !== input.orderedDraftIds.length ||
+      submitted.size !== input.orderedDrafts.length ||
       submitted.size !== current.rows.length ||
       current.rows.some((draft) => !submitted.has(draft.id))
     ) {
       return { status: "membership_conflict" };
     }
+    if (
+      current.rows.some(
+        (draft) => submitted.get(draft.id)?.expectedVersion !== draft.version,
+      )
+    ) {
+      return { status: "version_conflict" };
+    }
 
     const byId = new Map(current.rows.map((draft) => [draft.id, draft]));
     const drafts = [];
-    for (const [index, id] of input.orderedDraftIds.entries()) {
+    for (const [index, submittedDraft] of input.orderedDrafts.entries()) {
+      const { id } = submittedDraft;
       const draft = byId.get(id);
       if (!draft) return { status: "membership_conflict" };
       const lanePosition = index + 1;
@@ -264,9 +268,10 @@ export async function routePlatformDraft(
     ) {
       return { status: "stale_origin" };
     }
+    const selectedPlatforms = authority.value.configuration.platforms;
     if (
-      authority.value.configuration.kind === "news" &&
-      !authority.value.configuration.platforms.includes(input.platform)
+      selectedPlatforms !== undefined &&
+      !selectedPlatforms.includes(input.platform)
     ) {
       return { status: "platform_not_allowed" };
     }

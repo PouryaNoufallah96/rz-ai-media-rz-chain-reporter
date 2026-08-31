@@ -3,6 +3,16 @@
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { cn } from "@rz-chain-reporter/ui/lib/utils";
 
+type TooltipSide = "block-end" | "block-start" | "inline-end" | "inline-start";
+
+function resolveTooltipSide(side: TooltipSide) {
+  return side === "block-start"
+    ? "top"
+    : side === "block-end"
+      ? "bottom"
+      : side;
+}
+
 function TooltipProvider({
   delay = 0,
   ...props
@@ -26,7 +36,7 @@ function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
 
 function TooltipContent({
   className,
-  side = "top",
+  side = "block-start",
   sideOffset = 4,
   align = "center",
   alignOffset = 0,
@@ -35,14 +45,14 @@ function TooltipContent({
 }: TooltipPrimitive.Popup.Props &
   Pick<
     TooltipPrimitive.Positioner.Props,
-    "align" | "alignOffset" | "side" | "sideOffset"
-  >) {
+    "align" | "alignOffset" | "sideOffset"
+  > & { side?: TooltipSide }) {
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}
-        side={side}
+        side={resolveTooltipSide(side)}
         sideOffset={sideOffset}
         className="isolate z-50"
       >

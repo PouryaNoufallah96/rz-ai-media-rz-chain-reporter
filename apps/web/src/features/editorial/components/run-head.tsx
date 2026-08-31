@@ -1,6 +1,9 @@
 "use client";
 
-import type { OperationLifecycle } from "@rz-chain-reporter/contracts";
+import {
+  isOperationSettled,
+  type OperationLifecycle,
+} from "@rz-chain-reporter/contracts";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import {
   Collapsible,
@@ -46,13 +49,6 @@ const LIFECYCLE_MARK: Record<OperationLifecycle, StateMarkState> = {
   unknown: "unknown",
 };
 
-const TERMINAL_LIFECYCLES: readonly OperationLifecycle[] = [
-  "succeeded",
-  "failed",
-  "cancelled",
-  "unknown",
-];
-
 type Translate = ReturnType<typeof useTranslations<typeof EDITORIAL_NAMESPACE>>;
 
 export function RunHead({
@@ -83,7 +79,6 @@ export function RunHead({
         <EditorialFreshness
           analysisRunId={head.id}
           key={head.id}
-          lifecycle={head.lifecycle}
           readAt={readAt}
         />
       ) : null}
@@ -168,8 +163,8 @@ function RunState({
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const format = useFormatter();
   const mark = LIFECYCLE_MARK[head.lifecycle];
-  const terminal = TERMINAL_LIFECYCLES.includes(head.lifecycle);
-  const tickingNow = useNow({ updateInterval: terminal ? undefined : 1_000 });
+  const settled = isOperationSettled(head.lifecycle);
+  const tickingNow = useNow({ updateInterval: settled ? undefined : 1_000 });
   const now = tickingNow.getTime() === 0 ? readAt : tickingNow;
   const elapsed = elapsedClock(
     head.execution.elapsedFrom,
@@ -223,9 +218,14 @@ function RunState({
           {t("semantic.degraded.unavailable")}
         </p>
       ) : null}
+      {head.topicTranslationFallback ? (
+        <p className="text-working text-xs">
+          {t("run.topicTranslationFallback")}
+        </p>
+      ) : null}
       {head.configuration.kind === "news" &&
       head.configuration.telegramOnly &&
-      terminal ? (
+      settled ? (
         <p className="text-muted-foreground text-xs">
           {t("state.telegramOnlyComplete")}
         </p>
@@ -246,7 +246,7 @@ function RunState({
       >
         {t("report.link")}
       </Button>
-      {terminal ? null : head.cancelRequestedAt ? (
+      {settled ? null : head.cancelRequestedAt ? (
         <p className="text-muted-foreground text-xs">
           {t("state.cancelRequested")}
         </p>

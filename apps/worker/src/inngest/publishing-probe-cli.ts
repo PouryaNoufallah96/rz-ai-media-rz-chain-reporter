@@ -1612,7 +1612,7 @@ async function runZeroKey() {
   const textResult = await telegramText.publish(textPrepared.prepared);
   assert.equal(textResult.status, "confirmed");
   assert.equal(textCalls.length, 1);
-  const textLink = "Read full story: Trusted Desk";
+  const textLink = "Read full story";
   const textRequest = JSON.parse(String(textInits[0]?.body)) as {
     entities: unknown;
     text: string;
@@ -1620,6 +1620,10 @@ async function runZeroKey() {
   assert.equal(textRequest.text.endsWith(`\n\n${textLink}`), true);
   assert.equal(
     textRequest.text.includes(baseMaterial.source?.canonicalUrl ?? ""),
+    false,
+  );
+  assert.equal(
+    textRequest.text.includes(baseMaterial.source?.attribution ?? ""),
     false,
   );
   assert.deepEqual(textRequest.entities, [
@@ -1867,6 +1871,10 @@ async function runZeroKey() {
   assert.equal(photoCaption?.endsWith(`\n\n${textLink}`), true);
   assert.equal(
     photoCaption?.includes(baseMaterial.source?.canonicalUrl ?? ""),
+    false,
+  );
+  assert.equal(
+    photoCaption?.includes(baseMaterial.source?.attribution ?? ""),
     false,
   );
   assert.deepEqual(

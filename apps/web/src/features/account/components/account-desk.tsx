@@ -372,19 +372,20 @@ function ActivityList({ activities }: { activities: ActivityHistoryRow[] }) {
           <CompactEmpty description={t("activity.empty")} />
         ) : (
           <Collapsible onOpenChange={setExpanded} open={expanded}>
-            {!expanded ? (
-              <ul className="divide-y divide-border">
-                <ActivityRows activities={activities.slice(0, visibleCount)} />
-              </ul>
+            <ul className="divide-y divide-border">
+              <ActivityRows activities={activities.slice(0, visibleCount)} />
+            </ul>
+            {activities.length > visibleCount ? (
+              <CollapsibleContent
+                aria-label={t("activity.snapshot")}
+                className="border-border border-t"
+                render={<section />}
+              >
+                <ul className="divide-y divide-border">
+                  <ActivityRows activities={activities.slice(visibleCount)} />
+                </ul>
+              </CollapsibleContent>
             ) : null}
-            <CollapsibleContent
-              aria-label={t("activity.snapshot")}
-              render={<section />}
-            >
-              <ul className="divide-y divide-border">
-                <ActivityRows activities={activities} />
-              </ul>
-            </CollapsibleContent>
             {activities.length > visibleCount ? (
               <CollapsibleTrigger
                 render={
@@ -529,38 +530,37 @@ function ScheduledCards({
               />
             </ul>
             {rows.length > visibleCount ? (
-              <>
-                <CollapsibleContent
-                  aria-label={t("scheduled.more")}
-                  className="max-h-128 overflow-y-auto overscroll-contain border-border border-t outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  render={<section />}
-                  tabIndex={0}
-                >
-                  <ul className="divide-y divide-border">
-                    <ScheduledRows
-                      installationTimeZone={installationTimeZone}
-                      onOpenDraft={onOpenDraft}
-                      rows={rows.slice(visibleCount)}
-                    />
-                  </ul>
-                </CollapsibleContent>
-                <CollapsibleTrigger
-                  render={
-                    <Button
-                      className="mt-2 max-sm:min-h-11"
-                      type="button"
-                      variant="ghost"
-                    />
-                  }
-                >
-                  {expanded
-                    ? t("scheduled.showLess")
-                    : t("scheduled.showMore", {
-                        n: rows.length - visibleCount,
-                      })}
-                  <Icon aria-hidden="true" data-icon="inline-end" />
-                </CollapsibleTrigger>
-              </>
+              <CollapsibleContent
+                aria-label={t("scheduled.more")}
+                className="border-border border-t"
+                render={<section />}
+              >
+                <ul className="divide-y divide-border">
+                  <ScheduledRows
+                    installationTimeZone={installationTimeZone}
+                    onOpenDraft={onOpenDraft}
+                    rows={rows.slice(visibleCount)}
+                  />
+                </ul>
+              </CollapsibleContent>
+            ) : null}
+            {rows.length > visibleCount ? (
+              <CollapsibleTrigger
+                render={
+                  <Button
+                    className="mt-2 max-sm:min-h-11"
+                    type="button"
+                    variant="ghost"
+                  />
+                }
+              >
+                {expanded
+                  ? t("scheduled.showLess")
+                  : t("scheduled.showMore", {
+                      n: rows.length - visibleCount,
+                    })}
+                <Icon aria-hidden="true" data-icon="inline-end" />
+              </CollapsibleTrigger>
             ) : null}
           </Collapsible>
         )}
@@ -705,7 +705,7 @@ function SavedCards({
         ) : (
           <section
             aria-label={t("saved.list")}
-            className="max-h-144 overflow-y-auto overscroll-contain rounded-lg p-px outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="max-h-144 overflow-y-auto overscroll-contain rounded-lg p-px ring-offset-background focus-within:ring-1 focus-within:ring-ring"
           >
             <ul className="grid gap-3">
               {page.rows.map((row) => {

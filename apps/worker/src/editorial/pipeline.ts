@@ -1,3 +1,4 @@
+import type { EffectiveTopics } from "@rz-chain-reporter/contracts";
 import type {
   DuplicateMethod,
   FilteringReason,
@@ -32,6 +33,7 @@ import {
   scorePolicy,
   scorePolicyVirality,
   scoreRank,
+  type TopicGroup,
 } from "./scoring";
 import {
   clusterFromVectors,
@@ -110,18 +112,51 @@ type FreshnessInputs = {
 export type Prepared = {
   runStartedAt: Date;
   configuration: PipelineConfiguration;
-  topics: readonly string[];
+  topicGroups: readonly TopicGroup[];
   items: readonly PreparedItem[];
 };
+
+export function resolveAnalysisTopicGroups(
+  originalTopics: readonly string[],
+  sourceImportTopics: readonly string[],
+  effectiveTopics: EffectiveTopics | null,
+): TopicGroup[] {
+  if (effectiveTopics === null || effectiveTopics.usedOriginalFallback) {
+    return originalTopics.map((original) => ({
+      original,
+      effective: original,
+    }));
+  }
+  if (effectiveTopics.values.length !== sourceImportTopics.length) {
+    throw new Error("effective topic cardinality does not match raw topics");
+  }
+
+  const effectiveByTopic = new Map<string, string>();
+  sourceImportTopics.forEach((topic, index) => {
+    const effective = effectiveTopics.values[index];
+    const identity = topicIdentity(topic);
+    if (effective !== undefined && !effectiveByTopic.has(identity)) {
+      effectiveByTopic.set(identity, effective);
+    }
+  });
+
+  return originalTopics.map((original) => {
+    const effective = effectiveByTopic.get(topicIdentity(original));
+    if (effective === undefined) {
+      throw new Error("analysis topic is missing from the bound source import");
+    }
+    return { original, effective };
+  });
+}
 
 export function prepareCandidates(input: {
   items: readonly CandidateItem[];
   revisions: readonly CandidateRevision[];
   runStartedAt: Date;
   configuration: PipelineConfiguration;
-  topics: readonly string[];
+  topicGroups: readonly TopicGroup[];
 }): Prepared {
-  const { configuration, runStartedAt, topics } = input;
+  const { configuration, runStartedAt, topicGroups } = input;
   const revisions = new Map(
     input.revisions.map((revision) => [
       revision.sourceItemRevisionId,
@@ -294,7 +329,7 @@ export function prepareCandidates(input: {
   return {
     runStartedAt,
     configuration,
-    topics,
+    topicGroups,
     items: items.map(
       ({ canonicalUrl: _canonicalUrl, ...item }): PreparedItem => item,
     ),
@@ -309,7 +344,7 @@ export function scoreAndRoute(
   filterRows: AnalysisRunFilterRow[];
   shortlists: { mediaBrandId: string; sourceItemIds: string[] }[];
 } {
-  const { configuration, runStartedAt, topics } = prepared;
+  const { configuration, runStartedAt, topicGroups } = prepared;
   const freshness: FreshnessInputs = {
     runStartedAt,
     ladder: configuration.policy.freshnessLadder,
@@ -419,7 +454,7 @@ export function scoreAndRoute(
     ) => ({
       normalizedTitle: entry.item.normalizedTitle,
       normalizedText: entry.item.normalizedText,
-      topics,
+      topicGroups,
       aliases: configuration.topicAliases,
       sourceKey: entry.item.sourceKey,
       preferredSourceKeys: brand.editorial.preferredSourceKeys,
@@ -701,4 +736,8 @@ function routeKey(mediaBrandId: string, sourceItemId: string): string {
 
 function compare(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function topicIdentity(value: string) {
+  return value.trim().toLowerCase();
 }
