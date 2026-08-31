@@ -12,9 +12,13 @@ import { user } from "./schema/auth";
 import { copyGeneration } from "./schema/copy-generation";
 import { copyGenerationUnit } from "./schema/copy-generation-unit";
 import { copyVariant } from "./schema/copy-variant";
+import { copyVariantLocalization } from "./schema/copy-variant-localization";
+import { copyVariantLocalizationRequest } from "./schema/copy-variant-localization-request";
 import { destinationAccount } from "./schema/destination-account";
 import { draftRevision } from "./schema/draft-revision";
 import { draftRevisionCommandReceipt } from "./schema/draft-revision-command-receipt";
+import { editorialPresentationLocalization } from "./schema/editorial-presentation-localization";
+import { editorialPresentationLocalizationRequest } from "./schema/editorial-presentation-localization-request";
 import { editorialSelection } from "./schema/editorial-selection";
 import { filterResult } from "./schema/filter-result";
 import { imageBrief } from "./schema/image-brief";
@@ -84,20 +88,26 @@ export const analysisRunItemRelations = relations(
   }),
 );
 
-export const filterResultRelations = relations(filterResult, ({ one }) => ({
-  analysisRun: one(analysisRun, {
-    fields: [filterResult.analysisRunId],
-    references: [analysisRun.id],
+export const filterResultRelations = relations(
+  filterResult,
+  ({ one, many }) => ({
+    analysisRun: one(analysisRun, {
+      fields: [filterResult.analysisRunId],
+      references: [analysisRun.id],
+    }),
+    sourceItem: one(sourceItem, {
+      fields: [filterResult.sourceItemId],
+      references: [sourceItem.id],
+    }),
+    mediaBrand: one(mediaBrand, {
+      fields: [filterResult.mediaBrandId],
+      references: [mediaBrand.id],
+    }),
+    presentationTranslationRequests: many(
+      editorialPresentationLocalizationRequest,
+    ),
   }),
-  sourceItem: one(sourceItem, {
-    fields: [filterResult.sourceItemId],
-    references: [sourceItem.id],
-  }),
-  mediaBrand: one(mediaBrand, {
-    fields: [filterResult.mediaBrandId],
-    references: [mediaBrand.id],
-  }),
-}));
+);
 
 export const analysisModelUnitRelations = relations(
   analysisModelUnit,
@@ -121,7 +131,7 @@ export const analysisModelUnitRelations = relations(
 
 export const editorialSelectionRelations = relations(
   editorialSelection,
-  ({ one }) => ({
+  ({ one, many }) => ({
     analysisModelUnit: one(analysisModelUnit, {
       fields: [editorialSelection.analysisModelUnitId],
       references: [analysisModelUnit.id],
@@ -130,15 +140,74 @@ export const editorialSelectionRelations = relations(
       fields: [editorialSelection.sourceItemId],
       references: [sourceItem.id],
     }),
+    presentationLocalizations: many(editorialPresentationLocalization),
+    presentationTranslationRequests: many(
+      editorialPresentationLocalizationRequest,
+    ),
   }),
 );
 
-export const promoIdeaRelations = relations(promoIdea, ({ one }) => ({
+export const promoIdeaRelations = relations(promoIdea, ({ one, many }) => ({
   analysisModelUnit: one(analysisModelUnit, {
     fields: [promoIdea.analysisModelUnitId],
     references: [analysisModelUnit.id],
   }),
+  presentationLocalizations: many(editorialPresentationLocalization),
+  presentationTranslationRequests: many(
+    editorialPresentationLocalizationRequest,
+  ),
 }));
+
+export const sourceItemRevisionRelations = relations(
+  sourceItemRevision,
+  ({ many }) => ({
+    presentationLocalizations: many(editorialPresentationLocalization),
+  }),
+);
+
+export const editorialPresentationLocalizationRelations = relations(
+  editorialPresentationLocalization,
+  ({ one }) => ({
+    sourceItemRevision: one(sourceItemRevision, {
+      fields: [editorialPresentationLocalization.sourceItemRevisionId],
+      references: [sourceItemRevision.id],
+    }),
+    editorialSelection: one(editorialSelection, {
+      fields: [editorialPresentationLocalization.editorialSelectionId],
+      references: [editorialSelection.id],
+    }),
+    promoIdea: one(promoIdea, {
+      fields: [editorialPresentationLocalization.promoIdeaId],
+      references: [promoIdea.id],
+    }),
+    operationAttempt: one(operationAttempt, {
+      fields: [editorialPresentationLocalization.operationAttemptId],
+      references: [operationAttempt.id],
+    }),
+  }),
+);
+
+export const editorialPresentationLocalizationRequestRelations = relations(
+  editorialPresentationLocalizationRequest,
+  ({ one }) => ({
+    operation: one(operation, {
+      fields: [editorialPresentationLocalizationRequest.operationId],
+      references: [operation.id],
+    }),
+    editorialSelection: one(editorialSelection, {
+      fields: [editorialPresentationLocalizationRequest.editorialSelectionId],
+      references: [editorialSelection.id],
+    }),
+    telegramFilterResult: one(filterResult, {
+      fields: [editorialPresentationLocalizationRequest.telegramFilterResultId],
+      references: [filterResult.id],
+    }),
+    promoIdea: one(promoIdea, {
+      fields: [editorialPresentationLocalizationRequest.promoIdeaId],
+      references: [promoIdea.id],
+    }),
+  }),
+);
 
 export const mediaBrandRelations = relations(mediaBrand, ({ many }) => ({
   destinationAccounts: many(mediaBrandDestinationAccount),
@@ -276,7 +345,37 @@ export const copyVariantRelations = relations(copyVariant, ({ one, many }) => ({
     references: [copyGenerationUnit.id],
   }),
   revisions: many(draftRevision),
+  localizations: many(copyVariantLocalization),
+  translationRequests: many(copyVariantLocalizationRequest),
 }));
+
+export const copyVariantLocalizationRelations = relations(
+  copyVariantLocalization,
+  ({ one }) => ({
+    copyVariant: one(copyVariant, {
+      fields: [copyVariantLocalization.copyVariantId],
+      references: [copyVariant.id],
+    }),
+    operationAttempt: one(operationAttempt, {
+      fields: [copyVariantLocalization.operationAttemptId],
+      references: [operationAttempt.id],
+    }),
+  }),
+);
+
+export const copyVariantLocalizationRequestRelations = relations(
+  copyVariantLocalizationRequest,
+  ({ one }) => ({
+    operation: one(operation, {
+      fields: [copyVariantLocalizationRequest.operationId],
+      references: [operation.id],
+    }),
+    copyVariant: one(copyVariant, {
+      fields: [copyVariantLocalizationRequest.copyVariantId],
+      references: [copyVariant.id],
+    }),
+  }),
+);
 
 export const draftRevisionCommandReceiptRelations = relations(
   draftRevisionCommandReceipt,
@@ -471,6 +570,7 @@ export const operationRelations = relations(operation, ({ one, many }) => ({
   imageGeneration: one(imageGeneration),
   publish: one(publishOperation),
   sourceImport: one(sourceImport),
+  presentationTranslationRequest: one(editorialPresentationLocalizationRequest),
   outboxEvents: many(outboxEvent),
 }));
 
@@ -489,6 +589,7 @@ export const operationAttemptRelations = relations(
       references: [operation.id],
     }),
     usageEvents: many(aiUsageEvent),
+    presentationLocalizations: many(editorialPresentationLocalization),
   }),
 );
 

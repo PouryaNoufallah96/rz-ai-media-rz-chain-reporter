@@ -125,18 +125,22 @@ const transportNews = z.strictObject({
   brands: z.array(z.string()),
   models: z.array(z.string()).min(1, { error: "NO_MODEL" }),
   platforms: z.array(platformSchema).min(1, { error: "NO_PLATFORM" }),
-  sourceIds: z.array(z.uuid()).min(1, { error: "NO_SOURCES" }).max(200),
+  sourceIds: z
+    .array(z.uuid())
+    .min(1, { error: "NO_SOURCES" })
+    .max(200, { error: "TOO_MANY_SOURCES" }),
   windowHours: analysisRunWindowHoursSchema,
   enrichmentEnabled: z.boolean(),
   telegramOnly: z.boolean(),
   orderingMode: telegramOrderingModeSchema,
-  topN: z.int().min(1),
+  topN: z.int().min(1, { error: "TOP_N_BELOW_MINIMUM" }),
   topics: z.array(z.string()),
 });
 
 const transportPromo = z.strictObject({
   kind: z.literal("promo"),
   models: z.array(z.string()).min(1, { error: "NO_MODEL" }),
+  platforms: z.array(platformSchema).optional(),
   promo: z.strictObject({
     brands: z.array(z.string()),
     prompts: z.record(z.string(), z.string()),
@@ -164,14 +168,14 @@ export function runConfigurationSchema(
       .min(1, { error: "NO_PLATFORM" }),
     topN: z
       .int()
-      .min(1)
+      .min(1, { error: "TOP_N_BELOW_MINIMUM" })
       .max(bounds.selectionCap, { error: "TOP_N_EXCEEDS_CAP" }),
     topics: z
       .array(
         z
           .string()
           .trim()
-          .min(1)
+          .min(1, { error: "TOPIC_REQUIRED" })
           .max(bounds.semanticMaxChars, { error: "TOPIC_TOO_LONG" }),
       )
       .max(bounds.semanticMaxTopics, { error: "TOO_MANY_TOPICS" }),
@@ -179,6 +183,10 @@ export function runConfigurationSchema(
 
   const promo = transportPromo.extend({
     models: z.array(modelKey).min(1, { error: "NO_MODEL" }),
+    platforms: z
+      .array(z.enum(bounds.platforms))
+      .min(1, { error: "NO_PLATFORM" })
+      .optional(),
     promo: z.strictObject({
       brands: z.array(brandKey).min(1, { error: "NO_PROMO_BRAND" }),
       prompts: z.partialRecord(
@@ -246,7 +254,15 @@ export function runConfigurationSchema(
           }
         }
       }
-    });
+    })
+    .transform((configuration) =>
+      configuration.kind === "promo"
+        ? {
+            ...configuration,
+            platforms: configuration.platforms ?? [...bounds.platforms],
+          }
+        : configuration,
+    );
 }
 
 export type RunConfiguration = z.infer<
@@ -313,7 +329,7 @@ export function assemblePublishPayload(input: {
   if (input.platform === "telegram" && input.source) {
     const label =
       input.contentLocale === "fa" ? "مطالعه کامل خبر" : "Read full story";
-    const linkText = `${label}: ${input.source.attribution}`;
+    const linkText = label;
     text = `${text}\n\n${linkText}`;
     telegramLink = {
       length: linkText.length,

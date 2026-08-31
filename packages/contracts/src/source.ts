@@ -6,6 +6,14 @@ export type ContentLocale = (typeof CONTENT_LOCALES)[number];
 
 export const contentLocaleSchema = z.enum(CONTENT_LOCALES);
 
+export const effectiveTopicsSchema = z.strictObject({
+  contentLocale: contentLocaleSchema,
+  values: z.array(z.string()),
+  usedOriginalFallback: z.boolean(),
+});
+
+export type EffectiveTopics = z.infer<typeof effectiveTopicsSchema>;
+
 export const SOURCE_FETCH_OUTCOMES = [
   "pending",
   "succeeded",

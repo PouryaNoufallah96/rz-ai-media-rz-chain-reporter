@@ -3,11 +3,15 @@ import { randomUUID } from "node:crypto";
 import type { AdmissionOutcome } from "@rz-chain-reporter/contracts";
 import { validateMigrationEnv } from "@rz-chain-reporter/env/migration";
 import dotenv from "dotenv";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { DatabaseError } from "pg";
 
+import type { Transaction } from "../executor";
 import { createDb } from "../index";
 import {
+  beginStaleSourceImportReconciliation,
   findSourceImportSourceUnit,
+  listStaleSourceImports,
   persistSourceImportItems,
   recordSourceImportItemRanks,
   reuseSourceImportItems,
@@ -27,7 +31,7 @@ import { workspace } from "../schema/workspace";
 dotenv.config({ path: "../../.env.migration" });
 
 const { MIGRATION_DATABASE_URL } = validateMigrationEnv(process.env);
-const database = createDb(MIGRATION_DATABASE_URL, { max: 2 });
+const database = createDb(MIGRATION_DATABASE_URL, { max: 2, pipeline: true });
 const rollback = new Error("EXPECTED_SOURCE_IMPORT_PROBE_ROLLBACK");
 const workspaceId = randomUUID();
 const actorId = `source-import-probe-${randomUUID()}`;
@@ -155,7 +159,12 @@ try {
           stage: "acquiring",
           templateFingerprint: "probe",
           topN: 15,
-          topics: [],
+          topics: ["Bitcoin", "Ethereum"],
+          effectiveTopics: {
+            contentLocale: "en",
+            values: ["Bitcoin", "Ethereum"],
+            usedOriginalFallback: false,
+          },
           windowHours: 48,
         },
         {
@@ -211,6 +220,58 @@ try {
           sourceImportId: mismatchSourceImportId,
         },
       ]);
+
+      for (const invalid of [
+        ["Bitcoin", "Ethereum"],
+        {
+          contentLocale: "en",
+          values: ["Bitcoin", "Ethereum"],
+        },
+        {
+          contentLocale: "en",
+          values: ["Bitcoin", "Ethereum"],
+          usedOriginalFallback: false,
+          version: 1,
+        },
+        {
+          contentLocale: "de",
+          values: ["Bitcoin", "Ethereum"],
+          usedOriginalFallback: false,
+        },
+        {
+          contentLocale: "en",
+          values: ["Bitcoin", 2],
+          usedOriginalFallback: false,
+        },
+        {
+          contentLocale: "en",
+          values: ["Bitcoin"],
+          usedOriginalFallback: false,
+        },
+        {
+          contentLocale: "en",
+          values: ["Bitcoin", "Ethereum"],
+          usedOriginalFallback: "false",
+        },
+      ]) {
+        await expectEffectiveTopicsConstraint(tx, invalid);
+      }
+
+      const [topicSnapshot] = await tx
+        .select({
+          effectiveTopics: sourceImport.effectiveTopics,
+          topics: sourceImport.topics,
+        })
+        .from(sourceImport)
+        .where(eq(sourceImport.id, currentSourceImportId));
+      assert.deepEqual(topicSnapshot, {
+        effectiveTopics: {
+          contentLocale: "en",
+          values: ["Bitcoin", "Ethereum"],
+          usedOriginalFallback: false,
+        },
+        topics: ["Bitcoin", "Ethereum"],
+      });
 
       const itemIds = fixture.map(() => randomUUID());
       const revisionIds = fixture.map(() => randomUUID());
@@ -529,6 +590,87 @@ try {
     (error: unknown) => error === rollback,
   );
 
+  const staleNow = new Date("2026-08-26T15:00:00.000Z");
+  await database.db.transaction(async (tx) => {
+    await tx.insert(user).values({
+      id: actorId,
+      email: `${actorId}@example.test`,
+      name: "Source Import Reconciliation Probe",
+    });
+    await tx.insert(workspace).values({
+      id: workspaceId,
+      name: `Source Import Reconciliation Probe ${workspaceId}`,
+    });
+    await tx.insert(operation).values({
+      id: currentOperationId,
+      workspaceId,
+      actor: actorId,
+      claimedBy: "source-import-parent:probe",
+      commandType: "source-import:probe-reconciliation",
+      idempotencyKey: "reconciliation",
+      leaseExpiresAt: new Date(staleNow.getTime() - 1),
+      lifecycle: "settling",
+      requestHash: "reconciliation",
+    });
+    await tx.insert(sourceImport).values({
+      id: currentSourceImportId,
+      workspaceId,
+      enrichmentEnabled: true,
+      operationId: currentOperationId,
+      orderingMode: "latest",
+      stage: "enriching",
+      templateFingerprint: "reconciliation-probe",
+      topN: 15,
+      topics: [],
+      windowHours: 24,
+    });
+  });
+  const [staleCandidate] = await listStaleSourceImports(
+    database.db,
+    workspaceId,
+    { limit: 10, now: staleNow },
+  );
+  assert(staleCandidate);
+  const [firstClaim, secondClaim] = await Promise.all([
+    beginStaleSourceImportReconciliation(database.db, workspaceId, {
+      expectedVersion: staleCandidate.operationVersion,
+      leaseExpiresAt: new Date(staleNow.getTime() + 120_000),
+      now: staleNow,
+      operationId: currentOperationId,
+    }),
+    beginStaleSourceImportReconciliation(database.db, workspaceId, {
+      expectedVersion: staleCandidate.operationVersion,
+      leaseExpiresAt: new Date(staleNow.getTime() + 120_000),
+      now: staleNow,
+      operationId: currentOperationId,
+    }),
+  ]);
+  const reconciliationClaims = [firstClaim, secondClaim].filter(
+    (claim) => claim !== null,
+  );
+  assert.equal(reconciliationClaims.length, 1);
+  assert.equal(
+    reconciliationClaims[0]?.version,
+    staleCandidate.operationVersion + 1,
+  );
+  assert.equal(
+    await beginStaleSourceImportReconciliation(database.db, workspaceId, {
+      expectedVersion: staleCandidate.operationVersion,
+      leaseExpiresAt: new Date(staleNow.getTime() + 120_000),
+      now: staleNow,
+      operationId: currentOperationId,
+    }),
+    null,
+  );
+  await database.db.transaction(async (tx) => {
+    await tx
+      .delete(sourceImport)
+      .where(eq(sourceImport.workspaceId, workspaceId));
+    await tx.delete(operation).where(eq(operation.workspaceId, workspaceId));
+    await tx.delete(workspace).where(eq(workspace.id, workspaceId));
+    await tx.delete(user).where(eq(user.id, actorId));
+  });
+
   const residue = await database.db
     .select({ id: workspace.id })
     .from(workspace)
@@ -542,12 +684,59 @@ try {
       batchRevisions: [1, 2, 1],
       emptyNotModified: "succeeded-no-op",
       fingerprintMismatchReused: false,
+      effectiveTopics: {
+        historicalNull: true,
+        invalidShapesRejected: 7,
+        rawTopicsPreserved: true,
+      },
       idempotentReplay: true,
       ordered: 3,
       residue: 0,
+      settlingClaimWinners: reconciliationClaims.length,
       settlement: "successful-empty-or-partial-with-items",
     }),
   );
 } finally {
   await database.close();
+}
+
+async function expectEffectiveTopicsConstraint(
+  tx: Transaction,
+  payload: unknown,
+) {
+  await tx.execute(sql.raw("savepoint expected_effective_topics_failure"));
+  try {
+    await tx.execute(
+      sql`update ${sourceImport}
+          set "effective_topics" = ${JSON.stringify(payload)}::jsonb
+          where ${sourceImport.id} = ${currentSourceImportId}`,
+    );
+  } catch (error) {
+    await tx.execute(
+      sql.raw("rollback to savepoint expected_effective_topics_failure"),
+    );
+    await tx.execute(
+      sql.raw("release savepoint expected_effective_topics_failure"),
+    );
+    if (constraintName(error) === "ck_source_import_effective_topics_shape") {
+      return;
+    }
+    throw error;
+  }
+  await tx.execute(
+    sql.raw("rollback to savepoint expected_effective_topics_failure"),
+  );
+  await tx.execute(
+    sql.raw("release savepoint expected_effective_topics_failure"),
+  );
+  throw new Error("invalid effective topics payload was accepted");
+}
+
+function constraintName(error: unknown) {
+  let current = error;
+  while (current instanceof Error) {
+    if (current instanceof DatabaseError) return current.constraint;
+    current = current.cause;
+  }
+  return undefined;
 }
