@@ -95,7 +95,8 @@ const LIMITED_SUMMARY = "L".repeat(900);
 const TELEGRAM_POST = "T".repeat(2_200);
 const X_HARD_MAXIMUM = 280;
 
-const [command, ...args] = process.argv.slice(2);
+const [requestedCommand, ...args] = process.argv.slice(2);
+const command = requestedCommand ?? "execution";
 if (
   !PROBE_COMMANDS.includes(command as (typeof PROBE_COMMANDS)[number]) ||
   args.length !== 0
@@ -556,6 +557,9 @@ class CopySourceFixture {
       configuration: {
         kind: "promo",
         models: ["probe"],
+        platforms: opened.template.editorial.drafting.copy.platforms.map(
+          ({ platform }) => platform,
+        ),
         promo: {
           brands: [brand.key],
           prompts: { [brand.key]: "deterministic probe" },
@@ -836,7 +840,10 @@ class CopySourceFixture {
     return id;
   }
 
-  async retryFailedGeneration(operationId: string) {
+  async retryFailedGeneration(
+    operationId: string,
+    requestedContentLocale: "en" | "fa",
+  ) {
     const [generation] = await opened.database.db
       .select({ platformDraftId: copyGeneration.platformDraftId })
       .from(copyGeneration)
@@ -847,6 +854,7 @@ class CopySourceFixture {
     if (!generation || !brand) throw new Error("COPY_RETRY_FIXTURE_REQUIRED");
 
     const commandId = randomUUID();
+    const idempotencyKey = `copy-source-probe-retry-${commandId}`;
     const result = await startCopyOperation(
       opened.database.db,
       this.workspaceId,
@@ -868,16 +876,51 @@ class CopySourceFixture {
           ),
         },
         customerTemplateFingerprint: opened.identity.fingerprint,
-        idempotencyKey: `copy-source-probe-retry-${commandId}`,
+        idempotencyKey,
         mode: "retry_failed",
         platformDraftId: generation.platformDraftId,
         promptVersion: COPY_PROMPT_VERSION,
+        requestedContentLocale,
         requestHash: hash(commandId),
         requestId: null,
       },
     );
     if (result.status === "created") this.operationIds.push(result.operationId);
-    return result;
+    return { idempotencyKey, result };
+  }
+
+  async retryCommandArtifacts(idempotencyKey: string) {
+    const operations = await opened.database.db
+      .select({ id: operation.id })
+      .from(operation)
+      .where(
+        and(
+          eq(operation.workspaceId, this.workspaceId),
+          eq(operation.actor, this.actorId),
+          eq(
+            operation.commandType,
+            `${COPY_GENERATION_COMMAND_PREFIX}retry_failed`,
+          ),
+          eq(operation.idempotencyKey, idempotencyKey),
+        ),
+      );
+    const operationIds = operations.map((entry) => entry.id);
+    if (operationIds.length === 0) {
+      return { attempts: 0, operations: 0, outboxEvents: 0 };
+    }
+    const attempts = await opened.database.db
+      .select({ id: operationAttempt.id })
+      .from(operationAttempt)
+      .where(inArray(operationAttempt.operationId, operationIds));
+    const events = await opened.database.db
+      .select({ id: outboxEvent.id })
+      .from(outboxEvent)
+      .where(inArray(outboxEvent.operationId, operationIds));
+    return {
+      attempts: attempts.length,
+      operations: operations.length,
+      outboxEvents: events.length,
+    };
   }
 
   async seedEnrichment(
@@ -1924,7 +1967,10 @@ async function proveHistoricalRetryUsesCurrentVersions(
     .set({ lifecycle: "failed" })
     .where(eq(operation.id, fixture.operationId));
 
-  const result = await probe.retryFailedGeneration(fixture.operationId);
+  const { result } = await probe.retryFailedGeneration(
+    fixture.operationId,
+    "en",
+  );
   assert.equal(result.status, "created");
   if (result.status !== "created") throw new Error("COPY_RETRY_NOT_CREATED");
 
@@ -1958,6 +2004,26 @@ async function proveHistoricalRetryUsesCurrentVersions(
   );
   console.log(
     "copy-generation execution historical-retry current-template=true current-prompt=true failed-units-preserved=true status=pass",
+  );
+}
+
+async function proveRetryLocaleContract(probe: CopySourceFixture) {
+  const fixture = await probe.createExecutionGeneration("x");
+  await probe.completeGeneration(fixture.operationId, "failed");
+  await opened.database.db
+    .update(operation)
+    .set({ lifecycle: "failed" })
+    .where(eq(operation.id, fixture.operationId));
+
+  const mismatch = await probe.retryFailedGeneration(fixture.operationId, "fa");
+  assert.equal(mismatch.result.status, "validation_failed");
+  assert.deepEqual(await probe.retryCommandArtifacts(mismatch.idempotencyKey), {
+    attempts: 0,
+    operations: 0,
+    outboxEvents: 0,
+  });
+  console.log(
+    "copy-generation execution retry-locale same-locale=created mismatched-locale=rejected operations=0 attempts=0 outbox-events=0 worker-events=0 status=pass",
   );
 }
 
@@ -2158,6 +2224,7 @@ async function runExecutionProbe(probe: CopySourceFixture) {
   if (!brand) throw new Error("EXECUTION_TEMPLATE_BRAND_REQUIRED");
   await proveLocaleVariantReplacement(probe);
   await proveHistoricalRetryUsesCurrentVersions(probe);
+  await proveRetryLocaleContract(probe);
   proveBrandGuidanceOwners();
   proveCopyNormalization(brand);
   await proveStaleCopyReconciliation(probe);

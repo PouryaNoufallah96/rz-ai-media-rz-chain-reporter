@@ -75,7 +75,7 @@ async function notifyDrafts(
     draftsRealtimePublished: await publishDraftsChanged(
       step,
       workspaceId,
-      draftMessage(change),
+      draftsChangedMessage(change),
       callSite,
     ),
     usageRealtimePublished: withUsage
@@ -100,7 +100,7 @@ export async function notifyDraftsChangedNow(
     draftsRealtimePublished: await publishDraftsChangedNow(
       client,
       workspaceId,
-      draftMessage(change),
+      draftsChangedMessage(change),
     ),
   };
 }
@@ -109,7 +109,9 @@ export function notifyDraftsCacheChanged(workspaceId: string) {
   return notifyCacheInvalidation([workspaceCacheTag(workspaceId, "drafts")]);
 }
 
-function draftMessage(change: DraftChange): DraftsChangedRealtimeMessage {
+export function draftsChangedMessage(
+  change: DraftChange,
+): DraftsChangedRealtimeMessage {
   return {
     ...change,
     occurredAt: new Date().toISOString(),

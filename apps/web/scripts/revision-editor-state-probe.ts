@@ -5,15 +5,68 @@ import {
   canCreateRevision,
   candidateEditSource,
   hasRevisionEdits,
+  initialContentLocale,
   revisionEditorState,
   revisionEditSource,
   revisionValues,
+  sameEditSource,
   selectEditSource,
 } from "../src/features/editorial/lib/revision-editor-state";
 import {
   draftEditorSchema,
   type PlatformDraftCard,
+  updateDraftRevisionInputSchema,
 } from "../src/features/editorial/schemas/drafts";
+
+const localizedRevisionCommand = {
+  commandKind: "select_revision" as const,
+  draftRevisionId: "00000000-0000-4000-8000-000000000002",
+  expectedActive: { id: null, version: 0 },
+  idempotencyKey: "00000000-0000-4000-8000-000000000003",
+  platformDraftId: "00000000-0000-4000-8000-000000000001",
+  presentationLocale: "fa" as const,
+};
+assert.equal(
+  updateDraftRevisionInputSchema.safeParse(localizedRevisionCommand).success,
+  true,
+);
+const { presentationLocale: _presentationLocale, ...unlocalizedCommand } =
+  localizedRevisionCommand;
+assert.equal(
+  updateDraftRevisionInputSchema.safeParse(unlocalizedCommand).success,
+  false,
+);
+const localizedCopySourceCommand = {
+  commandKind: "submit_content" as const,
+  content: {
+    body: "Body",
+    contentLocale: "fa" as const,
+    hashtags: ["#Brand"],
+    headline: "Headline",
+  },
+  expectedActive: { id: null, version: 0 },
+  idempotencyKey: "00000000-0000-4000-8000-000000000003",
+  platformDraftId: "00000000-0000-4000-8000-000000000001",
+  presentationLocale: "fa" as const,
+  source: {
+    kind: "copy_variant" as const,
+    id: "00000000-0000-4000-8000-000000000004",
+    contentLocale: "fa" as const,
+  },
+};
+assert.equal(
+  updateDraftRevisionInputSchema.safeParse(localizedCopySourceCommand).success,
+  true,
+);
+const { contentLocale: _sourceLocale, ...unlocalizedCopySource } =
+  localizedCopySourceCommand.source;
+assert.equal(
+  updateDraftRevisionInputSchema.safeParse({
+    ...localizedCopySourceCommand,
+    source: unlocalizedCopySource,
+  }).success,
+  false,
+);
 
 const first: PlatformDraftCard["revisions"][number] = {
   id: "revision-1",
@@ -58,6 +111,8 @@ const empty: PlatformDraftCard = {
   revisionVersion: 0,
   projectionVersion: 0,
   nextRevisionNumber: 1,
+  presentationReady: true,
+  presentationTranslation: null,
   origin: { kind: "promo_idea", promoIdeaId: "idea" },
   originTitle: "Origin",
   sourceKind: "promo",
@@ -95,7 +150,19 @@ const editableSecond = revisionValues(second);
 editableSecond.hashtags.reverse();
 assert.deepEqual(second.hashtags, ["#Brand", "#Second", "#First"]);
 
-let state = acceptRevisionCard(revisionEditorState(empty), appliedFirst, false);
+const freshPersian = revisionEditorState(null, "fa");
+assert.equal(freshPersian.editorValues.contentLocale, "fa");
+assert.equal(freshPersian.freshContentLocale, "fa");
+assert.equal(
+  acceptRevisionCard(freshPersian, empty, false).editorValues.contentLocale,
+  "fa",
+);
+
+let state = acceptRevisionCard(
+  revisionEditorState(empty, "en"),
+  appliedFirst,
+  false,
+);
 assert.equal(state.source?.id, first.id);
 assert.equal(state.editorValues.body, first.body);
 state = acceptRevisionCard(state, empty, false);
@@ -171,6 +238,7 @@ const candidate: PlatformDraftCard["candidates"][number] = {
   limited: false,
   modelOptionKey: "model",
   createdAt: new Date(0),
+  translation: null,
 };
 const selectedCandidate = selectEditSource(
   selectedSecond,
@@ -182,14 +250,28 @@ selectedCandidate.editorValues.hashtags.reverse();
 assert.deepEqual(candidate.hashtags, ["#Brand", "#Candidate"]);
 assert.equal(canCreateRevision(selectedCandidate.source, false), true);
 assert.equal(canChangeSavedCard(selectedCandidate.source, false, false), false);
+const localizedCandidate: typeof candidate = {
+  ...candidate,
+  contentLocale: "fa",
+  headline: "تیتر نامزد",
+  body: "متن نامزد",
+  hashtags: ["#برند", "#نامزد"],
+};
 assert.equal(
-  hasRevisionEdits(null, revisionEditorState(empty).editorValues, ""),
+  sameEditSource(
+    candidateEditSource(candidate),
+    candidateEditSource(localizedCandidate),
+  ),
+  false,
+);
+assert.equal(
+  hasRevisionEdits(null, revisionEditorState(empty, "en").editorValues, ""),
   false,
 );
 
 const candidateCard = { ...appliedSecond, candidates: [candidate] };
 const candidateState = selectEditSource(
-  revisionEditorState(candidateCard),
+  revisionEditorState(candidateCard, "fa"),
   candidateEditSource(candidate),
 );
 const replacedCandidates = acceptRevisionCard(
@@ -200,12 +282,75 @@ const replacedCandidates = acceptRevisionCard(
 assert.equal(replacedCandidates.source?.id, second.id);
 assert.equal(replacedCandidates.source?.kind, "draft_revision");
 
+const localizedCandidateCard = {
+  ...candidateCard,
+  candidates: [localizedCandidate],
+  projectionVersion: candidateCard.projectionVersion + 1,
+};
+const pristineLocalized = acceptRevisionCard(
+  candidateState,
+  localizedCandidateCard,
+  true,
+);
+assert.equal(pristineLocalized.source?.id, candidate.id);
+assert.equal(pristineLocalized.editorValues.contentLocale, "fa");
+assert.equal(
+  pristineLocalized.editorValues.headline,
+  localizedCandidate.headline,
+);
+
+const dirtyCandidateState = selectEditSource(
+  revisionEditorState(candidateCard, "fa"),
+  candidateEditSource(candidate),
+);
+dirtyCandidateState.editorValues.headline = "Operator edit";
+const preservedDirtyCandidate = acceptRevisionCard(
+  dirtyCandidateState,
+  localizedCandidateCard,
+  true,
+);
+assert.equal(preservedDirtyCandidate.editorValues.headline, "Operator edit");
+assert.equal(preservedDirtyCandidate.source?.content.contentLocale, "en");
+
+const removedDirtyCandidate = acceptRevisionCard(
+  dirtyCandidateState,
+  {
+    ...candidateCard,
+    candidates: [],
+    projectionVersion: candidateCard.projectionVersion + 1,
+  },
+  true,
+);
+assert.equal(removedDirtyCandidate.editorValues.headline, "Operator edit");
+assert.equal(removedDirtyCandidate.source?.id, candidate.id);
+
 const removedRevision = acceptRevisionCard(
   selectEditSource(candidateState, revisionEditSource(first)),
   { ...candidateCard, revisions: [second] },
   true,
 );
 assert.equal(removedRevision.source?.id, second.id);
+
+const candidateFirst = {
+  ...empty,
+  generation: {
+    operationId: "generation-candidate",
+    lifecycle: "succeeded" as const,
+    modelOptionKey: "model",
+    requestedContentLocale: "fa" as const,
+    limited: false,
+    forceArticleRefresh: false,
+    createdAt: new Date(0),
+    units: [],
+  },
+  candidates: [candidate],
+};
+assert.equal(initialContentLocale(appliedSecond, "en"), "fa");
+assert.equal(initialContentLocale(candidateFirst, "fa"), "en");
+assert.equal(
+  initialContentLocale({ ...candidateFirst, candidates: [] }, "en"),
+  "fa",
+);
 
 assert.deepEqual(
   draftEditorSchema.parse({
@@ -229,5 +374,5 @@ assert.equal(emptyHashtag.success, false);
 assert.equal(emptyHashtag.error?.issues[0]?.message, "DRAFT_HASHTAG_REQUIRED");
 
 process.stdout.write(
-  "PASS revision editor local source selection, immutable cloning, monotonic state, and shared validation\n",
+  "PASS revision editor required presentation locale, explicit localized copy source, fresh UI locale initialization, persisted artifact locale precedence, pristine localization refresh, dirty edit preservation, local source selection, immutable cloning, monotonic state, and shared validation\n",
 );

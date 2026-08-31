@@ -168,6 +168,14 @@ export function createGenerationProbeFunction(
         return row;
       });
 
+      const { cacheInvalidation, usageRealtimePublished } =
+        await notifyUsageLedgerChanged(
+          step,
+          event.data.workspaceId,
+          claim.actor,
+          "settled",
+        );
+
       const terminalRealtimePublished = await publishOperationStatus(
         step,
         event.data.workspaceId,
@@ -182,14 +190,6 @@ export function createGenerationProbeFunction(
         },
         "worker.generation-probe.realtime-unavailable",
       );
-
-      const { cacheInvalidation, usageRealtimePublished } =
-        await notifyUsageLedgerChanged(
-          step,
-          event.data.workspaceId,
-          claim.actor,
-          "settled",
-        );
 
       return {
         cacheInvalidation,
