@@ -1,4 +1,5 @@
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
+import { cn } from "@rz-chain-reporter/ui/lib/utils";
 
 import { Suspended } from "@/components/fetcher/suspended";
 import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
@@ -19,6 +20,7 @@ import { getRunOptions } from "../api/server/get-run-options";
 import { EDITORIAL_NAMESPACE } from "../constants";
 import type { WorkspaceSearchParams } from "../schemas/workspace";
 import { EditorialCoordinator } from "./editorial-coordinator";
+import { LANE_WIDTH_CLASS_NAME } from "./lane-layout";
 
 const LIMITED_GUIDANCE_BRANDS = customerBrandPolicy
   .filter((brand) => brand.brandBible === null)
@@ -116,8 +118,8 @@ function ConfigurationSkeleton({ label }: { label: string }) {
       <span className="sr-only" role="status">
         {label}
       </span>
-      <div className="relative grid min-w-0 grid-cols-[0rem_minmax(0,1fr)] items-start gap-y-3 min-[900px]:grid-cols-[22rem_minmax(0,1fr)] min-[900px]:gap-x-5">
-        <div className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5 min-[900px]:grid-cols-subgrid">
+      <div className="relative grid min-w-0 grid-cols-[0rem_minmax(0,1fr)] workspace:grid-cols-[22rem_minmax(0,1fr)] items-start workspace:gap-x-5 gap-y-3">
+        <div className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)] workspace:grid-cols-subgrid items-center gap-x-5">
           <div className="flex items-center gap-2">
             <Skeleton className="h-9 w-20 max-sm:h-11" />
             <Skeleton className="size-8 max-sm:size-11" />
@@ -126,7 +128,7 @@ function ConfigurationSkeleton({ label }: { label: string }) {
         </div>
         <aside
           aria-hidden="true"
-          className="col-start-1 row-start-2 flex h-[calc(100dvh-10rem)] min-h-96 w-88 flex-col gap-5 overflow-hidden rounded-xl border border-sidebar-border bg-sidebar p-3 max-[899px]:absolute max-[899px]:inset-s-0 max-[899px]:top-0 max-[899px]:z-30 max-[899px]:max-h-[calc(100dvh-10rem)] max-[899px]:max-w-[calc(100vw-2rem)]"
+          className="workspace:sticky workspace:top-4 col-start-1 row-start-2 flex workspace:max-h-[calc(100dvh-2rem)] w-88 min-w-0 flex-col gap-4 workspace:overflow-y-auto rounded-xl border border-sidebar-border bg-sidebar p-3 text-sidebar-foreground max-workspace:hidden"
         >
           <div className="grid gap-2">
             <Skeleton className="h-4 w-16" />
@@ -205,7 +207,10 @@ function ConfigurationSkeleton({ label }: { label: string }) {
               <div className="flex min-w-0 gap-3 overflow-hidden py-1">
                 {SKELETON_LANES.map((laneKey) => (
                   <Skeleton
-                    className="min-h-48 w-[clamp(260px,30vw,320px)] shrink-0 rounded-lg max-[599px]:w-[min(300px,calc(100vw-32px))]"
+                    className={cn(
+                      "min-h-48 shrink-0 rounded-lg",
+                      LANE_WIDTH_CLASS_NAME,
+                    )}
                     key={laneKey}
                   />
                 ))}

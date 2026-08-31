@@ -70,13 +70,16 @@ const fieldVariants = cva(
 
 function Field({
   className,
+  disabled,
   orientation = "vertical",
   ...props
 }: React.ComponentProps<"fieldset"> & VariantProps<typeof fieldVariants>) {
   return (
     <fieldset
+      data-disabled={disabled || undefined}
       data-slot="field"
       data-orientation={orientation}
+      disabled={disabled}
       className={cn(
         "min-w-0 border-0 p-0",
         fieldVariants({ orientation }),

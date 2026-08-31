@@ -85,7 +85,7 @@ export function ReportScreen({
                 >
                   {t("report.back")}
                 </Button>
-                <div className="mt-6 grid gap-3 min-[1200px]:grid-cols-3 min-[600px]:grid-cols-2">
+                <div className="mt-6 grid compact:grid-cols-2 wide:grid-cols-3 gap-3">
                   <FunnelBlock
                     lines={itemFunnel(funnels, format, t)}
                     title={t("funnel.item.title")}
@@ -94,7 +94,7 @@ export function ReportScreen({
                     lines={routeFunnel(funnels, format, t)}
                     title={t("funnel.route.title")}
                   />
-                  <div className="min-[900px]:max-[1199px]:col-span-2">
+                  <div className="workspace:max-wide:col-span-2">
                     <FunnelBlock
                       lines={modelFunnel(funnels, format, t)}
                       title={t("funnel.model.title")}
@@ -143,7 +143,7 @@ function ReportBodySkeleton({ label }: { label: string }) {
   return (
     <div aria-busy="true">
       <Skeleton className="mt-3 h-4 w-full max-w-md" />
-      <div className="mt-6 grid gap-3 min-[1200px]:grid-cols-3 min-[600px]:grid-cols-2">
+      <div className="mt-6 grid compact:grid-cols-2 wide:grid-cols-3 gap-3">
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-48 w-full" />

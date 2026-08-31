@@ -18,7 +18,7 @@ export function AssistantScope({ children }: { children: ReactNode }) {
         <UrlDataBoundary
           fallback={
             <Skeleton
-              className="fixed inset-e-4 bottom-4 z-60 size-10 rounded-full"
+              className="fixed inset-e-4 bottom-4 z-60 size-11 rounded-full"
               data-assistant-fab
             />
           }

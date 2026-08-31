@@ -1,22 +1,47 @@
 "use client";
 
-import type { Platform } from "@rz-chain-reporter/contracts";
+import {
+  isOperationInProgress,
+  type Platform,
+} from "@rz-chain-reporter/contracts";
 import { Button } from "@rz-chain-reporter/ui/components/button";
+import { useDirection } from "@rz-chain-reporter/ui/components/direction-provider";
+import { Hint } from "@rz-chain-reporter/ui/components/hint";
+import {
+  Sheet,
+  SheetClose,
+  SheetOverlay,
+  SheetPopup,
+  SheetPortal,
+  SheetTitle,
+  SheetTrigger,
+  SheetViewport,
+} from "@rz-chain-reporter/ui/components/sheet";
 import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
   SidebarTrigger,
 } from "@rz-chain-reporter/ui/components/sidebar";
-import { PlusIcon } from "lucide-react";
+import { PanelLeftIcon, PlusIcon, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { useAssistant } from "@/features/assistant/lib/assistant-context";
 import type { SourceCatalogEntry } from "@/features/sources/schemas/catalog";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 import { Link } from "@/i18n/navigation";
 import { EDITORIAL_NAMESPACE } from "../constants";
+import {
+  type BoardPresentation,
+  configuredBoardPresentation,
+} from "../lib/board-presentation";
 import type { PlatformDraftLane } from "../schemas/drafts";
 import type {
   EditorialWorkspace,
@@ -25,13 +50,25 @@ import type {
 } from "../schemas/workspace";
 import { workspaceSearchParsers } from "../schemas/workspace";
 import { CardSheet } from "./card-sheet";
-import {
-  type BoardPresentation,
-  LaneBoard,
-  LaneBoardHeader,
-} from "./lane-board";
+import { LaneBoard, LaneBoardHeader } from "./lane-board";
 import { RunConfigurationForm } from "./run-configuration-form";
 import { RunHead as RunHeadPanel } from "./run-head";
+
+const DESKTOP_SIDEBAR_QUERY = "(width >= 56.25rem)";
+
+function subscribeToDesktopSidebar(change: () => void) {
+  const query = window.matchMedia(DESKTOP_SIDEBAR_QUERY);
+  query.addEventListener("change", change);
+  return () => query.removeEventListener("change", change);
+}
+
+function desktopSidebarSnapshot() {
+  return window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches;
+}
+
+function desktopSidebarServerSnapshot() {
+  return true;
+}
 
 export function EditorialCoordinator({
   defaultModelOptionKey,
@@ -53,6 +90,7 @@ export function EditorialCoordinator({
   workspace: EditorialWorkspace;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
+  const direction = useDirection();
   const boardHeadingId = useId();
   const [presentation, setPresentation] = useState<BoardPresentation>(() =>
     initialPresentation(workspace.head, options, templatePlatforms),
@@ -65,113 +103,191 @@ export function EditorialCoordinator({
 
     return () => setBrandKeys([]);
   }, [presentation.brandKeys, setBrandKeys]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const desktopSidebar = useSyncExternalStore(
+    subscribeToDesktopSidebar,
+    desktopSidebarSnapshot,
+    desktopSidebarServerSnapshot,
+  );
+  const [sidebarOverride, setSidebarOverride] = useState<boolean | null>(null);
+  const sidebarOpen = sidebarOverride ?? desktopSidebar;
+  const mobileSidebarOpen = sidebarOpen && !desktopSidebar;
   const sidebarPanel = useRef<HTMLDivElement>(null);
   const sidebarTrigger = useRef<HTMLButtonElement>(null);
+  const sidebarClose = useRef<HTMLButtonElement>(null);
   const { setValues, values } = useTransitionUrlState(workspaceSearchParsers);
   const selectedDraft = platformDraftLanes
     .flatMap((lane) => lane.drafts)
     .find((card) => card.id === values.draft);
+  const configurationContents = (
+    <>
+      <RunConfigurationForm
+        initialConfiguration={workspace.head?.configuration ?? null}
+        onPresentationChange={setPresentation}
+        options={options}
+        runInProgress={isOperationInProgress(workspace.head?.lifecycle)}
+        sources={sources}
+      />
+      <RunHeadPanel
+        head={workspace.head}
+        readAt={workspace.readAt}
+        runs={options.runs}
+        selectedRunId={workspace.query.run}
+        showFreshness={values.draft === null}
+      />
+    </>
+  );
 
   return (
     <>
-      <Sidebar
-        className="min-[900px]:data-open:grid-cols-[22rem_minmax(0,1fr)]"
-        onKeyDown={(event) => {
-          if (
-            event.key === "Escape" &&
-            !event.defaultPrevented &&
-            sidebarOpen
-          ) {
-            event.preventDefault();
-            sidebarTrigger.current?.focus();
-            setSidebarOpen(false);
-          }
-        }}
-        onOpenChange={(open) => {
-          if (!open && sidebarPanel.current?.contains(document.activeElement)) {
-            sidebarTrigger.current?.focus();
-          }
-          setSidebarOpen(open);
-        }}
-        open={sidebarOpen}
+      <Sheet
+        disablePointerDismissal
+        onOpenChange={setSidebarOverride}
+        open={mobileSidebarOpen}
       >
-        <SidebarHeader className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 min-[900px]:group-data-open/sidebar:grid-cols-subgrid">
-          <div className="flex items-center gap-2">
-            <SidebarTrigger ref={sidebarTrigger}>
-              {t("run.title")}
-            </SidebarTrigger>
-            <Button
-              aria-label={t("run.newWorkspace")}
-              className="max-sm:size-11"
-              nativeButton={false}
-              render={<Link href="/dashboard" />}
-              size="icon"
-              variant="outline"
-            >
-              <PlusIcon aria-hidden="true" />
-            </Button>
-          </div>
-          <LaneBoardHeader head={workspace.head} id={boardHeadingId} />
-        </SidebarHeader>
-        <SidebarContent
-          aria-label={t("run.title")}
-          className="w-88"
-          inert={!sidebarOpen}
-          ref={sidebarPanel}
-        >
-          <RunConfigurationForm
-            initialConfiguration={workspace.head?.configuration ?? null}
-            onPresentationChange={setPresentation}
-            options={options}
-            sources={sources}
-          />
-          <RunHeadPanel
-            head={workspace.head}
-            readAt={workspace.readAt}
-            runs={options.runs}
-            selectedRunId={workspace.query.run}
-            showFreshness={values.draft === null}
-          />
-        </SidebarContent>
-        <section
-          aria-labelledby={boardHeadingId}
-          className="col-start-2 row-start-2 min-w-0"
-        >
-          <LaneBoard
-            brands={options.brands}
-            defaultModelOptionKey={defaultModelOptionKey}
-            freshWorkspace={
-              workspace.head === null && workspace.query.run === null
+        <Sidebar
+          className="workspace:data-open:grid-cols-[22rem_minmax(0,1fr)]"
+          onKeyDown={(event) => {
+            if (
+              desktopSidebar &&
+              event.key === "Escape" &&
+              !event.defaultPrevented &&
+              sidebarOpen
+            ) {
+              event.preventDefault();
+              sidebarTrigger.current?.focus();
+              setSidebarOverride(false);
             }
-            head={workspace.head}
-            limitedGuidanceBrands={limitedGuidanceBrands}
-            models={options.models}
-            modelLanes={workspace.modelLanes}
-            onOpenCard={(card, trigger) => {
-              setFinalFocus(trigger);
-              const active =
-                card.revisions.find(
-                  (revision) => revision.id === card.activeRevisionId,
-                ) ?? card.revisions.at(-1);
-              if (active) {
-                pinCard({
-                  contentLocale: active.contentLocale,
-                  copy: active.body,
-                  draftId: card.id,
-                  headline: active.headline,
-                  platform: card.platform,
-                });
+          }}
+          onOpenChange={(open) => {
+            if (
+              desktopSidebar &&
+              !open &&
+              sidebarPanel.current?.contains(document.activeElement)
+            ) {
+              sidebarTrigger.current?.focus();
+            }
+            setSidebarOverride(open);
+          }}
+          open={sidebarOpen}
+        >
+          <SidebarHeader className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 workspace:group-data-open/sidebar:grid-cols-subgrid">
+            <div className="flex items-center gap-2">
+              {desktopSidebar ? (
+                <SidebarTrigger ref={sidebarTrigger}>
+                  {t("run.title")}
+                </SidebarTrigger>
+              ) : (
+                <SheetTrigger
+                  className="group/sidebar-trigger min-h-9 gap-2 max-sm:min-h-11"
+                  ref={sidebarTrigger}
+                  render={<Button variant="outline" />}
+                >
+                  {t("run.title")}
+                  <PanelLeftIcon
+                    aria-hidden="true"
+                    className="rtl:rotate-180"
+                    data-icon="inline-end"
+                  />
+                </SheetTrigger>
+              )}
+              <Hint label={t("run.newWorkspace")}>
+                <Button
+                  aria-label={t("run.newWorkspace")}
+                  className="max-sm:size-11"
+                  nativeButton={false}
+                  render={<Link href="/dashboard" />}
+                  size="icon"
+                  variant="outline"
+                >
+                  <PlusIcon aria-hidden="true" />
+                </Button>
+              </Hint>
+            </div>
+            <LaneBoardHeader head={workspace.head} id={boardHeadingId} />
+          </SidebarHeader>
+          {desktopSidebar ? (
+            <SidebarContent
+              aria-label={t("run.title")}
+              className="w-88"
+              inert={!sidebarOpen}
+              ref={sidebarPanel}
+            >
+              {configurationContents}
+            </SidebarContent>
+          ) : null}
+          <section
+            aria-labelledby={boardHeadingId}
+            className="col-start-2 row-start-2 min-w-0"
+          >
+            <LaneBoard
+              brands={options.brands}
+              defaultModelOptionKey={defaultModelOptionKey}
+              freshWorkspace={
+                workspace.head === null && workspace.query.run === null
               }
-              void setValues({ draft: card.id }, { shallow: true });
-            }}
-            platformDraftLanes={platformDraftLanes}
-            presentation={presentation}
-            templatePlatforms={templatePlatforms}
-            telegramLanes={workspace.telegramLanes}
-          />
-        </section>
-      </Sidebar>
+              head={workspace.head}
+              limitedGuidanceBrands={limitedGuidanceBrands}
+              models={options.models}
+              modelLanes={workspace.modelLanes}
+              onOpenCard={(card, trigger) => {
+                setFinalFocus(trigger);
+                const active =
+                  card.revisions.find(
+                    (revision) => revision.id === card.activeRevisionId,
+                  ) ?? card.revisions.at(-1);
+                if (active) {
+                  pinCard({
+                    contentLocale: active.contentLocale,
+                    copy: active.body,
+                    draftId: card.id,
+                    headline: active.headline,
+                    platform: card.platform,
+                  });
+                }
+                void setValues({ draft: card.id }, { shallow: true });
+              }}
+              platformDraftLanes={platformDraftLanes}
+              presentation={presentation}
+              templatePlatforms={templatePlatforms}
+              telegramLanes={workspace.telegramLanes}
+            />
+          </section>
+        </Sidebar>
+        {desktopSidebar ? null : (
+          <SheetPortal dir={direction} keepMounted>
+            <SheetOverlay />
+            <SheetViewport side="inline-start">
+              <SheetPopup
+                className="w-full border-0 bg-sidebar text-sidebar-foreground [--sheet-padding:--spacing(3)]"
+                direction={direction}
+                finalFocus={sidebarTrigger}
+                inert={!mobileSidebarOpen}
+                initialFocus={mobileSidebarOpen ? sidebarClose : false}
+                side="inline-start"
+              >
+                <SheetTitle className="sr-only">{t("run.title")}</SheetTitle>
+                <div className="sticky top-0 z-10 -mx-3 -mt-3 flex items-center justify-between gap-3 border-sidebar-border border-b bg-sidebar px-3 pt-3 pb-3">
+                  <span className="font-medium text-sm">{t("run.title")}</span>
+                  <SheetClose
+                    aria-label={t("run.closeConfiguration")}
+                    ref={sidebarClose}
+                    render={
+                      <Button
+                        className="size-11 shrink-0 p-0"
+                        size="icon"
+                        variant="outline"
+                      />
+                    }
+                  >
+                    <XIcon aria-hidden="true" />
+                  </SheetClose>
+                </div>
+                {configurationContents}
+              </SheetPopup>
+            </SheetViewport>
+          </SheetPortal>
+        )}
+      </Sheet>
       <CardSheet
         card={selectedDraft ?? null}
         finalFocus={finalFocus}
@@ -179,7 +295,6 @@ export function EditorialCoordinator({
           workspace.head
             ? {
                 analysisRunId: workspace.head.id,
-                lifecycle: workspace.head.lifecycle,
                 readAt: workspace.readAt,
               }
             : undefined
@@ -202,26 +317,14 @@ function initialPresentation(
   options: RunOptions,
   templatePlatforms: readonly Platform[],
 ): BoardPresentation {
-  if (head?.configuration.kind === "promo") {
-    return {
-      brandKeys: head.configuration.promo.brands,
-      kind: "promo",
-      platforms: templatePlatforms,
-      telegramOnly: false,
-    };
-  }
-  if (head?.configuration.kind === "news") {
-    return {
-      brandKeys: head.configuration.brands,
-      kind: "news",
-      platforms: head.configuration.platforms,
-      telegramOnly: head.configuration.telegramOnly,
-    };
+  if (head) {
+    return configuredBoardPresentation(head.configuration, templatePlatforms);
   }
 
   return {
     brandKeys: options.defaults.brands,
     kind: "news",
+    modelKeys: options.defaults.models,
     platforms: options.defaults.platforms,
     telegramOnly: false,
   };

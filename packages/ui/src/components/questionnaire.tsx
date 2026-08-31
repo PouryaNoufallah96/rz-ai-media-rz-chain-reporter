@@ -27,7 +27,7 @@ function QuestionnaireProgress({
     <QuestionnairePrimitive.Progress
       data-slot="questionnaire-progress"
       className={cn(
-        "min-h-[1lh] w-fit min-w-[14ch] font-medium text-muted-foreground text-xs tabular-nums",
+        "min-h-lh w-fit min-w-[14ch] font-medium text-muted-foreground text-xs tabular-nums",
         className,
       )}
       {...props}

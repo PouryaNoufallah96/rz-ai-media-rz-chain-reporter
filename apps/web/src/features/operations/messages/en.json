@@ -45,6 +45,8 @@
       "mediaVerification": "Media verification",
       "sourceImport": "Source import",
       "analysisRun": "Analysis run",
+      "copyVariantTranslation": "Variation translation",
+      "presentationTranslation": "Card translation",
       "publishing": "Publishing"
     },
     "dispatch": {

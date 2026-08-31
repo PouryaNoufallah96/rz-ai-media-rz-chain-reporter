@@ -93,8 +93,9 @@ void main() {
   );
   float verticalFade = 1.0 - clamp(coord.y / iResolution.y, 0.0, 1.0);
   vec3 color = iRaysColor * mix(0.45, 1.0, verticalFade);
+  float alpha = strength * verticalFade * iOpacity;
 
-  fragColor = vec4(color, strength * iOpacity);
+  fragColor = vec4(color * alpha, alpha);
 }`;
 
 function canvasPixelRatio() {
@@ -130,7 +131,7 @@ function LightRays({ color, origin }: LightRaysProps) {
       antialias: false,
       depth: false,
       powerPreference: "default",
-      premultipliedAlpha: false,
+      premultipliedAlpha: true,
       preserveDrawingBuffer: false,
       stencil: false,
     });
@@ -143,6 +144,7 @@ function LightRays({ color, origin }: LightRaysProps) {
         canvas,
         depth: false,
         dpr: canvasPixelRatio(),
+        premultipliedAlpha: true,
         webgl: 2,
       });
     } catch {

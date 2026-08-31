@@ -11,7 +11,7 @@ import {
   SheetTrigger,
 } from "@rz-chain-reporter/ui/components/sheet";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { authClient } from "@/features/auth/lib/auth-client";
 import { OPERATIONS_NAMESPACE } from "../constants";
 import { useOperationsList } from "../hooks/use-operations-list";
@@ -19,22 +19,40 @@ import {
   type RealtimeTransport,
   useOperationsRealtime,
 } from "../hooks/use-operations-realtime";
-import { subscribeToOperationFocus } from "../lib/focus-operation";
+import {
+  subscribeToOperationCreated,
+  subscribeToOperationFocus,
+} from "../lib/focus-operation";
 import { edgeToneOf, type PanelState, panelStateOf } from "../lib/panel-state";
 import { ColorBar } from "./color-bar";
 import { OperationsPanel, OperationsPanelSkeleton } from "./operations-panel";
 
 export function OperationsIndicator() {
-  const t = useTranslations(OPERATIONS_NAMESPACE);
   const { data: session } = authClient.useSession();
+
+  if (!session) {
+    return null;
+  }
+
+  return (
+    <AuthenticatedOperationsIndicator
+      key={session.user.id}
+      viewerId={session.user.id}
+    />
+  );
+}
+
+function AuthenticatedOperationsIndicator({ viewerId }: { viewerId: string }) {
+  const t = useTranslations(OPERATIONS_NAMESPACE);
   const [open, setOpen] = useState(false);
   const [focusedOperationId, setFocusedOperationId] = useState<string>();
-  const operations = useOperationsList(Boolean(session), focusedOperationId);
+  const operations = useOperationsList(viewerId, focusedOperationId);
   const realtime = useOperationsRealtime({
-    enabled: Boolean(session),
-    focusedOperationId,
+    isFetching: operations.isFetching,
     refetch: operations.refetch,
+    viewerId,
   });
+  const refreshOperations = useEffectEvent(realtime.refresh);
   const states = (operations.data ?? []).map(panelStateOf);
   const barTone =
     realtime.transport === "live" ? (edgeToneOf(states) ?? "idle") : "offline";
@@ -48,9 +66,7 @@ export function OperationsIndicator() {
     [],
   );
 
-  if (!session) {
-    return null;
-  }
+  useEffect(() => subscribeToOperationCreated(refreshOperations), []);
 
   return (
     <>
@@ -83,9 +99,9 @@ export function OperationsIndicator() {
             <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <SheetTitle>{t("panel.title")}</SheetTitle>
               <TransportReadout
-                isFetching={operations.isFetching}
+                isFetching={realtime.isRefreshing}
                 onRefresh={() => {
-                  void operations.refetch();
+                  realtime.refresh();
                   realtime.retry();
                 }}
                 snapshotAt={
@@ -139,7 +155,7 @@ function TransportReadout({
       : t(`transport.${transport}`);
 
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2">
+    <div className="flex min-w-0 flex-wrap items-center gap-2 max-sm:**:data-[slot=button]:min-h-11 max-sm:**:data-[slot=button]:min-w-11">
       <span className="wrap-break-word min-w-0 text-muted-foreground text-xs tabular-nums">
         {readout}
       </span>

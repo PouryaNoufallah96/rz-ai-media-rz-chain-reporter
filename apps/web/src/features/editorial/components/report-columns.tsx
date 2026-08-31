@@ -22,10 +22,10 @@ type Translate = ReturnType<typeof useTranslations<typeof EDITORIAL_NAMESPACE>>;
 type Format = ReturnType<typeof useFormatter>;
 
 export const REPORT_COLUMN_CLASS_NAMES = {
-  mediaFit: "hidden min-[900px]:table-cell",
-  policy: "hidden min-[900px]:table-cell",
-  rankScore: "hidden min-[600px]:table-cell",
-  semantic: "hidden min-[600px]:table-cell",
+  mediaFit: "hidden workspace:table-cell",
+  policy: "hidden workspace:table-cell",
+  rankScore: "hidden compact:table-cell",
+  semantic: "hidden compact:table-cell",
 } as const;
 
 export function reportColumns({
@@ -81,9 +81,9 @@ export function reportColumns({
               ) : (
                 <Bdi className="truncate">{row.original.sourceName}</Bdi>
               )}
-              <span className="tabular-nums min-[900px]:hidden">
+              <span className="workspace:hidden tabular-nums">
                 {`${t("table.folded.mediaFit")} ${score(row.original.mediaFitScore, format)} · ${t("table.folded.policy")} ${score(row.original.policyScore, format)}`}
-                <span className="min-[600px]:hidden">
+                <span className="compact:hidden">
                   {` · ${t("table.folded.rank")} ${score(row.original.rankScore, format)}`}
                 </span>
               </span>

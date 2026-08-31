@@ -2,7 +2,9 @@ import {
   OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME,
   OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME,
   OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
+  OPERATION_COPY_VARIANT_TRANSLATION_REQUESTED_EVENT_NAME,
   OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME,
+  OPERATION_PRESENTATION_TRANSLATION_REQUESTED_EVENT_NAME,
   OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME,
   OPERATION_PUBLICATION_REQUESTED_EVENT_NAME,
   OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
@@ -11,6 +13,8 @@ import type { Executor } from "@rz-chain-reporter/db/executor";
 import { recordPublicationSettlementActivity } from "@rz-chain-reporter/db/repositories/activity-event";
 import { findAnalysisRunByOperationId } from "@rz-chain-reporter/db/repositories/analysis-run";
 import { findCopyExecutionContext } from "@rz-chain-reporter/db/repositories/copy-generation";
+import { loadCopyVariantTranslationRequest } from "@rz-chain-reporter/db/repositories/copy-variant-localization";
+import { loadEditorialPresentationTranslationRequest } from "@rz-chain-reporter/db/repositories/editorial-presentation-localization-request";
 import { findImageExecutionContext } from "@rz-chain-reporter/db/repositories/image-generation";
 import {
   claimOutboxEvents,
@@ -26,7 +30,7 @@ import {
   readPublicationOperationActor,
   rearmSettlementActivity,
 } from "@rz-chain-reporter/db/repositories/publication";
-
+import { publishOperationsChangedNow } from "../inngest/channels";
 import type { WorkerInngestClient } from "../inngest/client";
 import {
   createInngestEvent,
@@ -35,7 +39,10 @@ import {
 import { workerLogger } from "../logging/logger";
 import { abortableDelay } from "../runtime/delay";
 import { notifyDraftsChangedNow } from "../web-cache/drafts";
-import { notifyEditorialChangedNow } from "../web-cache/editorial";
+import {
+  notifyEditorialChangedNow,
+  notifyEditorialTranslationDispatchChangedNow,
+} from "../web-cache/editorial";
 import { notifyPublishingChangedNow } from "../web-cache/publishing";
 import {
   notifySourcesCacheChanged,
@@ -43,6 +50,7 @@ import {
 } from "../web-cache/sources";
 
 type ClaimedOutboxEvent = Awaited<ReturnType<typeof claimOutboxEvents>>[number];
+type DispatchChangeCode = "dispatch_exhausted" | "queued";
 type PublicationFollowUp = Awaited<
   ReturnType<typeof readPendingPublicationFollowUps>
 >[number];
@@ -146,7 +154,7 @@ export class OutboxRelay {
 
         const dispatches = await Promise.allSettled(
           events.map(async (event) => ({
-            changed: await this.dispatch(event),
+            code: await this.dispatch(event),
             event,
           })),
         );
@@ -154,11 +162,52 @@ export class OutboxRelay {
           result.status === "fulfilled" ? [result.value] : [],
         );
         await Promise.allSettled(
-          completed
-            .filter(
-              ({ changed, event }) => changed && this.isAnalysisRunEvent(event),
-            )
-            .map(({ event }) => this.notifyAnalysisRunDispatchChanged(event)),
+          completed.flatMap(({ code, event }) => {
+            if (!code) return [];
+            if (this.isAnalysisRunEvent(event)) {
+              return [this.notifyAnalysisRunDispatchChanged(event)];
+            }
+            if (
+              event.eventType ===
+              OPERATION_PRESENTATION_TRANSLATION_REQUESTED_EVENT_NAME
+            ) {
+              return [
+                this.notifyPresentationTranslationDispatchChanged(event, code),
+              ];
+            }
+            if (
+              event.eventType ===
+              OPERATION_COPY_VARIANT_TRANSLATION_REQUESTED_EVENT_NAME
+            ) {
+              return [
+                this.notifyCopyVariantTranslationDispatchChanged(event, code),
+              ];
+            }
+            return [];
+          }),
+        );
+        const operationAudiences = new Map<
+          string,
+          { actorId: string; sharedImport: boolean }
+        >();
+        for (const { code, event } of completed) {
+          if (code === null) continue;
+          operationAudiences.set(
+            event.sharedImport ? "shared-import" : event.actorId,
+            {
+              actorId: event.actorId,
+              sharedImport: event.sharedImport,
+            },
+          );
+        }
+        await Promise.all(
+          [...operationAudiences.values()].map((audience) =>
+            publishOperationsChangedNow(this.client, this.workspaceId, {
+              ...audience,
+              occurredAt: new Date().toISOString(),
+              schemaVersion: 1,
+            }),
+          ),
         );
 
         if (completed.length !== dispatches.length) {
@@ -296,83 +345,78 @@ export class OutboxRelay {
   private async dispatch(event: ClaimedOutboxEvent) {
     try {
       await this.client.send(createInngestEvent(event));
-      const result = await markOutboxDispatched(
-        this.executor,
-        this.workspaceId,
-        {
-          id: event.id,
-          claimedBy: this.claimedBy,
-        },
-      );
+    } catch (error) {
+      return this.recordDispatchFailure(event, error);
+    }
 
-      if (result.status === "not_owned") {
-        workerLogger.warn("worker.relay.lease-lost", {
-          eventType: event.eventType,
-          outboxId: event.id,
-        });
-        return false;
-      }
+    const result = await markOutboxDispatched(this.executor, this.workspaceId, {
+      id: event.id,
+      claimedBy: this.claimedBy,
+    });
+    if (result.status === "not_owned") {
+      workerLogger.warn("worker.relay.lease-lost", {
+        eventType: event.eventType,
+        outboxId: event.id,
+      });
+      return null;
+    }
 
-      workerLogger.info("worker.relay.dispatched", {
+    workerLogger.info("worker.relay.dispatched", {
+      attempt: event.dispatchAttemptCount,
+      eventType: event.eventType,
+      operationId: event.operationId,
+      outboxId: event.id,
+      workspaceId: event.workspaceId,
+    });
+    await this.notifySourceImportDispatchChanged(event);
+    await this.notifyCopyDispatchChanged(event, "queued");
+    await this.notifyImageDispatchChanged(event, "queued");
+    await this.notifyPublishingDispatchChanged(event);
+    return "queued" as const;
+  }
+
+  private async recordDispatchFailure(
+    event: ClaimedOutboxEvent,
+    error: unknown,
+  ): Promise<DispatchChangeCode | null> {
+    const failure = failureCode(error);
+    const exhausted =
+      failure.terminal || event.dispatchAttemptCount >= MAX_ATTEMPTS;
+    const backoffMs = nextBackoffMs(event.dispatchAttemptCount, MAX_BACKOFF_MS);
+    const result = await markOutboxFailed(this.executor, this.workspaceId, {
+      id: event.id,
+      claimedBy: this.claimedBy,
+      errorCode: failure.code,
+      exhausted,
+      nextAttemptAt: new Date(Date.now() + backoffMs),
+    });
+
+    if (result.status === "not_owned") {
+      workerLogger.warn("worker.relay.lease-lost", {
+        eventType: event.eventType,
+        outboxId: event.id,
+      });
+      return null;
+    }
+
+    const code = exhausted ? "dispatch_exhausted" : "queued";
+    workerLogger.warn(
+      exhausted ? "worker.relay.exhausted" : "worker.relay.delayed",
+      {
         attempt: event.dispatchAttemptCount,
+        delayMs: backoffMs,
+        errorCode: failure.code,
         eventType: event.eventType,
         operationId: event.operationId,
         outboxId: event.id,
         workspaceId: event.workspaceId,
-      });
-      await this.notifySourceImportDispatchChanged(event);
-      await this.notifyCopyDispatchChanged(event, "queued");
-      await this.notifyImageDispatchChanged(event, "queued");
-      await this.notifyPublishingDispatchChanged(event);
-      return true;
-    } catch (error) {
-      const failure = failureCode(error);
-      const exhausted =
-        failure.terminal || event.dispatchAttemptCount >= MAX_ATTEMPTS;
-      const backoffMs = nextBackoffMs(
-        event.dispatchAttemptCount,
-        MAX_BACKOFF_MS,
-      );
-      const result = await markOutboxFailed(this.executor, this.workspaceId, {
-        id: event.id,
-        claimedBy: this.claimedBy,
-        errorCode: failure.code,
-        exhausted,
-        nextAttemptAt: new Date(Date.now() + backoffMs),
-      });
-
-      if (result.status === "not_owned") {
-        workerLogger.warn("worker.relay.lease-lost", {
-          eventType: event.eventType,
-          outboxId: event.id,
-        });
-        return false;
-      }
-
-      workerLogger.warn(
-        exhausted ? "worker.relay.exhausted" : "worker.relay.delayed",
-        {
-          attempt: event.dispatchAttemptCount,
-          delayMs: backoffMs,
-          errorCode: failure.code,
-          eventType: event.eventType,
-          operationId: event.operationId,
-          outboxId: event.id,
-          workspaceId: event.workspaceId,
-        },
-      );
-      await this.notifySourceImportDispatchChanged(event);
-      await this.notifyCopyDispatchChanged(
-        event,
-        exhausted ? "dispatch_exhausted" : "queued",
-      );
-      await this.notifyImageDispatchChanged(
-        event,
-        exhausted ? "dispatch_exhausted" : "queued",
-      );
-      await this.notifyPublishingDispatchChanged(event);
-      return true;
-    }
+      },
+    );
+    await this.notifySourceImportDispatchChanged(event);
+    await this.notifyCopyDispatchChanged(event, code);
+    await this.notifyImageDispatchChanged(event, code);
+    await this.notifyPublishingDispatchChanged(event);
+    return code;
   }
 
   private async notifySourceImportDispatchChanged(event: ClaimedOutboxEvent) {
@@ -407,6 +451,43 @@ export class OutboxRelay {
     }
   }
 
+  private async notifyPresentationTranslationDispatchChanged(
+    event: ClaimedOutboxEvent,
+    code: DispatchChangeCode,
+  ) {
+    if (
+      event.eventType !==
+      OPERATION_PRESENTATION_TRANSLATION_REQUESTED_EVENT_NAME
+    ) {
+      return;
+    }
+
+    try {
+      const request = await loadEditorialPresentationTranslationRequest(
+        this.executor,
+        event.workspaceId,
+        event.operationId,
+      );
+      if (request.status !== "ready") return;
+
+      await notifyEditorialTranslationDispatchChangedNow(
+        this.client,
+        event.workspaceId,
+        {
+          analysisRunId: request.analysisRunId,
+          code,
+          operationId: event.operationId,
+          platformDraftIds: request.platformDraftIds,
+        },
+      );
+    } catch {
+      workerLogger.warn("worker.editorial.cache-notification-unavailable", {
+        operationId: event.operationId,
+        workspaceId: event.workspaceId,
+      });
+    }
+  }
+
   private async notifyCopyDispatchChanged(
     event: ClaimedOutboxEvent,
     code: "dispatch_exhausted" | "queued",
@@ -428,6 +509,32 @@ export class OutboxRelay {
           platformDraftId: context.platformDraftId,
         });
       }
+    } catch {
+      workerLogger.warn("worker.drafts.cache-notification-unavailable", {
+        operationId: event.operationId,
+        workspaceId: event.workspaceId,
+      });
+    }
+  }
+
+  private async notifyCopyVariantTranslationDispatchChanged(
+    event: ClaimedOutboxEvent,
+    code: DispatchChangeCode,
+  ) {
+    try {
+      const request = await loadCopyVariantTranslationRequest(
+        this.executor,
+        event.workspaceId,
+        event.operationId,
+      );
+      if (request.status !== "ready") return;
+
+      await notifyDraftsChangedNow(this.client, event.workspaceId, {
+        analysisRunId: request.analysisRunId,
+        code,
+        operationId: event.operationId,
+        platformDraftId: request.source.platformDraftId,
+      });
     } catch {
       workerLogger.warn("worker.drafts.cache-notification-unavailable", {
         operationId: event.operationId,

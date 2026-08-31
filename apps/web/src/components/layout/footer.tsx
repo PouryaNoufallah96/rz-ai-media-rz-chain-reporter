@@ -8,7 +8,7 @@ export async function Footer() {
   return (
     <footer className="relative z-40 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-border/40 border-t bg-background/45 px-4 py-4 text-muted-foreground text-xs backdrop-blur-xl sm:px-6">
       <Link
-        className="rounded-sm font-medium underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+        className="wrap-anywhere min-w-0 rounded-sm font-medium underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
         href="/"
       >
         {customerProductName}

@@ -15,6 +15,9 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   typedRoutes: true,
+  typescript: {
+    ignoreBuildErrors: process.env.CHAINREPORTER_TYPES_CHECKED === "1",
+  },
   reactCompiler: true,
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, "../.."),

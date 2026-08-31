@@ -20,6 +20,7 @@ export function UsageFreshness() {
       </span>
       <Button
         aria-busy={isRefreshing}
+        className="max-sm:min-h-11"
         disabled={isRefreshing}
         onClick={refresh}
         size="xs"

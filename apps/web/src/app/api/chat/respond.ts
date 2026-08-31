@@ -291,6 +291,11 @@ async function streamAnswer(
       // `updateTag` throws outside a Server Action, so this Route Handler drops
       // the workspace Usage tag the way the internal Lane 2 handler does.
       revalidateTag(workspaceCacheTag(workspaceId, "usage"), { expire: 0 });
+      writer.write({
+        type: "data-usage-settled",
+        data: true,
+        transient: true,
+      });
     }
   }
 }

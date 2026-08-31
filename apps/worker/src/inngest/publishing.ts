@@ -91,6 +91,17 @@ export function createPublishingFunctions(
           },
         );
         if (!("attemptCount" in settlement)) return;
+        await notifyPublishingChanged(
+          step,
+          workspaceId,
+          settlement.actor,
+          {
+            operationId,
+            publicationId,
+            scheduleId: scheduleId ?? null,
+          },
+          "failed",
+        );
         if (settlement.actor) {
           await publishOperationStatus(
             step,
@@ -106,17 +117,6 @@ export function createPublishingFunctions(
             "worker.publishing.realtime-unavailable",
           );
         }
-        await notifyPublishingChanged(
-          step,
-          workspaceId,
-          settlement.actor,
-          {
-            operationId,
-            publicationId,
-            scheduleId: scheduleId ?? null,
-          },
-          "failed",
-        );
       },
     },
     async ({ event, runId, step }) => {
@@ -169,6 +169,17 @@ export function createPublishingFunctions(
       });
       if (claim.status !== "claimed") {
         if (claim.status === "missed") {
+          await notifyPublishingChanged(
+            step,
+            workspaceId,
+            claim.actor,
+            {
+              operationId,
+              publicationId,
+              scheduleId: timing.scheduleId,
+            },
+            "missed",
+          );
           await publishOperationStatus(
             step,
             workspaceId,
@@ -181,17 +192,6 @@ export function createPublishingFunctions(
               sharedImport: false,
             },
             "worker.publishing.realtime-unavailable",
-          );
-          await notifyPublishingChanged(
-            step,
-            workspaceId,
-            claim.actor,
-            {
-              operationId,
-              publicationId,
-              scheduleId: timing.scheduleId,
-            },
-            "missed",
           );
         }
         return { operationId, status: claim.status };
@@ -271,22 +271,6 @@ export function createPublishingFunctions(
       const final = await step.run("reload-publication-after-effect", () =>
         readPublicationExecutionSummary(runtime.db, workspaceId, operationId),
       );
-      if (final) {
-        await publishOperationStatus(
-          step,
-          workspaceId,
-          {
-            actorId: claim.actor,
-            attemptCount: final.attemptCount,
-            latestAttemptOutcome: final.latestAttemptOutcome ?? undefined,
-            lifecycle: final.operationLifecycle,
-            operationId,
-            operationVersion: final.operationVersion,
-            sharedImport: false,
-          },
-          "worker.publishing.realtime-unavailable",
-        );
-      }
       const notification = await notifyPublishingChanged(
         step,
         workspaceId,
@@ -310,6 +294,22 @@ export function createPublishingFunctions(
             operationId,
             new Date(),
           ),
+        );
+      }
+      if (final) {
+        await publishOperationStatus(
+          step,
+          workspaceId,
+          {
+            actorId: claim.actor,
+            attemptCount: final.attemptCount,
+            latestAttemptOutcome: final.latestAttemptOutcome ?? undefined,
+            lifecycle: final.operationLifecycle,
+            operationId,
+            operationVersion: final.operationVersion,
+            sharedImport: false,
+          },
+          "worker.publishing.realtime-unavailable",
         );
       }
       return { operationId, result };
@@ -390,6 +390,19 @@ export function createPublishingFunctions(
         },
         "reconciled",
       );
+      if (actor && "operation" in result) {
+        await publishOperationStatus(
+          step,
+          event.data.workspaceId,
+          {
+            actorId: actor,
+            ...result.operation,
+            operationId: event.data.operationId,
+            sharedImport: false,
+          },
+          "worker.publishing.realtime-unavailable",
+        );
+      }
       return result;
     },
   );

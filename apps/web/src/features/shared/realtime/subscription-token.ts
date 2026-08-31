@@ -11,9 +11,16 @@ const inngest = new Inngest({
   signingKey: env.INNGEST_SIGNING_KEY,
 });
 
+const realtimeConfigured =
+  env.INNGEST_DEV !== undefined || env.INNGEST_SIGNING_KEY !== undefined;
+
 export async function mintSubscriptionToken<
   const TTopics extends readonly [string, ...string[]],
 >(channel: Realtime.ChannelInput & { name: string }, topics: TTopics) {
+  if (!realtimeConfigured) {
+    return { status: "unavailable" as const };
+  }
+
   let token: Awaited<ReturnType<typeof getClientSubscriptionToken>>;
   try {
     token = await getClientSubscriptionToken(inngest, {
@@ -21,7 +28,7 @@ export async function mintSubscriptionToken<
       topics: [...topics],
     });
   } catch {
-    return { status: "unavailable" as const };
+    throw new Error("Realtime subscription token is temporarily unavailable");
   }
 
   return {

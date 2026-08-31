@@ -8,6 +8,7 @@ import type {
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { Card } from "@rz-chain-reporter/ui/components/card";
+import { Hint } from "@rz-chain-reporter/ui/components/hint";
 import { Sheet, SheetTrigger } from "@rz-chain-reporter/ui/components/sheet";
 import { GripVerticalIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
@@ -16,6 +17,7 @@ import type { ReactNode } from "react";
 import { EDITORIAL_NAMESPACE } from "../constants";
 import type { PlatformDraftCard } from "../schemas/drafts";
 import type {
+  PresentationTranslationStatus,
   PromoIdeaCard,
   SelectionCard,
   TelegramCard,
@@ -33,6 +35,11 @@ import {
   originUiKey,
   useRouteContext,
 } from "./platform-lane";
+import {
+  PlatformRouteButton,
+  PlatformRouteStatus,
+} from "./platform-route-control";
+import { PresentationTranslationButton } from "./presentation-translation-button";
 import { FallbackTag, MutedTag, ProvenanceLine } from "./provenance-line";
 
 type Translate = ReturnType<typeof useTranslations<typeof EDITORIAL_NAMESPACE>>;
@@ -44,17 +51,22 @@ function LaneCard({
   children,
   details,
   drag,
+  presentationReady,
+  presentationTranslation,
   route,
   title,
 }: {
   children: ReactNode;
   details: ReactNode;
   drag: OriginDragData;
+  presentationReady: boolean;
+  presentationTranslation: PresentationTranslationStatus | null;
   route: ReactNode;
   title: string;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const id = originUiKey(drag.brandKey, drag.origin);
+  const dragLabel = t("platformDraft.dragOrigin", { title: drag.title });
   const { handleRef, isDragging, ref } = useDraggable<OriginDragData>({
     data: drag,
     id: `origin-${id}`,
@@ -82,32 +94,44 @@ function LaneCard({
         </SheetTrigger>
         <CardDetailsSheet title={title}>{details}</CardDetailsSheet>
       </Sheet>
-      <div className="flex flex-wrap items-start gap-2">
-        <Button
-          aria-label={t("platformDraft.dragOrigin", { title: drag.title })}
-          className="max-[599px]:size-11"
-          id={`origin-handle-${id}`}
-          ref={handleRef}
-          size="icon"
-          type="button"
-          variant="ghost"
-        >
-          <GripVerticalIcon aria-hidden="true" />
-        </Button>
-        {route}
-      </div>
+      <CardActionRow
+        controls={
+          <>
+            <Hint label={t("platformDraft.hint.dragOrigin")}>
+              <Button
+                aria-label={dragLabel}
+                className="max-compact:size-11"
+                id={`origin-handle-${id}`}
+                ref={handleRef}
+                size="icon-xs"
+                type="button"
+                variant="ghost"
+              >
+                <GripVerticalIcon aria-hidden="true" />
+              </Button>
+            </Hint>
+            <PresentationTranslationButton
+              origin={drag.origin}
+              presentationReady={presentationReady}
+              translation={presentationTranslation}
+              title={drag.title}
+            />
+          </>
+        }
+        routes={route}
+      />
     </Card>
   );
 }
 
 export function PlatformDraftLaneCard({
   card,
-  dragHandle,
+  controls,
   onOpen,
   siblingRoutes,
 }: {
   card: PlatformDraftCard;
-  dragHandle: ReactNode;
+  controls: ReactNode;
   onOpen: (trigger: HTMLButtonElement) => void;
   siblingRoutes: ReactNode;
 }) {
@@ -119,12 +143,12 @@ export function PlatformDraftLaneCard({
 
   return (
     <Card
-      className="gap-2 rounded-lg border border-border p-3 ring-0 transition-colors hover:border-ring/40"
+      className="gap-2 rounded-lg border border-border p-3 ring-0 transition-colors hover:border-ring/40 motion-reduce:transition-none"
       role="article"
     >
       <div className="flex min-w-0 items-start gap-2">
         <Button
-          className="grid h-auto min-h-11 w-full min-w-0 flex-1 justify-normal gap-2 whitespace-normal p-1 text-start"
+          className="grid h-auto min-h-11 w-full min-w-0 justify-normal gap-2 whitespace-normal p-1 text-start"
           onClick={(event) => onOpen(event.currentTarget)}
           type="button"
           variant="ghost"
@@ -142,9 +166,42 @@ export function PlatformDraftLaneCard({
             ]}
           />
         </Button>
-        {dragHandle}
       </div>
-      <div className="flex flex-wrap items-start gap-2">{siblingRoutes}</div>
+      <CardActionRow controls={controls} routes={siblingRoutes} />
+    </Card>
+  );
+}
+
+function CardActionRow({
+  controls,
+  routes,
+}: {
+  controls: ReactNode;
+  routes: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-1.5 border-border/60 border-t pt-2">
+      <div className="flex items-center gap-1">{controls}</div>
+      <div className="flex min-w-0 flex-wrap items-center gap-1">{routes}</div>
+    </div>
+  );
+}
+
+export function PendingPlatformRouteCard({ title }: { title: string }) {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+
+  return (
+    <Card
+      aria-busy="true"
+      className="mx-2 mb-2 gap-1.5 rounded-lg border-dashed bg-card/70 p-3 shadow-none"
+      role="article"
+    >
+      <span className="line-clamp-2 font-medium text-sm/relaxed">
+        <Bdi>{title}</Bdi>
+      </span>
+      <span className="text-muted-foreground text-xs">
+        {t("platformDraft.routing")}
+      </span>
     </Card>
   );
 }
@@ -176,14 +233,18 @@ export function SelectionLaneCard({
         },
         title: card.title,
       }}
+      presentationReady={card.presentationReady}
+      presentationTranslation={card.presentationTranslation}
       route={
         <SendToPlatforms
+          brandKey={brandKey}
           cardId={card.id}
           contentLocale={uiLocale}
           origin={{
             kind: "editorial_selection",
             editorialSelectionId: card.id,
           }}
+          title={card.title}
         />
       }
       title={card.title}
@@ -241,12 +302,16 @@ export function PromoLaneCard({
         origin: { kind: "promo_idea", promoIdeaId: card.id },
         title: card.title,
       }}
+      presentationReady={card.presentationReady}
+      presentationTranslation={card.presentationTranslation}
       title={card.title}
       route={
         <SendToPlatforms
+          brandKey={brandKey}
           cardId={card.id}
           contentLocale={uiLocale}
           origin={{ kind: "promo_idea", promoIdeaId: card.id }}
+          title={card.title}
         />
       }
     >
@@ -298,14 +363,18 @@ export function TelegramLaneCard({
         },
         title: card.title,
       }}
+      presentationReady={card.presentationReady}
+      presentationTranslation={card.presentationTranslation}
       route={
         <SendToPlatforms
+          brandKey={brandKey}
           cardId={card.telegramFilterResultId}
           contentLocale={uiLocale}
           origin={{
             kind: "telegram_filter_result",
             telegramFilterResultId: card.telegramFilterResultId,
           }}
+          title={card.title}
         />
       }
       title={card.title}
@@ -338,43 +407,74 @@ export function TelegramLaneCard({
 }
 
 function SendToPlatforms({
+  brandKey,
   cardId,
   contentLocale,
   origin,
+  title,
 }: {
+  brandKey: string;
   cardId: string;
   contentLocale: ContentLocale;
   origin: CardOriginReference;
+  title: string;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
-  const { platforms, route } = useRouteContext();
+  const { isRoutePending, isRouted, platforms, route } = useRouteContext();
 
   return (
     <>
       {platforms.map((platform) => {
         const buttonId = `send-${cardId}-${platform}`;
+        const pending = isRoutePending(brandKey, origin, platform);
+        const routed = isRouted(brandKey, origin, platform);
+
+        if (routed) {
+          const platformName = t(`run.platform.${platform}`);
+
+          return (
+            <PlatformRouteStatus
+              accessibleLabel={t("platformDraft.alreadyRouted", {
+                platform: platformName,
+              })}
+              key={platform}
+              platform={platform}
+            />
+          );
+        }
+
+        const platformName = t(`run.platform.${platform}`);
 
         return (
-          <Button
-            className="max-[599px]:min-h-11"
-            id={buttonId}
+          <PlatformRouteButton
+            accessibleLabel={
+              pending
+                ? t("platformDraft.a11y.routing", {
+                    platform: platformName,
+                    title,
+                  })
+                : t("platformDraft.sendTo", { platform: platformName })
+            }
+            buttonId={buttonId}
+            hint={
+              pending
+                ? t("platformDraft.routingTo", { platform: platformName })
+                : t("platformDraft.sendTo", { platform: platformName })
+            }
             key={platform}
             onClick={() =>
               route({
+                brandKey,
                 contentLocale,
                 origin,
                 platform,
                 returnFocusId: buttonId,
+                title,
               })
             }
-            size="xs"
-            type="button"
-            variant="outline"
-          >
-            {t("platformDraft.sendTo", {
-              platform: t(`run.platform.${platform}`),
-            })}
-          </Button>
+            pending={pending}
+            platform={platform}
+          />
         );
       })}
     </>

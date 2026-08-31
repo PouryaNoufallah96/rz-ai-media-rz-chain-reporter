@@ -283,18 +283,6 @@ async function publishImageTransition(
   callSite: string,
   usageChanged: boolean,
 ) {
-  await publishOperationStatus(
-    step,
-    workspaceId,
-    {
-      actorId: context.actor,
-      lifecycle: operation.lifecycle,
-      operationId: context.operationId,
-      operationVersion: operation.version,
-      sharedImport: false,
-    },
-    "worker.image-generation.realtime-unavailable",
-  );
   const change = await loadImageDraftChange(
     step,
     runtime,
@@ -314,6 +302,18 @@ async function publishImageTransition(
   } else {
     await notifyDraftsChanged(step, workspaceId, change, callSite);
   }
+  await publishOperationStatus(
+    step,
+    workspaceId,
+    {
+      actorId: context.actor,
+      lifecycle: operation.lifecycle,
+      operationId: context.operationId,
+      operationVersion: operation.version,
+      sharedImport: false,
+    },
+    "worker.image-generation.realtime-unavailable",
+  );
 }
 
 function hasSettledUsage(

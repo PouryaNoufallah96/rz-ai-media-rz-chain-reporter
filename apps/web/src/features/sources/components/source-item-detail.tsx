@@ -23,13 +23,13 @@ export function SourceItemDetail({ row }: { row: SourceItemRow }) {
       <CollapsibleTrigger
         render={
           <Button
-            className="group h-auto max-w-60 justify-start whitespace-normal text-start"
+            className="group h-auto max-w-60 justify-start whitespace-normal text-start max-sm:min-h-11"
             size="xs"
             variant="ghost"
           />
         }
       >
-        <ChevronDownIcon className="shrink-0 transition-transform group-data-panel-open:rotate-180" />
+        <ChevronDownIcon className="shrink-0 transition-transform group-data-panel-open:rotate-180 motion-reduce:transition-none" />
         {t("detail.open", { name: row.title })}
       </CollapsibleTrigger>
       <CollapsibleContent keepMounted className="data-closed:hidden">

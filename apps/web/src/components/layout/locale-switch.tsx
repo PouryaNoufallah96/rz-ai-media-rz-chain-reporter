@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@rz-chain-reporter/ui/components/button";
+import { Hint } from "@rz-chain-reporter/ui/components/hint";
 import { LanguagesIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -13,23 +14,26 @@ export function LocaleSwitch() {
   const router = useRouter();
   const t = useTranslations(SHARED_NAMESPACE);
   const nextLocale = locale === "en" ? "fa" : "en";
+  const label = t("language.switchTo", {
+    language: t(`language.${nextLocale}`),
+  });
 
   return (
-    <Button
-      aria-label={t("language.switchTo", {
-        language: t(`language.${nextLocale}`),
-      })}
-      className="max-sm:size-11"
-      onClick={() => {
-        router.replace(`${pathname}${window.location.search}`, {
-          locale: nextLocale,
-        });
-      }}
-      size="icon"
-      type="button"
-      variant="ghost"
-    >
-      <LanguagesIcon aria-hidden="true" />
-    </Button>
+    <Hint label={label}>
+      <Button
+        aria-label={label}
+        className="max-sm:size-11"
+        onClick={() => {
+          router.replace(`${pathname}${window.location.search}`, {
+            locale: nextLocale,
+          });
+        }}
+        size="icon"
+        type="button"
+        variant="ghost"
+      >
+        <LanguagesIcon aria-hidden="true" />
+      </Button>
+    </Hint>
   );
 }

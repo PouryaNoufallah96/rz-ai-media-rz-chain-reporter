@@ -206,7 +206,9 @@ function ReportEmpty({
           <EmptyDescription>{description}</EmptyDescription>
         ) : null}
       </EmptyHeader>
-      <EmptyContent>{action}</EmptyContent>
+      <EmptyContent className="[&_button]:max-sm:min-h-11 [&_button]:max-sm:min-w-11">
+        {action}
+      </EmptyContent>
     </Empty>
   );
 }
