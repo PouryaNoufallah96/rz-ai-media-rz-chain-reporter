@@ -1,23 +1,32 @@
 import "server-only";
 
-import type {
-  CardOriginReference,
-  ContentLocale,
-  FilterDisposition,
-  FilteringReason,
-  ModelUnitStatus,
-  OperationLifecycle,
-  RunConfiguration,
-  SourceFetchOutcome,
-  SourceFetchReason,
-  SourceImportStage,
-  SourceOrigin,
+import {
+  type CardOriginReference,
+  type ContentLocale,
+  type FilterDisposition,
+  type FilteringReason,
+  isOperationSettled,
+  type ModelUnitStatus,
+  OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME,
+  type OperationLifecycle,
+  type RunConfiguration,
+  type SourceFetchOutcome,
+  type SourceFetchReason,
+  type SourceImportStage,
+  type SourceOrigin,
 } from "@rz-chain-reporter/contracts";
-import { OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME } from "@rz-chain-reporter/contracts";
 import type { Executor, Transaction } from "@rz-chain-reporter/db/executor";
 import { inWorkspace } from "@rz-chain-reporter/db/filters";
 import { analysisRunProgress } from "@rz-chain-reporter/db/repositories/analysis-run";
+import {
+  readCopyVariantLocalizations,
+  readCopyVariantTranslationStatuses,
+} from "@rz-chain-reporter/db/repositories/copy-variant-localization";
 import { ownedDraftExists } from "@rz-chain-reporter/db/repositories/draft-origin";
+import {
+  type EditorialPresentationTranslationStatus,
+  readEditorialPresentationTranslationStatuses,
+} from "@rz-chain-reporter/db/repositories/editorial-presentation-localization-request";
 import { aiUsageEvent } from "@rz-chain-reporter/db/schema/ai-usage-event";
 import { analysisModelUnit } from "@rz-chain-reporter/db/schema/analysis-model-unit";
 import { analysisRun } from "@rz-chain-reporter/db/schema/analysis-run";
@@ -29,6 +38,7 @@ import { copyGenerationUnit } from "@rz-chain-reporter/db/schema/copy-generation
 import { copyVariant } from "@rz-chain-reporter/db/schema/copy-variant";
 import { destinationAccount } from "@rz-chain-reporter/db/schema/destination-account";
 import { draftRevision } from "@rz-chain-reporter/db/schema/draft-revision";
+import { editorialPresentationLocalization } from "@rz-chain-reporter/db/schema/editorial-presentation-localization";
 import { editorialSelection } from "@rz-chain-reporter/db/schema/editorial-selection";
 import { filterResult } from "@rz-chain-reporter/db/schema/filter-result";
 import { mediaBrand } from "@rz-chain-reporter/db/schema/media-brand";
@@ -51,6 +61,7 @@ import { sourceImportSource } from "@rz-chain-reporter/db/schema/source-import-s
 import { sourceItem } from "@rz-chain-reporter/db/schema/source-item";
 import { sourceItemRevision } from "@rz-chain-reporter/db/schema/source-item-revision";
 import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import {
   decodeKeysetCursor,
@@ -74,6 +85,7 @@ import {
 } from "../schemas/report";
 import type {
   ModelLane,
+  PresentationTranslationStatus,
   PromoIdeaCard,
   RunExecution,
   RunHead,
@@ -91,6 +103,31 @@ const LADDER_POSITION = sql`array_position(array['primary', 'retry-1', 'fallback
 const COMMITTED_USAGE_FIRST = sql`(${aiUsageEvent.status} = 'succeeded')`;
 
 const DUPLICATE_BRAND_ID = "00000000-0000-0000-0000-000000000000";
+
+const sourcePresentation = alias(
+  editorialPresentationLocalization,
+  "source_presentation",
+);
+const selectionPresentation = alias(
+  editorialPresentationLocalization,
+  "selection_presentation",
+);
+const promoPresentation = alias(
+  editorialPresentationLocalization,
+  "promo_presentation",
+);
+const platformSourcePresentation = alias(
+  editorialPresentationLocalization,
+  "platform_source_presentation",
+);
+const platformSelectionPresentation = alias(
+  editorialPresentationLocalization,
+  "platform_selection_presentation",
+);
+const platformPromoPresentation = alias(
+  editorialPresentationLocalization,
+  "platform_promo_presentation",
+);
 
 export async function ownedDraftSelectedMediaExists(
   executor: Executor,
@@ -125,6 +162,7 @@ export async function readEditorialWorkspace(
   workspaceId: string,
   userId: string,
   analysisRunId: string,
+  presentationLocale: ContentLocale,
 ) {
   const selected = await readRunHead(
     executor,
@@ -140,12 +178,64 @@ export async function readEditorialWorkspace(
   const { executionFacts, head } = selected;
 
   const [modelLanes, telegram, progress] = await Promise.all([
-    readModelLanes(executor, workspaceId, head.id),
-    readTelegramLanes(executor, workspaceId, head.id, head.sourceImportId),
+    readModelLanes(executor, workspaceId, head.id, presentationLocale),
+    readTelegramLanes(
+      executor,
+      workspaceId,
+      head.id,
+      head.sourceImportId,
+      presentationLocale,
+    ),
     analysisRunProgress(executor, workspaceId, [head.id]),
   ]);
 
   const runProgress = progress[head.id];
+  const translationStatuses =
+    await readEditorialPresentationTranslationStatuses(
+      executor,
+      workspaceId,
+      userId,
+      editorialWorkspaceOrigins(modelLanes, telegram.lanes),
+      presentationLocale,
+    );
+  const translationByOrigin =
+    presentationTranslationByOrigin(translationStatuses);
+  const presentedModelLanes = modelLanes.map((lane) => ({
+    ...lane,
+    selections: lane.selections.map((card) => ({
+      ...card,
+      presentationTranslation:
+        translationByOrigin.get(
+          presentationOriginKey({
+            kind: "editorial_selection",
+            editorialSelectionId: card.id,
+          }),
+        ) ?? null,
+    })),
+    promoIdeas: lane.promoIdeas.map((card) => ({
+      ...card,
+      presentationTranslation:
+        translationByOrigin.get(
+          presentationOriginKey({
+            kind: "promo_idea",
+            promoIdeaId: card.id,
+          }),
+        ) ?? null,
+    })),
+  }));
+  const presentedTelegramLanes = telegram.lanes.map((lane) => ({
+    ...lane,
+    cards: lane.cards.map((card) => ({
+      ...card,
+      presentationTranslation:
+        translationByOrigin.get(
+          presentationOriginKey({
+            kind: "telegram_filter_result",
+            telegramFilterResultId: card.telegramFilterResultId,
+          }),
+        ) ?? null,
+    })),
+  }));
 
   return {
     head: runProgress
@@ -156,8 +246,8 @@ export async function readEditorialWorkspace(
           telegramAcquisition: telegram.acquisition,
         }
       : null,
-    modelLanes,
-    telegramLanes: telegram.lanes,
+    modelLanes: presentedModelLanes,
+    telegramLanes: presentedTelegramLanes,
   };
 }
 
@@ -178,6 +268,7 @@ type PlatformDraftProjectionRow = {
   telegramFilterResultId: string | null;
   promoIdeaId: string | null;
   originTitle: string;
+  presentationReady: boolean;
   sourceKind: "promo" | "rss" | "telegram";
   originSourceName: string | null;
   originPublishedAt: string | null;
@@ -204,6 +295,8 @@ type PlatformDraftProjectionRow = {
   imageProviderOriginalMediaAssetId: string | null;
   imageFinalMediaAssetId: string | null;
   imageCreatedAt: string | null;
+  publishingPaused: boolean | null;
+  publishingControlVersion: number | null;
 };
 
 type PlatformDraftSelector =
@@ -223,6 +316,7 @@ export async function readPlatformDrafts(
   userId: string,
   environmentForcedPause: boolean,
   timeZone: string,
+  presentationLocale: ContentLocale,
 ): Promise<PlatformDraftRead[]> {
   return database.transaction(
     async (executor) => {
@@ -230,6 +324,74 @@ export async function readPlatformDrafts(
         "analysisRunId" in selector
           ? sql`origin_run.id = ${selector.analysisRunId}::uuid`
           : sql`draft.id = ${selector.platformDraftId}::uuid`;
+      const sourcePresentationReadySql = sql`(
+        origin_revision.content_locale = ${presentationLocale}
+        or (
+          ${platformSourcePresentation.title} is not null
+          and (
+            origin_revision.summary is null
+            or ${platformSourcePresentation.summary} is not null
+          )
+        )
+      )`;
+      const selectionPresentationReadySql =
+        presentationLocale === "en"
+          ? sql`true`
+          : sql`(
+              selection.reasoning is null
+              or ${platformSelectionPresentation.reasoning} is not null
+            )`;
+      const promoPresentationReadySql =
+        presentationLocale === "en"
+          ? sql`true`
+          : sql`(
+              ${platformPromoPresentation.title} is not null
+              and ${platformPromoPresentation.description} is not null
+              and ${platformPromoPresentation.angle} is not null
+            )`;
+      const presentationReadySql = sql`(
+        (
+          draft.promo_idea_id is not null
+          and ${promoPresentationReadySql}
+        )
+        or (
+          draft.promo_idea_id is null
+          and ${sourcePresentationReadySql}
+          and ${selectionPresentationReadySql}
+        )
+      )`;
+      const sourceTitleSql = sql`case
+        when ${presentationReadySql}
+          and origin_revision.content_locale <> ${presentationLocale}
+          then ${platformSourcePresentation.title}
+        else origin_revision.title
+      end`;
+      const sourceSummarySql = sql`case
+        when ${presentationReadySql}
+          and origin_revision.content_locale <> ${presentationLocale}
+          then ${platformSourcePresentation.summary}
+        else origin_revision.summary
+      end`;
+      const promoTitleSql = sql`case
+        when ${presentationReadySql} and ${presentationLocale} <> 'en'
+          then ${platformPromoPresentation.title}
+        else promo.title
+      end`;
+      const promoDescriptionSql = sql`case
+        when ${presentationReadySql} and ${presentationLocale} <> 'en'
+          then ${platformPromoPresentation.description}
+        else promo.description
+      end`;
+      const promoAngleSql = sql`case
+        when ${presentationReadySql} and ${presentationLocale} <> 'en'
+          then ${platformPromoPresentation.angle}
+        else promo.angle
+      end`;
+      const selectionReasoningSql = sql`case
+        when ${presentationReadySql} and ${presentationLocale} <> 'en'
+          then ${platformSelectionPresentation.reasoning}
+        else selection.reasoning
+      end`;
       const result = await executor.execute<PlatformDraftProjectionRow>(sql`
     select
       draft.id,
@@ -247,22 +409,23 @@ export async function readPlatformDrafts(
       draft.editorial_selection_id as "editorialSelectionId",
       draft.telegram_filter_result_id as "telegramFilterResultId",
       draft.promo_idea_id as "promoIdeaId",
-      coalesce(selection_item.title, telegram_item.title, promo.title) as "originTitle",
+      coalesce(${sourceTitleSql}, ${promoTitleSql}) as "originTitle",
+      ${presentationReadySql} as "presentationReady",
       case
         when draft.promo_idea_id is not null then 'promo'
-        when draft.telegram_filter_result_id is not null or selection_item.origin = 'telegram_public' then 'telegram'
+        when draft.telegram_filter_result_id is not null or origin_item.origin = 'telegram_public' then 'telegram'
         else 'rss'
       end as "sourceKind",
       origin_source.name as "originSourceName",
       origin_item.published_at as "originPublishedAt",
       origin_revision.canonical_url as "originCanonicalUrl",
-      coalesce(origin_revision.summary, promo.description) as "originSummary",
+      coalesce(${sourceSummarySql}, ${promoDescriptionSql}) as "originSummary",
       origin_revision.content_locale as "originContentLocale",
       selection.selection_suitability_score as "originSuitabilityScore",
-      selection.reasoning as "originReasoning",
+      ${selectionReasoningSql} as "originReasoning",
       coalesce(selection.suggested_platform, draft.platform) as "originSuggestedPlatform",
       telegram.reason as "originTelegramReason",
-      promo.angle as "originPromoAngle",
+      ${promoAngleSql} as "originPromoAngle",
       latest.operation_id as "operationId",
       latest.lifecycle,
       latest.model_option_key as "modelOptionKey",
@@ -278,6 +441,8 @@ export async function readPlatformDrafts(
       , latest_image.provider_original_media_asset_id as "imageProviderOriginalMediaAssetId"
       , latest_image.final_media_asset_id as "imageFinalMediaAssetId"
       , latest_image.created_at as "imageCreatedAt"
+      , ${publishingControl.paused} as "publishingPaused"
+      , ${publishingControl.version} as "publishingControlVersion"
     from platform_draft draft
     inner join media_brand brand
       on brand.id = draft.media_brand_id
@@ -289,15 +454,9 @@ export async function readPlatformDrafts(
     left join analysis_model_unit selection_unit
       on selection_unit.id = selection.analysis_model_unit_id
       and selection_unit.workspace_id = draft.workspace_id
-    left join source_item selection_item
-      on selection_item.id = selection.source_item_id
-      and selection_item.workspace_id = draft.workspace_id
     left join filter_result telegram
       on telegram.id = draft.telegram_filter_result_id
       and telegram.workspace_id = draft.workspace_id
-    left join source_item telegram_item
-      on telegram_item.id = telegram.source_item_id
-      and telegram_item.workspace_id = draft.workspace_id
     left join promo_idea promo
       on promo.id = draft.promo_idea_id
       and promo.workspace_id = draft.workspace_id
@@ -314,6 +473,8 @@ export async function readPlatformDrafts(
     inner join operation origin_operation
       on origin_operation.id = origin_run.operation_id
       and origin_operation.workspace_id = draft.workspace_id
+    left join ${publishingControl}
+      on ${publishingControl.workspaceId} = draft.workspace_id
     left join source_item origin_item
       on origin_item.id = coalesce(selection.source_item_id, telegram.source_item_id)
       and origin_item.workspace_id = draft.workspace_id
@@ -327,6 +488,18 @@ export async function readPlatformDrafts(
     left join source_item_revision origin_revision
       on origin_revision.id = origin_run_item.source_item_revision_id
       and origin_revision.workspace_id = draft.workspace_id
+    left join ${editorialPresentationLocalization} as platform_source_presentation
+      on ${platformSourcePresentation.workspaceId} = draft.workspace_id
+      and ${platformSourcePresentation.sourceItemRevisionId} = origin_revision.id
+      and ${platformSourcePresentation.presentationLocale} = ${presentationLocale}
+    left join ${editorialPresentationLocalization} as platform_selection_presentation
+      on ${platformSelectionPresentation.workspaceId} = draft.workspace_id
+      and ${platformSelectionPresentation.editorialSelectionId} = selection.id
+      and ${platformSelectionPresentation.presentationLocale} = ${presentationLocale}
+    left join ${editorialPresentationLocalization} as platform_promo_presentation
+      on ${platformPromoPresentation.workspaceId} = draft.workspace_id
+      and ${platformPromoPresentation.promoIdeaId} = promo.id
+      and ${platformPromoPresentation.presentationLocale} = ${presentationLocale}
     left join lateral (
       select
         generation.operation_id,
@@ -531,6 +704,35 @@ export async function readPlatformDrafts(
                 ),
               )
               .orderBy(desc(copyVariant.createdAt), asc(copyVariant.id));
+      const nativeCandidatesByDraft = new Map<
+        string,
+        {
+          contentLocale: ContentLocale;
+          candidates: typeof variants;
+        }
+      >();
+      for (const variant of variants) {
+        const current = nativeCandidatesByDraft.get(variant.platformDraftId);
+        if (
+          !current ||
+          (current.contentLocale !== presentationLocale &&
+            variant.contentLocale === presentationLocale)
+        ) {
+          nativeCandidatesByDraft.set(variant.platformDraftId, {
+            contentLocale: variant.contentLocale,
+            candidates: [variant],
+          });
+        } else if (variant.contentLocale === current.contentLocale) {
+          current.candidates.push(variant);
+        }
+      }
+      const translatableVariantIds = [
+        ...nativeCandidatesByDraft.values(),
+      ].flatMap(({ candidates }) =>
+        candidates.flatMap((candidate) =>
+          candidate.contentLocale === presentationLocale ? [] : [candidate.id],
+        ),
+      );
       const revisions =
         draftIds.length === 0
           ? []
@@ -671,15 +873,6 @@ export async function readPlatformDrafts(
                 asc(draftRevision.platformDraftId),
                 desc(draftRevision.revisionNumber),
               );
-      const candidatesByDraft = new Map<
-        string,
-        Omit<(typeof variants)[number], "platformDraftId">[]
-      >();
-      for (const { platformDraftId, ...variant } of variants) {
-        const existing = candidatesByDraft.get(platformDraftId);
-        if (existing) existing.push(variant);
-        else candidatesByDraft.set(platformDraftId, [variant]);
-      }
       const revisionsByDraft = new Map<
         string,
         Omit<(typeof revisions)[number], "platformDraftId">[]
@@ -698,15 +891,92 @@ export async function readPlatformDrafts(
         );
       }
 
-      const publishingByDraft = await readPlatformDraftPublishing(
-        executor,
-        workspaceId,
-        userId,
-        result.rows,
-        revisions,
-        environmentForcedPause,
-        timeZone,
+      const [
+        publishingByDraft,
+        translationStatuses,
+        copyVariantLocalizations,
+        copyVariantTranslationStatuses,
+      ] = await Promise.all([
+        readPlatformDraftPublishing(
+          executor,
+          workspaceId,
+          userId,
+          result.rows,
+          revisions,
+          environmentForcedPause,
+          timeZone,
+        ),
+        readEditorialPresentationTranslationStatuses(
+          executor,
+          workspaceId,
+          userId,
+          result.rows.flatMap((row) =>
+            row.presentationReady ? [] : [platformDraftOrigin(row)],
+          ),
+          presentationLocale,
+        ),
+        translatableVariantIds.length === 0
+          ? Promise.resolve([])
+          : readCopyVariantLocalizations(
+              executor,
+              workspaceId,
+              translatableVariantIds,
+              presentationLocale,
+            ),
+        translatableVariantIds.length === 0
+          ? Promise.resolve([])
+          : readCopyVariantTranslationStatuses(
+              executor,
+              workspaceId,
+              userId,
+              translatableVariantIds,
+              presentationLocale,
+            ),
+      ]);
+      const translationByOrigin =
+        presentationTranslationByOrigin(translationStatuses);
+      const localizationByVariant = new Map(
+        copyVariantLocalizations.map((entry) => [entry.copyVariantId, entry]),
       );
+      const translationByVariant = new Map(
+        copyVariantTranslationStatuses.map((entry) => [
+          entry.copyVariantId,
+          {
+            dispatchState: entry.dispatchState,
+            lifecycle: entry.lifecycle,
+            operationId: entry.operationId,
+          },
+        ]),
+      );
+      const candidatesByDraft = new Map<
+        string,
+        PlatformDraftCard["candidates"]
+      >();
+      for (const [draftId, { candidates }] of nativeCandidatesByDraft) {
+        candidatesByDraft.set(
+          draftId,
+          candidates.map(
+            ({ platformDraftId: _platformDraftId, ...candidate }) => {
+              const localization = localizationByVariant.get(candidate.id);
+              return {
+                ...candidate,
+                ...(localization
+                  ? {
+                      contentLocale: localization.contentLocale,
+                      headline: localization.headline,
+                      body: localization.body,
+                      hashtags: localization.hashtags,
+                    }
+                  : {}),
+                translation:
+                  localization || candidate.contentLocale === presentationLocale
+                    ? null
+                    : (translationByVariant.get(candidate.id) ?? null),
+              };
+            },
+          ),
+        );
+      }
 
       return result.rows.map((row) => {
         const origin = platformDraftOrigin(row);
@@ -764,6 +1034,9 @@ export async function readPlatformDrafts(
           nextRevisionNumber: nextRevisionNumberByDraft.get(row.id) ?? 1,
           origin,
           originTitle: row.originTitle,
+          presentationReady: row.presentationReady,
+          presentationTranslation:
+            translationByOrigin.get(presentationOriginKey(origin)) ?? null,
           sourceKind: row.sourceKind,
           originDetails: platformDraftOriginDetails(row),
           generation,
@@ -872,46 +1145,37 @@ async function readPlatformDraftPublishing(
             ),
           )
           .orderBy(desc(approval.approvedAt), desc(approval.id));
-  const [destinationRows, controlRows] = await Promise.all([
-    executor
-      .select({
-        mediaBrandId: mediaBrandDestinationAccount.mediaBrandId,
-        id: destinationAccount.id,
-        key: destinationAccount.key,
-        label: sql<string>`coalesce(${destinationAccount.metadata}->>'label', ${destinationAccount.key})`,
-        platform: destinationAccount.platform,
-        enabled: destinationAccount.enabled,
-        bound: sql<boolean>`coalesce(${destinationAccount.bindingPresent}, false)`,
-        bindingCheckedAt: destinationAccount.bindingCheckedAt,
-      })
-      .from(mediaBrandDestinationAccount)
-      .innerJoin(
-        destinationAccount,
-        and(
-          inWorkspace(destinationAccount, workspaceId),
-          eq(
-            destinationAccount.id,
-            mediaBrandDestinationAccount.destinationAccountId,
-          ),
-          isNull(destinationAccount.deletedAt),
+  const destinationRows = await executor
+    .select({
+      mediaBrandId: mediaBrandDestinationAccount.mediaBrandId,
+      id: destinationAccount.id,
+      key: destinationAccount.key,
+      label: sql<string>`coalesce(${destinationAccount.metadata}->>'label', ${destinationAccount.key})`,
+      platform: destinationAccount.platform,
+      enabled: destinationAccount.enabled,
+      bound: sql<boolean>`coalesce(${destinationAccount.bindingPresent}, false)`,
+      bindingCheckedAt: destinationAccount.bindingCheckedAt,
+    })
+    .from(mediaBrandDestinationAccount)
+    .innerJoin(
+      destinationAccount,
+      and(
+        inWorkspace(destinationAccount, workspaceId),
+        eq(
+          destinationAccount.id,
+          mediaBrandDestinationAccount.destinationAccountId,
         ),
-      )
-      .where(
-        and(
-          inWorkspace(mediaBrandDestinationAccount, workspaceId),
-          isNull(mediaBrandDestinationAccount.deletedAt),
-          inArray(mediaBrandDestinationAccount.mediaBrandId, brandIds),
-        ),
-      )
-      .orderBy(asc(destinationAccount.key)),
-    executor
-      .select({
-        paused: publishingControl.paused,
-        version: publishingControl.version,
-      })
-      .from(publishingControl)
-      .where(eq(publishingControl.workspaceId, workspaceId)),
-  ]);
+        isNull(destinationAccount.deletedAt),
+      ),
+    )
+    .where(
+      and(
+        inWorkspace(mediaBrandDestinationAccount, workspaceId),
+        isNull(mediaBrandDestinationAccount.deletedAt),
+        inArray(mediaBrandDestinationAccount.mediaBrandId, brandIds),
+      ),
+    )
+    .orderBy(asc(destinationAccount.key));
   const publicationRows =
     revisionIds.length === 0
       ? []
@@ -1037,7 +1301,7 @@ async function readPlatformDraftPublishing(
     }
   }
 
-  const persistedControl = controlRows[0];
+  const persistedControl = drafts[0];
   const output = new Map<string, PlatformDraftCard["publishing"]>();
   for (const draft of drafts) {
     const savedRow = savedByDraft.get(draft.id);
@@ -1082,9 +1346,11 @@ async function readPlatformDraftPublishing(
       destinations,
       timeZone,
       control: {
-        paused: environmentForcedPause || (persistedControl?.paused ?? false),
+        paused:
+          environmentForcedPause ||
+          (persistedControl?.publishingPaused ?? false),
         environmentForced: environmentForcedPause,
-        version: persistedControl?.version ?? 0,
+        version: persistedControl?.publishingControlVersion ?? 0,
       },
       latestPublication: publicationRow
         ? {
@@ -1301,6 +1567,7 @@ async function readRunHead(
       requestUpdatedAt: requestDispatch.updatedAt,
       sourceImportStage: sourceImport.stage,
       sourceImportUpdatedAt: sourceImport.updatedAt,
+      effectiveTopics: sourceImport.effectiveTopics,
       unitUpdatedAt: latestUnitProgress.updatedAt,
       scoringVersion: analysisRun.scoringVersion,
       semanticStatus: analysisRun.semanticStatus,
@@ -1358,6 +1625,7 @@ async function readRunHead(
     requestUpdatedAt,
     sourceImportStage,
     sourceImportUpdatedAt,
+    effectiveTopics,
     unitUpdatedAt,
     ...run
   } = row;
@@ -1365,6 +1633,7 @@ async function readRunHead(
   return {
     head: {
       ...run,
+      topicTranslationFallback: effectiveTopics?.usedOriginalFallback === true,
       provenance: {
         scoringVersion,
         semanticStatus,
@@ -1422,7 +1691,7 @@ function deriveRunExecution(
     : facts.requestExhaustedAt
       ? "exhausted"
       : "pending";
-  const elapsedTo = isTerminal(head.lifecycle)
+  const elapsedTo = isOperationSettled(head.lifecycle)
     ? (head.completedAt ?? facts.operationUpdatedAt)
     : null;
   const lastProgressAt = latestDate(
@@ -1455,7 +1724,7 @@ function progressStage(
   progress: RunHead["progress"],
   dispatch: RunExecution["dispatch"],
 ): RunExecution["stage"] {
-  if (isTerminal(head.lifecycle)) return head.lifecycle;
+  if (isOperationSettled(head.lifecycle)) return head.lifecycle;
   if (head.cancelRequestedAt) return "cancelling";
   if (head.lifecycle === "queued") {
     return dispatch === "dispatched" ? "waitingForWorker" : "queuedForDispatch";
@@ -1484,15 +1753,6 @@ function progressStage(
   return "preparing";
 }
 
-function isTerminal(lifecycle: OperationLifecycle) {
-  return (
-    lifecycle === "succeeded" ||
-    lifecycle === "failed" ||
-    lifecycle === "cancelled" ||
-    lifecycle === "unknown"
-  );
-}
-
 function latestDate(first: Date, ...rest: (Date | null)[]) {
   let latest = first;
   for (const candidate of rest) {
@@ -1505,6 +1765,7 @@ async function readModelLanes(
   executor: Executor,
   workspaceId: string,
   analysisRunId: string,
+  presentationLocale: ContentLocale,
 ): Promise<ModelLane[]> {
   const winningSlot = executor
     .select({ invocationKey: aiUsageEvent.invocationKey })
@@ -1554,6 +1815,32 @@ async function readModelLanes(
   }
 
   const unitIds = units.map((unit) => unit.unitId);
+  const sourcePresentationReady = sql<boolean>`(
+    ${sourceItemRevision.contentLocale} = ${presentationLocale}
+    or (
+      ${sourcePresentation.title} is not null
+      and (
+        ${sourceItemRevision.summary} is null
+        or ${sourcePresentation.summary} is not null
+      )
+    )
+  )`;
+  const selectionPresentationReady = sql<boolean>`(
+    ${presentationLocale} = 'en'
+    or ${editorialSelection.reasoning} is null
+    or ${selectionPresentation.reasoning} is not null
+  )`;
+  const selectionBundleReady = sql<boolean>`(
+    ${sourcePresentationReady} and ${selectionPresentationReady}
+  )`;
+  const promoPresentationReady = sql<boolean>`(
+    ${presentationLocale} = 'en'
+    or (
+      ${promoPresentation.title} is not null
+      and ${promoPresentation.description} is not null
+      and ${promoPresentation.angle} is not null
+    )
+  )`;
 
   const [selections, promoIdeas] = await Promise.all([
     executor
@@ -1563,18 +1850,33 @@ async function readModelLanes(
         rank: editorialSelection.rank,
         sourceItemId: editorialSelection.sourceItemId,
         suggestedPlatform: editorialSelection.suggestedPlatform,
-        reasoning: editorialSelection.reasoning,
+        reasoning: sql<string | null>`case
+          when ${selectionBundleReady} and ${presentationLocale} <> 'en'
+            then ${selectionPresentation.reasoning}
+          else ${editorialSelection.reasoning}
+        end`,
         suitabilityScore: editorialSelection.selectionSuitabilityScore,
         impactScore: editorialSelection.selectionImpactScore,
         viralityScore: editorialSelection.selectionViralityScore,
         confidenceScore: editorialSelection.selectionConfidenceScore,
-        title: sourceItemRevision.title,
-        summary: sourceItemRevision.summary,
+        title: sql<string>`case
+          when ${selectionBundleReady}
+            and ${sourceItemRevision.contentLocale} <> ${presentationLocale}
+            then ${sourcePresentation.title}
+          else ${sourceItemRevision.title}
+        end`,
+        summary: sql<string | null>`case
+          when ${selectionBundleReady}
+            and ${sourceItemRevision.contentLocale} <> ${presentationLocale}
+            then ${sourcePresentation.summary}
+          else ${sourceItemRevision.summary}
+        end`,
         canonicalUrl: sourceItemRevision.canonicalUrl,
         contentLocale: sourceItemRevision.contentLocale,
         sourceName: source.name,
         sourceOrigin: source.origin,
         publishedAt: sourceItem.publishedAt,
+        presentationReady: selectionBundleReady,
       })
       .from(editorialSelection)
       .innerJoin(
@@ -1588,6 +1890,22 @@ async function readModelLanes(
       .innerJoin(
         sourceItemRevision,
         eq(sourceItemRevision.id, analysisRunItem.sourceItemRevisionId),
+      )
+      .leftJoin(
+        sourcePresentation,
+        and(
+          inWorkspace(sourcePresentation, workspaceId),
+          eq(sourcePresentation.sourceItemRevisionId, sourceItemRevision.id),
+          eq(sourcePresentation.presentationLocale, presentationLocale),
+        ),
+      )
+      .leftJoin(
+        selectionPresentation,
+        and(
+          inWorkspace(selectionPresentation, workspaceId),
+          eq(selectionPresentation.editorialSelectionId, editorialSelection.id),
+          eq(selectionPresentation.presentationLocale, presentationLocale),
+        ),
       )
       .innerJoin(sourceItem, eq(sourceItem.id, editorialSelection.sourceItemId))
       .innerJoin(source, eq(source.id, sourceItem.sourceId))
@@ -1606,11 +1924,32 @@ async function readModelLanes(
         analysisModelUnitId: promoIdea.analysisModelUnitId,
         id: promoIdea.id,
         rank: promoIdea.rank,
-        title: promoIdea.title,
-        description: promoIdea.description,
-        angle: promoIdea.angle,
+        title: sql<string>`case
+          when ${promoPresentationReady} and ${presentationLocale} <> 'en'
+            then ${promoPresentation.title}
+          else ${promoIdea.title}
+        end`,
+        description: sql<string>`case
+          when ${promoPresentationReady} and ${presentationLocale} <> 'en'
+            then ${promoPresentation.description}
+          else ${promoIdea.description}
+        end`,
+        angle: sql<string>`case
+          when ${promoPresentationReady} and ${presentationLocale} <> 'en'
+            then ${promoPresentation.angle}
+          else ${promoIdea.angle}
+        end`,
+        presentationReady: promoPresentationReady,
       })
       .from(promoIdea)
+      .leftJoin(
+        promoPresentation,
+        and(
+          inWorkspace(promoPresentation, workspaceId),
+          eq(promoPresentation.promoIdeaId, promoIdea.id),
+          eq(promoPresentation.presentationLocale, presentationLocale),
+        ),
+      )
       .where(
         and(
           inWorkspace(promoIdea, workspaceId),
@@ -1628,15 +1967,17 @@ async function readModelLanes(
   );
 
   for (const { analysisModelUnitId, ...card } of selections) {
-    lanes
-      .get(analysisModelUnitId)
-      ?.selections.push(card satisfies SelectionCard);
+    lanes.get(analysisModelUnitId)?.selections.push({
+      ...card,
+      presentationTranslation: null,
+    } satisfies SelectionCard);
   }
 
   for (const { analysisModelUnitId, ...card } of promoIdeas) {
-    lanes
-      .get(analysisModelUnitId)
-      ?.promoIdeas.push(card satisfies PromoIdeaCard);
+    lanes.get(analysisModelUnitId)?.promoIdeas.push({
+      ...card,
+      presentationTranslation: null,
+    } satisfies PromoIdeaCard);
   }
 
   return [...lanes.values()];
@@ -1647,6 +1988,7 @@ async function readTelegramLanes(
   workspaceId: string,
   analysisRunId: string,
   sourceImportId: string | null,
+  presentationLocale: ContentLocale,
 ): Promise<{ acquisition: TelegramAcquisition; lanes: TelegramLane[] }> {
   if (sourceImportId === null) {
     return {
@@ -1713,8 +2055,34 @@ async function readTelegramLanes(
         run_item.duplicate_of_source_item_id as "duplicateOfSourceItemId",
         run_item.duplicate_similarity_bp as "duplicateSimilarityBp",
         run_item.semantic_participation as "semanticParticipation",
-        revision.title as "title",
-        revision.summary as "summary",
+        case
+          when revision.content_locale = ${presentationLocale} then revision.title
+          when ${sourcePresentation.title} is not null
+            and (
+              revision.summary is null
+              or ${sourcePresentation.summary} is not null
+            ) then ${sourcePresentation.title}
+          else revision.title
+        end as "title",
+        case
+          when revision.content_locale = ${presentationLocale} then revision.summary
+          when ${sourcePresentation.title} is not null
+            and (
+              revision.summary is null
+              or ${sourcePresentation.summary} is not null
+            ) then ${sourcePresentation.summary}
+          else revision.summary
+        end as "summary",
+        (
+          revision.content_locale = ${presentationLocale}
+          or (
+            ${sourcePresentation.title} is not null
+            and (
+              revision.summary is null
+              or ${sourcePresentation.summary} is not null
+            )
+          )
+        ) as "presentationReady",
         revision.canonical_url as "canonicalUrl",
         revision.content_locale as "contentLocale",
         item_source.endpoint as "channelHandle",
@@ -1744,6 +2112,10 @@ async function readTelegramLanes(
         and run_item.source_item_id = route.source_item_id
       join ${sourceItemRevision} as revision
         on revision.id = run_item.source_item_revision_id
+      left join ${editorialPresentationLocalization} as source_presentation
+        on ${sourcePresentation.workspaceId} = ${workspaceId}
+        and ${sourcePresentation.sourceItemRevisionId} = revision.id
+        and ${sourcePresentation.presentationLocale} = ${presentationLocale}
       join ${sourceItem} as item on item.id = route.source_item_id
       join ${source} as item_source on item_source.id = item.source_id
       join ${sourceImport} as import_run on import_run.id = ${sourceImportId}
@@ -1798,6 +2170,8 @@ async function readTelegramLanes(
       keywordScore: row.keywordScore,
       orderingMode: row.orderingMode,
       publishedAt: row.publishedAt === null ? null : new Date(row.publishedAt),
+      presentationReady: row.presentationReady,
+      presentationTranslation: null,
       rankPosition: row.rankPosition,
       reason: row.reason,
       semanticParticipation: row.semanticParticipation,
@@ -1814,6 +2188,63 @@ async function readTelegramLanes(
   return { acquisition, lanes: [...lanes.values()] };
 }
 
+function editorialWorkspaceOrigins(
+  modelLanes: readonly ModelLane[],
+  telegramLanes: readonly TelegramLane[],
+): CardOriginReference[] {
+  const origins: CardOriginReference[] = [];
+
+  for (const lane of modelLanes) {
+    for (const card of lane.selections) {
+      if (!card.presentationReady) {
+        origins.push({
+          kind: "editorial_selection",
+          editorialSelectionId: card.id,
+        });
+      }
+    }
+    for (const card of lane.promoIdeas) {
+      if (!card.presentationReady) {
+        origins.push({ kind: "promo_idea", promoIdeaId: card.id });
+      }
+    }
+  }
+
+  for (const lane of telegramLanes) {
+    for (const card of lane.cards) {
+      if (!card.presentationReady) {
+        origins.push({
+          kind: "telegram_filter_result",
+          telegramFilterResultId: card.telegramFilterResultId,
+        });
+      }
+    }
+  }
+
+  return origins;
+}
+
+function presentationTranslationByOrigin(
+  statuses: readonly EditorialPresentationTranslationStatus[],
+): Map<string, PresentationTranslationStatus> {
+  return new Map(
+    statuses.map(({ origin, ...status }) => [
+      presentationOriginKey(origin),
+      status,
+    ]),
+  );
+}
+
+function presentationOriginKey(origin: CardOriginReference): string {
+  if (origin.kind === "editorial_selection") {
+    return `editorial_selection:${origin.editorialSelectionId}`;
+  }
+  if (origin.kind === "telegram_filter_result") {
+    return `telegram_filter_result:${origin.telegramFilterResultId}`;
+  }
+  return `promo_idea:${origin.promoIdeaId}`;
+}
+
 type TelegramAcquisitionSql = {
   acquiredChannels: number;
   failureChannels: string[];
@@ -1824,7 +2255,7 @@ type TelegramAcquisitionSql = {
 type TelegramLaneSqlRow = TelegramAcquisitionSql &
   (
     | { sourceItemId: null }
-    | (Omit<TelegramCard, "publishedAt"> & {
+    | (Omit<TelegramCard, "presentationTranslation" | "publishedAt"> & {
         brandKey: string;
         brandName: string;
         mediaBrandId: string;

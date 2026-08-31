@@ -1,3 +1,4 @@
+import { SOURCE_IMPORT_COMMAND_PREFIX } from "@rz-chain-reporter/contracts";
 import {
   and,
   asc,
@@ -11,11 +12,20 @@ import {
   sql,
 } from "drizzle-orm";
 
-import { type Executor, withWorkspaceContext } from "../executor";
+import {
+  type Executor,
+  type Transaction,
+  withWorkspaceContext,
+} from "../executor";
 import { inWorkspace } from "../filters";
+import { operation } from "../schema/operation";
 import { outboxEvent } from "../schema/outbox-event";
 
 type OutboxEventRow = typeof outboxEvent.$inferSelect;
+type ClaimedOutboxEventRow = OutboxEventRow & {
+  actorId: string;
+  sharedImport: boolean;
+};
 
 const MAX_CLAIM_BATCH = 100;
 
@@ -30,7 +40,7 @@ export async function claimOutboxEvents(
   executor: Executor,
   workspaceId: string,
   input: ClaimOutboxEventsInput,
-): Promise<OutboxEventRow[]> {
+): Promise<ClaimedOutboxEventRow[]> {
   if (
     !Number.isInteger(input.limit) ||
     input.limit < 1 ||
@@ -71,7 +81,7 @@ export async function claimOutboxEvents(
       return [];
     }
 
-    return tx
+    const claimed = await tx
       .update(outboxEvent)
       .set({
         dispatchClaimedBy: input.claimedBy,
@@ -90,6 +100,38 @@ export async function claimOutboxEvents(
         ),
       )
       .returning();
+
+    const audiences = await tx
+      .select({
+        actorId: operation.actor,
+        commandType: operation.commandType,
+        operationId: operation.id,
+      })
+      .from(operation)
+      .where(
+        and(
+          inWorkspace(operation, workspaceId),
+          inArray(
+            operation.id,
+            claimed.map((event) => event.operationId),
+          ),
+        ),
+      );
+    const audienceByOperationId = new Map(
+      audiences.map((audience) => [audience.operationId, audience]),
+    );
+
+    return claimed.map((event) => {
+      const audience = audienceByOperationId.get(event.operationId);
+      if (!audience) throw new Error("claimed outbox operation not found");
+      return {
+        ...event,
+        actorId: audience.actorId,
+        sharedImport: audience.commandType.startsWith(
+          SOURCE_IMPORT_COMMAND_PREFIX,
+        ),
+      };
+    });
   });
 }
 
@@ -184,32 +226,39 @@ export async function rearmOutboxEvent(
   workspaceId: string,
   input: { id: string; rearmedAt?: Date },
 ): Promise<OutboxEventRow | null> {
+  return executor.transaction((tx) =>
+    rearmOutboxEventInTransaction(tx, workspaceId, input),
+  );
+}
+
+export async function rearmOutboxEventInTransaction(
+  tx: Transaction,
+  workspaceId: string,
+  input: { id: string; rearmedAt?: Date },
+): Promise<OutboxEventRow | null> {
   const rearmedAt = input.rearmedAt ?? new Date();
+  await withWorkspaceContext(tx, workspaceId);
+  const [updated] = await tx
+    .update(outboxEvent)
+    .set({
+      dispatchClaimedBy: null,
+      dispatchClaimedAt: null,
+      dispatchLeaseExpiresAt: null,
+      nextAttemptAt: rearmedAt,
+      lastErrorCode: null,
+      lastErrorAt: null,
+      exhaustedAt: null,
+      updatedAt: rearmedAt,
+    })
+    .where(
+      and(
+        inWorkspace(outboxEvent, workspaceId),
+        eq(outboxEvent.id, input.id),
+        isNull(outboxEvent.dispatchedAt),
+        isNotNull(outboxEvent.exhaustedAt),
+      ),
+    )
+    .returning();
 
-  return executor.transaction(async (tx) => {
-    await withWorkspaceContext(tx, workspaceId);
-    const [updated] = await tx
-      .update(outboxEvent)
-      .set({
-        dispatchClaimedBy: null,
-        dispatchClaimedAt: null,
-        dispatchLeaseExpiresAt: null,
-        nextAttemptAt: rearmedAt,
-        lastErrorCode: null,
-        lastErrorAt: null,
-        exhaustedAt: null,
-        updatedAt: rearmedAt,
-      })
-      .where(
-        and(
-          inWorkspace(outboxEvent, workspaceId),
-          eq(outboxEvent.id, input.id),
-          isNull(outboxEvent.dispatchedAt),
-          isNotNull(outboxEvent.exhaustedAt),
-        ),
-      )
-      .returning();
-
-    return updated ?? null;
-  });
+  return updated ?? null;
 }

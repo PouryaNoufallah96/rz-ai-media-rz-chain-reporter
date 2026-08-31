@@ -3,6 +3,7 @@ import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { requireSession } from "@/features/auth/api/server/session";
+import { currentLocale } from "@/i18n/server";
 import { customerTemplateFingerprint } from "@/lib/customer-template.server";
 import { rpcDb } from "@/server/rpc/db";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
@@ -34,11 +35,15 @@ export async function getEditorialWorkspace(
     };
   }
 
-  const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
+  const [presentationLocale, workspaceId] = await Promise.all([
+    currentLocale(),
+    resolveInstallationWorkspaceId(rpcDb()),
+  ]);
   const { head, ...lanes } = await readPinnedEditorialWorkspace(
     workspaceId,
     session.user.id,
     query.run,
+    presentationLocale,
   );
   const readAt = new Date();
 
@@ -67,10 +72,17 @@ async function readPinnedEditorialWorkspace(
   workspaceId: string,
   userId: string,
   analysisRunId: string,
+  presentationLocale: "en" | "fa",
 ) {
   "use cache";
   cacheTag(editorialTags.reads(workspaceId));
   cacheLife("minutes");
 
-  return readEditorialWorkspace(rpcDb(), workspaceId, userId, analysisRunId);
+  return readEditorialWorkspace(
+    rpcDb(),
+    workspaceId,
+    userId,
+    analysisRunId,
+    presentationLocale,
+  );
 }

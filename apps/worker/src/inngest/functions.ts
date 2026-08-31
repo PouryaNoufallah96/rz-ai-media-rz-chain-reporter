@@ -1,9 +1,11 @@
 import { createAnalysisRunFunctions } from "./analysis-run";
 import type { WorkerInngestClient } from "./client";
 import { createCopyGenerationFunctions } from "./copy-generation";
+import { createCopyVariantTranslationFunctions } from "./copy-variant-translation";
 import { createGenerationProbeFunction } from "./generation-probe";
 import { createImageGenerationFunctions } from "./image-generation";
 import { createMediaUploadVerificationFunction } from "./media-upload-function";
+import { createPresentationTranslationFunctions } from "./presentation-translation";
 import { createPublishingFunctions } from "./publishing";
 import type { WorkerRuntime } from "./runtime";
 import { createScheduledEffectProbeFunction } from "./scheduled-effect-probe";
@@ -23,7 +25,9 @@ export function createWorkerFunctions(
     ...createSourceImportFunctions(client, runtime),
     ...createAnalysisRunFunctions(client, runtime),
     ...createCopyGenerationFunctions(client, runtime),
+    ...createCopyVariantTranslationFunctions(client, runtime),
     ...createImageGenerationFunctions(client, runtime),
+    ...createPresentationTranslationFunctions(client, runtime),
     publishing.effect,
     publishing.parent,
     publishing.reconciliation,
