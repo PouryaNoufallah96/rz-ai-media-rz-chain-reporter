@@ -31,8 +31,7 @@
       "saveBlocked": "Create a revision or save your edits before saving this draft for later.",
       "saved": "Saved",
       "restore": "Restore",
-      "pending": "Working…",
-      "more": "More"
+      "pending": "Working…"
     },
     "approval": {
       "approved": "Approved for publishing",
@@ -42,19 +41,17 @@
       "savedRevisionRequired": "Save or discard these edits and wait for image work to finish before approving or publishing."
     },
     "readiness": {
-      "copy": "copy ceiling {n, number}",
-      "payload": "{method}: {n, number} / {maximum, number}",
-      "mediaOptional": "publishable media or text-only path",
-      "mediaRequired": "publishable media required",
-      "publishing": "publishing enabled",
+      "blockedTitle": "Before publishing",
+      "approvalRequired": "Approve the active revision before publishing.",
+      "payloadMissing": "Save a revision with publishable text before continuing.",
+      "payloadOverflow": "Shorten this post to {maximum, number} characters and save a new revision ({n, number} currently).",
+      "mediaRequiredAction": "Select an approved image before publishing to Instagram.",
       "environmentPaused": "environment pause active",
-      "destination": "destination bound",
+      "destinationUnavailable": "Choose an enabled, connected destination account.",
       "delivery": {
-        "available": "publication slot available",
-        "confirmed": "already published — delivery confirmed",
-        "inProgress": "publication already in progress",
-        "recovery": "delivery unknown — reconciliation required"
+        "inProgress": "A publication is already in progress. Wait for it to finish before trying again."
       },
+      "republishRequiresRevision": "Already published. Edit the card and save a new revision to publish it again.",
       "telegramPhotoOverflow": "This caption is too long for a Telegram photo. Shorten and save the revision, or remove its image to use the longer text-only limit."
     },
     "destination": {
@@ -62,8 +59,7 @@
       "retryLabel": "Retry destination",
       "disabled": "disabled",
       "unbound": "unbound",
-      "none": "No eligible mapped destination",
-      "key": "Destination key"
+      "none": "No eligible mapped destination"
     },
     "mode": {
       "label": "Delivery mode",

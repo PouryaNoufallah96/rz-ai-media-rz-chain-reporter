@@ -1,6 +1,7 @@
 import type {
   DraftsChangedRealtimeMessage,
   OperationStatusRealtimeMessage,
+  OperationsChangedRealtimeMessage,
   PublishingChangedRealtimeMessage,
 } from "@rz-chain-reporter/contracts";
 import {
@@ -54,6 +55,21 @@ export function publishOperationStatus(
       status: message.lifecycle,
       workspaceId,
     },
+  );
+}
+
+export function publishOperationsChangedNow(
+  client: WorkerInngestClient,
+  workspaceId: string,
+  message: OperationsChangedRealtimeMessage,
+) {
+  return settled(
+    client.realtime.publish(
+      operationsRealtimeChannel(workspaceId).changed,
+      message,
+    ),
+    "worker.operations.realtime-unavailable",
+    { workspaceId },
   );
 }
 

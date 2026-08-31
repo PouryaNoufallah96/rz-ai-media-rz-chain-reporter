@@ -17,6 +17,7 @@
       "loading": "Loading source imports",
       "start": "Start import",
       "pending": "Starting…",
+      "inProgress": "Import in progress…",
       "startHint": "Opens one ticket in the operations panel.",
       "startDisabled": "Select at least one source.",
       "noSources": "Select at least one source.",

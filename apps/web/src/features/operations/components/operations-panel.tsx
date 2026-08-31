@@ -37,9 +37,11 @@ import type { OperationSummary } from "../schemas/operation-summary";
 
 const KIND_KEYS = {
   "analysis-run": "kind.analysisRun",
+  "copy-variant-translation": "kind.copyVariantTranslation",
   "generation-probe": "kind.generationProbe",
   "media-verification": "kind.mediaVerification",
   other: "kind.operation",
+  "presentation-translation": "kind.presentationTranslation",
   "scheduled-effect-probe": "kind.scheduledEffect",
   "source-import": "kind.sourceImport",
 } as const satisfies Record<OperationCommandKind, string>;
@@ -60,7 +62,7 @@ export function OperationsPanel({
   const t = useTranslations(OPERATIONS_NAMESPACE);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 max-sm:**:data-[slot=button]:min-h-11 max-sm:**:data-[slot=button]:min-w-11">
       {operations.length === 0 ? (
         <Empty>
           <EmptyHeader>

@@ -45,6 +45,8 @@
       "mediaVerification": "بررسی رسانه",
       "sourceImport": "دریافت منابع",
       "analysisRun": "اجرای تحلیل",
+      "copyVariantTranslation": "ترجمهٔ تنوع",
+      "presentationTranslation": "ترجمهٔ کارت",
       "publishing": "انتشار"
     },
     "dispatch": {

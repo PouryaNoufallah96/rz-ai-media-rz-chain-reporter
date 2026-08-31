@@ -10,6 +10,7 @@ export type AssistantUIMessage = UIMessage<
   AssistantMessageMetadata,
   {
     citation: AssistantCitation;
+    "usage-settled": true;
   },
   {
     ask_user: {

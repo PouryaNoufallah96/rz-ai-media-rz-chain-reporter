@@ -22,8 +22,10 @@
   "menuAccent": "subtle",
   "registries": {
     "@aceternity": "https://ui.aceternity.com/registry/{name}.json",
+    "@icons0": "https://icons0.dev/r/{name}.json",
     "@magicui": "https://magicui.design/r/{name}",
-    "@react-bits": "https://reactbits.dev/r/{name}.json"
+    "@react-bits": "https://reactbits.dev/r/{name}.json",
+    "@reui": "https://reui.io/r/{style}/{name}.json"
   },
   "rtl": true
 }

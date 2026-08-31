@@ -5,6 +5,7 @@ import { env } from "@rz-chain-reporter/env/server";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { requireSession } from "@/features/auth/api/server/session";
+import { currentLocale } from "@/i18n/server";
 import {
   customerEditorial,
   customerTimeZone,
@@ -23,8 +24,11 @@ import type { PlatformDraftLane } from "../../schemas/drafts";
 export async function getPlatformDrafts(
   analysisRunId: string,
 ): Promise<PlatformDraftLane[]> {
-  const session = await requireSession();
-  const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
+  const [session, presentationLocale, workspaceId] = await Promise.all([
+    requireSession(),
+    currentLocale(),
+    resolveInstallationWorkspaceId(rpcDb()),
+  ]);
 
   return readCachedPlatformDrafts(
     workspaceId,
@@ -32,6 +36,7 @@ export async function getPlatformDrafts(
     env.PUBLISHING_EMERGENCY_PAUSED,
     customerTimeZone,
     analysisRunId,
+    presentationLocale,
     customerEditorial.brands,
     customerEditorial.platforms,
   );
@@ -43,6 +48,7 @@ async function readCachedPlatformDrafts(
   environmentForcedPause: boolean,
   timeZone: string,
   analysisRunId: string,
+  presentationLocale: "en" | "fa",
   enabledBrands: readonly { key: string; name: string }[],
   enabledPlatforms: readonly Platform[],
 ): Promise<PlatformDraftLane[]> {
@@ -65,6 +71,7 @@ async function readCachedPlatformDrafts(
       userId,
       environmentForcedPause,
       timeZone,
+      presentationLocale,
     ),
   ]);
   if (!configuration) return [];
@@ -83,7 +90,7 @@ async function readCachedPlatformDrafts(
     ...new Set(
       configuration.kind === "news"
         ? configuration.platforms
-        : enabledPlatforms,
+        : (configuration.platforms ?? enabledPlatforms),
     ),
   ];
 

@@ -13,6 +13,7 @@ export type EditSource = {
 
 export type RevisionEditorState = {
   card: PlatformDraftCard | null;
+  freshContentLocale: DraftEditorInput["contentLocale"];
   source: EditSource | null;
   editorValues: DraftEditorInput;
   hashtagDraft: string;
@@ -36,18 +37,34 @@ function hasEditedFields(
 ) {
   if (!source) return false;
   if (hashtagDraft.trim() !== "") return true;
-  const parsed = draftEditorSchema.safeParse(values);
-  const parsedSource = draftEditorSchema.safeParse(source.content);
-  if (!parsed.success || !parsedSource.success) return true;
+  return !sameEditorValues(source.content, values, includeLocale);
+}
+
+function sameEditorValues(
+  first: DraftEditorInput,
+  second: DraftEditorInput,
+  includeLocale = true,
+) {
+  const parsedFirst = draftEditorSchema.safeParse(first);
+  const parsedSecond = draftEditorSchema.safeParse(second);
+  if (!parsedFirst.success || !parsedSecond.success) return false;
   return (
-    (includeLocale &&
-      parsed.data.contentLocale !== parsedSource.data.contentLocale) ||
-    parsed.data.headline !== parsedSource.data.headline ||
-    parsed.data.body !== parsedSource.data.body ||
-    parsed.data.hashtags.length !== parsedSource.data.hashtags.length ||
-    parsed.data.hashtags.some(
-      (hashtag, index) => hashtag !== parsedSource.data.hashtags[index],
+    (!includeLocale ||
+      parsedFirst.data.contentLocale === parsedSecond.data.contentLocale) &&
+    parsedFirst.data.headline === parsedSecond.data.headline &&
+    parsedFirst.data.body === parsedSecond.data.body &&
+    parsedFirst.data.hashtags.length === parsedSecond.data.hashtags.length &&
+    parsedFirst.data.hashtags.every(
+      (hashtag, index) => hashtag === parsedSecond.data.hashtags[index],
     )
+  );
+}
+
+export function sameEditSource(first: EditSource | null, second: EditSource) {
+  return (
+    first?.kind === second.kind &&
+    first.id === second.id &&
+    sameEditorValues(first.content, second.content)
   );
 }
 
@@ -122,21 +139,40 @@ function defaultSource(card: PlatformDraftCard | null) {
   return candidate ? candidateEditSource(candidate) : null;
 }
 
+function currentSource(card: PlatformDraftCard, source: EditSource) {
+  if (source.kind === "draft_revision") {
+    const revision = card.revisions.find((entry) => entry.id === source.id);
+    return revision ? revisionEditSource(revision) : null;
+  }
+  const candidate = card.candidates.find((entry) => entry.id === source.id);
+  return candidate ? candidateEditSource(candidate) : null;
+}
+
+export function initialContentLocale(
+  card: PlatformDraftCard | null,
+  freshContentLocale: DraftEditorInput["contentLocale"],
+) {
+  return (
+    defaultSource(card)?.content.contentLocale ??
+    card?.generation?.requestedContentLocale ??
+    freshContentLocale
+  );
+}
+
 export function revisionEditorState(
   card: PlatformDraftCard | null,
+  freshContentLocale: DraftEditorInput["contentLocale"],
 ): RevisionEditorState {
   const source = defaultSource(card);
   const emptyEditor: DraftEditorInput = {
-    contentLocale:
-      card?.generation?.requestedContentLocale ??
-      card?.originDetails?.contentLocale ??
-      "en",
+    contentLocale: initialContentLocale(card, freshContentLocale),
     headline: "",
     body: "",
     hashtags: [],
   };
   return {
     card,
+    freshContentLocale,
     source,
     hashtagDraft: "",
     loadVersion: 0,
@@ -166,7 +202,7 @@ export function acceptRevisionCard(
   const previous = current.card;
   if (previous && incoming && incoming.id !== previous.id) {
     return {
-      ...revisionEditorState(incoming),
+      ...revisionEditorState(incoming, current.freshContentLocale),
       loadVersion: current.loadVersion + 1,
     };
   }
@@ -180,18 +216,34 @@ export function acceptRevisionCard(
   ) {
     return current;
   }
-  const sourceStillExists =
-    current.source?.kind === "draft_revision"
-      ? incoming.revisions.some(
-          (revision) => revision.id === current.source?.id,
-        )
-      : incoming.candidates.some(
-          (candidate) => candidate.id === current.source?.id,
-        );
-  return preserveSource && current.source && sourceStillExists
-    ? { ...current, card: incoming }
-    : {
-        ...revisionEditorState(incoming),
-        loadVersion: current.loadVersion + 1,
-      };
+  const incomingSource = current.source
+    ? currentSource(incoming, current.source)
+    : null;
+  if (
+    preserveSource &&
+    current.source &&
+    !incomingSource &&
+    hasRevisionEdits(current.source, current.editorValues, current.hashtagDraft)
+  ) {
+    return { ...current, card: incoming };
+  }
+  if (preserveSource && current.source && incomingSource) {
+    const pristine = !hasRevisionEdits(
+      current.source,
+      current.editorValues,
+      current.hashtagDraft,
+    );
+    if (
+      pristine &&
+      current.source.kind === "copy_variant" &&
+      !sameEditSource(current.source, incomingSource)
+    ) {
+      return selectEditSource({ ...current, card: incoming }, incomingSource);
+    }
+    return { ...current, card: incoming };
+  }
+  return {
+    ...revisionEditorState(incoming, current.freshContentLocale),
+    loadVersion: current.loadVersion + 1,
+  };
 }

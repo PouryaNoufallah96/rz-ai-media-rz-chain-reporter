@@ -28,6 +28,8 @@ import { analysisRunItem } from "../schema/analysis-run-item";
 import { copyGeneration } from "../schema/copy-generation";
 import { copyGenerationUnit } from "../schema/copy-generation-unit";
 import { copyVariant } from "../schema/copy-variant";
+import { copyVariantLocalization } from "../schema/copy-variant-localization";
+import { copyVariantLocalizationRequest } from "../schema/copy-variant-localization-request";
 import { draftRevision } from "../schema/draft-revision";
 import { editorialSelection } from "../schema/editorial-selection";
 import { filterResult } from "../schema/filter-result";
@@ -200,7 +202,10 @@ export type StartCopyOperationInput = StartCopyOperationBase &
         requestedContentLocale: ContentLocale;
         modelOptionKey: string;
       }
-    | { mode: "retry_failed" }
+    | {
+        mode: "retry_failed";
+        requestedContentLocale: ContentLocale;
+      }
   );
 
 export type StartCopyOperationResult =
@@ -325,9 +330,13 @@ export async function startCopyOperation(
           customerTemplateFingerprint: input.customerTemplateFingerprint,
           promptVersion: input.promptVersion,
         },
+        input.requestedContentLocale,
       );
       if (retry.status === "none") {
         return { status: "no_failed_units" };
+      }
+      if (retry.status === "locale_mismatch") {
+        return { status: "validation_failed" };
       }
       generationInput = retry.input;
     } else {
@@ -449,6 +458,7 @@ async function retryGenerationInput(
   workspaceId: string,
   platformDraftId: string,
   identity: CopyGenerationVersionIdentity,
+  requestedContentLocale: ContentLocale,
 ) {
   const [latest] = await tx
     .select()
@@ -462,6 +472,9 @@ async function retryGenerationInput(
     .orderBy(desc(copyGeneration.createdAt), desc(copyGeneration.operationId))
     .limit(1);
   if (!latest) return { status: "none" as const };
+  if (latest.requestedContentLocale !== requestedContentLocale) {
+    return { status: "locale_mismatch" as const };
+  }
   const failedUnits = await tx
     .select({ variantKey: copyGenerationUnit.variantKey })
     .from(copyGenerationUnit)
@@ -1892,6 +1905,18 @@ export async function settleCopyGeneration(
             from ${draftRevision}
             where ${draftRevision.workspaceId} = ${workspaceId}
               and ${draftRevision.originatingCopyVariantId} = ${copyVariant.id}
+          )
+          and not exists (
+            select 1
+            from ${copyVariantLocalization}
+            where ${copyVariantLocalization.workspaceId} = ${workspaceId}
+              and ${copyVariantLocalization.copyVariantId} = ${copyVariant.id}
+          )
+          and not exists (
+            select 1
+            from ${copyVariantLocalizationRequest}
+            where ${copyVariantLocalizationRequest.workspaceId} = ${workspaceId}
+              and ${copyVariantLocalizationRequest.copyVariantId} = ${copyVariant.id}
           )
       `);
     }

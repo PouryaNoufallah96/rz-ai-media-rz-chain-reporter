@@ -1,6 +1,7 @@
 import {
   type DraftsChangedRealtimeMessage,
   draftsChangedRealtimeMessageSchema,
+  isOperationInProgress,
   type OperationLifecycle,
 } from "@rz-chain-reporter/contracts";
 
@@ -49,12 +50,7 @@ function copyProjectionAlreadyIncludes(
   lifecycle: OperationLifecycle,
   code: DraftsChangedRealtimeMessage["code"],
 ) {
-  if (
-    code === "running" &&
-    (lifecycle === "queued" ||
-      lifecycle === "running" ||
-      lifecycle === "settling")
-  ) {
+  if (code === "running" && isOperationInProgress(lifecycle)) {
     return true;
   }
   if (code === "partial") return lifecycle === "succeeded";

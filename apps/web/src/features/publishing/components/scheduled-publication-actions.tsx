@@ -1,12 +1,11 @@
 "use client";
 
 import { Button } from "@rz-chain-reporter/ui/components/button";
-import { useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { operationsListQueriesKey } from "@/features/operations/lib/operations-list-query";
+import { operationCreated } from "@/features/operations/lib/focus-operation";
 import { useAction } from "@/hooks/use-action";
 
 import {
@@ -33,7 +32,6 @@ export function ScheduledPublicationActions({
 }) {
   const t = useTranslations(PUBLISHING_NAMESPACE);
   const format = useFormatter();
-  const queryClient = useQueryClient();
   const cancel = useAction(cancelScheduledPublicationAction);
   const reschedule = useAction(reschedulePublicationAction);
   const [localTime, setLocalTime] = useState(() =>
@@ -64,7 +62,13 @@ export function ScheduledPublicationActions({
     if (result?.status !== "success") {
       return { error: t("error.command") };
     }
-    void queryClient.invalidateQueries({ queryKey: operationsListQueriesKey });
+    if (
+      result.data &&
+      "operationId" in result.data &&
+      result.data.status === "created"
+    ) {
+      operationCreated(result.data.operationId);
+    }
     return undefined;
   };
   const facts = {

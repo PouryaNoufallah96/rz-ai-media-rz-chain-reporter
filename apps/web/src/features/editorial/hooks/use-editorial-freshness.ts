@@ -1,19 +1,17 @@
 "use client";
 
-import type { OperationLifecycle } from "@rz-chain-reporter/contracts";
 import {
   draftsChangedRealtimeMessageSchema,
   editorialChangedRealtimeMessageSchema,
 } from "@rz-chain-reporter/contracts";
 import { useRealtime } from "inngest/react";
-import { useRouter } from "next/navigation";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+
+import { useRealtimeRouterRefresh } from "@/hooks/use-realtime-router-refresh";
 import {
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+  type RealtimeConnectionState,
+  transitionRealtimeConnection,
+} from "@/lib/realtime-freshness";
 
 import { getEditorialRealtimeTokens } from "../actions/get-realtime-token";
 import { refreshEditorialReadsAction } from "../actions/refresh-editorial-reads";
@@ -26,55 +24,56 @@ type EditorialTransport = "live" | "reconnecting" | "stale" | "unavailable";
 
 const REALTIME_BUFFER_INTERVAL_MS = 250;
 
-const SETTLED_LIFECYCLES: readonly OperationLifecycle[] = [
-  "succeeded",
-  "failed",
-  "cancelled",
-  "unknown",
-];
-
 export function useEditorialFreshness(
   analysisRunId: string,
-  lifecycle: OperationLifecycle,
   compact = false,
   platformDraftId: string | null = null,
   copyOperation: FreshnessOperation | null = null,
 ) {
-  const router = useRouter();
-  const [isRefreshing, startRefresh] = useTransition();
+  const { isRefreshing, requestRefresh } = useRealtimeRouterRefresh();
   const [subscriptionUnavailable, setSubscriptionUnavailable] = useState(false);
-  const connectionActive = useRef(false);
-  const hasConnected = useRef(false);
+  const connection = useRef<RealtimeConnectionState>({
+    active: false,
+    needsCatchUp: false,
+  });
+  const inFlightTokenRequest = useRef<{
+    analysisRunId: string;
+    promise: ReturnType<typeof getEditorialRealtimeTokens>;
+  } | null>(null);
   const seenDraftChanges = useRef({ scope: "", values: new Set<string>() });
   const copyOperationId = copyOperation?.operationId ?? null;
   const copyOperationLifecycle = copyOperation?.lifecycle ?? null;
 
-  const rerenderNow = () => {
-    startRefresh(() => {
-      router.refresh();
-    });
-  };
+  const requestTokens = () => {
+    const currentRequest = inFlightTokenRequest.current;
+    const request =
+      currentRequest?.analysisRunId === analysisRunId
+        ? currentRequest
+        : {
+            analysisRunId,
+            promise: getEditorialRealtimeTokens(analysisRunId),
+          };
+    inFlightTokenRequest.current = request;
 
-  const requestTokens = () =>
-    getEditorialRealtimeTokens(analysisRunId)
+    return request.promise
       .then((result) => {
         if (result.status === "unavailable") {
+          setSubscriptionUnavailable(true);
           throw new Error("Editorial realtime subscription is unavailable");
         }
         return result;
       })
-      .catch((error: unknown) => {
-        if (!hasConnected.current) {
-          setSubscriptionUnavailable(true);
+      .finally(() => {
+        if (inFlightTokenRequest.current === request) {
+          inFlightTokenRequest.current = null;
         }
-        throw error;
       });
+  };
 
   const realtimeEnabled = !subscriptionUnavailable;
   const draftsEnabled =
     realtimeEnabled && (!compact || platformDraftId !== null);
-  const editorialEnabled =
-    realtimeEnabled && !compact && !SETTLED_LIFECYCLES.includes(lifecycle);
+  const editorialEnabled = realtimeEnabled;
   const editorialRealtime = useRealtime({
     autoCloseOnTerminal: false,
     bufferInterval: REALTIME_BUFFER_INTERVAL_MS,
@@ -99,7 +98,7 @@ export function useEditorialFreshness(
   });
 
   const rerenderLatest = useEffectEvent(() => {
-    rerenderNow();
+    requestRefresh();
   });
 
   useEffect(() => {
@@ -155,19 +154,24 @@ export function useEditorialFreshness(
   ]);
 
   useEffect(() => {
-    const editorialConnected =
-      !editorialEnabled || editorialRealtime.connectionStatus === "open";
-    const draftsConnected =
-      !draftsEnabled || draftsRealtime.connectionStatus === "open";
-    if (!editorialConnected || !draftsConnected) {
-      connectionActive.current = false;
+    if (!editorialEnabled && !draftsEnabled) {
+      connection.current.active = false;
       return;
     }
-    if (hasConnected.current && !connectionActive.current) {
+    const editorialStatus = editorialEnabled
+      ? editorialRealtime.connectionStatus
+      : "open";
+    const draftsStatus = draftsEnabled
+      ? draftsRealtime.connectionStatus
+      : "open";
+    const transition = transitionRealtimeConnection(connection.current, [
+      editorialStatus,
+      draftsStatus,
+    ]);
+    connection.current = transition.connection;
+    if (transition.catchUp) {
       rerenderLatest();
     }
-    hasConnected.current = true;
-    connectionActive.current = true;
   }, [
     draftsRealtime.connectionStatus,
     draftsEnabled,
@@ -179,7 +183,7 @@ export function useEditorialFreshness(
     isRefreshing,
     refresh: () => {
       setSubscriptionUnavailable(false);
-      startRefresh(refreshEditorialReadsAction);
+      requestRefresh(refreshEditorialReadsAction);
     },
     transport: transportOf(
       realtimeEnabled,

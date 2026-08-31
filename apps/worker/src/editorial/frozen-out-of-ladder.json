@@ -1,6 +1,6 @@
 {
   "template": {
-    "schemaVersion": 6,
+    "schemaVersion": 8,
     "customer": {
       "key": "demo-sports",
       "productName": "Demo Sports Desk",
@@ -22,6 +22,14 @@
         "keyword-embedding": {
           "backend": "remote",
           "model": "openai/text-embedding-3-small"
+        },
+        "text-translation": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini",
+          "fallback": {
+            "backend": "remote",
+            "model": "openai/gpt-4.1-nano"
+          }
         },
         "enrichment-brief": {
           "backend": "remote",
@@ -54,6 +62,10 @@
         "image-generation:fixture-image": {
           "backend": "remote",
           "model": "openai/gpt-5.4-image-2"
+        },
+        "assistant-synthesis": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
         }
       }
     },

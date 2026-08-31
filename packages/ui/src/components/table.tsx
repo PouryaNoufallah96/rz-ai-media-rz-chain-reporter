@@ -8,13 +8,13 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto outline-none focus-visible:ring-1 focus-visible:ring-ring/50"
+      className="relative w-full overflow-x-auto outline-none focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:ring-inset"
       tabIndex={isAriaHidden ? undefined : 0}
     >
       <table
         data-slot="table"
         className={cn(
-          "w-full caption-bottom border-collapse text-[12.5px]",
+          "w-full caption-bottom border-collapse text-xs",
           className,
         )}
         {...props}

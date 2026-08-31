@@ -1,13 +1,13 @@
-import { fileURLToPath } from "node:url";
 import { CustomerTemplateError } from "@rz-chain-reporter/customer-template/load";
 import {
   DestinationBindingError,
   formatDestinationBindingReport,
 } from "@rz-chain-reporter/env/destination-bindings";
 
+import { resolveArtifactRoot } from "../runtime/artifact-root";
 import { checkDestinationBindings } from "./check";
 
-const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url));
+const artifactRoot = resolveArtifactRoot(import.meta.url);
 
 const EXIT_FAILURE = 1;
 const EXIT_UNBOUND = 2;
@@ -41,7 +41,7 @@ if (!customerTemplateKey) {
 
 try {
   const report = checkDestinationBindings(
-    repositoryRoot,
+    artifactRoot,
     customerTemplateKey,
     process.env,
   );

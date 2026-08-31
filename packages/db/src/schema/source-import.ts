@@ -1,9 +1,11 @@
-import type { ErrorCode } from "@rz-chain-reporter/contracts";
+import type { EffectiveTopics, ErrorCode } from "@rz-chain-reporter/contracts";
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   foreignKey,
   integer,
+  jsonb,
   pgTable,
   text,
   unique,
@@ -30,6 +32,7 @@ export const sourceImport = pgTable(
     orderingMode: telegramOrderingMode("ordering_mode").notNull(),
     topN: integer("top_n").notNull(),
     topics: text("topics").array().notNull(),
+    effectiveTopics: jsonb("effective_topics").$type<EffectiveTopics>(),
     enrichmentEnabled: boolean("enrichment_enabled").notNull(),
     templateFingerprint: text("template_fingerprint").notNull(),
     embeddingAttemptId: uuid("embedding_attempt_id"),
@@ -53,6 +56,20 @@ export const sourceImport = pgTable(
       foreignColumns: [operationAttempt.id],
     }).onDelete("restrict"),
     unique("uq_source_import_operation_id").on(t.operationId),
+    check(
+      "ck_source_import_effective_topics_shape",
+      sql`${t.effectiveTopics} is null or (
+        jsonb_typeof(${t.effectiveTopics}) = 'object'
+        and ${t.effectiveTopics} ?& array['contentLocale', 'values', 'usedOriginalFallback']
+        and ${t.effectiveTopics} - array['contentLocale', 'values', 'usedOriginalFallback'] = '{}'::jsonb
+        and jsonb_typeof(${t.effectiveTopics}->'contentLocale') = 'string'
+        and ${t.effectiveTopics}->>'contentLocale' in ('en', 'fa')
+        and jsonb_typeof(${t.effectiveTopics}->'values') = 'array'
+        and not jsonb_path_exists(${t.effectiveTopics}->'values', '$[*] ? (@.type() != "string")')
+        and jsonb_array_length(${t.effectiveTopics}->'values') = cardinality(${t.topics})
+        and jsonb_typeof(${t.effectiveTopics}->'usedOriginalFallback') = 'boolean'
+      )`,
+    ),
     uniqueIndex("uq_source_import_workspace_id_unsettled")
       .on(t.workspaceId)
       .where(sql`${t.stage} <> 'settled'`),

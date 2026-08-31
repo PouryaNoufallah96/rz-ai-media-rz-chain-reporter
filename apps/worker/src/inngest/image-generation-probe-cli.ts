@@ -796,6 +796,10 @@ async function mainLocal() {
       installation.workspaceId,
     );
 
+    const rearmImageIntentVersion = await readFixtureImageIntentVersion(
+      opened.database.db,
+      fixture,
+    );
     const rearmIdempotencyKey = randomUUID();
     const rearm = await startImageGeneration(
       opened.database.db,
@@ -803,13 +807,13 @@ async function mainLocal() {
       {
         actor: fixture.actorId,
         draftRevisionId: fixture.draftRevisionId,
-        expectedImageIntentVersion: 0,
+        expectedImageIntentVersion: rearmImageIntentVersion,
         expectedRevisionVersion: 1,
         idempotencyKey: rearmIdempotencyKey,
         modelOptionKey: fixture.modelOptionKey,
         requestHash: commandHash({
           draftRevisionId: fixture.draftRevisionId,
-          expectedImageIntentVersion: 0,
+          expectedImageIntentVersion: rearmImageIntentVersion,
           expectedRevisionVersion: 1,
           idempotencyKey: rearmIdempotencyKey,
           modelOptionKey: fixture.modelOptionKey,
@@ -1562,11 +1566,15 @@ async function proveBrandConcurrency(
     .update(platformDraft)
     .set({ mediaBrandId: secondary.mediaBrandId })
     .where(eq(platformDraft.id, secondary.platformDraftId));
+  const differentBrandImageIntentVersion = await readFixtureImageIntentVersion(
+    db,
+    secondary,
+  );
   const differentBrandKey = randomUUID();
   const differentBrand = await startImageGeneration(db, secondary.workspaceId, {
     actor: secondary.actorId,
     draftRevisionId: secondary.draftRevisionId,
-    expectedImageIntentVersion: 0,
+    expectedImageIntentVersion: differentBrandImageIntentVersion,
     expectedRevisionVersion: 1,
     idempotencyKey: differentBrandKey,
     modelOptionKey: secondary.modelOptionKey,
@@ -1615,13 +1623,14 @@ async function proveCrossDraftReferenceConflict(
   primary: Fixture,
   secondary: Fixture,
 ) {
+  const imageIntentVersion = await readFixtureImageIntentVersion(db, secondary);
   const idempotencyKey = randomUUID();
   assert.equal(
     (
       await startImageGeneration(db, secondary.workspaceId, {
         actor: secondary.actorId,
         draftRevisionId: secondary.draftRevisionId,
-        expectedImageIntentVersion: 0,
+        expectedImageIntentVersion: imageIntentVersion,
         expectedRevisionVersion: 1,
         idempotencyKey,
         modelOptionKey: secondary.modelOptionKey,
@@ -1644,11 +1653,12 @@ async function proveReferenceAndCancellation(
   fixture: Fixture,
   adapter: DeterministicImageAdapter,
 ) {
+  const imageIntentVersion = await readFixtureImageIntentVersion(db, fixture);
   const idempotencyKey = randomUUID();
   const created = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedImageIntentVersion: 0,
+    expectedImageIntentVersion: imageIntentVersion,
     expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -1714,11 +1724,15 @@ async function proveReferenceAndCancellation(
     }),
   );
 
+  const reuseImageIntentVersion = await readFixtureImageIntentVersion(
+    db,
+    fixture,
+  );
   const reuseKey = randomUUID();
   const reused = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedImageIntentVersion: 0,
+    expectedImageIntentVersion: reuseImageIntentVersion,
     expectedRevisionVersion: 1,
     idempotencyKey: reuseKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -1780,11 +1794,15 @@ async function proveReferenceAndCancellation(
   );
   assert.equal(adapter.structuredCalls, callsBeforeCancelledDelivery);
 
+  const invalidatedImageIntentVersion = await readFixtureImageIntentVersion(
+    db,
+    fixture,
+  );
   const invalidatedKey = randomUUID();
   const invalidated = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedImageIntentVersion: 0,
+    expectedImageIntentVersion: invalidatedImageIntentVersion,
     expectedRevisionVersion: 1,
     idempotencyKey: invalidatedKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -4233,7 +4251,10 @@ async function proveImageSourceReadiness(
     const limited = await startImageGeneration(db, workspaceId, {
       actor: fixture.actorId,
       draftRevisionId: fixture.draftRevisionId,
-      expectedImageIntentVersion: 0,
+      expectedImageIntentVersion: await readFixtureImageIntentVersion(
+        db,
+        fixture,
+      ),
       expectedRevisionVersion: 1,
       idempotencyKey: limitedKey,
       modelOptionKey: fixture.modelOptionKey,
@@ -4266,7 +4287,10 @@ async function proveImageSourceReadiness(
     const incomplete = await startImageGeneration(db, workspaceId, {
       actor: fixture.actorId,
       draftRevisionId: fixture.draftRevisionId,
-      expectedImageIntentVersion: 0,
+      expectedImageIntentVersion: await readFixtureImageIntentVersion(
+        db,
+        fixture,
+      ),
       expectedRevisionVersion: 1,
       idempotencyKey: incompleteKey,
       modelOptionKey: fixture.modelOptionKey,
@@ -4547,7 +4571,10 @@ async function startFixtureImageGeneration(
   const created = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedImageIntentVersion: 0,
+    expectedImageIntentVersion: await readFixtureImageIntentVersion(
+      db,
+      fixture,
+    ),
     expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -4559,6 +4586,23 @@ async function startFixtureImageGeneration(
     throw new Error("RSS_IMAGE_OPERATION_NOT_CREATED");
   }
   return created.operationId;
+}
+
+async function readFixtureImageIntentVersion(
+  db: Executor,
+  fixture: Fixture,
+): Promise<number> {
+  const [revision] = await db
+    .select({ imageIntentVersion: draftRevision.imageIntentVersion })
+    .from(draftRevision)
+    .where(
+      and(
+        eq(draftRevision.workspaceId, fixture.workspaceId),
+        eq(draftRevision.id, fixture.draftRevisionId),
+      ),
+    );
+  if (!revision) throw new Error("IMAGE_FIXTURE_REVISION_NOT_FOUND");
+  return revision.imageIntentVersion;
 }
 
 async function proveQualifiedImageSelection(
@@ -5042,6 +5086,10 @@ async function createFixture(
       "coin-hall.png",
     ),
   );
+  const referenceMetadata = await sharp(referenceBytes).metadata();
+  if (!referenceMetadata.width || !referenceMetadata.height) {
+    throw new Error("IMAGE_FIXTURE_REFERENCE_DIMENSIONS_REQUIRED");
+  }
   const referenceChecksum = hash(referenceBytes);
   const fixtureTemplate: CustomerTemplate = {
     ...template,
@@ -5097,6 +5145,9 @@ async function createFixture(
         configuration: {
           kind: "promo",
           models: ["probe"],
+          platforms: template.editorial.drafting.copy.platforms.map(
+            ({ platform }) => platform,
+          ),
           promo: {
             brands: [brandKey],
             prompts: { [brandKey]: "deterministic local fixture" },
@@ -5190,14 +5241,14 @@ async function createFixture(
         actualBytes: referenceBytes.byteLength,
         checksum: referenceChecksum,
         declaredBytes: referenceBytes.byteLength,
-        height: 97,
+        height: referenceMetadata.height,
         id: referenceId,
         kind: `${FIXTURE_PREFIX}:reference`,
         lifecycle: "verified",
         mimeType: "image/png",
         objectKey: referenceObjectKey,
         verifiedAt: new Date(),
-        width: 73,
+        width: referenceMetadata.width,
         workspaceId,
       });
     });
@@ -5897,11 +5948,13 @@ async function beginGatewayMatrixOperation(
   scenario: string,
   stage: "creative" | "provider" | "selection",
 ) {
+  const imageIntentVersion = await readFixtureImageIntentVersion(db, fixture);
+
   const idempotencyKey = randomUUID();
   const created = await startImageGeneration(db, fixture.workspaceId, {
     actor: fixture.actorId,
     draftRevisionId: fixture.draftRevisionId,
-    expectedImageIntentVersion: 0,
+    expectedImageIntentVersion: imageIntentVersion,
     expectedRevisionVersion: 1,
     idempotencyKey,
     modelOptionKey: fixture.modelOptionKey,
@@ -5912,6 +5965,22 @@ async function beginGatewayMatrixOperation(
   if (!("operationId" in created)) {
     throw new Error("GATEWAY_MATRIX_OPERATION_NOT_CREATED");
   }
+  const staleIdempotencyKey = randomUUID();
+  const stale = await startImageGeneration(db, fixture.workspaceId, {
+    actor: fixture.actorId,
+    draftRevisionId: fixture.draftRevisionId,
+    expectedImageIntentVersion: imageIntentVersion,
+    expectedRevisionVersion: 1,
+    idempotencyKey: staleIdempotencyKey,
+    modelOptionKey: fixture.modelOptionKey,
+    requestHash: commandHash({
+      idempotencyKey: staleIdempotencyKey,
+      proof: "gateway-error-matrix-stale-intent",
+    }),
+    requestId: null,
+  });
+  assert.equal(stale.status, "image_intent_conflict");
+
   const token = `gateway-matrix:${randomUUID()}`;
   const claimed = await claimOperationExecution(db, fixture.workspaceId, {
     claimedBy: token,

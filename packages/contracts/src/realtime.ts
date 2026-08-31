@@ -2,8 +2,9 @@ import { z } from "zod";
 
 import { attemptOutcomeSchema, operationLifecycleSchema } from "./operation";
 
-export const OPERATIONS_REALTIME_TOPICS = ["status"] as const;
+export const OPERATIONS_REALTIME_TOPICS = ["status", "changed"] as const;
 export const OPERATIONS_REALTIME_STATUS_TOPIC = OPERATIONS_REALTIME_TOPICS[0];
+export const OPERATIONS_REALTIME_CHANGED_TOPIC = OPERATIONS_REALTIME_TOPICS[1];
 
 export function getOperationsRealtimeChannelName(workspaceId: string) {
   return `operations:${workspaceId}` as const;
@@ -23,6 +24,17 @@ export const operationStatusRealtimeMessageSchema = z.strictObject({
 
 export type OperationStatusRealtimeMessage = z.infer<
   typeof operationStatusRealtimeMessageSchema
+>;
+
+export const operationsChangedRealtimeMessageSchema = z.strictObject({
+  actorId: z.string(),
+  schemaVersion: z.literal(1),
+  occurredAt: z.iso.datetime(),
+  sharedImport: z.boolean(),
+});
+
+export type OperationsChangedRealtimeMessage = z.infer<
+  typeof operationsChangedRealtimeMessageSchema
 >;
 
 const PUBLISHING_REALTIME_TOPICS = ["changed"] as const;

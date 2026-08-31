@@ -11,8 +11,10 @@ import {
   getPublishingRealtimeChannelName,
   getSourcesRealtimeChannelName,
   getUsageRealtimeChannelName,
+  OPERATIONS_REALTIME_CHANGED_TOPIC,
   OPERATIONS_REALTIME_STATUS_TOPIC,
   operationStatusRealtimeMessageSchema,
+  operationsChangedRealtimeMessageSchema,
   PUBLISHING_REALTIME_CHANGED_TOPIC,
   publishingChangedRealtimeMessageSchema,
   SOURCES_REALTIME_CHANGED_TOPIC,
@@ -28,6 +30,9 @@ export const operationsRealtimeChannel = realtime.channel({
   topics: {
     [OPERATIONS_REALTIME_STATUS_TOPIC]: {
       schema: operationStatusRealtimeMessageSchema,
+    },
+    [OPERATIONS_REALTIME_CHANGED_TOPIC]: {
+      schema: operationsChangedRealtimeMessageSchema,
     },
   },
 });

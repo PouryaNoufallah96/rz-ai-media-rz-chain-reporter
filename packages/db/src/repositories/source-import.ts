@@ -1,8 +1,10 @@
 import {
   type AdmissionOutcome,
   type ArticleAdapter,
+  type AttemptOutcome,
   type ContentLocale,
   DURABLE_EVENT_SCHEMA_VERSION,
+  type EffectiveTopics,
   type EnrichmentOutcome,
   type EnrichmentReason,
   type ErrorCode,
@@ -22,19 +24,23 @@ import {
   count,
   desc,
   eq,
+  gt,
   inArray,
   isNotNull,
+  isNull,
   like,
+  lte,
   max,
   ne,
   or,
   sql,
 } from "drizzle-orm";
 
-import type { Executor } from "../executor";
+import type { Executor, Transaction } from "../executor";
 import { withWorkspaceContext } from "../executor";
 import { inWorkspace } from "../filters";
 import { aiUsageEvent } from "../schema/ai-usage-event";
+import { operation } from "../schema/operation";
 import { operationAttempt } from "../schema/operation-attempt";
 import { source } from "../schema/source";
 import { sourceImport } from "../schema/source-import";
@@ -181,6 +187,7 @@ export async function findSourceImportByOperationId(
       orderingMode: sourceImport.orderingMode,
       topN: sourceImport.topN,
       topics: sourceImport.topics,
+      effectiveTopics: sourceImport.effectiveTopics,
       enrichmentEnabled: sourceImport.enrichmentEnabled,
       templateFingerprint: sourceImport.templateFingerprint,
       embeddingAttemptId: sourceImport.embeddingAttemptId,
@@ -194,6 +201,155 @@ export async function findSourceImportByOperationId(
     );
 
   return row;
+}
+
+export async function listSourceImportContentLocales(
+  executor: Executor,
+  workspaceId: string,
+  sourceImportId: string,
+) {
+  return executor
+    .selectDistinct({ contentLocale: source.contentLocale })
+    .from(sourceImportSource)
+    .innerJoin(source, eq(source.id, sourceImportSource.sourceId))
+    .where(
+      and(
+        inWorkspace(sourceImportSource, workspaceId),
+        eq(sourceImportSource.sourceImportId, sourceImportId),
+      ),
+    );
+}
+
+export async function recordSourceImportEffectiveTopics(
+  executor: Executor,
+  workspaceId: string,
+  sourceImportId: string,
+  effectiveTopics: EffectiveTopics,
+) {
+  const [recorded] = await executor
+    .update(sourceImport)
+    .set({ effectiveTopics })
+    .where(
+      and(
+        inWorkspace(sourceImport, workspaceId),
+        eq(sourceImport.id, sourceImportId),
+        isNull(sourceImport.effectiveTopics),
+      ),
+    )
+    .returning({ effectiveTopics: sourceImport.effectiveTopics });
+
+  if (recorded?.effectiveTopics) {
+    return recorded.effectiveTopics;
+  }
+
+  const [existing] = await executor
+    .select({ effectiveTopics: sourceImport.effectiveTopics })
+    .from(sourceImport)
+    .where(
+      and(
+        inWorkspace(sourceImport, workspaceId),
+        eq(sourceImport.id, sourceImportId),
+      ),
+    );
+
+  if (!existing?.effectiveTopics) {
+    throw new Error("source import effective topics were not recorded");
+  }
+
+  return existing.effectiveTopics;
+}
+
+async function lockSourceImportClaim(
+  tx: Transaction,
+  workspaceId: string,
+  input: {
+    claimedBy: string;
+    expectedVersion: number;
+    operationId: string;
+    sourceImportId: string;
+  },
+) {
+  const [claimed] = await tx
+    .select({ id: operation.id })
+    .from(operation)
+    .where(
+      and(
+        inWorkspace(operation, workspaceId),
+        eq(operation.id, input.operationId),
+        eq(operation.claimedBy, input.claimedBy),
+        eq(operation.version, input.expectedVersion),
+        eq(operation.lifecycle, "running"),
+        gt(operation.leaseExpiresAt, new Date()),
+      ),
+    )
+    .for("update");
+  if (!claimed) return false;
+
+  const [imported] = await tx
+    .select({ stage: sourceImport.stage })
+    .from(sourceImport)
+    .where(
+      and(
+        inWorkspace(sourceImport, workspaceId),
+        eq(sourceImport.id, input.sourceImportId),
+        eq(sourceImport.operationId, input.operationId),
+      ),
+    )
+    .for("update");
+  return imported?.stage ?? null;
+}
+
+export async function recordClaimedSourceImportEffectiveTopics(
+  executor: Executor,
+  workspaceId: string,
+  input: {
+    claimedBy: string;
+    effectiveTopics: EffectiveTopics;
+    expectedVersion: number;
+    operationId: string;
+    sourceImportId: string;
+    attempt?: {
+      failureCode: ErrorCode;
+      id: string;
+      outcome: AttemptOutcome;
+    };
+  },
+) {
+  return executor.transaction(async (tx) => {
+    await withWorkspaceContext(tx, workspaceId);
+    if ((await lockSourceImportClaim(tx, workspaceId, input)) !== "acquiring") {
+      return null;
+    }
+
+    const effectiveTopics = await recordSourceImportEffectiveTopics(
+      tx,
+      workspaceId,
+      input.sourceImportId,
+      input.effectiveTopics,
+    );
+    if (input.attempt) {
+      const [settled] = await tx
+        .update(operationAttempt)
+        .set({
+          failureCode: input.attempt.failureCode,
+          outcome: input.attempt.outcome,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            inWorkspace(operationAttempt, workspaceId),
+            eq(operationAttempt.id, input.attempt.id),
+            eq(operationAttempt.operationId, input.operationId),
+            sql`${operationAttempt.outcome} is null`,
+          ),
+        )
+        .returning({ id: operationAttempt.id });
+      if (!settled) {
+        throw new Error("source import topic attempt was not open");
+      }
+    }
+    return effectiveTopics;
+  });
 }
 
 export type RecordSourceImportEmbeddingInput = {
@@ -361,6 +517,25 @@ export async function settleSourceImportSource(
     .returning({ id: sourceImportSource.id });
 
   return settled !== undefined;
+}
+
+export async function failPendingSourceImportSources(
+  executor: Executor,
+  workspaceId: string,
+  sourceImportId: string,
+) {
+  const failed = await executor
+    .update(sourceImportSource)
+    .set({ outcome: "failed_terminal" })
+    .where(
+      and(
+        inWorkspace(sourceImportSource, workspaceId),
+        eq(sourceImportSource.sourceImportId, sourceImportId),
+        eq(sourceImportSource.outcome, "pending"),
+      ),
+    )
+    .returning({ id: sourceImportSource.id });
+  return failed.length;
 }
 
 export type PersistSourceImportItemInput = {
@@ -757,6 +932,87 @@ export type SourceImportItemRankInput = {
   enrichmentOutcome: EnrichmentOutcome | null;
 };
 
+export async function commitSourceImportOrdering(
+  executor: Executor,
+  workspaceId: string,
+  input: {
+    claimedBy: string;
+    embedding: {
+      attemptId: string;
+      dimension: number | null;
+      failureCode: ErrorCode | null;
+      outcome: AttemptOutcome;
+      overCapSourceItemIds: readonly string[];
+    } | null;
+    expectedVersion: number;
+    operationId: string;
+    outOfWindowSourceItemIds: readonly string[];
+    ranks: readonly SourceImportItemRankInput[];
+    sourceImportId: string;
+  },
+) {
+  return executor.transaction(async (tx) => {
+    await withWorkspaceContext(tx, workspaceId);
+    const stage = await lockSourceImportClaim(tx, workspaceId, input);
+    if (stage === "enriching") return true;
+    if (stage !== "acquiring") return false;
+
+    await demoteSourceImportItems(
+      tx,
+      workspaceId,
+      input.sourceImportId,
+      "out_of_window",
+      input.outOfWindowSourceItemIds,
+    );
+    if (input.embedding) {
+      await recordSourceImportEmbedding(tx, workspaceId, {
+        embeddingAttemptId: input.embedding.attemptId,
+        ...(input.embedding.dimension === null
+          ? {}
+          : { embeddingDimension: input.embedding.dimension }),
+        sourceImportId: input.sourceImportId,
+      });
+      await demoteSourceImportItems(
+        tx,
+        workspaceId,
+        input.sourceImportId,
+        "over_cap",
+        input.embedding.overCapSourceItemIds,
+      );
+      const [settled] = await tx
+        .update(operationAttempt)
+        .set({
+          failureCode: input.embedding.failureCode,
+          outcome: input.embedding.outcome,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            inWorkspace(operationAttempt, workspaceId),
+            eq(operationAttempt.id, input.embedding.attemptId),
+            eq(operationAttempt.operationId, input.operationId),
+            sql`${operationAttempt.outcome} is null`,
+          ),
+        )
+        .returning({ id: operationAttempt.id });
+      if (!settled) {
+        throw new Error("source import embedding attempt was not open");
+      }
+    }
+    await recordSourceImportItemRanks(
+      tx,
+      workspaceId,
+      input.sourceImportId,
+      input.ranks,
+    );
+    await settleSourceImport(tx, workspaceId, {
+      sourceImportId: input.sourceImportId,
+      stage: "enriching",
+    });
+    return true;
+  });
+}
+
 export async function recordSourceImportItemRanks(
   executor: Executor,
   workspaceId: string,
@@ -835,6 +1091,101 @@ export async function findEnrichmentUnit(
     );
 
   return unit;
+}
+
+export async function listStaleSourceImports(
+  executor: Executor,
+  workspaceId: string,
+  input: { limit: number; now: Date },
+) {
+  return executor
+    .select({
+      lifecycle: operation.lifecycle,
+      operationId: sourceImport.operationId,
+      operationVersion: operation.version,
+      sourceImportId: sourceImport.id,
+      stage: sourceImport.stage,
+    })
+    .from(sourceImport)
+    .innerJoin(
+      operation,
+      and(
+        inWorkspace(operation, workspaceId),
+        eq(operation.id, sourceImport.operationId),
+      ),
+    )
+    .where(
+      and(
+        inWorkspace(sourceImport, workspaceId),
+        ne(sourceImport.stage, "settled"),
+        inArray(operation.lifecycle, ["running", "settling"]),
+        or(
+          isNull(operation.leaseExpiresAt),
+          lte(operation.leaseExpiresAt, input.now),
+        ),
+      ),
+    )
+    .orderBy(asc(operation.createdAt), asc(operation.id))
+    .limit(input.limit);
+}
+
+export async function beginStaleSourceImportReconciliation(
+  executor: Executor,
+  workspaceId: string,
+  input: {
+    expectedVersion: number;
+    leaseExpiresAt: Date;
+    now: Date;
+    operationId: string;
+  },
+) {
+  const [claimed] = await executor
+    .update(operation)
+    .set({
+      lifecycle: "settling",
+      leaseExpiresAt: input.leaseExpiresAt,
+      updatedAt: input.now,
+      version: sql`${operation.version} + 1`,
+    })
+    .where(
+      and(
+        inWorkspace(operation, workspaceId),
+        eq(operation.id, input.operationId),
+        eq(operation.version, input.expectedVersion),
+        inArray(operation.lifecycle, ["running", "settling"]),
+        or(
+          isNull(operation.leaseExpiresAt),
+          lte(operation.leaseExpiresAt, input.now),
+        ),
+        sql`exists (
+          select 1
+          from ${sourceImport}
+          where ${sourceImport.workspaceId} = ${workspaceId}::uuid
+            and ${sourceImport.operationId} = ${operation.id}
+            and ${sourceImport.stage} <> 'settled'
+        )`,
+      ),
+    )
+    .returning({ version: operation.version });
+  return claimed ?? null;
+}
+
+export async function listPendingSourceImportEnrichmentUnits(
+  executor: Executor,
+  workspaceId: string,
+  sourceImportId: string,
+) {
+  return executor
+    .select({ sourceItemRevisionId: sourceImportItem.sourceItemRevisionId })
+    .from(sourceImportItem)
+    .where(
+      and(
+        inWorkspace(sourceImportItem, workspaceId),
+        eq(sourceImportItem.sourceImportId, sourceImportId),
+        eq(sourceImportItem.enrichmentOutcome, "pending"),
+      ),
+    )
+    .orderBy(asc(sourceImportItem.sourceItemRevisionId));
 }
 
 export type SettleSourceImportUnitInput = {
@@ -1043,6 +1394,8 @@ export async function findRevisionPageEnrichment(
 }
 
 export type AttemptUsageSlot = {
+  failureRetryable: boolean | null;
+  finishReason: string | null;
   invocationKey: InvocationKey;
   status: UsageStatus;
 };
@@ -1054,6 +1407,8 @@ export async function findAttemptUsageSlots(
 ): Promise<AttemptUsageSlot[]> {
   return executor
     .select({
+      failureRetryable: aiUsageEvent.failureRetryable,
+      finishReason: aiUsageEvent.finishReason,
       invocationKey: aiUsageEvent.invocationKey,
       status: aiUsageEvent.status,
     })

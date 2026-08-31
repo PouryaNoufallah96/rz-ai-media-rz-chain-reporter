@@ -7,9 +7,9 @@
     "pnpm": "11.21.0"
   },
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "node api.js && turbo run dev",
     "dev:stack": "docker compose up -d postgres minio --wait && docker compose run --rm minio-init && turbo run dev",
-    "build": "turbo run build",
+    "build": "node api.js && turbo run build",
     "check-types": "turbo run check-types",
     "dev:web": "turbo run dev --filter=web",
     "db:push": "turbo run db:push --filter=@rz-chain-reporter/db",

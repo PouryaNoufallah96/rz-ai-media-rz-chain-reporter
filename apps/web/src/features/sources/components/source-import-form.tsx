@@ -51,6 +51,7 @@ import {
 } from "@/components/form/form-field";
 import { useFallbackErrorMessage } from "@/components/form/use-error-message";
 import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
+import { operationCreated } from "@/features/operations/lib/focus-operation";
 import { OPERATION_ERROR_KEYS } from "@/features/operations/lib/panel-state";
 import { applyActionErrorToForm, useAction } from "@/hooks/use-action";
 
@@ -118,6 +119,10 @@ export function SourceImportForm({
   });
 
   const isPending = isSubmitting || action.isPending;
+  const importInProgress = imports.cards.some(
+    (card) => card.stage !== "settled",
+  );
+  const isBusy = isPending || importInProgress;
 
   const onSubmit = handleSubmit(async (values) => {
     clearErrors("root");
@@ -145,6 +150,7 @@ export function SourceImportForm({
       return;
     }
 
+    if (result.data) operationCreated(result.data.operationId);
     toast.success(t("import.started"));
   });
 
@@ -155,15 +161,15 @@ export function SourceImportForm({
           {t("import.title")}
         </h2>
         <form
-          aria-busy={isPending}
-          className="mt-4"
+          aria-busy={isBusy}
+          className="mt-4 max-sm:**:data-[slot=button]:min-h-11 max-sm:**:data-[slot=input]:min-h-11 max-sm:**:data-[slot=select-trigger]:min-h-11 max-sm:**:data-[slot=button]:min-w-11"
           noValidate
           onSubmit={onSubmit}
         >
           <FieldGroup>
             <SourceSelection
               control={control}
-              disabled={isPending}
+              disabled={isBusy}
               enrichmentEnabled={imports.defaults.enrichmentEnabled}
               recentTopics={imports.recentTopics}
               resolveError={resolveError}
@@ -171,7 +177,7 @@ export function SourceImportForm({
             />
             <RecencyField
               control={control}
-              disabled={isPending}
+              disabled={isBusy}
               resolveError={resolveError}
             />
             <FormRootError
@@ -183,6 +189,7 @@ export function SourceImportForm({
             />
             <StartImportControl
               control={control}
+              importInProgress={importInProgress}
               isPending={isPending}
               startHintId={startHintId}
             />
@@ -206,26 +213,33 @@ function selectedHasOrigin(
 
 function StartImportControl({
   control,
+  importInProgress,
   isPending,
   startHintId,
 }: {
   control: ImportFormControl;
+  importInProgress: boolean;
   isPending: boolean;
   startHintId: string;
 }) {
   const t = useTranslations(SOURCES_NAMESPACE);
   const { field } = useController({ control, name: "sourceIds" });
   const hasSelection = field.value.length > 0;
+  const busy = isPending || importInProgress;
 
   return (
     <div className="flex flex-wrap items-center gap-3 border-t pt-4">
       <Button
         aria-describedby={startHintId}
-        disabled={isPending || !hasSelection}
+        disabled={busy || !hasSelection}
         type="submit"
       >
-        {isPending ? <Spinner data-icon="inline-start" /> : null}
-        {isPending ? t("import.pending") : t("import.start")}
+        {busy ? <Spinner data-icon="inline-start" /> : null}
+        {importInProgress
+          ? t("import.inProgress")
+          : isPending
+            ? t("import.pending")
+            : t("import.start")}
       </Button>
       <span className="text-muted-foreground text-xs" id={startHintId}>
         {t(hasSelection ? "import.startHint" : "import.startDisabled")}
@@ -318,7 +332,7 @@ function SourceSelection({
                                 />
                               }
                             >
-                              <ChevronDownIcon className="transition-transform group-data-panel-open:rotate-180" />
+                              <ChevronDownIcon className="transition-transform group-data-panel-open:rotate-180 motion-reduce:transition-none" />
                               <span className="ticket-label">
                                 {t(`catalog.kind.${origin}`)}
                               </span>
@@ -344,7 +358,7 @@ function SourceSelection({
                             }}
                             size="xs"
                             type="button"
-                            variant={allSelected ? "secondary" : "outline"}
+                            variant="outline"
                           >
                             {t(
                               allSelected
@@ -357,10 +371,10 @@ function SourceSelection({
                           keepMounted
                           className="data-closed:hidden"
                         >
-                          <ul className="max-h-44 overflow-y-auto border-t px-3 py-2">
+                          <ul className="max-h-44 overflow-y-auto overscroll-contain border-t px-3 py-2">
                             {entries.map((entry) => (
                               <li
-                                className="flex min-h-9 items-center gap-2 py-1"
+                                className="flex min-h-9 items-center gap-2 py-1 max-sm:min-h-11"
                                 key={entry.id}
                               >
                                 <Checkbox
@@ -459,7 +473,7 @@ function RecencyField({ control, disabled, resolveError }: FieldProps) {
                 onClick={() => field.onChange(hours)}
                 size="xs"
                 type="button"
-                variant={field.value === hours ? "secondary" : "outline"}
+                variant="outline"
               >
                 {t(`import.recency.${hours}`)}
               </Button>

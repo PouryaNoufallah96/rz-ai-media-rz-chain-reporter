@@ -64,7 +64,7 @@ function DialogPopup({
     <DialogPrimitive.Popup
       data-slot="dialog-popup"
       className={cn(
-        "relative grid max-h-full gap-5 overflow-y-auto overscroll-contain rounded-xl bg-popover p-5 text-popover-foreground text-xs/relaxed shadow-lg outline-none ring-1 ring-foreground/10 transition-[opacity,scale,translate] duration-200 ease-out [--dialog-closed-scale:0.97] [--dialog-closed-translate-y:0px] data-ending-style:translate-y-(--dialog-closed-translate-y) data-starting-style:translate-y-(--dialog-closed-translate-y) data-ending-style:scale-(--dialog-closed-scale) data-starting-style:scale-(--dialog-closed-scale) data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-150 motion-reduce:transition-none",
+        "relative grid max-h-full gap-5 overflow-y-auto overscroll-contain rounded-xl bg-popover p-(--dialog-padding) text-popover-foreground text-xs/relaxed shadow-lg outline-none ring-1 ring-foreground/10 transition-[opacity,scale,translate] duration-200 ease-out [--dialog-close-block-start:--spacing(2)] [--dialog-close-inline-end:--spacing(2)] [--dialog-closed-scale:0.97] [--dialog-closed-translate-y:0px] [--dialog-padding:--spacing(5)] data-ending-style:translate-y-(--dialog-closed-translate-y) data-starting-style:translate-y-(--dialog-closed-translate-y) data-ending-style:scale-(--dialog-closed-scale) data-starting-style:scale-(--dialog-closed-scale) data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-150 motion-reduce:transition-none",
         className,
       )}
       {...props}
@@ -75,7 +75,7 @@ function DialogPopup({
           data-slot="dialog-close"
           render={
             <Button
-              className="absolute inset-e-2 top-2"
+              className="absolute inset-e-(--dialog-close-inline-end) top-(--dialog-close-block-start)"
               size="icon-sm"
               variant="ghost"
             />

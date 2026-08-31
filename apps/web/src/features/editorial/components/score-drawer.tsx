@@ -19,6 +19,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { EDITORIAL_NAMESPACE } from "../constants";
+import { useNarrowViewport } from "../hooks/use-narrow-viewport";
 import {
   type ReportRow,
   type ReportThresholds,
@@ -45,9 +46,10 @@ export function ScoreDrawer({
   thresholds: ReportThresholds;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
+  const narrow = useNarrowViewport();
 
   return (
-    <Drawer side="inline-end">
+    <Drawer side={narrow ? "block-end" : "inline-end"}>
       <DrawerTrigger
         render={
           <Button
@@ -60,13 +62,13 @@ export function ScoreDrawer({
       </DrawerTrigger>
       <DrawerPortal>
         <DrawerOverlay />
-        <DrawerViewport className="max-[599px]:items-end max-[599px]:justify-stretch">
+        <DrawerViewport>
           <DrawerPopup
-            className="w-[min(480px,95vw)] max-[599px]:h-auto max-[599px]:max-h-[88dvh] max-[599px]:w-full max-[599px]:rounded-t-xl"
+            className="w-[min(480px,95vw)] max-compact:h-auto max-compact:max-h-[88dvh] max-compact:w-full max-compact:rounded-t-xl"
             showHandle={false}
           >
             <DrawerClose
-              className="absolute inset-e-4 top-4 max-sm:size-11"
+              className="absolute top-[calc(--spacing(4)+env(safe-area-inset-top))] max-sm:size-11 ltr:right-[calc(--spacing(4)+env(safe-area-inset-right))] rtl:left-[calc(--spacing(4)+env(safe-area-inset-left))]"
               render={<Button size="icon-sm" variant="ghost" />}
             >
               <XIcon />
@@ -427,7 +429,7 @@ function Footer({
   t: Translate;
 }) {
   return (
-    <div className="sticky bottom-0 grid gap-2 border-border border-t bg-popover py-3">
+    <div className="sticky bottom-0 grid gap-2 border-border bg-popover">
       {head.configuration.kind === "news" ? (
         <p className="text-muted-foreground tabular-nums">
           {t("provenance.topN", { n: head.configuration.topN })}

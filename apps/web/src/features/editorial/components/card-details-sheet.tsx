@@ -32,7 +32,7 @@ export function CardDetailsSheet({
 
   return (
     <SheetContent
-      className="w-full gap-5 max-[599px]:rounded-t-xl sm:w-[min(720px,100vw)] sm:p-5"
+      className="w-full gap-5 max-compact:rounded-t-xl sm:w-[min(720px,100vw)] sm:[--sheet-padding:--spacing(5)]"
       closeLabel={t("card.close")}
       side={narrow ? "block-end" : "inline-end"}
     >

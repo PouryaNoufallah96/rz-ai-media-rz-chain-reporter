@@ -2,14 +2,13 @@
 
 import { type UseRealtimeConnectionStatus, useRealtime } from "inngest/react";
 import type { Realtime } from "inngest/realtime";
-import { useRouter } from "next/navigation";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+
+import { useRealtimeRouterRefresh } from "@/hooks/use-realtime-router-refresh";
 import {
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+  type RealtimeConnectionState,
+  transitionRealtimeConnection,
+} from "@/lib/realtime-freshness";
 
 export type RealtimeTransport =
   | "live"
@@ -34,32 +33,21 @@ export function useRealtimeFreshness<
   mintToken: () => Promise<TokenResult<TToken>>;
   refreshAction: () => Promise<void>;
 }) {
-  const router = useRouter();
-  const [isRefreshing, startRefresh] = useTransition();
+  const { isRefreshing, requestRefresh } = useRealtimeRouterRefresh();
   const [subscriptionUnavailable, setSubscriptionUnavailable] = useState(false);
-  const connectionActive = useRef(false);
-  const hasConnected = useRef(false);
+  const connection = useRef<RealtimeConnectionState>({
+    active: false,
+    needsCatchUp: false,
+  });
 
-  const rerenderNow = () => {
-    startRefresh(() => {
-      router.refresh();
-    });
+  const requestToken = async () => {
+    const result = await mintToken();
+    if (result.status === "unavailable") {
+      setSubscriptionUnavailable(true);
+      throw new Error("Realtime subscription is unavailable");
+    }
+    return result.token;
   };
-
-  const requestToken = () =>
-    mintToken()
-      .then((result) => {
-        if (result.status === "unavailable") {
-          throw new Error("Realtime subscription is unavailable");
-        }
-        return result.token;
-      })
-      .catch((error: unknown) => {
-        if (!hasConnected.current) {
-          setSubscriptionUnavailable(true);
-        }
-        throw error;
-      });
 
   const realtimeEnabled = !subscriptionUnavailable;
   const realtime = useRealtime({
@@ -74,7 +62,7 @@ export function useRealtimeFreshness<
   const isRelevant = useEffectEvent(isRelevantMessage);
 
   const rerenderLatest = useEffectEvent(() => {
-    rerenderNow();
+    requestRefresh();
   });
 
   useEffect(() => {
@@ -87,22 +75,20 @@ export function useRealtimeFreshness<
   }, [realtime.messages.delta]);
 
   useEffect(() => {
-    if (realtime.connectionStatus === "open") {
-      if (hasConnected.current && !connectionActive.current) {
-        rerenderLatest();
-      }
-      hasConnected.current = true;
-      connectionActive.current = true;
-      return;
+    const transition = transitionRealtimeConnection(connection.current, [
+      realtime.connectionStatus,
+    ]);
+    connection.current = transition.connection;
+    if (transition.catchUp) {
+      rerenderLatest();
     }
-    connectionActive.current = false;
   }, [realtime.connectionStatus]);
 
   return {
     isRefreshing,
     refresh: () => {
       setSubscriptionUnavailable(false);
-      startRefresh(refreshAction);
+      requestRefresh(refreshAction);
     },
     transport: transportOf(realtimeEnabled, realtime.connectionStatus),
   };

@@ -32,17 +32,33 @@ export async function allocateOperationAttemptWithId(
   workspaceId: string,
   operationId: string,
   attemptId: string,
-): Promise<OperationAttemptRow | null> {
+  claimFence: { claimedBy: string; expectedVersion?: number },
+): Promise<(OperationAttemptRow & { operationVersion: number }) | null> {
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
     const [parent] = await tx
-      .select({ id: operation.id })
+      .select({
+        claimedBy: operation.claimedBy,
+        leaseExpiresAt: operation.leaseExpiresAt,
+        lifecycle: operation.lifecycle,
+        version: operation.version,
+      })
       .from(operation)
       .where(
         and(inWorkspace(operation, workspaceId), eq(operation.id, operationId)),
       )
       .for("update");
     if (!parent) {
+      return null;
+    }
+    if (
+      parent.claimedBy !== claimFence.claimedBy ||
+      parent.lifecycle !== "running" ||
+      parent.leaseExpiresAt === null ||
+      parent.leaseExpiresAt <= new Date() ||
+      (claimFence.expectedVersion !== undefined &&
+        parent.version !== claimFence.expectedVersion)
+    ) {
       return null;
     }
 
@@ -57,7 +73,7 @@ export async function allocateOperationAttemptWithId(
         ),
       );
     if (existing) {
-      return existing;
+      return { ...existing, operationVersion: parent.version };
     }
 
     const [numbered] = await tx
@@ -86,7 +102,7 @@ export async function allocateOperationAttemptWithId(
     if (!attempt) {
       throw new Error("operation attempt insert returned no row");
     }
-    return attempt;
+    return { ...attempt, operationVersion: parent.version };
   });
 }
 

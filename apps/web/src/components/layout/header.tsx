@@ -30,8 +30,26 @@ async function ResolvedUserMenu() {
   return <UserMenu user={user} />;
 }
 
+function HeaderControlSkeleton({
+  className,
+  label,
+}: {
+  className: string;
+  label: string;
+}) {
+  return (
+    <div aria-busy="true" className={className}>
+      <Skeleton aria-hidden="true" className="size-full" />
+      <span className="sr-only" role="status">
+        {label}
+      </span>
+    </div>
+  );
+}
+
 export default async function Header() {
   const t = await getT(SHARED_NAMESPACE);
+  const loadingLabel = t("loader.loading");
 
   return (
     <header className="sticky top-0 z-40 min-w-0 border-border/40 border-b bg-background/45 backdrop-blur-xl">
@@ -55,7 +73,12 @@ export default async function Header() {
         </Link>
         <div className="order-last w-full border-t pt-1 sm:order-0 sm:w-auto sm:border-0 sm:pt-0">
           <UrlDataBoundary
-            fallback={<Skeleton className="h-9 w-72 max-sm:h-11" />}
+            fallback={
+              <HeaderControlSkeleton
+                className="h-9 w-72 max-sm:h-11"
+                label={loadingLabel}
+              />
+            }
           >
             <PrimaryNav
               accountLabel={t("header.account")}
@@ -71,13 +94,23 @@ export default async function Header() {
           </Localized>
           <Localized namespaces={[SHARED_NAMESPACE]}>
             <UrlDataBoundary
-              fallback={<Skeleton className="size-8 max-sm:size-11" />}
+              fallback={
+                <HeaderControlSkeleton
+                  className="size-8 max-sm:size-11"
+                  label={loadingLabel}
+                />
+              }
             >
               <LocaleSwitch />
             </UrlDataBoundary>
             <ModeToggle />
             <UrlDataBoundary
-              fallback={<Skeleton className="h-8 w-20 max-sm:h-11 sm:w-32" />}
+              fallback={
+                <HeaderControlSkeleton
+                  className="h-8 w-20 max-sm:h-11 sm:w-32"
+                  label={loadingLabel}
+                />
+              }
             >
               <ResolvedUserMenu />
             </UrlDataBoundary>

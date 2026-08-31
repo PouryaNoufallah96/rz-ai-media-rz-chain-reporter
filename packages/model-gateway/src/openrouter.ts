@@ -45,10 +45,10 @@ const imageResponseMetadataSchema = z.looseObject({
   model: z.string().min(1).optional(),
   usage: z
     .looseObject({
-      completion_tokens: z.number().finite().nonnegative().optional(),
-      cost: z.number().finite().nonnegative().optional(),
-      prompt_tokens: z.number().finite().nonnegative().optional(),
-      total_tokens: z.number().finite().nonnegative().optional(),
+      completion_tokens: z.number().nonnegative().optional(),
+      cost: z.number().nonnegative().optional(),
+      prompt_tokens: z.number().nonnegative().optional(),
+      total_tokens: z.number().nonnegative().optional(),
     })
     .optional(),
 });
@@ -146,6 +146,7 @@ export function createOpenRouterAdapter(
 
     generateStructured(input) {
       const model = getProvider().chat(input.model, {
+        provider: { require_parameters: true },
         usage: { include: true },
       });
 

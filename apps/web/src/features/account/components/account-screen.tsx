@@ -33,10 +33,10 @@ export function AccountScreen({
     >
       {(t) => (
         <div className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-6 lg:px-8">
-          <h1 className="font-semibold text-2xl tracking-display">
+          <h1 className="text-balance font-semibold text-2xl tracking-display">
             {t("title")}
           </h1>
-          <p className="mt-1 max-w-3xl text-muted-foreground text-sm">
+          <p className="mt-1 max-w-3xl text-pretty text-muted-foreground text-sm">
             {t("subtitle")}
           </p>
           <Suspended

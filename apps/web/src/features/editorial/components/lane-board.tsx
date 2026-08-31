@@ -1,6 +1,5 @@
 "use client";
 
-import type { Platform } from "@rz-chain-reporter/contracts";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import {
@@ -11,6 +10,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@rz-chain-reporter/ui/components/empty";
+import { cn } from "@rz-chain-reporter/ui/lib/utils";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -28,6 +28,10 @@ import {
 import { Link } from "@/i18n/navigation";
 
 import { EDITORIAL_NAMESPACE } from "../constants";
+import {
+  type BoardPresentation,
+  resolveBoardPresentation,
+} from "../lib/board-presentation";
 import type { PlatformDraftLane } from "../schemas/drafts";
 import type {
   ModelLane,
@@ -41,6 +45,7 @@ import {
   type ModelSlot,
   TelegramLaneColumn,
 } from "./lane-column";
+import { LANE_WIDTH_CLASS_NAME } from "./lane-layout";
 import {
   PlatformLaneGroup,
   PlatformLanes,
@@ -52,13 +57,6 @@ const SEPARATOR = "\n";
 const NO_TOPICS: readonly string[] = [];
 
 type Translate = ReturnType<typeof useTranslations<typeof EDITORIAL_NAMESPACE>>;
-
-export type BoardPresentation = {
-  brandKeys: readonly string[];
-  kind: "news" | "promo";
-  platforms: readonly Platform[];
-  telegramOnly: boolean;
-};
 
 export function LaneBoardHeader({
   head,
@@ -126,7 +124,12 @@ export function LaneBoard({
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const board = head
-    ? presentationOfHead(head, templatePlatforms)
+    ? resolveBoardPresentation(
+        head.configuration,
+        head.completedAt !== null,
+        presentation,
+        templatePlatforms,
+      )
     : presentation;
   const promo = board.kind === "promo";
   const degraded = head?.provenance.semanticStatus === "degraded";
@@ -134,7 +137,7 @@ export function LaneBoard({
     head?.configuration.kind === "news" ? head.configuration.topics : NO_TOPICS;
   const slots =
     head && !board.telegramOnly
-      ? modelSlots(head, modelLanes, brands, models)
+      ? modelSlots(board.modelKeys, board.brandKeys, modelLanes, brands, models)
       : [];
   const unitsPlanned =
     head !== null && (modelLanes.length > 0 || head.completedAt !== null);
@@ -169,6 +172,7 @@ export function LaneBoard({
       </p>
       <RouteProvider
         defaultModelOptionKey={defaultModelOptionKey}
+        lanes={platformDraftLanes}
         platforms={board.platforms}
       >
         <PlatformLanes lanes={platformDraftLanes} onOpenCard={onOpenCard}>
@@ -255,8 +259,18 @@ export function LaneBoard({
 function FreshCardTemplates() {
   return (
     <div aria-hidden="true" className="pointer-events-none contents">
-      <Empty className="min-h-48 w-[clamp(260px,30vw,320px)] flex-none snap-start rounded-lg border border-border/70 bg-muted/20 p-0 max-[599px]:w-[min(300px,calc(100vw-32px))] md:p-0" />
-      <Empty className="min-h-48 w-[clamp(260px,30vw,320px)] flex-none snap-start rounded-lg border border-border/50 bg-muted/10 p-0 max-[599px]:w-[min(300px,calc(100vw-32px))] md:p-0" />
+      <Empty
+        className={cn(
+          "min-h-48 flex-none snap-start rounded-lg border border-border/70 bg-muted/20 p-0 md:p-0",
+          LANE_WIDTH_CLASS_NAME,
+        )}
+      />
+      <Empty
+        className={cn(
+          "min-h-48 flex-none snap-start rounded-lg border border-border/50 bg-muted/10 p-0 md:p-0",
+          LANE_WIDTH_CLASS_NAME,
+        )}
+      />
     </div>
   );
 }
@@ -321,15 +335,19 @@ function BrandRail({
         >
           {brandName.slice(0, 1)}
         </span>
-        <h3 className="font-medium" id={`brand-rail-${brandKey}`}>
+        <h3
+          className="wrap-anywhere min-w-0 flex-1 font-medium"
+          id={`brand-rail-${brandKey}`}
+        >
           <Bdi>{brandName}</Bdi>
         </h3>
         {overflowing ? (
-          <div className="ms-auto flex gap-1">
+          <div className="ms-auto flex shrink-0 gap-1">
             <Button
               aria-controls={railId}
               aria-label={t("lane.board.railPrevious", { brand: brandName })}
               onClick={() => scroll(false)}
+              className="max-compact:size-11"
               size="icon-sm"
               type="button"
               variant="ghost"
@@ -340,6 +358,7 @@ function BrandRail({
               aria-controls={railId}
               aria-label={t("lane.board.railNext", { brand: brandName })}
               onClick={() => scroll(true)}
+              className="max-compact:size-11"
               size="icon-sm"
               type="button"
               variant="ghost"
@@ -351,35 +370,16 @@ function BrandRail({
       </header>
       <section
         aria-label={t("lane.board.rail", { brand: brandName })}
-        className="mt-3 flex snap-x snap-proximity gap-3 overflow-x-auto rounded-lg pb-2"
+        className="mt-3 flex snap-x snap-proximity gap-3 overflow-x-auto rounded-lg pb-2 outline-none focus-visible:ring-1 focus-visible:ring-ring"
         id={railId}
         ref={rail}
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: the labeled overflow region must accept keyboard scrolling.
+        tabIndex={0}
       >
         {children}
       </section>
     </>
   );
-}
-
-function presentationOfHead(
-  head: RunHead,
-  templatePlatforms: readonly Platform[],
-): BoardPresentation {
-  if (head.configuration.kind === "promo") {
-    return {
-      brandKeys: head.configuration.promo.brands,
-      kind: "promo",
-      platforms: templatePlatforms,
-      telegramOnly: false,
-    };
-  }
-
-  return {
-    brandKeys: head.configuration.brands,
-    kind: "news",
-    platforms: head.configuration.platforms,
-    telegramOnly: head.configuration.telegramOnly,
-  };
 }
 
 function TelegramAcquisitionNotice({ head }: { head: RunHead }) {
@@ -432,23 +432,19 @@ function TelegramAcquisitionNotice({ head }: { head: RunHead }) {
 }
 
 function modelSlots(
-  head: RunHead,
+  modelKeys: readonly string[],
+  brandKeys: readonly string[],
   modelLanes: readonly ModelLane[],
   brands: RunOptions["brands"],
   models: RunOptions["models"],
 ): ModelSlot[] {
-  const { configuration } = head;
-  const brandKeys =
-    configuration.kind === "promo"
-      ? configuration.promo.brands
-      : configuration.brands;
   const brandNames = new Map(brands.map((brand) => [brand.key, brand.name]));
   const modelNames = new Map(models.map((model) => [model.key, model.name]));
   const laneByPair = new Map(
     modelLanes.map((lane) => [`${lane.modelOptionKey}:${lane.brandKey}`, lane]),
   );
 
-  return configuration.models.flatMap((modelOptionKey) =>
+  return modelKeys.flatMap((modelOptionKey) =>
     brandKeys.map((brandKey) => ({
       brandKey,
       brandName: brandNames.get(brandKey) ?? brandKey,

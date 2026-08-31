@@ -2,6 +2,7 @@ import {
   analysisRunCancelledPayloadSchema,
   analysisRunRequestedPayloadSchema,
   copyGenerationRequestedPayloadSchema,
+  copyVariantTranslationRequestedPayloadSchema,
   DURABLE_EVENT_SCHEMA_VERSION,
   imageGenerationRequestedPayloadSchema,
   MEDIA_UPLOAD_CONFIRMED_EVENT_NAME,
@@ -9,8 +10,10 @@ import {
   OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME,
   OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME,
   OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
+  OPERATION_COPY_VARIANT_TRANSLATION_REQUESTED_EVENT_NAME,
   OPERATION_GENERATION_REQUESTED_EVENT_NAME,
   OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME,
+  OPERATION_PRESENTATION_TRANSLATION_REQUESTED_EVENT_NAME,
   OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME,
   OPERATION_PUBLICATION_REQUESTED_EVENT_NAME,
   OPERATION_SCHEDULED_EFFECT_REQUESTED_EVENT_NAME,
@@ -20,6 +23,7 @@ import {
   operationScheduledEffectRequestedPayloadSchema,
   operationSourceImportReadyPayloadSchema,
   operationSourceImportRequestedPayloadSchema,
+  presentationTranslationRequestedPayloadSchema,
   publicationReconciliationRequestedPayloadSchema,
   publicationRequestedPayloadSchema,
   SOURCE_IMPORT_ENRICHMENT_REQUESTED_EVENT_NAME,
@@ -57,10 +61,24 @@ export const durableEvents = {
       version: eventVersion,
     },
   ),
+  operationCopyVariantTranslationRequested: eventType(
+    OPERATION_COPY_VARIANT_TRANSLATION_REQUESTED_EVENT_NAME,
+    {
+      schema: copyVariantTranslationRequestedPayloadSchema,
+      version: eventVersion,
+    },
+  ),
   operationImageGenerationRequested: eventType(
     OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME,
     {
       schema: imageGenerationRequestedPayloadSchema,
+      version: eventVersion,
+    },
+  ),
+  operationPresentationTranslationRequested: eventType(
+    OPERATION_PRESENTATION_TRANSLATION_REQUESTED_EVENT_NAME,
+    {
+      schema: presentationTranslationRequestedPayloadSchema,
       version: eventVersion,
     },
   ),
@@ -185,6 +203,17 @@ const relayedEventCreators: Record<string, RelayedEventCreator | undefined> = {
       id,
     });
   },
+  [OPERATION_COPY_VARIANT_TRANSLATION_REQUESTED_EVENT_NAME]: (payload, id) => {
+    const parsed =
+      copyVariantTranslationRequestedPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+    }
+    return durableEvents.operationCopyVariantTranslationRequested.create(
+      parsed.data,
+      { id },
+    );
+  },
   [OPERATION_GENERATION_REQUESTED_EVENT_NAME]: (payload, id) => {
     const parsed = operationGenerationRequestedPayloadSchema.safeParse(payload);
     if (!parsed.success) {
@@ -202,6 +231,17 @@ const relayedEventCreators: Record<string, RelayedEventCreator | undefined> = {
     return durableEvents.operationImageGenerationRequested.create(parsed.data, {
       id,
     });
+  },
+  [OPERATION_PRESENTATION_TRANSLATION_REQUESTED_EVENT_NAME]: (payload, id) => {
+    const parsed =
+      presentationTranslationRequestedPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new OutboxEventContractError("OUTBOX_PAYLOAD_INVALID");
+    }
+    return durableEvents.operationPresentationTranslationRequested.create(
+      parsed.data,
+      { id },
+    );
   },
   [OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME]: (
     payload,

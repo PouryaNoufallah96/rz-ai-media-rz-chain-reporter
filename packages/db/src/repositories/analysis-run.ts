@@ -36,6 +36,7 @@ import { operation } from "../schema/operation";
 import { operationAttempt } from "../schema/operation-attempt";
 import { outboxEvent } from "../schema/outbox-event";
 import { promoIdea } from "../schema/promo-idea";
+import { sourceImport } from "../schema/source-import";
 import { sourceImportItem } from "../schema/source-import-item";
 import { sourceItem } from "../schema/source-item";
 import { sourceItemRevision } from "../schema/source-item-revision";
@@ -209,6 +210,34 @@ export async function bindAnalysisRunSourceImport(
         eq(analysisRun.id, input.analysisRunId),
       ),
     );
+}
+
+export async function findAnalysisRunTopicSnapshot(
+  executor: Executor,
+  workspaceId: string,
+  analysisRunId: string,
+) {
+  const [snapshot] = await executor
+    .select({
+      effectiveTopics: sourceImport.effectiveTopics,
+      topics: sourceImport.topics,
+    })
+    .from(analysisRun)
+    .innerJoin(
+      sourceImport,
+      and(
+        eq(sourceImport.workspaceId, analysisRun.workspaceId),
+        eq(sourceImport.id, analysisRun.sourceImportId),
+      ),
+    )
+    .where(
+      and(
+        inWorkspace(analysisRun, workspaceId),
+        eq(analysisRun.id, analysisRunId),
+      ),
+    );
+
+  return snapshot;
 }
 
 type LoadAnalysisRunCandidatesInput = {
@@ -916,18 +945,26 @@ export async function settleAnalysisRun(
 
     await cancelNonTerminalUnits(tx, workspaceId, claim.run.id);
 
-    const progress = (
-      await analysisRunProgress(tx, workspaceId, [claim.run.id])
-    )[claim.run.id];
-    const planned = progress
-      ? Object.values(progress.units).reduce((total, units) => total + units, 0)
-      : 0;
+    const [units] = await tx
+      .select({
+        cancelled: sql<number>`count(*) filter (where ${analysisModelUnit.status} = 'cancelled')::int`,
+        planned: sql<number>`count(*)::int`,
+        succeeded: sql<number>`count(*) filter (where ${analysisModelUnit.status} = 'succeeded')::int`,
+      })
+      .from(analysisModelUnit)
+      .where(
+        and(
+          inWorkspace(analysisModelUnit, workspaceId),
+          eq(analysisModelUnit.analysisRunId, claim.run.id),
+        ),
+      );
+    const planned = units?.planned ?? 0;
 
     // Without units, fanOutPlannedAt distinguishes prevented fan-out from a
     // completed zero-unit plan; otherwise cancellation arrived after completion.
     if (
       claim.run.cancelRequestedAt !== null &&
-      ((progress?.units.cancelled ?? 0) > 0 ||
+      ((units?.cancelled ?? 0) > 0 ||
         (planned === 0 && claim.run.fanOutPlannedAt === null))
     ) {
       return finishSettle(tx, workspaceId, claim, "cancelled");
@@ -935,7 +972,7 @@ export async function settleAnalysisRun(
 
     const failed =
       input.failureCode !== null ||
-      (planned > 0 && (progress?.units.succeeded ?? 0) === 0);
+      (planned > 0 && (units?.succeeded ?? 0) === 0);
 
     return finishSettle(
       tx,

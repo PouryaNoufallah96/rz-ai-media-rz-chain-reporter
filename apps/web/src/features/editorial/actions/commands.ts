@@ -11,7 +11,9 @@ import {
   retryCopyGeneration,
   retryImageGeneration,
   routeDraft,
+  startCopyVariantTranslation,
   startImageGeneration,
+  startPresentationTranslation,
   startRun,
   updateDraftRevision,
 } from "@/server/rpc/routers/editorial";
@@ -61,7 +63,16 @@ export const routePlatformDraftAction = withMutationRefresh(
   routeDraft.actionable(actionable),
   refreshDrafts,
 );
+export const startPresentationTranslationAction = withMutationRefresh(
+  startPresentationTranslation.actionable(actionable),
+  refreshEditorial,
+);
+export const startCopyVariantTranslationAction = withMutationRefresh(
+  startCopyVariantTranslation.actionable(actionable),
+  refreshDrafts,
+);
 export const reorderPlatformDraftsAction = withMutationRefresh(
   reorderDrafts.actionable(actionable),
   refreshDrafts,
+  { refreshOnError: true },
 );

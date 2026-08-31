@@ -1,17 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+
+const NARROW_VIEWPORT_QUERY = "(width < 37.5rem)";
+
+function subscribeToNarrowViewport(change: () => void) {
+  const query = window.matchMedia(NARROW_VIEWPORT_QUERY);
+  query.addEventListener("change", change);
+  return () => query.removeEventListener("change", change);
+}
+
+function narrowViewportSnapshot() {
+  return window.matchMedia(NARROW_VIEWPORT_QUERY).matches;
+}
+
+function narrowViewportServerSnapshot() {
+  return false;
+}
 
 export function useNarrowViewport() {
-  const [narrow, setNarrow] = useState(false);
-
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 599px)");
-    const update = () => setNarrow(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-
-  return narrow;
+  return useSyncExternalStore(
+    subscribeToNarrowViewport,
+    narrowViewportSnapshot,
+    narrowViewportServerSnapshot,
+  );
 }

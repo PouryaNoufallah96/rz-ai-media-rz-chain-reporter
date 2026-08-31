@@ -18,6 +18,44 @@
         "unknown": "The draft could not be routed. Try again."
       }
     },
+    "presentationTranslation": {
+      "translate": "Translate {title}",
+      "queueing": "Queueing translation for {title}",
+      "translating": "Translating {title}",
+      "unknown": "Translation outcome is unknown. Retry {title}",
+      "retry": "Translation failed. Retry {title}",
+      "hint": {
+        "translate": "Translate",
+        "queueing": "Queueing translation…",
+        "translating": "Translating…",
+        "retry": "Retry translation"
+      },
+      "queued": "Translation queued",
+      "available": "Translation is already available",
+      "notFound": "This card is no longer available.",
+      "conflict": "This translation request was already used with different values.",
+      "invalid": "This card cannot be translated.",
+      "error": "The translation could not be queued. Try again."
+    },
+    "copyVariantTranslation": {
+      "translate": "Translate variation {title}",
+      "queueing": "Queueing translation for variation {title}",
+      "translating": "Translating variation {title}",
+      "unknown": "Translation outcome is unknown. Retry variation {title}",
+      "retry": "Translation failed. Retry variation {title}",
+      "hint": {
+        "translate": "Translate variation",
+        "queueing": "Queueing translation…",
+        "translating": "Translating…",
+        "retry": "Retry translation"
+      },
+      "queued": "Variation translation queued",
+      "available": "This variation is already available in your language",
+      "notFound": "This variation is no longer available.",
+      "conflict": "This translation request was already used with different values.",
+      "invalid": "This variation cannot be translated.",
+      "error": "The variation translation could not be queued. Try again."
+    },
     "platformDraft": {
       "zone": "Platform lanes",
       "lane": "{brand} · {platform}",
@@ -31,7 +69,15 @@
       "drag": "Reorder {title}",
       "dragOrigin": "Drag {title} to a platform lane",
       "sendTo": "Send to {platform}",
+      "routing": "Routing…",
+      "routingTo": "Routing to {platform}…",
       "alreadyRouted": "Already on {platform}",
+      "hint": {
+        "dragOrigin": "Drag to a platform",
+        "drag": "Drag to reorder",
+        "moveEarlier": "Move earlier",
+        "moveLater": "Move later"
+      },
       "lifecycle": {
         "queued": "queued",
         "running": "running",
@@ -48,6 +94,7 @@
         "cancelled": "Reorder cancelled.",
         "moved": "{title} moved to position {position, number}.",
         "movedOver": "{title} is at position {position, number}.",
+        "routing": "Routing {title} to {platform}.",
         "conflict": "The lane changed concurrently. The authoritative order was restored.",
         "alreadyRouted": "This draft is already routed to {platform}."
       }
@@ -71,13 +118,9 @@
       "candidatesEmpty": "No successful candidates yet.",
       "generatingStyles": "Generating new styles…",
       "candidateMeta": "{locale} · {model}",
-      "variant": {
-        "toThePoint": "Clear and concise"
-      },
+      "variantLabel": "{key, select, breaking {Breaking} question {Question} take {Take} viral {Viral} analysis {Analysis} to_the_point {Clear and concise} story {Story} conversation {Conversation} match_report {Match report} quick_take {Quick take} update {Update} reaction {Reaction} discussion {Discussion} other {{key}}}",
       "revisions": "Revisions",
-      "historyEmpty": "No revisions yet. Choose a style and create the first revision.",
       "revision": "Revision {n, number}",
-      "revisionMeta": "{locale} · {author}",
       "saving": "Saving revision",
       "createRevision": "Create Revision {n, number}",
       "copyActions": "Variation Generation",
@@ -107,15 +150,14 @@
         "fromVariation": "Starting from a generated variation",
         "fromRevision": "Starting from immutable Revision {n, number}",
         "edited": "Edited",
-        "sourceReady": "Source content",
+        "generatedVariation": "Generated variation",
+        "noRevisions": "No revisions yet",
         "headline": "Headline",
         "body": "Body",
         "hashtags": "Ordered hashtags",
         "hashtagHint": "Type a tag, then press Enter or comma. The brand tag stays first.",
         "hashtagAdd": "Add",
         "hashtagRemove": "Remove {hashtag}",
-        "locale": "Content language",
-        "localeRegenerate": "Use Variation Generation to create source content in this language before creating a revision.",
         "noSource": "Choose a generated variation or an existing revision to start editing.",
         "copyBudget": "{used, number} of {limit, number} characters used for {platform}",
         "inlineHashtag": "Keep hashtags out of the headline and body — add them as chips.",
@@ -128,7 +170,7 @@
       },
       "discard": {
         "title": "Discard unsaved changes?",
-        "description": "Your unsaved changes to the headline, body, hashtags, and language will be lost.",
+        "description": "Your unsaved changes to the headline, body, and hashtags will be lost.",
         "confirm": "Discard changes",
         "cancel": "Keep editing",
         "pending": "Discarding"
@@ -176,6 +218,8 @@
     },
     "run": {
       "title": "Run",
+      "closeConfiguration": "Close run configuration",
+      "topicTranslationFallback": "Topic translation was unavailable, so this run used the original topics.",
       "head": {
         "title": "This run"
       },
@@ -248,6 +292,7 @@
       },
       "start": "Start run",
       "starting": "Starting…",
+      "inProgress": "Run in progress…",
       "newWorkspace": "New workspace",
       "cancel": "Cancel run",
       "cancelConfirm": {
@@ -383,8 +428,11 @@
       "promoPromptTooLong": "This prompt is longer than the template allows.",
       "telegramSourceRequired": "Select at least one Telegram source for Telegram-only mode.",
       "templateDrift": "The customer template changed. Reload the app before starting new work.",
+      "tooManySources": "Too many sources were selected for one run.",
       "tooManyTopics": "Too many topics for one run.",
+      "topicRequired": "A topic cannot be empty.",
       "topicTooLong": "This topic is longer than the template allows.",
+      "topNBelowMinimum": "Top-N must be at least 1.",
       "topNExceedsCap": "Top-N is higher than this template allows."
     },
     "a11y": {

@@ -482,7 +482,7 @@ function usageStatus(
   return slots.find((slot) => slot.invocationKey === key)?.status;
 }
 
-function copyPolicy(runtime: WorkerRuntime, platform: Platform) {
+export function copyPolicy(runtime: WorkerRuntime, platform: Platform) {
   const policy = runtime.template.editorial.drafting.copy.platforms.find(
     (entry) => entry.platform === platform,
   );
@@ -490,7 +490,10 @@ function copyPolicy(runtime: WorkerRuntime, platform: Platform) {
   return policy;
 }
 
-function copyBrand(runtime: Pick<WorkerRuntime, "template">, brandKey: string) {
+export function copyBrand(
+  runtime: Pick<WorkerRuntime, "template">,
+  brandKey: string,
+) {
   const brand = runtime.template.mediaBrands.find(
     (entry) => entry.key === brandKey,
   );
@@ -1122,6 +1125,13 @@ export function createCopyGenerationFunctions(
               : settled.lifecycle === "succeeded"
                 ? "succeeded"
                 : "failed";
+      await notifyDraftsAndUsageChanged(
+        step,
+        workspaceId,
+        copyChange(terminal, code),
+        "terminal",
+        claimed.operation.actor,
+      );
       await publishOperationStatus(
         step,
         workspaceId,
@@ -1133,13 +1143,6 @@ export function createCopyGenerationFunctions(
           sharedImport: false,
         },
         "worker.copy-generation.realtime-unavailable",
-      );
-      await notifyDraftsAndUsageChanged(
-        step,
-        workspaceId,
-        copyChange(terminal, code),
-        "terminal",
-        claimed.operation.actor,
       );
       return { lifecycle: settled.lifecycle, operationId };
     },

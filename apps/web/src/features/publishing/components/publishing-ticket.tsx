@@ -4,15 +4,15 @@ import {
   assemblePublishPayload,
   type Platform,
 } from "@rz-chain-reporter/contracts";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@rz-chain-reporter/ui/components/alert";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@rz-chain-reporter/ui/components/collapsible";
+import { Field, FieldLegend } from "@rz-chain-reporter/ui/components/field";
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
-import { ChevronDownIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -20,7 +20,10 @@ import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { StateMark } from "@/components/common/state-mark";
 import { LabeledSelect } from "@/components/form/form-field";
 import type { PlatformDraftCard } from "@/features/editorial/schemas/drafts";
-import { focusOperation } from "@/features/operations/lib/focus-operation";
+import {
+  focusOperation,
+  operationCreated,
+} from "@/features/operations/lib/focus-operation";
 import { useAction } from "@/hooks/use-action";
 import { Link } from "@/i18n/navigation";
 
@@ -73,6 +76,7 @@ function usePublishingTicket({
   const [mode, setMode] = useState<"direct" | "schedule">("direct");
   const [localTime, setLocalTime] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [reviewAttempted, setReviewAttempted] = useState(false);
   const [savedIntent, setSavedIntent] = useState<
     "save" | "discard" | "restore" | null
   >(null);
@@ -86,9 +90,7 @@ function usePublishingTicket({
   const destination = publishing.destinations.find(
     (entry) => entry.id === destinationAccountId,
   );
-  const destinationReady = Boolean(
-    destination?.enabled && destination.bound && !publishing.control.paused,
-  );
+  const destinationReady = Boolean(destination?.enabled && destination.bound);
   const payload = assembledPayload(card.platform, active);
   const scheduledAt =
     mode === "schedule" ? zonedLocalDate(localTime, timeZone) : null;
@@ -117,17 +119,20 @@ function usePublishingTicket({
           timeZone,
         })
       : t("confirm.immediate");
+  const scheduleReady =
+    mode === "direct" || validFutureLocalTime(localTime, timeZone);
   const finalReady =
     active !== null &&
     !disabled &&
     !effectDisabled &&
     approved &&
     destinationReady &&
+    !publishing.control.paused &&
     deliveryAvailable &&
     payload.status === "ready" &&
     (card.platform !== "instagram" ||
       active.selectedFinalMediaAssetId !== null) &&
-    (mode === "direct" || validFutureLocalTime(localTime, timeZone));
+    scheduleReady;
   const mutationPending = direct.isPending || schedule.isPending;
   const error =
     save.status === "error" ||
@@ -194,6 +199,15 @@ function usePublishingTicket({
     });
   };
 
+  const requestConfirmation = () => {
+    if (!finalReady) {
+      setReviewAttempted(true);
+      return;
+    }
+    setReviewAttempted(false);
+    setConfirming(true);
+  };
+
   const confirmEffect = async () => {
     if (!finalReady || !publishing.approval || !destination || !active) {
       return { error: t("error.command") };
@@ -218,6 +232,9 @@ function usePublishingTicket({
           });
     if (settled.status === "success" && settled.data?.operationId) {
       setHandoff(settled.data.operationId);
+      if (settled.data.status === "created") {
+        operationCreated(settled.data.operationId);
+      }
     }
     return settled.status === "error"
       ? { error: t("error.command") }
@@ -238,7 +255,6 @@ function usePublishingTicket({
     destinationReady,
     discard,
     error,
-    finalReady,
     format,
     handoff,
     active,
@@ -247,12 +263,15 @@ function usePublishingTicket({
     mutationPending,
     payload,
     publishing,
+    requestConfirmation,
     requestSavedChange,
+    reviewAttempted,
     restore,
     save,
     savedIntent,
     scheduledAt,
     scheduleFact,
+    scheduleReady,
     setConfirming,
     setDestinationAccountId,
     setLocalTime,
@@ -290,7 +309,6 @@ export function PublishingTicket({
     destinationReady,
     discard,
     error,
-    finalReady,
     format,
     handoff,
     active,
@@ -299,12 +317,15 @@ export function PublishingTicket({
     mutationPending,
     payload,
     publishing,
+    requestConfirmation,
     requestSavedChange,
+    reviewAttempted,
     restore,
     save,
     savedIntent,
     scheduledAt,
     scheduleFact,
+    scheduleReady,
     setConfirming,
     setDestinationAccountId,
     setLocalTime,
@@ -319,10 +340,18 @@ export function PublishingTicket({
     onPendingChange,
     savedChangeDisabled,
   });
+  const readonlyDestination =
+    publishing.destinations.length === 1 ? publishing.destinations[0] : null;
+  const approvalEnabled =
+    Boolean(active) &&
+    !disabled &&
+    !effectDisabled &&
+    !approved &&
+    !approve.isPending;
   return (
     <section
       aria-labelledby={`publishing-ticket-${card.id}`}
-      className="rounded-xl border border-border bg-card p-4"
+      className="rounded-xl border border-border bg-card p-4 max-sm:**:data-[slot=button]:min-h-11 max-sm:**:data-[slot=input]:min-h-11 max-sm:**:data-[slot=select-trigger]:min-h-11 max-sm:**:data-[slot=button]:min-w-11"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="ticket-label" id={`publishing-ticket-${card.id}`}>
@@ -331,104 +360,117 @@ export function PublishingTicket({
         <PublishingFreshness />
       </div>
       <div className="mt-3 grid gap-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            className="max-sm:min-h-11"
-            disabled={
-              disabled ||
-              savedChangeDisabled ||
-              save.isPending ||
-              discard.isPending ||
-              restore.isPending
-            }
-            onClick={requestSavedChange}
-            size="sm"
-            type="button"
-            variant={
-              activeSaved || publishing.savedCard ? "outline" : "secondary"
-            }
-          >
-            {save.isPending || discard.isPending || restore.isPending ? (
-              <Spinner data-icon="inline-start" label={t("ticket.pending")} />
-            ) : null}
-            {activeSaved
-              ? t("saved.discard")
-              : publishing.savedCard
-                ? t("saved.restore")
-                : t("ticket.saveForLater")}
-          </Button>
-          <span className="flex items-start gap-2 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              className="max-sm:min-h-11"
+              disabled={
+                disabled ||
+                savedChangeDisabled ||
+                save.isPending ||
+                discard.isPending ||
+                restore.isPending
+              }
+              onClick={requestSavedChange}
+              size="sm"
+              type="button"
+              variant={
+                activeSaved || publishing.savedCard ? "outline" : "secondary"
+              }
+            >
+              {save.isPending || discard.isPending || restore.isPending ? (
+                <Spinner data-icon="inline-start" label={t("ticket.pending")} />
+              ) : null}
+              {activeSaved
+                ? t("saved.discard")
+                : publishing.savedCard
+                  ? t("saved.restore")
+                  : t("ticket.saveForLater")}
+            </Button>
+            <Button
+              className={
+                approvalEnabled
+                  ? "animate-ready-ring motion-reduce:animate-none"
+                  : undefined
+              }
+              disabled={!approvalEnabled}
+              onClick={approveActive}
+              size="sm"
+              type="button"
+              variant="default"
+            >
+              {approve.isPending ? (
+                <Spinner data-icon="inline-start" label={t("ticket.pending")} />
+              ) : null}
+              {active
+                ? t("approval.action", { n: active.revisionNumber })
+                : t("approval.needsRevision")}
+            </Button>
+          </div>
+          <span className="flex shrink-0 items-center gap-2 text-sm">
             <StateMark state={approved ? "succeeded" : "queued"} />
             {approved ? t("approval.approved") : t("approval.unapproved")}
           </span>
-          <Button
-            disabled={
-              disabled ||
-              !active ||
-              effectDisabled ||
-              approved ||
-              approve.isPending
-            }
-            onClick={approveActive}
-            size="sm"
-            type="button"
-          >
-            {approve.isPending ? (
-              <Spinner data-icon="inline-start" label={t("ticket.pending")} />
-            ) : null}
-            {active
-              ? t("approval.action", { n: active.revisionNumber })
-              : t("approval.needsRevision")}
-          </Button>
         </div>
         <p className="text-muted-foreground text-xs">
           {savedChangeDisabled
             ? t("ticket.saveBlocked")
             : t("ticket.saveScope")}
         </p>
-        {effectDisabled ? (
-          <p className="text-sm text-working">
-            {t("approval.savedRevisionRequired")}
-          </p>
-        ) : null}
-        <PublishingReadiness
-          control={publishing.control}
-          deliveryState={deliveryState}
-          destinationReady={destinationReady}
-          hasSelectedMedia={Boolean(active?.selectedFinalMediaAssetId)}
-          payload={payload}
-          platform={card.platform}
-        />
-        <LabeledSelect
-          disabled={disabled || publishing.control.paused}
-          id={`publishing-destination-${card.id}`}
-          label={t("destination.label")}
-          onValueChange={(value) => setDestinationAccountId(value ?? "")}
-          options={publishing.destinations.map((entry) => ({
-            disabled:
-              !entry.enabled || !entry.bound || publishing.control.paused,
-            label: `${entry.label}${!entry.enabled ? ` · ${t("destination.disabled")}` : !entry.bound ? ` · ${t("destination.unbound")}` : ""}`,
-            value: entry.id,
-          }))}
-          triggerClassName="w-full"
-          value={destinationAccountId}
-        />
-        {destination ? null : (
-          <p className="text-destructive text-sm">{t("destination.none")}</p>
+        {publishing.destinations.length > 1 ? (
+          <LabeledSelect
+            disabled={disabled || publishing.control.paused}
+            id={`publishing-destination-${card.id}`}
+            label={t("destination.label")}
+            onValueChange={(value) => setDestinationAccountId(value ?? "")}
+            options={publishing.destinations.map((entry) => ({
+              disabled:
+                !entry.enabled || !entry.bound || publishing.control.paused,
+              label: `${entry.label}${!entry.enabled ? ` · ${t("destination.disabled")}` : !entry.bound ? ` · ${t("destination.unbound")}` : ""}`,
+              value: entry.id,
+            }))}
+            triggerClassName="w-full"
+            value={destinationAccountId}
+          />
+        ) : (
+          <dl className="flex min-w-0 items-baseline justify-between gap-4 py-1">
+            <dt className="ticket-label shrink-0">{t("destination.label")}</dt>
+            <dd className="wrap-anywhere min-w-0 text-end font-medium text-sm">
+              <Bdi>
+                {readonlyDestination
+                  ? `${readonlyDestination.label}${!readonlyDestination.enabled ? ` · ${t("destination.disabled")}` : !readonlyDestination.bound ? ` · ${t("destination.unbound")}` : ""}`
+                  : t("destination.none")}
+              </Bdi>
+            </dd>
+          </dl>
         )}
-        <LabeledSelect
-          disabled={disabled}
-          id={`publishing-mode-${card.id}`}
-          label={t("mode.label")}
-          onValueChange={(value) =>
-            setMode(value === "schedule" ? "schedule" : "direct")
-          }
-          options={[
-            { label: t("mode.direct"), value: "direct" },
-            { label: t("mode.schedule"), value: "schedule" },
-          ]}
-          value={mode}
-        />
+        <Field className="gap-1.5" disabled={disabled}>
+          <FieldLegend className="ticket-label" variant="label">
+            {t("mode.label")}
+          </FieldLegend>
+          <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted/50 p-1">
+            <Button
+              aria-pressed={mode === "direct"}
+              className="w-full"
+              onClick={() => setMode("direct")}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              {t("mode.direct")}
+            </Button>
+            <Button
+              aria-pressed={mode === "schedule"}
+              className="w-full"
+              onClick={() => setMode("schedule")}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              {t("mode.schedule")}
+            </Button>
+          </div>
+        </Field>
         {mode === "schedule" ? (
           <div className="grid gap-1">
             <PublishingDateTimePicker
@@ -450,9 +492,23 @@ export function PublishingTicket({
             ) : null}
           </div>
         ) : null}
+        {reviewAttempted ? (
+          <PublishingBlockers
+            approved={approved}
+            control={publishing.control}
+            deliveryState={deliveryState}
+            destinationReady={destinationReady}
+            effectDisabled={effectDisabled}
+            hasActiveRevision={active !== null}
+            hasSelectedMedia={Boolean(active?.selectedFinalMediaAssetId)}
+            payload={payload}
+            platform={card.platform}
+            scheduleReady={scheduleReady}
+          />
+        ) : null}
         <Button
-          disabled={!finalReady || mutationPending}
-          onClick={() => setConfirming(true)}
+          disabled={disabled || mutationPending || !approved}
+          onClick={requestConfirmation}
           type="button"
         >
           {mutationPending ? (
@@ -462,12 +518,12 @@ export function PublishingTicket({
         </Button>
         {handoff ? <PublishingHandoff operationId={handoff} /> : null}
         {error ? (
-          <p className="text-destructive text-sm" role="alert">
-            {t("error.command")}
-          </p>
+          <Alert variant="destructive">
+            <StateMark state="failed" />
+            <AlertDescription>{t("error.command")}</AlertDescription>
+          </Alert>
         ) : null}
         <PublicationFact card={card} />
-        <PublishingMore card={card} destination={destination ?? null} />
       </div>
       <ConfirmDialog
         cancelLabel={t("confirm.cancel")}
@@ -529,86 +585,92 @@ function PublishingHandoff({ operationId }: { operationId: string }) {
   );
 }
 
-function PublishingReadiness({
+function PublishingBlockers({
+  approved,
   control,
   deliveryState,
   destinationReady,
+  effectDisabled,
+  hasActiveRevision,
   hasSelectedMedia,
   payload,
   platform,
+  scheduleReady,
 }: {
+  approved: boolean;
   control: PlatformDraftCard["publishing"]["control"];
   deliveryState: "available" | "confirmed" | "inProgress" | "recovery";
   destinationReady: boolean;
+  effectDisabled: boolean;
+  hasActiveRevision: boolean;
   hasSelectedMedia: boolean;
   payload: PayloadProof;
   platform: Platform;
+  scheduleReady: boolean;
 }) {
   const t = useTranslations(PUBLISHING_NAMESPACE);
-  return (
-    <div className="grid gap-3 rounded-lg bg-muted/50 p-3 text-xs/relaxed sm:grid-cols-2">
-      <Readiness
-        ok={payload.status === "ready"}
-        text={t("readiness.payload", {
-          method: payload.method,
-          n: payload.length,
-          maximum: payload.maximum,
-        })}
-      />
-      <Readiness
-        ok={platform !== "instagram" || hasSelectedMedia}
-        text={
-          platform === "instagram"
-            ? t("readiness.mediaRequired")
-            : t("readiness.mediaOptional")
-        }
-      />
-      <Readiness
-        ok={!control.paused}
-        text={
-          control.environmentForced
-            ? t("readiness.environmentPaused")
-            : control.paused
-              ? t("pause.paused")
-              : t("readiness.publishing")
-        }
-      />
-      <Readiness ok={destinationReady} text={t("readiness.destination")} />
-      <Readiness
-        state={
-          deliveryState === "recovery"
-            ? "unknown"
-            : deliveryState === "inProgress"
-              ? "running"
-              : "succeeded"
-        }
-        text={t(`readiness.delivery.${deliveryState}`)}
-      />
-      {platform === "telegram" &&
-      hasSelectedMedia &&
-      payload.status === "overflow" ? (
-        <p className="text-destructive sm:col-span-2" role="alert">
-          {t("readiness.telegramPhotoOverflow")}
-        </p>
-      ) : null}
-    </div>
-  );
-}
+  const validationBlockers = [
+    !hasActiveRevision
+      ? t("approval.needsRevision")
+      : !approved
+        ? t("readiness.approvalRequired")
+        : null,
+    hasActiveRevision && payload.status === "missing"
+      ? t("readiness.payloadMissing")
+      : null,
+    payload.status === "overflow"
+      ? platform === "telegram" && hasSelectedMedia
+        ? t("readiness.telegramPhotoOverflow")
+        : t("readiness.payloadOverflow", {
+            maximum: payload.maximum,
+            n: payload.length,
+          })
+      : null,
+    platform === "instagram" && !hasSelectedMedia
+      ? t("readiness.mediaRequiredAction")
+      : null,
+    !destinationReady ? t("readiness.destinationUnavailable") : null,
+    !scheduleReady ? t("dateTime.invalid") : null,
+  ].filter((message): message is string => message !== null);
+  const operationalBlockers = [
+    effectDisabled ? t("approval.savedRevisionRequired") : null,
+    control.paused
+      ? control.environmentForced
+        ? t("readiness.environmentPaused")
+        : t("pause.paused")
+      : null,
+    deliveryState === "confirmed"
+      ? t("readiness.republishRequiresRevision")
+      : deliveryState === "inProgress"
+        ? t("readiness.delivery.inProgress")
+        : deliveryState === "recovery"
+          ? t("reconciliation.explanation")
+          : null,
+  ].filter((message): message is string => message !== null);
+  const blockers = [...validationBlockers, ...operationalBlockers];
 
-function Readiness({
-  ok,
-  state,
-  text,
-}: {
-  ok?: boolean;
-  state?: "running" | "succeeded" | "unknown";
-  text: string;
-}) {
+  if (blockers.length === 0) return null;
+
+  const destructive = validationBlockers.length > 0;
   return (
-    <span className="flex items-start gap-2">
-      <StateMark state={state ?? (ok ? "succeeded" : "failed")} />
-      {text}
-    </span>
+    <Alert
+      role={destructive ? "alert" : "status"}
+      variant={destructive ? "destructive" : "working"}
+    >
+      <StateMark state={destructive ? "failed" : "unknown"} />
+      <AlertTitle>{t("readiness.blockedTitle")}</AlertTitle>
+      <AlertDescription>
+        {blockers.length === 1 ? (
+          blockers[0]
+        ) : (
+          <ul className="grid list-disc gap-1 ps-4">
+            {blockers.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        )}
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -662,97 +724,8 @@ function PublicationFact({ card }: { card: PlatformDraftCard }) {
   );
 }
 
-function PublishingMore({
-  card,
-  destination,
-}: {
-  card: PlatformDraftCard;
-  destination: PlatformDraftCard["publishing"]["destinations"][number] | null;
-}) {
-  const t = useTranslations(PUBLISHING_NAMESPACE);
-  const publication = card.publishing.latestPublication;
-  const hasDetails =
-    destination !== null ||
-    Boolean(
-      publication?.confirmedProviderResultId ||
-        publication?.checkpointId ||
-        publication?.activeOperationId,
-    );
-
-  if (!hasDetails) return null;
-
-  return (
-    <Collapsible className="rounded-lg border border-border">
-      <CollapsibleTrigger
-        render={
-          <Button className="group w-full justify-between" variant="ghost" />
-        }
-      >
-        {t("ticket.more")}
-        <ChevronDownIcon
-          className="transition-transform group-data-panel-open:rotate-180"
-          aria-hidden="true"
-        />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="p-3 pt-1 data-closed:hidden" keepMounted>
-        <dl className="grid gap-3 text-xs">
-          {destination ? (
-            <div className="grid gap-1">
-              <dt className="text-muted-foreground">{t("destination.key")}</dt>
-              <dd>
-                <Bdi className="font-mono">{destination.key}</Bdi>
-              </dd>
-            </div>
-          ) : null}
-          {publication?.confirmedProviderResultId ? (
-            <div className="grid gap-1">
-              <dt className="text-muted-foreground">
-                {t("reconciliation.providerResult")}
-              </dt>
-              <dd>
-                <Bdi className="font-mono">
-                  {publication.confirmedProviderResultId}
-                </Bdi>
-              </dd>
-            </div>
-          ) : null}
-          {publication?.checkpointId && publication.checkpointKind ? (
-            <div className="grid gap-1">
-              <dt className="text-muted-foreground">
-                {t("reconciliation.checkpoint")}
-              </dt>
-              <dd>
-                <Bdi className="font-mono">
-                  {publication.checkpointKind} ·{" "}
-                  {publication.checkpointReferenceId ??
-                    publication.checkpointId}
-                </Bdi>
-              </dd>
-            </div>
-          ) : null}
-        </dl>
-        {publication?.activeOperationId ? (
-          <Button
-            className="mt-3"
-            onClick={() => focusOperation(publication.activeOperationId ?? "")}
-            size="xs"
-            type="button"
-            variant="outline"
-          >
-            {t("handoff.openOperation")} ·{" "}
-            <Bdi className="font-mono">
-              {publication.activeOperationId.slice(0, 8)}
-            </Bdi>
-          </Button>
-        ) : null}
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
 type PayloadProof = {
   status: "ready" | "overflow" | "missing";
-  method: string;
   length: number;
   maximum: number;
 };
@@ -787,7 +760,6 @@ function assembledPayload(
         : payload.status === "overflow"
           ? "overflow"
           : "ready",
-    method: payload.method,
     length: payload.length,
     maximum: payload.maximum,
   };

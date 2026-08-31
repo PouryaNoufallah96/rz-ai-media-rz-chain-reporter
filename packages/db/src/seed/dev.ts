@@ -105,6 +105,7 @@ try {
         configuration: {
           kind: "promo",
           models: ["dev"],
+          platforms: ["telegram"],
           promo: {
             brands: [brand.key],
             prompts: { [brand.key]: "Synthetic dev prompt" },

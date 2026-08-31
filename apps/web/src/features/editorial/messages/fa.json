@@ -18,6 +18,44 @@
         "unknown": "مسیریابی پیش‌نویس انجام نشد. دوباره تلاش کنید."
       }
     },
+    "presentationTranslation": {
+      "translate": "ترجمهٔ {title}",
+      "queueing": "در حال قراردادن ترجمهٔ {title} در صف",
+      "translating": "در حال ترجمهٔ {title}",
+      "unknown": "نتیجهٔ ترجمه نامشخص است. ترجمهٔ {title} را دوباره امتحان کنید",
+      "retry": "ترجمه انجام نشد. ترجمهٔ {title} را دوباره امتحان کنید",
+      "hint": {
+        "translate": "ترجمه",
+        "queueing": "در حال افزودن ترجمه به صف…",
+        "translating": "در حال ترجمه…",
+        "retry": "تلاش دوباره برای ترجمه"
+      },
+      "queued": "ترجمه در صف قرار گرفت",
+      "available": "ترجمه از قبل آماده است",
+      "notFound": "این کارت دیگر در دسترس نیست.",
+      "conflict": "این درخواست ترجمه قبلاً با مقادیر دیگری استفاده شده است.",
+      "invalid": "این کارت قابل ترجمه نیست.",
+      "error": "درخواست ترجمه در صف قرار نگرفت. دوباره تلاش کنید."
+    },
+    "copyVariantTranslation": {
+      "translate": "ترجمهٔ تنوع {title}",
+      "queueing": "در حال قراردادن ترجمهٔ تنوع {title} در صف",
+      "translating": "در حال ترجمهٔ تنوع {title}",
+      "unknown": "نتیجهٔ ترجمه نامشخص است. ترجمهٔ تنوع {title} را دوباره امتحان کنید",
+      "retry": "ترجمه انجام نشد. ترجمهٔ تنوع {title} را دوباره امتحان کنید",
+      "hint": {
+        "translate": "ترجمهٔ تنوع",
+        "queueing": "در حال افزودن ترجمه به صف…",
+        "translating": "در حال ترجمه…",
+        "retry": "تلاش دوباره برای ترجمه"
+      },
+      "queued": "ترجمهٔ تنوع در صف قرار گرفت",
+      "available": "این تنوع از قبل به زبان شما آماده است",
+      "notFound": "این تنوع دیگر در دسترس نیست.",
+      "conflict": "این درخواست ترجمه قبلاً با مقادیر دیگری استفاده شده است.",
+      "invalid": "این تنوع قابل ترجمه نیست.",
+      "error": "ترجمهٔ تنوع در صف قرار نگرفت. دوباره تلاش کنید."
+    },
     "platformDraft": {
       "zone": "خط‌های پلتفرم",
       "lane": "{brand} · {platform}",
@@ -31,7 +69,15 @@
       "drag": "تغییر ترتیب {title}",
       "dragOrigin": "{title} را به یک خط پلتفرم بکشید",
       "sendTo": "ارسال به {platform}",
+      "routing": "در حال مسیریابی…",
+      "routingTo": "در حال ارسال به {platform}…",
       "alreadyRouted": "از قبل در {platform}",
+      "hint": {
+        "dragOrigin": "کشیدن به یک پلتفرم",
+        "drag": "کشیدن برای تغییر ترتیب",
+        "moveEarlier": "انتقال به بالاتر",
+        "moveLater": "انتقال به پایین‌تر"
+      },
       "lifecycle": {
         "queued": "در صف",
         "running": "در حال اجرا",
@@ -48,6 +94,7 @@
         "cancelled": "تغییر ترتیب لغو شد.",
         "moved": "{title} به جایگاه {position, number} منتقل شد.",
         "movedOver": "{title} در جایگاه {position, number} است.",
+        "routing": "{title} در حال مسیریابی به {platform} است.",
         "conflict": "خط هم‌زمان تغییر کرد. ترتیب معتبر سرور بازگردانده شد.",
         "alreadyRouted": "این پیش‌نویس قبلاً به {platform} مسیریابی شده است."
       }
@@ -71,13 +118,9 @@
       "candidatesEmpty": "هنوز نامزد موفقی وجود ندارد.",
       "generatingStyles": "در حال تولید سبک‌های تازه…",
       "candidateMeta": "{locale} · {model}",
-      "variant": {
-        "toThePoint": "شفاف و مختصر"
-      },
+      "variantLabel": "{key, select, breaking {خبر فوری} question {پرسش} take {دیدگاه} viral {وایرال} analysis {تحلیل} to_the_point {شفاف و مختصر} story {روایت} conversation {گفت‌وگو} match_report {گزارش مسابقه} quick_take {دیدگاه کوتاه} update {به‌روزرسانی} reaction {واکنش} discussion {گفت‌وگو} other {{key}}}",
       "revisions": "بازبینی‌ها",
-      "historyEmpty": "هنوز بازبینی‌ای نیست. یک سبک انتخاب کنید و نخستین بازبینی را بسازید.",
       "revision": "بازبینی {n, number}",
-      "revisionMeta": "{locale} · {author}",
       "saving": "در حال ذخیرهٔ بازبینی",
       "createRevision": "ساخت بازبینی {n, number}",
       "copyActions": "تولید تنوع‌ها",
@@ -107,15 +150,14 @@
         "fromVariation": "شروع از یک تنوع تولیدشده",
         "fromRevision": "شروع از بازبینی تغییرناپذیر {n, number}",
         "edited": "ویرایش‌شده",
-        "sourceReady": "محتوای منبع",
+        "generatedVariation": "تنوع تولیدشده",
+        "noRevisions": "هنوز بازبینی‌ای نیست",
         "headline": "تیتر",
         "body": "متن",
         "hashtags": "هشتگ‌های مرتب‌شده",
         "hashtagHint": "هشتگ را بنویسید و Enter یا ویرگول بزنید. هشتگ برند اول می‌ماند.",
         "hashtagAdd": "افزودن",
         "hashtagRemove": "حذف {hashtag}",
-        "locale": "زبان محتوا",
-        "localeRegenerate": "پیش از ساخت بازبینی، در بخش تولید تنوع‌ها محتوای منبع را به این زبان بسازید.",
         "noSource": "برای آغاز ویرایش، یک تنوع تولیدشده یا بازبینی موجود را انتخاب کنید.",
         "copyBudget": "{used, number} از {limit, number} نویسه برای {platform}",
         "inlineHashtag": "هشتگ را در تیتر و متن ننویسید؛ آن را به‌صورت تراشه اضافه کنید.",
@@ -128,7 +170,7 @@
       },
       "discard": {
         "title": "تغییرات ذخیره‌نشده کنار گذاشته شوند؟",
-        "description": "تغییرات ذخیره‌نشدهٔ شما در تیتر، متن، هشتگ‌ها و زبان از بین می‌روند.",
+        "description": "تغییرات ذخیره‌نشدهٔ شما در تیتر، متن و هشتگ‌ها از بین می‌روند.",
         "confirm": "کنار گذاشتن تغییرات",
         "cancel": "ادامهٔ ویرایش",
         "pending": "در حال کنار گذاشتن"
@@ -176,6 +218,8 @@
     },
     "run": {
       "title": "اجرا",
+      "closeConfiguration": "بستن پیکربندی اجرا",
+      "topicTranslationFallback": "ترجمه موضوع‌ها در دسترس نبود؛ این اجرا از موضوع‌های اصلی استفاده کرد.",
       "head": {
         "title": "این اجرا"
       },
@@ -248,6 +292,7 @@
       },
       "start": "شروع اجرا",
       "starting": "در حال شروع…",
+      "inProgress": "اجرا در حال انجام است…",
       "newWorkspace": "فضای کاری تازه",
       "cancel": "لغو اجرا",
       "cancelConfirm": {
@@ -383,8 +428,11 @@
       "promoPromptTooLong": "این دستور از حد مجاز قالب بلندتر است.",
       "telegramSourceRequired": "برای حالت فقط‌تلگرام دست‌کم یک منبع تلگرام انتخاب کنید.",
       "templateDrift": "الگوی مشتری تغییر کرده است. پیش از شروع کار تازه برنامه را دوباره بارگذاری کنید.",
+      "tooManySources": "برای یک اجرا بیش از حد مجاز منبع انتخاب شده است.",
       "tooManyTopics": "برای یک اجرا موضوع‌های زیادی انتخاب شده است.",
+      "topicRequired": "موضوع نمی‌تواند خالی باشد.",
       "topicTooLong": "این موضوع از حد مجاز قالب بلندتر است.",
+      "topNBelowMinimum": "تعداد برتر باید دست‌کم ۱ باشد.",
       "topNExceedsCap": "تعداد برتر از حد مجاز این قالب بیشتر است."
     },
     "a11y": {

@@ -21,11 +21,13 @@ instance: operator accounts are provisioned when a deployment is set up.
 - `packages/api`: typed oRPC contracts and transport middleware.
 - `packages/auth`: Better Auth server configuration.
 - `packages/config`: shared TypeScript compiler base for every app and package.
-- `packages/contracts`: framework-free Zod factories shared by `apps/web` and `packages/db`.
+- `packages/cache-invalidation`: framework-free signed cache-invalidation transport shared by web, worker, and deployment CLIs.
+- `packages/contracts`: framework-free Zod contracts shared by web, worker, database, and customer-template validation.
 - `packages/customer-template`: customer-template schema, loader, and canonical fingerprint.
 - `packages/db`: PostgreSQL/Drizzle schema and migrations.
 - `packages/env`: client, web-server, worker, build, and migration environment validation.
 - `packages/i18n`: framework-free locale, direction, script, and font facts.
+- `packages/model-gateway`: framework-free ModelGateway and OpenRouter/Ollama adapters shared by server runtimes.
 - `packages/storage`: framework-free MinIO/`Storage` seam (ADR 0009).
 - `packages/ui`: owned shadcn/Base UI source and Tailwind 4 tokens.
 
@@ -35,18 +37,16 @@ reviewed migration phases and explicit product decisions.
 ## Bootstrap status
 
 The dependency graph and lockfile are installed with the pinned Node, pnpm,
-Turbo, Next, React, and diagnostic versions. `packages/db/src/migrations` holds
-thirteen reviewed migrations, `0000_initial_auth` through `0012_sharp_george_stacy`,
-applied to the local development database with `pnpm db:migrate`. Compose keeps
+Turbo, Next, React, and diagnostic versions. Reviewed forward migrations live
+in `packages/db/src/migrations` and apply with `pnpm db:migrate`. Compose keeps
 web and worker startup gated on successful migration completion.
 
 Current local verification:
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm run check-types
-pnpm run check
-pnpm run build
+pnpm validate
+CUSTOMER_TEMPLATE_KEY=<key> pnpm build
 ```
 
 Copy root `.env.example` to a local ignored `.env` and set `POSTGRES_PASSWORD`
@@ -57,9 +57,6 @@ the same way. Live secrets never belong in tracked files. Local stack
 ```bash
 pnpm dev:stack
 ```
-
-Use `pnpm exec shadcn` only after the exact CLI version is locked. Never use a
-floating `npx`, `pnpm dlx`, or `@latest` command in project instructions.
 
 ## Database safety
 

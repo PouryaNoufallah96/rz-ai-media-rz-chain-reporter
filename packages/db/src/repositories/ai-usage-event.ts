@@ -141,6 +141,7 @@ export async function insertPendingUsage(
 export type FinalizeUsageInput = {
   id: string;
   status: TerminalUsageStatus;
+  failureRetryable?: boolean | null;
   resolvedModel?: string | null;
   upstreamProvider?: string | null;
   generationId?: string | null;
@@ -184,6 +185,7 @@ export async function finalizeUsage(
       .update(aiUsageEvent)
       .set({
         status: input.status,
+        failureRetryable: input.failureRetryable,
         resolvedModel: input.resolvedModel,
         upstreamProvider: input.upstreamProvider,
         generationId: input.generationId,
@@ -294,6 +296,7 @@ export async function finalizeUsageWithResult<TResult>(
       .update(aiUsageEvent)
       .set({
         status: input.status,
+        failureRetryable: input.failureRetryable,
         resolvedModel: input.resolvedModel,
         upstreamProvider: input.upstreamProvider,
         generationId: input.generationId,

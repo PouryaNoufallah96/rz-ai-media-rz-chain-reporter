@@ -24,12 +24,28 @@ import type { Storage } from "@rz-chain-reporter/storage";
 import { NonRetriableError } from "inngest";
 import { z } from "zod";
 import { stableFailureCode, workerLogger } from "../logging/logger";
-import { type DraftChange, notifyDraftsChanged } from "../web-cache/drafts";
+import {
+  type DraftChange,
+  notifyDraftsAndUsageChanged,
+  notifyDraftsChanged,
+} from "../web-cache/drafts";
+import { notifyEditorialPresentationTranslationChanged } from "../web-cache/editorial";
+import { notifySourcesAndUsageChanged } from "../web-cache/sources";
+import { publishOperationStatus } from "./channels";
 import type { WorkerInngestClient } from "./client";
+import {
+  reconcileStaleCopyVariantTranslations,
+  translationChange,
+} from "./copy-variant-translation";
 import { durableEvents } from "./events";
 import { workerStorage } from "./media-storage";
 import { cleanupMediaAsset, verifyMediaUpload } from "./media-verification";
+import {
+  presentationTranslationChangeCode,
+  reconcileStalePresentationTranslations,
+} from "./presentation-translation";
 import { assertWorkspace, type WorkerRuntime } from "./runtime";
+import { reconcileStaleSourceImports } from "./source-import";
 
 const RECONCILIATION_BATCH_SIZE = 25;
 const OBJECT_ORPHAN_GRACE_MS = 60 * 60 * 1000;
@@ -358,12 +374,9 @@ export function createStorageReconciliationFunction(
         return { ...reconciliation, workspaceId };
       });
       if (!("cursor" in event.data && event.data.cursor)) {
+        const now = new Date(event.ts);
         const staleCopy = await step.run("settle-stale-copy-operations", () =>
-          reconcileStaleCopyOperations(
-            runtime.db,
-            result.workspaceId,
-            new Date(event.ts),
-          ),
+          reconcileStaleCopyOperations(runtime.db, result.workspaceId, now),
         );
         for (const change of staleCopy.settledDraftChanges) {
           await notifyDraftsChanged(
@@ -374,11 +387,7 @@ export function createStorageReconciliationFunction(
           );
         }
         const stale = await step.run("settle-stale-image-operations", () =>
-          reconcileStaleImageOperations(
-            runtime.db,
-            result.workspaceId,
-            new Date(event.ts),
-          ),
+          reconcileStaleImageOperations(runtime.db, result.workspaceId, now),
         );
         for (const change of stale.settledDraftChanges) {
           await notifyDraftsChanged(
@@ -386,6 +395,95 @@ export function createStorageReconciliationFunction(
             result.workspaceId,
             change,
             `stale-image-${change.operationId}`,
+          );
+        }
+        const staleSourceImports = await step.run(
+          "settle-stale-source-imports",
+          () =>
+            reconcileStaleSourceImports(runtime.db, result.workspaceId, now),
+        );
+        for (const terminal of staleSourceImports.staleSourceImportsSettled) {
+          await notifySourcesAndUsageChanged(
+            step,
+            result.workspaceId,
+            "settled",
+            terminal.actorId,
+          );
+          await publishOperationStatus(
+            step,
+            result.workspaceId,
+            {
+              actorId: terminal.actorId,
+              lifecycle: terminal.lifecycle,
+              operationId: terminal.operationId,
+              operationVersion: terminal.version,
+              sharedImport: terminal.sharedImport,
+            },
+            "worker.source-import.realtime-unavailable",
+          );
+        }
+        const staleCopyTranslations = await step.run(
+          "settle-stale-copy-variant-translations",
+          () =>
+            reconcileStaleCopyVariantTranslations(
+              runtime.db,
+              result.workspaceId,
+              now,
+            ),
+        );
+        for (const terminal of staleCopyTranslations.staleCopyVariantTranslationsSettled) {
+          await notifyDraftsAndUsageChanged(
+            step,
+            result.workspaceId,
+            translationChange(terminal, terminal.operationId),
+            `stale-copy-variant-translation-${terminal.operationId}`,
+            terminal.actorId,
+          );
+          await publishOperationStatus(
+            step,
+            result.workspaceId,
+            {
+              actorId: terminal.actorId,
+              lifecycle: terminal.lifecycle,
+              operationId: terminal.operationId,
+              operationVersion: terminal.operationVersion,
+              sharedImport: false,
+            },
+            "worker.copy-variant-translation.realtime-unavailable",
+          );
+        }
+        const stalePresentationTranslations = await step.run(
+          "settle-stale-presentation-translations",
+          () =>
+            reconcileStalePresentationTranslations(
+              runtime.db,
+              result.workspaceId,
+              now,
+            ),
+        );
+        for (const terminal of stalePresentationTranslations.stalePresentationTranslationsSettled) {
+          await notifyEditorialPresentationTranslationChanged(
+            step,
+            result.workspaceId,
+            {
+              analysisRunId: terminal.analysisRunId,
+              code: presentationTranslationChangeCode(terminal.lifecycle),
+              operationId: terminal.operationId,
+              platformDraftIds: terminal.platformDraftIds,
+            },
+            terminal.actorId,
+          );
+          await publishOperationStatus(
+            step,
+            result.workspaceId,
+            {
+              actorId: terminal.actorId,
+              lifecycle: terminal.lifecycle,
+              operationId: terminal.operationId,
+              operationVersion: terminal.operationVersion,
+              sharedImport: false,
+            },
+            "worker.presentation-translation.realtime-unavailable",
           );
         }
       }

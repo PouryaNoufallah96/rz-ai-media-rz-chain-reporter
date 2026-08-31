@@ -18,13 +18,16 @@ import {
 } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import { withWorkspaceContext } from "@rz-chain-reporter/db/executor";
+import { markPendingAttemptUsageUnknown } from "@rz-chain-reporter/db/repositories/ai-usage-event";
 import { transitionOperation } from "@rz-chain-reporter/db/repositories/operation";
 import {
   allocateOperationAttemptWithId,
   settleOperationAttempt,
 } from "@rz-chain-reporter/db/repositories/operation-attempt";
 import {
-  demoteSourceImportItems,
+  beginStaleSourceImportReconciliation,
+  commitSourceImportOrdering,
+  failPendingSourceImportSources,
   findAttemptUsageSlots,
   findEnrichmentUnit,
   findRevisionEnrichment,
@@ -33,11 +36,14 @@ import {
   findSourceItemEnrichment,
   findSourceItemEnrichmentByAttempt,
   insertSourceItemEnrichment,
+  listPendingSourceImportEnrichmentUnits,
   listSourceImportCandidates,
+  listSourceImportContentLocales,
   listSourceImportSources,
+  listStaleSourceImports,
   persistSourceImportItems,
-  recordSourceImportEmbedding,
-  recordSourceImportItemRanks,
+  recordClaimedSourceImportEffectiveTopics,
+  recordSourceImportEffectiveTopics,
   reuseSourceImportItems,
   settleSourceImport,
   settleSourceImportSource,
@@ -46,8 +52,13 @@ import {
   sourceImportProgress,
 } from "@rz-chain-reporter/db/repositories/source-import";
 import { operation } from "@rz-chain-reporter/db/schema/operation";
-import { ModelGatewayInvocationError } from "@rz-chain-reporter/model-gateway/errors";
+import {
+  ModelBindingError,
+  ModelGatewayInvocationError,
+  ModelTaskConfigurationError,
+} from "@rz-chain-reporter/model-gateway/errors";
 import { resolveModelTask } from "@rz-chain-reporter/model-gateway/task";
+import type { ModelInvocationClaimFence } from "@rz-chain-reporter/model-gateway/types";
 import { cosineSimilarity } from "ai";
 import { and, eq, sql } from "drizzle-orm";
 import { invoke, NonRetriableError } from "inngest";
@@ -62,12 +73,21 @@ import {
   workerModelGateway,
 } from "../model-gateway/worker-gateway";
 import { workerEnv } from "../runtime/env";
+import {
+  effectiveTopicValues,
+  originalEffectiveTopics,
+  sourceImportContentLocale,
+  topicEmbeddingValues,
+  topicTranslationOutputSchema,
+  topicTranslationPrompt,
+  translatedEffectiveTopics,
+} from "../sources/effective-topics";
 import { fetchSource } from "../sources/fetcher";
 import {
   notifySourcesAndUsageChanged,
   notifySourcesChanged,
 } from "../web-cache/sources";
-import { publishOperationStatus } from "./channels";
+import { publishOperationStatus, type WorkerStep } from "./channels";
 import type { WorkerInngestClient } from "./client";
 import { durableEvents } from "./events";
 import { assertWorkspace, type WorkerRuntime } from "./runtime";
@@ -78,6 +98,8 @@ const CLAIM_LEASE_MS = 900_000;
 const SOURCE_FETCH_TIMEOUT_MS = 15_000;
 const ARTICLE_FETCH_TIMEOUT_MS = 20_000;
 const EMBEDDING_DEADLINE_MS = 60_000;
+const TOPIC_TRANSLATION_DEADLINE_MS = 60_000;
+const TOPIC_TRANSLATION_MAX_OUTPUT_TOKENS = 4_096;
 const BRIEF_DEADLINE_MS = 90_000;
 const BRIEF_MAX_OUTPUT_TOKENS = 512;
 const BRIEF_MIN_CHARS = 40;
@@ -89,12 +111,16 @@ const SOURCE_CHILD_FINISH_TIMEOUT = "30s";
 const SOURCE_CHILD_INVOKE_TIMEOUT = "35s";
 const ENRICH_CHILD_RETRIES = 1;
 const ENRICH_CHILD_FINISH_TIMEOUT = "6m";
+const SOURCE_IMPORT_ENRICH_FUNCTION_ID = "source-import-enrich";
+const STALE_SOURCE_IMPORT_BATCH = 10;
 const PARENT_RETRIES = 2;
 const SOURCE_HOST_CONCURRENCY = 2;
 const BULK_CONCURRENCY = 3;
 const BULK_CONCURRENCY_KEY = '"source-import-bulk"';
 const TELEGRAM_HOST = "t.me";
 const EXTRACT_POLICY_VERSION = "extract-v1";
+export const TOPIC_TRANSLATION_INVOCATION_KEY =
+  "primary" as const satisfies InvocationKey;
 
 type StepContext = Pick<
   WorkerLogFields,
@@ -166,6 +192,16 @@ const enrichUnitSchema = z.object({
   operationId: z.uuid(),
   sourceItemRevisionId: z.uuid(),
   workspaceId: z.uuid(),
+});
+
+const cancelledIdsSchema = z.object({
+  data: z.object({ function_id: z.string(), run_id: z.string() }),
+});
+
+const cancelledEnrichmentEnvelopeSchema = z.object({
+  data: z.object({
+    event: z.object({ data: enrichUnitSchema }),
+  }),
 });
 
 const SOURCE_FETCH_FAILURES: Record<
@@ -300,6 +336,7 @@ export async function settleSourceImportOperation(
   workspaceId: string,
   operationId: string,
   failureCode: ErrorCode | null,
+  expectedVersion?: number,
 ): Promise<{
   actorId: string;
   lifecycle: OperationLifecycle;
@@ -325,6 +362,9 @@ export async function settleSourceImportOperation(
       .for("update");
     if (!current) {
       throw new NonRetriableError("NOT_FOUND");
+    }
+    if (expectedVersion !== undefined && current.version !== expectedVersion) {
+      return null;
     }
 
     const actorId = current.actor;
@@ -439,38 +479,79 @@ export function sourceImportEnrichmentComplete(progress: {
 }
 
 async function settleCompletedSourceImport(
-  runtime: WorkerRuntime,
+  executor: Executor,
   workspaceId: string,
   operationId: string,
   sourceImportId: string,
+  expectedVersion?: number,
 ) {
   const progress = (
-    await sourceImportProgress(runtime.db, workspaceId, [sourceImportId])
+    await sourceImportProgress(executor, workspaceId, [sourceImportId])
   )[sourceImportId];
   if (progress?.stage === "settled") {
-    return { result: null, status: "settled" as const };
+    return {
+      lifecycle: await readSourceImportOperationLifecycle(
+        executor,
+        workspaceId,
+        operationId,
+      ),
+      result: null,
+      status: "settled" as const,
+    };
   }
   if (progress?.stage !== "enriching") {
-    return { result: null, status: "pending" as const };
+    return { lifecycle: null, result: null, status: "pending" as const };
   }
   if (!sourceImportEnrichmentComplete(progress)) {
-    return { result: null, status: "pending" as const };
+    return { lifecycle: null, result: null, status: "pending" as const };
   }
   const result = await settleSourceImportOperation(
-    runtime.db,
+    executor,
     workspaceId,
     operationId,
     null,
+    expectedVersion,
   );
   if (result) {
-    return { result, status: "settled" as const };
+    return {
+      lifecycle: result.lifecycle,
+      result,
+      status: "settled" as const,
+    };
   }
   const latest = (
-    await sourceImportProgress(runtime.db, workspaceId, [sourceImportId])
+    await sourceImportProgress(executor, workspaceId, [sourceImportId])
   )[sourceImportId];
-  return latest?.stage === "settled"
-    ? { result: null, status: "settled" as const }
-    : { result: null, status: "pending" as const };
+  if (latest?.stage !== "settled") {
+    return { lifecycle: null, result: null, status: "pending" as const };
+  }
+  return {
+    lifecycle: await readSourceImportOperationLifecycle(
+      executor,
+      workspaceId,
+      operationId,
+    ),
+    result: null,
+    status: "settled" as const,
+  };
+}
+
+async function readSourceImportOperationLifecycle(
+  executor: Executor,
+  workspaceId: string,
+  operationId: string,
+) {
+  const [current] = await executor
+    .select({ lifecycle: operation.lifecycle })
+    .from(operation)
+    .where(
+      and(
+        eq(operation.workspaceId, workspaceId),
+        eq(operation.id, operationId),
+      ),
+    );
+  if (!current) throw new NonRetriableError("NOT_FOUND");
+  return current.lifecycle;
 }
 
 export function sourceImportAttemptId(operationId: string, unitKey: string) {
@@ -513,24 +594,235 @@ async function settleEnrichmentAttemptAndUnit(
     reason: EnrichmentReason | null;
     sourceImportId: string;
     sourceItemRevisionId: string;
+    operationFence?: { expectedVersion: number; operationId: string };
   },
 ) {
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
+    if (input.operationFence) {
+      const [fence] = await tx
+        .select({ id: operation.id })
+        .from(operation)
+        .where(
+          and(
+            eq(operation.workspaceId, workspaceId),
+            eq(operation.id, input.operationFence.operationId),
+            eq(operation.lifecycle, "settling"),
+            eq(operation.version, input.operationFence.expectedVersion),
+          ),
+        )
+        .for("update");
+      if (!fence) {
+        return {
+          attemptSettled: false,
+          fenceLost: true,
+          unitSettled: false,
+        };
+      }
+    }
+    const slots = await findAttemptUsageSlots(tx, workspaceId, input.attemptId);
+    const ambiguous =
+      input.outcome === "failed" &&
+      slots.some(
+        (slot) => slot.status === "pending" || slot.status === "unknown",
+      );
+    if (ambiguous) {
+      await markPendingAttemptUsageUnknown(tx, workspaceId, input.attemptId);
+    }
+    const outcome = ambiguous ? ("unknown" as const) : input.outcome;
     const attempt = await settleOperationAttempt(tx, workspaceId, {
       failureCode: input.failureCode,
       id: input.attemptId,
-      outcome: enrichmentAttemptOutcome(input.outcome),
+      outcome: enrichmentAttemptOutcome(outcome),
     });
     const unitSettled = await settleSourceImportUnit(tx, workspaceId, {
       enrichmentId: input.enrichmentId,
-      outcome: input.outcome,
+      outcome,
       reason: input.reason,
       sourceImportId: input.sourceImportId,
       sourceItemRevisionId: input.sourceItemRevisionId,
     });
-    return { attemptSettled: attempt !== null, unitSettled };
+    return {
+      attemptSettled: attempt !== null,
+      fenceLost: false,
+      unitSettled,
+    };
   });
+}
+
+async function settleInterruptedEnrichment(
+  step: WorkerStep,
+  runtime: WorkerRuntime,
+  input: z.infer<typeof enrichUnitSchema>,
+) {
+  const reconciled = await step.run("settle-interrupted-enrichment", () =>
+    coded(
+      {
+        attemptId: input.operationAttemptId,
+        operationId: input.operationId,
+        workspaceId: input.workspaceId,
+      },
+      async () => {
+        await assertWorkspace(runtime, input.workspaceId);
+        const imported = await findSourceImportByOperationId(
+          runtime.db,
+          input.workspaceId,
+          input.operationId,
+        );
+        if (!imported) {
+          throw new NonRetriableError("NOT_FOUND");
+        }
+        await settleEnrichmentAttemptAndUnit(runtime.db, input.workspaceId, {
+          attemptId: input.operationAttemptId,
+          enrichmentId: null,
+          failureCode: "INTERNAL_SERVER_ERROR",
+          outcome: "failed",
+          reason: null,
+          sourceImportId: imported.id,
+          sourceItemRevisionId: input.sourceItemRevisionId,
+        });
+        const completion = await settleCompletedSourceImport(
+          runtime.db,
+          input.workspaceId,
+          input.operationId,
+          imported.id,
+        );
+        return { completion, sourceImportId: imported.id };
+      },
+    ),
+  );
+  await notifySourcesAndUsageChanged(
+    step,
+    input.workspaceId,
+    reconciled.completion.status === "settled" ? "settled" : "enriching",
+    reconciled.completion.result?.actorId ?? null,
+  );
+  if (reconciled.completion.result) {
+    await publishOperationStatus(
+      step,
+      input.workspaceId,
+      {
+        actorId: reconciled.completion.result.actorId,
+        lifecycle: reconciled.completion.result.lifecycle,
+        operationId: input.operationId,
+        operationVersion: reconciled.completion.result.version,
+        sharedImport: reconciled.completion.result.sharedImport,
+      },
+      "worker.source-import.realtime-unavailable",
+    );
+  }
+  return reconciled;
+}
+
+export async function reconcileStaleSourceImports(
+  executor: Executor,
+  workspaceId: string,
+  now: Date,
+) {
+  const candidates = await listStaleSourceImports(executor, workspaceId, {
+    limit: STALE_SOURCE_IMPORT_BATCH,
+    now,
+  });
+  const settled: Array<{
+    actorId: string;
+    lifecycle: OperationLifecycle;
+    operationId: string;
+    sharedImport: boolean;
+    version: number;
+  }> = [];
+  for (const candidate of candidates) {
+    const reconciliation = await beginStaleSourceImportReconciliation(
+      executor,
+      workspaceId,
+      {
+        expectedVersion: candidate.operationVersion,
+        leaseExpiresAt: new Date(now.getTime() + CLAIM_LEASE_MS),
+        now,
+        operationId: candidate.operationId,
+      },
+    );
+    if (!reconciliation) continue;
+    const fence = {
+      expectedVersion: reconciliation.version,
+      operationId: candidate.operationId,
+    };
+    if (candidate.stage === "acquiring") {
+      for (const slot of ["topic-preparation", "embedding"] as const) {
+        const attemptId = sourceImportAttemptId(candidate.operationId, slot);
+        await markPendingAttemptUsageUnknown(executor, workspaceId, attemptId);
+        await settleOperationAttempt(executor, workspaceId, {
+          failureCode: "INTERNAL_SERVER_ERROR",
+          id: attemptId,
+          outcome: "ambiguous",
+        });
+      }
+      await failPendingSourceImportSources(
+        executor,
+        workspaceId,
+        candidate.sourceImportId,
+      );
+    }
+    const units = await listPendingSourceImportEnrichmentUnits(
+      executor,
+      workspaceId,
+      candidate.sourceImportId,
+    );
+    let fenceLost = false;
+    for (const unit of units) {
+      const result = await settleEnrichmentAttemptAndUnit(
+        executor,
+        workspaceId,
+        {
+          attemptId: sourceImportAttemptId(
+            candidate.operationId,
+            unit.sourceItemRevisionId,
+          ),
+          enrichmentId: null,
+          failureCode: "INTERNAL_SERVER_ERROR",
+          operationFence: fence,
+          outcome: "failed",
+          reason: null,
+          sourceImportId: candidate.sourceImportId,
+          sourceItemRevisionId: unit.sourceItemRevisionId,
+        },
+      );
+      if (result.fenceLost) {
+        fenceLost = true;
+        break;
+      }
+    }
+    if (fenceLost) continue;
+    if (candidate.stage === "acquiring") {
+      const terminal = await settleSourceImportOperation(
+        executor,
+        workspaceId,
+        candidate.operationId,
+        "INTERNAL_SERVER_ERROR",
+        fence.expectedVersion,
+      );
+      if (terminal) {
+        settled.push({ ...terminal, operationId: candidate.operationId });
+      }
+      continue;
+    }
+    const completion = await settleCompletedSourceImport(
+      executor,
+      workspaceId,
+      candidate.operationId,
+      candidate.sourceImportId,
+      fence.expectedVersion,
+    );
+    if (completion.result) {
+      settled.push({
+        ...completion.result,
+        operationId: candidate.operationId,
+      });
+    }
+  }
+  return {
+    staleSourceImportsObserved: candidates.length,
+    staleSourceImportsSettled: settled,
+  };
 }
 
 function hostOf(entry: { endpoint: string; origin: SourceOrigin }) {
@@ -666,6 +958,170 @@ function briefPolicyVersion(
     invocationKey,
   );
   return `${EXTRACT_POLICY_VERSION}:${route.backend}:${route.model}`;
+}
+
+async function prepareSourceImportEffectiveTopics(
+  runtime: WorkerRuntime,
+  workspaceId: string,
+  operationId: string,
+  sourceImportId: string,
+  modelGateway: ReturnType<typeof createWorkerModelGateway>,
+  claimFence: ModelInvocationClaimFence,
+) {
+  const imported = await findSourceImportByOperationId(
+    runtime.db,
+    workspaceId,
+    operationId,
+  );
+  if (!imported || imported.id !== sourceImportId) {
+    throw new NonRetriableError("NOT_FOUND");
+  }
+  if (imported.effectiveTopics) {
+    return {
+      contentLocale: imported.effectiveTopics.contentLocale,
+      invocationCount: 0,
+      topicCount: imported.topics.length,
+      usedOriginalFallback: imported.effectiveTopics.usedOriginalFallback,
+    };
+  }
+
+  const localeRows = await listSourceImportContentLocales(
+    runtime.db,
+    workspaceId,
+    sourceImportId,
+  );
+  const contentLocale = sourceImportContentLocale(
+    localeRows.map((row) => row.contentLocale),
+  );
+
+  if (imported.topics.length === 0) {
+    const recorded = await recordClaimedSourceImportEffectiveTopics(
+      runtime.db,
+      workspaceId,
+      {
+        claimedBy: claimFence.claimedBy,
+        effectiveTopics: originalEffectiveTopics(
+          imported.topics,
+          contentLocale,
+          false,
+        ),
+        expectedVersion: claimFence.expectedVersion,
+        operationId,
+        sourceImportId,
+      },
+    );
+    if (!recorded) throw new NonRetriableError("operation claim lost");
+    return {
+      contentLocale: recorded.contentLocale,
+      invocationCount: 0,
+      topicCount: 0,
+      usedOriginalFallback: recorded.usedOriginalFallback,
+    };
+  }
+
+  const attemptId = sourceImportAttemptId(operationId, "topic-preparation");
+  const attempt = await allocateOperationAttemptWithId(
+    runtime.db,
+    workspaceId,
+    operationId,
+    attemptId,
+    claimFence,
+  );
+  if (!attempt) {
+    throw new NonRetriableError("NOT_FOUND");
+  }
+
+  const slots = await findAttemptUsageSlots(runtime.db, workspaceId, attemptId);
+  let failureCode: ErrorCode = "MODEL_INVOCATION_FAILED";
+  let failureOutcome: AttemptOutcome = "failed_terminal";
+  let invocationCount = 0;
+
+  const status = usageStatusOf(slots, TOPIC_TRANSLATION_INVOCATION_KEY);
+  if (status === undefined) {
+    invocationCount = 1;
+    try {
+      await modelGateway.invokeStructured({
+        claimFence,
+        deadlineMs: TOPIC_TRANSLATION_DEADLINE_MS,
+        invocationKey: TOPIC_TRANSLATION_INVOCATION_KEY,
+        maxOutputTokens: TOPIC_TRANSLATION_MAX_OUTPUT_TOKENS,
+        operationAttemptId: attemptId,
+        operationId,
+        outputName: "effective_topics",
+        persistResult: async (tx, output) => {
+          await recordSourceImportEffectiveTopics(
+            tx,
+            workspaceId,
+            sourceImportId,
+            translatedEffectiveTopics(imported.topics, contentLocale, output),
+          );
+          await settleOperationAttempt(tx, workspaceId, {
+            id: attemptId,
+            outcome: "succeeded",
+          });
+        },
+        prompt: topicTranslationPrompt(imported.topics, contentLocale),
+        schema: topicTranslationOutputSchema(imported.topics, contentLocale),
+        taskKey: "text-translation",
+        workspaceId,
+      });
+
+      return {
+        contentLocale,
+        invocationCount,
+        topicCount: imported.topics.length,
+        usedOriginalFallback: false,
+      };
+    } catch (error) {
+      if (error instanceof ModelGatewayInvocationError) {
+        failureCode = error.code;
+        failureOutcome = error.ambiguous ? "ambiguous" : "failed_terminal";
+      } else if (
+        !(error instanceof ModelBindingError) &&
+        !(error instanceof ModelTaskConfigurationError)
+      ) {
+        throw error;
+      }
+    }
+  } else if (
+    status === "pending" ||
+    status === "unknown" ||
+    status === "succeeded"
+  ) {
+    failureOutcome = "ambiguous";
+  }
+
+  const recorded = await recordClaimedSourceImportEffectiveTopics(
+    runtime.db,
+    workspaceId,
+    {
+      attempt: { failureCode, id: attemptId, outcome: failureOutcome },
+      claimedBy: claimFence.claimedBy,
+      effectiveTopics: originalEffectiveTopics(
+        imported.topics,
+        contentLocale,
+        true,
+      ),
+      expectedVersion: claimFence.expectedVersion,
+      operationId,
+      sourceImportId,
+    },
+  );
+  if (!recorded) throw new NonRetriableError("operation claim lost");
+
+  workerLogger.warn("worker.source-import.topic-preparation-degraded", {
+    errorCode: failureCode,
+    operationId,
+    sourceImportId,
+    workspaceId,
+  });
+
+  return {
+    contentLocale: recorded.contentLocale,
+    invocationCount,
+    topicCount: imported.topics.length,
+    usedOriginalFallback: recorded.usedOriginalFallback,
+  };
 }
 
 export function createSourceImportFunctions(
@@ -880,7 +1336,7 @@ export function createSourceImportFunctions(
 
   const enrichFunction = client.createFunction(
     {
-      id: "source-import-enrich",
+      id: SOURCE_IMPORT_ENRICH_FUNCTION_ID,
       concurrency: [
         {
           limit: BULK_CONCURRENCY,
@@ -896,66 +1352,7 @@ export function createSourceImportFunctions(
       ],
       onFailure: async ({ event, step }) => {
         const input = enrichUnitSchema.parse(event.data.event.data);
-        const reconciled = await step.run("settle-failed-enrichment", () =>
-          coded(
-            {
-              attemptId: input.operationAttemptId,
-              operationId: input.operationId,
-              workspaceId: input.workspaceId,
-            },
-            async () => {
-              await assertWorkspace(runtime, input.workspaceId);
-              const imported = await findSourceImportByOperationId(
-                runtime.db,
-                input.workspaceId,
-                input.operationId,
-              );
-              if (!imported) {
-                throw new NonRetriableError("NOT_FOUND");
-              }
-              await settleEnrichmentAttemptAndUnit(
-                runtime.db,
-                input.workspaceId,
-                {
-                  attemptId: input.operationAttemptId,
-                  enrichmentId: null,
-                  failureCode: "INTERNAL_SERVER_ERROR",
-                  outcome: "failed",
-                  reason: null,
-                  sourceImportId: imported.id,
-                  sourceItemRevisionId: input.sourceItemRevisionId,
-                },
-              );
-              const completion = await settleCompletedSourceImport(
-                runtime,
-                input.workspaceId,
-                input.operationId,
-                imported.id,
-              );
-              return { completion, sourceImportId: imported.id };
-            },
-          ),
-        );
-        if (reconciled.completion.result) {
-          await publishOperationStatus(
-            step,
-            input.workspaceId,
-            {
-              actorId: reconciled.completion.result.actorId,
-              lifecycle: reconciled.completion.result.lifecycle,
-              operationId: input.operationId,
-              operationVersion: reconciled.completion.result.version,
-              sharedImport: reconciled.completion.result.sharedImport,
-            },
-            "worker.source-import.realtime-unavailable",
-          );
-        }
-        await notifySourcesAndUsageChanged(
-          step,
-          input.workspaceId,
-          reconciled.completion.status === "settled" ? "settled" : "enriching",
-          reconciled.completion.result?.actorId ?? null,
-        );
+        await settleInterruptedEnrichment(step, runtime, input);
       },
     },
     async ({ event, step }) =>
@@ -990,11 +1387,16 @@ export function createSourceImportFunctions(
                   workspaceId,
                   operationId,
                   operationAttemptId,
+                  { claimedBy: WORKER_CLAIMANT },
                 );
                 if (!attempt) {
                   throw new NonRetriableError("NOT_FOUND");
                 }
-                return { attemptId: attempt.id, sourceImportId: imported.id };
+                return {
+                  attemptId: attempt.id,
+                  operationVersion: attempt.operationVersion,
+                  sourceImportId: imported.id,
+                };
               },
             ),
           );
@@ -1229,6 +1631,10 @@ export function createSourceImportFunctions(
                   }
                   try {
                     await gateway().invokeStructured({
+                      claimFence: {
+                        claimedBy: WORKER_CLAIMANT,
+                        expectedVersion: allocated.operationVersion,
+                      },
                       deadlineMs: BRIEF_DEADLINE_MS,
                       invocationKey,
                       maxOutputTokens: BRIEF_MAX_OUTPUT_TOKENS,
@@ -1345,12 +1751,19 @@ export function createSourceImportFunctions(
               },
               () =>
                 settleCompletedSourceImport(
-                  runtime,
+                  runtime.db,
                   workspaceId,
                   operationId,
                   allocated.sourceImportId,
+                  allocated.operationVersion,
                 ),
             ),
+          );
+          await notifySourcesAndUsageChanged(
+            step,
+            workspaceId,
+            completion.status === "settled" ? "settled" : "enriching",
+            completion.result?.actorId ?? null,
           );
           if (completion.result) {
             await publishOperationStatus(
@@ -1366,15 +1779,46 @@ export function createSourceImportFunctions(
               "worker.source-import.realtime-unavailable",
             );
           }
-          await notifySourcesAndUsageChanged(
-            step,
-            workspaceId,
-            completion.status === "settled" ? "settled" : "enriching",
-            completion.result?.actorId ?? null,
-          );
           return result;
         },
       ),
+  );
+
+  const enrichCancelledFunction = client.createFunction(
+    {
+      id: "source-import-enrich-cancelled",
+      retries: ENRICH_CHILD_RETRIES,
+      triggers: [
+        {
+          event: "inngest/function.cancelled",
+          if: `event.data.function_id == '${client.id}-${SOURCE_IMPORT_ENRICH_FUNCTION_ID}'`,
+        },
+      ],
+    },
+    async ({ event, step }) => {
+      const envelope = cancelledEnrichmentEnvelopeSchema.safeParse(event);
+      if (!envelope.success) {
+        const ids = cancelledIdsSchema.safeParse(event);
+        await step.run("report-cancelled-enrichment-event-invalid", () => {
+          workerLogger.error(
+            "worker.source-import.enrichment-cancelled-event-invalid",
+            {
+              errorCode: "VALIDATION_FAILED",
+              functionId: ids.success ? ids.data.data.function_id : undefined,
+              runId: ids.success ? ids.data.data.run_id : undefined,
+            },
+          );
+          return { parsed: false };
+        });
+        return { settled: false };
+      }
+      await settleInterruptedEnrichment(
+        step,
+        runtime,
+        envelope.data.data.event.data,
+      );
+      return { settled: true };
+    },
   );
 
   const parentFunction = client.createFunction(
@@ -1390,11 +1834,60 @@ export function createSourceImportFunctions(
           const failed = await step.run("settle-failed-import", () =>
             coded({ operationId, workspaceId }, async () => {
               await assertWorkspace(runtime, workspaceId);
-              await settleOperationAttempt(runtime.db, workspaceId, {
-                failureCode,
-                id: sourceImportAttemptId(operationId, "embedding"),
-                outcome: "failed_terminal",
-              });
+              for (const slot of ["topic-preparation", "embedding"] as const) {
+                const attemptId = sourceImportAttemptId(operationId, slot);
+                const usage = await findAttemptUsageSlots(
+                  runtime.db,
+                  workspaceId,
+                  attemptId,
+                );
+                const ambiguous = usage.some(
+                  (entry) =>
+                    entry.status === "pending" || entry.status === "unknown",
+                );
+                if (ambiguous) {
+                  await markPendingAttemptUsageUnknown(
+                    runtime.db,
+                    workspaceId,
+                    attemptId,
+                  );
+                }
+                await settleOperationAttempt(runtime.db, workspaceId, {
+                  failureCode,
+                  id: attemptId,
+                  outcome: ambiguous ? "ambiguous" : "failed_terminal",
+                });
+              }
+              const imported = await findSourceImportByOperationId(
+                runtime.db,
+                workspaceId,
+                operationId,
+              );
+              if (!imported) throw new NonRetriableError("NOT_FOUND");
+              await failPendingSourceImportSources(
+                runtime.db,
+                workspaceId,
+                imported.id,
+              );
+              const units = await listPendingSourceImportEnrichmentUnits(
+                runtime.db,
+                workspaceId,
+                imported.id,
+              );
+              for (const unit of units) {
+                await settleEnrichmentAttemptAndUnit(runtime.db, workspaceId, {
+                  attemptId: sourceImportAttemptId(
+                    operationId,
+                    unit.sourceItemRevisionId,
+                  ),
+                  enrichmentId: null,
+                  failureCode,
+                  outcome: "failed",
+                  reason: null,
+                  sourceImportId: imported.id,
+                  sourceItemRevisionId: unit.sourceItemRevisionId,
+                });
+              }
               const settled = await settleSourceImportOperation(
                 runtime.db,
                 workspaceId,
@@ -1543,6 +2036,30 @@ export function createSourceImportFunctions(
             ),
           );
 
+          await step.run("prepare-effective-topics", () =>
+            coded(
+              {
+                operationId,
+                sourceImportId: claim.sourceImportId,
+                workspaceId,
+              },
+              async () => {
+                await assertWorkspace(runtime, workspaceId);
+                return prepareSourceImportEffectiveTopics(
+                  runtime,
+                  workspaceId,
+                  operationId,
+                  claim.sourceImportId,
+                  gateway(),
+                  {
+                    claimedBy: WORKER_CLAIMANT,
+                    expectedVersion: claim.operationVersion,
+                  },
+                );
+              },
+            ),
+          );
+
           const embeddingAttemptId =
             claim.orderingMode === "keywords" &&
             claim.topicCount > 0 &&
@@ -1561,18 +2078,14 @@ export function createSourceImportFunctions(
                         workspaceId,
                         operationId,
                         sourceImportAttemptId(operationId, "embedding"),
+                        {
+                          claimedBy: WORKER_CLAIMANT,
+                          expectedVersion: claim.operationVersion,
+                        },
                       );
                       if (!attempt) {
                         throw new NonRetriableError("NOT_FOUND");
                       }
-                      await recordSourceImportEmbedding(
-                        runtime.db,
-                        workspaceId,
-                        {
-                          sourceImportId: claim.sourceImportId,
-                          embeddingAttemptId: attempt.id,
-                        },
-                      );
                       return attempt.id;
                     },
                   ),
@@ -1601,10 +2114,17 @@ export function createSourceImportFunctions(
                   embeddingAttemptId,
                   enrichmentEnabled: claim.enrichmentEnabled,
                   gateway: gateway(),
+                  claimFence: {
+                    claimedBy: WORKER_CLAIMANT,
+                    expectedVersion: claim.operationVersion,
+                  },
                   operationId,
                   orderingMode: claim.orderingMode,
                   sourceImportId: claim.sourceImportId,
-                  topics: imported.topics,
+                  topics: effectiveTopicValues(
+                    imported.topics,
+                    imported.effectiveTopics,
+                  ),
                   windowHours: claim.windowHours,
                 });
               },
@@ -1638,20 +2158,6 @@ export function createSourceImportFunctions(
           );
           await readyEvent.validate();
 
-          await step.run("commit-enriching-stage", () =>
-            coded(
-              {
-                operationId,
-                sourceImportId: claim.sourceImportId,
-                workspaceId,
-              },
-              () =>
-                settleSourceImport(runtime.db, workspaceId, {
-                  sourceImportId: claim.sourceImportId,
-                  stage: "enriching",
-                }),
-            ),
-          );
           await step.sendEvent("publish-source-import-ready", readyEvent);
           if (enrichmentEvents.length > 0) {
             await step.sendEvent(
@@ -1675,13 +2181,24 @@ export function createSourceImportFunctions(
               },
               () =>
                 settleCompletedSourceImport(
-                  runtime,
+                  runtime.db,
                   workspaceId,
                   operationId,
                   claim.sourceImportId,
+                  claim.operationVersion,
                 ),
             ),
           );
+
+          const notification =
+            completion.status === "settled"
+              ? await notifySourcesAndUsageChanged(
+                  step,
+                  workspaceId,
+                  "settled",
+                  claim.actor,
+                )
+              : readyNotification;
 
           if (completion.result) {
             workerLogger.info("worker.source-import.settled", {
@@ -1702,21 +2219,10 @@ export function createSourceImportFunctions(
               "worker.source-import.realtime-unavailable",
             );
           }
-          const notification =
-            completion.status === "settled"
-              ? await notifySourcesAndUsageChanged(
-                  step,
-                  workspaceId,
-                  "settled",
-                  claim.actor,
-                )
-              : readyNotification;
 
           return {
             cacheInvalidation: notification.cacheInvalidation,
-            lifecycle:
-              completion.result?.lifecycle ??
-              (completion.status === "settled" ? "succeeded" : "running"),
+            lifecycle: completion.lifecycle ?? "running",
             operationId,
             orderingDegradedCode: ordering.orderingDegradedCode,
             orderedCount: ordering.orderedCount,
@@ -1727,7 +2233,12 @@ export function createSourceImportFunctions(
       ),
   );
 
-  return [parentFunction, sourceFunction, enrichFunction];
+  return [
+    parentFunction,
+    sourceFunction,
+    enrichFunction,
+    enrichCancelledFunction,
+  ];
 }
 
 function briefPrompt(title: string, extract: string) {
@@ -1744,6 +2255,7 @@ function briefPrompt(title: string, extract: string) {
 
 type OrderingInput = {
   claimedAt: number;
+  claimFence: ModelInvocationClaimFence;
   embeddingAttemptId: string | null;
   enrichmentEnabled: boolean;
   gateway: ReturnType<typeof createWorkerModelGateway>;
@@ -1752,6 +2264,14 @@ type OrderingInput = {
   sourceImportId: string;
   topics: readonly string[];
   windowHours: number;
+};
+
+type EmbeddingSettlement = {
+  attemptId: string;
+  dimension: number | null;
+  failureCode: ErrorCode | null;
+  outcome: AttemptOutcome;
+  overCapSourceItemIds: readonly string[];
 };
 
 async function admitAndOrder(
@@ -1775,12 +2295,7 @@ async function admitAndOrder(
   const telegram = dated.filter(
     (candidate) => candidate.origin === "telegram_public",
   );
-  const telegramOrder = await orderTelegram(
-    runtime,
-    workspaceId,
-    input,
-    telegram,
-  );
+  const telegramOrder = await orderTelegram(workspaceId, input, telegram);
   const ordered = telegramOrder.entries;
   const rss = dated
     .filter((candidate) => candidate.origin === "rss")
@@ -1789,18 +2304,15 @@ async function admitAndOrder(
     ? rss.slice(0, runtime.template.enrichment.maxItemsPerImport)
     : [];
 
-  await demoteSourceImportItems(
-    runtime.db,
-    workspaceId,
-    input.sourceImportId,
-    "out_of_window",
-    outOfWindow.map((candidate) => candidate.sourceItemId),
-  );
-  await recordSourceImportItemRanks(
-    runtime.db,
-    workspaceId,
-    input.sourceImportId,
-    [
+  const committed = await commitSourceImportOrdering(runtime.db, workspaceId, {
+    claimedBy: input.claimFence.claimedBy,
+    embedding: telegramOrder.embedding,
+    expectedVersion: input.claimFence.expectedVersion,
+    operationId: input.operationId,
+    outOfWindowSourceItemIds: outOfWindow.map(
+      (candidate) => candidate.sourceItemId,
+    ),
+    ranks: [
       ...ordered.map((entry) => ({
         sourceItemId: entry.sourceItemId,
         rank: entry.rank,
@@ -1815,7 +2327,9 @@ async function admitAndOrder(
           position < planned.length ? ("pending" as const) : null,
       })),
     ],
-  );
+    sourceImportId: input.sourceImportId,
+  });
+  if (!committed) throw new NonRetriableError("operation claim lost");
 
   return {
     orderingDegradedCode: telegramOrder.degradedCode,
@@ -1827,12 +2341,12 @@ async function admitAndOrder(
 }
 
 async function orderTelegram(
-  runtime: WorkerRuntime,
   workspaceId: string,
   input: OrderingInput,
   telegram: readonly Candidate[],
 ): Promise<{
   degradedCode: ErrorCode | null;
+  embedding: EmbeddingSettlement | null;
   entries: {
     keywordScore: number | null;
     rank: number;
@@ -1840,23 +2354,36 @@ async function orderTelegram(
   }[];
 }> {
   if (telegram.length === 0) {
-    return { degradedCode: null, entries: [] };
+    return {
+      degradedCode: null,
+      embedding:
+        input.embeddingAttemptId === null
+          ? null
+          : {
+              attemptId: input.embeddingAttemptId,
+              dimension: null,
+              failureCode: null,
+              outcome: "succeeded",
+              overCapSourceItemIds: [],
+            },
+      entries: [],
+    };
   }
 
   if (input.orderingMode === "keywords") {
     if (input.topics.length === 0) {
-      return { degradedCode: null, entries: rankKeywordFallback(telegram) };
-    }
-    try {
-      const scored = await rankByKeywords(
-        runtime,
-        workspaceId,
-        input,
-        telegram,
-      );
       return {
         degradedCode: null,
-        entries: scored.map((entry, position) => ({
+        embedding: null,
+        entries: rankKeywordFallback(telegram),
+      };
+    }
+    try {
+      const scored = await rankByKeywords(workspaceId, input, telegram);
+      return {
+        degradedCode: null,
+        embedding: scored.embedding,
+        entries: scored.entries.map((entry, position) => ({
           ...entry,
           rank: position + 1,
         })),
@@ -1871,21 +2398,25 @@ async function orderTelegram(
         throw error;
       }
       const degradedCode = failureCodeOf(error);
-      if (input.embeddingAttemptId !== null) {
-        await settleOperationAttempt(runtime.db, workspaceId, {
-          failureCode: degradedCode,
-          id: input.embeddingAttemptId,
-          outcome: embeddingFailureAttemptOutcome(
-            error instanceof ModelGatewayInvocationError && error.ambiguous,
-          ),
-        });
-      }
       workerLogger.warn("worker.source-import.keyword-ordering-degraded", {
         errorCode: degradedCode,
         sourceImportId: input.sourceImportId,
       });
       return {
         degradedCode,
+        embedding:
+          input.embeddingAttemptId === null
+            ? null
+            : {
+                attemptId: input.embeddingAttemptId,
+                dimension: null,
+                failureCode: degradedCode,
+                outcome: embeddingFailureAttemptOutcome(
+                  error instanceof ModelGatewayInvocationError &&
+                    error.ambiguous,
+                ),
+                overCapSourceItemIds: [],
+              },
         entries: rankKeywordFallback(telegram),
       };
     }
@@ -1903,6 +2434,7 @@ async function orderTelegram(
 
   return {
     degradedCode: null,
+    embedding: null,
     entries: selected.map((candidate, position) => ({
       keywordScore: null,
       rank: position + 1,
@@ -1912,14 +2444,11 @@ async function orderTelegram(
 }
 
 async function rankByKeywords(
-  runtime: WorkerRuntime,
   workspaceId: string,
   input: OrderingInput,
   telegram: readonly Candidate[],
 ) {
-  const topics = input.topics.map((topic) =>
-    topic.slice(0, MAX_EMBEDDING_VALUE_CHARS),
-  );
+  const topics = topicEmbeddingValues(input.topics, MAX_EMBEDDING_VALUE_CHARS);
   if (topics.length >= MAX_EMBEDDING_VALUES) {
     throw new NonRetriableError("VALIDATION_FAILED");
   }
@@ -1941,6 +2470,7 @@ async function rankByKeywords(
   const values = [...topics, ...bounded.map(embeddingValue)];
 
   const embedded = await input.gateway.embedMany({
+    claimFence: input.claimFence,
     deadlineMs: EMBEDDING_DEADLINE_MS,
     invocationKey: "primary",
     operationAttemptId: embeddingAttemptId,
@@ -1958,45 +2488,35 @@ async function rankByKeywords(
   if (!firstVector) {
     throw new SourceImportError("MODEL_INVOCATION_FAILED");
   }
-  await runtime.db.transaction(async (tx) => {
-    await withWorkspaceContext(tx, workspaceId);
-    await recordSourceImportEmbedding(tx, workspaceId, {
-      sourceImportId: input.sourceImportId,
-      embeddingDimension: firstVector.length,
-    });
-    await demoteSourceImportItems(
-      tx,
-      workspaceId,
-      input.sourceImportId,
-      "over_cap",
-      telegram
+  const topicVectors = vectors.slice(0, topics.length);
+  return {
+    embedding: {
+      attemptId: embeddingAttemptId,
+      dimension: firstVector.length,
+      failureCode: null,
+      outcome: "succeeded" as const,
+      overCapSourceItemIds: telegram
         .filter((candidate) => !boundedIds.has(candidate.sourceItemId))
         .map((candidate) => candidate.sourceItemId),
-    );
-    await settleOperationAttempt(tx, workspaceId, {
-      id: embeddingAttemptId,
-      outcome: "succeeded",
-    });
-  });
-
-  const topicVectors = vectors.slice(0, topics.length);
-  return bounded
-    .map((candidate, position) => {
-      const vector = vectors[topics.length + position];
-      const keywordScore = vector
-        ? Math.max(
-            ...topicVectors.map((topic) => cosineSimilarity(topic, vector)),
-          )
-        : 0;
-      return { candidate, keywordScore };
-    })
-    .sort(
-      (left, right) =>
-        right.keywordScore - left.keywordScore ||
-        byLatest(left.candidate, right.candidate),
-    )
-    .map((entry) => ({
-      keywordScore: entry.keywordScore,
-      sourceItemId: entry.candidate.sourceItemId,
-    }));
+    },
+    entries: bounded
+      .map((candidate, position) => {
+        const vector = vectors[topics.length + position];
+        const keywordScore = vector
+          ? Math.max(
+              ...topicVectors.map((topic) => cosineSimilarity(topic, vector)),
+            )
+          : 0;
+        return { candidate, keywordScore };
+      })
+      .sort(
+        (left, right) =>
+          right.keywordScore - left.keywordScore ||
+          byLatest(left.candidate, right.candidate),
+      )
+      .map((entry) => ({
+        keywordScore: entry.keywordScore,
+        sourceItemId: entry.candidate.sourceItemId,
+      })),
+  };
 }

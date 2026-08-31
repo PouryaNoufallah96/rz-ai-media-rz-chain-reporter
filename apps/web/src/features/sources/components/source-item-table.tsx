@@ -61,7 +61,7 @@ export function SourceItemTable({ stream }: { stream: SourceItemStream }) {
       </h2>
       <form
         aria-label={t("stream.filters.label")}
-        className="mt-3 mb-4 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3 sm:p-4"
+        className="mt-3 mb-4 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3 max-sm:**:data-[slot=select-trigger]:min-h-11 sm:p-4"
       >
         <LabeledSelect
           className="min-w-0 flex-1 sm:w-fit sm:flex-none"
@@ -110,7 +110,12 @@ export function SourceItemTable({ stream }: { stream: SourceItemStream }) {
       ) : page.rows.length === 0 ? (
         <StreamEmpty
           action={
-            <Button onClick={clearFilters} size="sm" variant="outline">
+            <Button
+              className="max-sm:min-h-11"
+              onClick={clearFilters}
+              size="sm"
+              variant="outline"
+            >
               {t("stream.filtered.clear")}
             </Button>
           }

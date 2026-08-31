@@ -5,8 +5,8 @@ import {
   assembleCopy,
   type ContentLocale,
   INLINE_HASHTAG_TOKEN,
+  isOperationInProgress,
   MAX_REFERENCE_IMAGE_BYTES,
-  type OperationLifecycle,
   PLATFORM_COPY_HARD_MAX,
   type Platform,
   platformCopyLength,
@@ -49,14 +49,13 @@ import {
   CheckIcon,
   ChevronDownIcon,
   DownloadIcon,
-  HistoryIcon,
   ImageIcon,
   RefreshCwIcon,
   RotateCcwIcon,
   XIcon,
 } from "lucide-react";
 import Image from "next/image";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import {
   type ComponentProps,
   type ReactNode,
@@ -73,12 +72,12 @@ import {
   FormField,
   FormInputField,
   FormRootError,
-  FormSelectField,
   FormTextareaField,
   LabeledSelect,
 } from "@/components/form/form-field";
 import { useAssistant } from "@/features/assistant/lib/assistant-context";
 import { createMediaUploadInputSchema } from "@/features/media/schemas/upload";
+import { operationCreated } from "@/features/operations/lib/focus-operation";
 import { PublishingTicket } from "@/features/publishing/components/publishing-ticket";
 import { applyActionErrorToForm, useAction } from "@/hooks/use-action";
 import { client } from "@/lib/orpc";
@@ -104,6 +103,7 @@ import {
   hasRevisionEdits,
   revisionEditorState,
   revisionEditSource,
+  sameEditSource,
   selectEditSource,
 } from "../lib/revision-editor-state";
 import {
@@ -112,6 +112,7 @@ import {
   type PlatformDraftCard,
   type UpdateDraftRevisionInput,
 } from "../schemas/drafts";
+import { CopyVariantTranslationButton } from "./copy-variant-translation-button";
 import { EditorialFreshness } from "./editorial-freshness";
 import { ExpandablePreview } from "./expandable-preview";
 
@@ -134,19 +135,22 @@ export function CardSheet({
   loading?: boolean;
   freshness?: {
     analysisRunId: string;
-    lifecycle: OperationLifecycle;
     readAt: Date;
   };
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
+  const uiLocale = useLocale();
+  const [initialUiLocale] = useState(uiLocale);
   const assistant = useAssistant();
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const narrow = useNarrowViewport();
   const [pending, setPending] = useState(false);
   const [sourceCard, setSourceCard] = useState(incomingCard);
-  const [editor, setEditor] = useState(() => revisionEditorState(incomingCard));
+  const [editor, setEditor] = useState(() =>
+    revisionEditorState(incomingCard, initialUiLocale),
+  );
   const loadedVersion = useRef(-1);
   const { card, source, hashtagDraft } = editor;
   const form = useForm<DraftEditorInput>({
@@ -295,13 +299,13 @@ export function CardSheet({
         onOpenChangeComplete={(next) => {
           if (next) return;
           setSourceCard(null);
-          setEditor(revisionEditorState(null));
+          setEditor(revisionEditorState(null, initialUiLocale));
         }}
         open={open}
       >
         <SheetContent
           aria-busy={loading || undefined}
-          className="w-full gap-5 max-[599px]:rounded-t-xl sm:w-[min(900px,100vw)] sm:p-5"
+          className="w-full gap-5 max-compact:rounded-t-xl sm:w-[min(900px,100vw)] sm:[--sheet-padding:--spacing(5)] [&_button]:max-compact:min-h-11 [&_button]:max-compact:min-w-11"
           closeLabel={t("cardSheet.close")}
           finalFocus={() =>
             finalFocus?.isConnected
@@ -414,22 +418,18 @@ function CardSheetSkeleton() {
     <div aria-busy="true" className="grid gap-5" role="status">
       <span className="sr-only">{t("cardSheet.loading")}</span>
       <Skeleton className="h-11 w-full rounded-xl" />
-      <div className="grid items-stretch gap-5 min-[900px]:grid-cols-[minmax(16rem,0.38fr)_minmax(0,0.62fr)]">
-        <div className="grid content-start gap-4">
+      <div className="grid workspace:grid-cols-[minmax(16rem,0.38fr)_minmax(0,0.62fr)] items-stretch gap-5">
+        <div className="flex min-h-0 flex-col gap-4">
           <div className="grid gap-3 rounded-xl border border-border p-3">
             <Skeleton className="h-4 w-36" />
             <Skeleton className="h-9 w-full" />
             <Skeleton className="h-9 w-full" />
           </div>
-          <div className="grid gap-2 rounded-xl border border-primary/20 p-3">
+          <div className="grid workspace:flex-1 content-start gap-2 rounded-xl border border-primary/20 p-3">
             <Skeleton className="mb-1 h-5 w-32" />
             {rows.map((row) => (
               <SelectableItemSkeleton key={row} />
             ))}
-          </div>
-          <div className="grid gap-2 rounded-xl border border-border p-3">
-            <Skeleton className="mb-1 h-5 w-24" />
-            <SelectableItemSkeleton />
           </div>
         </div>
         <RevisionWorkspaceSkeleton />
@@ -448,41 +448,49 @@ function CardSheetSkeleton() {
   );
 }
 
-function SelectableItemSkeleton() {
+function SelectableItemSkeleton({
+  pace,
+}: {
+  pace?: ComponentProps<typeof Skeleton>["pace"];
+}) {
   return (
     <div
       aria-hidden="true"
       className="grid min-h-20 gap-2 rounded-lg border border-border bg-background/70 p-2"
     >
       <div className="flex items-center justify-between gap-3">
-        <Skeleton className="h-3 w-28" />
-        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-3 w-28" pace={pace} />
+        <Skeleton className="h-3 w-20" pace={pace} />
       </div>
-      <Skeleton className="h-3 w-full" />
-      <Skeleton className="h-3 w-3/4" />
+      <Skeleton className="h-3 w-full" pace={pace} />
+      <Skeleton className="h-3 w-3/4" pace={pace} />
     </div>
   );
 }
 
-function RevisionWorkspaceSkeleton() {
+function RevisionWorkspaceSkeleton({
+  pace,
+}: {
+  pace?: ComponentProps<typeof Skeleton>["pace"];
+}) {
   return (
     <div
       aria-hidden="true"
-      className="grid content-start gap-4 rounded-xl border border-border bg-card p-4 min-[900px]:h-full"
+      className="grid workspace:h-full content-start gap-4 rounded-xl border border-border bg-card p-4"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="grid flex-1 gap-2">
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-3 w-56 max-w-full" />
+          <Skeleton className="h-5 w-40" pace={pace} />
+          <Skeleton className="h-3 w-56 max-w-full" pace={pace} />
         </div>
-        <Skeleton className="h-6 w-24" />
+        <Skeleton className="h-6 w-24" pace={pace} />
       </div>
-      <Skeleton className="h-16 w-full" />
-      <Skeleton className="h-40 w-full" />
-      <Skeleton className="h-16 w-full" />
-      <Skeleton className="h-12 w-full" />
-      <Skeleton className="h-4 w-36" />
-      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-16 w-full" pace={pace} />
+      <Skeleton className="h-40 w-full" pace={pace} />
+      <Skeleton className="h-16 w-full" pace={pace} />
+      <Skeleton className="h-12 w-full" pace={pace} />
+      <Skeleton className="h-4 w-36" pace={pace} />
+      <Skeleton className="h-10 w-full" pace={pace} />
     </div>
   );
 }
@@ -536,7 +544,7 @@ function Information({ card }: { card: PlatformDraftCard }) {
         </span>
         <ChevronDownIcon
           aria-hidden="true"
-          className="transition-transform group-data-panel-open:rotate-180"
+          className="transition-transform group-data-panel-open:rotate-180 motion-reduce:transition-none"
         />
       </CollapsibleTrigger>
       <CollapsibleContent className="px-4 pt-2 pb-4 data-closed:hidden">
@@ -647,16 +655,6 @@ type CardSheetBodyProps = {
   source: EditSource | null;
 };
 
-function isCopyGenerationNonterminal(
-  generation: PlatformDraftCard["generation"],
-) {
-  return (
-    generation?.lifecycle === "queued" ||
-    generation?.lifecycle === "running" ||
-    generation?.lifecycle === "settling"
-  );
-}
-
 function useRevisionCommands({
   card,
   dirty,
@@ -669,6 +667,7 @@ function useRevisionCommands({
   source,
 }: CardSheetBodyProps) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
+  const presentationLocale = useLocale();
   const [selection, setSelection] = useState<EditSource | null>(null);
   const [switchingRevision, setSwitchingRevision] = useState(false);
   const [serverConflict, setServerConflict] = useState<number | null>(null);
@@ -741,6 +740,7 @@ function useRevisionCommands({
       draftRevisionId: next.id,
       expectedActive,
       idempotencyKey: crypto.randomUUID(),
+      presentationLocale,
     });
     setSwitchingRevision(false);
     return selected;
@@ -748,7 +748,7 @@ function useRevisionCommands({
 
   const requestSelection = (next: EditSource) => {
     if (busy) return;
-    if (source?.kind === next.kind && source.id === next.id) return;
+    if (sameEditSource(source, next)) return;
     if (dirty) {
       setSelection(next);
       return;
@@ -764,6 +764,7 @@ function useRevisionCommands({
       expectedActive,
       expectedImageIntentVersion: active?.imageIntentVersion ?? 0,
       idempotencyKey: crypto.randomUUID(),
+      presentationLocale,
     });
   };
 
@@ -776,6 +777,7 @@ function useRevisionCommands({
       expectedActive,
       expectedImageIntentVersion: active?.imageIntentVersion ?? 0,
       idempotencyKey: crypto.randomUUID(),
+      presentationLocale,
     });
   };
 
@@ -792,7 +794,15 @@ function useRevisionCommands({
       content,
       expectedActive,
       idempotencyKey: crypto.randomUUID(),
-      source: { kind: source.kind, id: source.id },
+      presentationLocale,
+      source:
+        source.kind === "copy_variant"
+          ? {
+              kind: source.kind,
+              id: source.id,
+              contentLocale: source.content.contentLocale,
+            }
+          : { kind: source.kind, id: source.id },
     });
   });
 
@@ -840,7 +850,7 @@ function CardSheetBody(props: CardSheetBodyProps) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const [generationPending, setGenerationPending] = useState(false);
   const generating =
-    generationPending || isCopyGenerationNonterminal(card.generation);
+    generationPending || isOperationInProgress(card.generation?.lifecycle);
   const {
     active,
     adoptImage,
@@ -858,16 +868,30 @@ function CardSheetBody(props: CardSheetBodyProps) {
     switchingRevision,
     waitingForRefresh,
   } = useRevisionCommands(props);
+  const activeRevisionId = active?.id ?? null;
+  const selectedImageId = active?.selectedFinalMediaAssetId ?? null;
+  const [imagePanel, setImagePanel] = useState(() => ({
+    cardId: card.id,
+    imageId: selectedImageId,
+    open: selectedImageId !== null,
+    revisionId: activeRevisionId,
+  }));
 
-  useEffect(() => {
-    if (source?.kind !== "draft_revision") return;
-    document.getElementById(`revision-history-${source.id}`)?.scrollIntoView({
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "auto"
-        : "smooth",
-      block: "nearest",
+  if (
+    imagePanel.cardId !== card.id ||
+    imagePanel.revisionId !== activeRevisionId ||
+    imagePanel.imageId !== selectedImageId
+  ) {
+    setImagePanel({
+      cardId: card.id,
+      imageId: selectedImageId,
+      open:
+        imagePanel.cardId === card.id
+          ? selectedImageId !== null || imagePanel.open
+          : selectedImageId !== null,
+      revisionId: activeRevisionId,
     });
-  }, [source]);
+  }
 
   const rootError = form.formState.errors.root?.server?.message;
   return (
@@ -875,8 +899,8 @@ function CardSheetBody(props: CardSheetBodyProps) {
       <span aria-live="polite" className="sr-only">
         {switchingRevision ? t("cardSheet.switch.pending") : ""}
       </span>
-      <div className="grid items-start gap-5 min-[900px]:grid-cols-[minmax(16rem,0.38fr)_minmax(0,0.62fr)] min-[900px]:items-stretch [&_button]:max-[599px]:min-h-11">
-        <aside className="flex min-w-0 flex-col gap-4 min-[900px]:min-h-0">
+      <div className="grid workspace:grid-cols-[minmax(16rem,0.38fr)_minmax(0,0.62fr)] items-start workspace:items-stretch gap-5">
+        <aside className="flex workspace:min-h-0 min-w-0 flex-col gap-4">
           <CopyControls
             card={card}
             disabled={busy}
@@ -892,14 +916,12 @@ function CardSheetBody(props: CardSheetBodyProps) {
             onSelectCandidate={(candidate) =>
               requestSelection(candidateEditSource(candidate))
             }
-            onSelectRevision={(revision) =>
-              requestSelection(revisionEditSource(revision))
-            }
             selectedSource={source}
           />
         </aside>
-        <div className="min-w-0 min-[900px]:h-full">
+        <div className="min-w-0">
           <RevisionEditor
+            disabled={busy || generating}
             dirty={dirty}
             form={form}
             hashtagDraft={hashtagDraft}
@@ -907,10 +929,14 @@ function CardSheetBody(props: CardSheetBodyProps) {
             nextRevisionNumber={card.nextRevisionNumber}
             onEditorChange={props.onEditorChange}
             onHashtagDraftChange={onHashtagDraftChange}
+            onSelectRevision={(revision) =>
+              requestSelection(revisionEditSource(revision))
+            }
             platform={card.platform}
             onSubmit={submit}
             resolveError={resolveError}
             rootError={rootError}
+            revisions={card.revisions}
             source={source}
             sourceLoading={generating && source === null}
             stale={waitingForRefresh}
@@ -919,7 +945,18 @@ function CardSheetBody(props: CardSheetBodyProps) {
         </div>
       </div>
       <BackgroundGradient containerClassName="w-full" className="ring-0">
-        <Collapsible className="rounded-xl bg-card">
+        <Collapsible
+          className="rounded-xl bg-card"
+          onOpenChange={(open) =>
+            setImagePanel({
+              cardId: card.id,
+              imageId: selectedImageId,
+              open,
+              revisionId: activeRevisionId,
+            })
+          }
+          open={imagePanel.open}
+        >
           <CollapsibleTrigger
             render={
               <Button
@@ -936,7 +973,7 @@ function CardSheetBody(props: CardSheetBodyProps) {
               </span>
             ) : null}
             <ChevronDownIcon
-              className={`${active?.imageProvenanceMismatch ? "" : "ms-auto"} transition-transform group-data-panel-open:rotate-180`}
+              className={`${active?.imageProvenanceMismatch ? "" : "ms-auto"} transition-transform group-data-panel-open:rotate-180 motion-reduce:transition-none`}
               aria-hidden="true"
             />
           </CollapsibleTrigger>
@@ -1112,10 +1149,7 @@ function ImageControls({
   const start = useAction(startImageGenerationAction, { onSettled });
   const retry = useAction(retryImageGenerationAction, { onSettled });
   const operation = card.imageGeneration;
-  const nonterminal =
-    operation?.lifecycle === "queued" ||
-    operation?.lifecycle === "running" ||
-    operation?.lifecycle === "settling";
+  const nonterminal = isOperationInProgress(operation?.lifecycle);
   const pending = start.isPending || retry.isPending;
   const busy = pending || nonterminal;
   const referenceBusy =
@@ -1149,6 +1183,9 @@ function ImageControls({
     const settled = operation
       ? await retry.execute({ ...common, kind: "retry" })
       : await start.execute({ ...common, kind: "start" });
+    if (settled.data?.status === "created") {
+      operationCreated(settled.data.operationId);
+    }
     if (settled.status === "error") {
       setCommandError(
         resolveError(settled.fieldErrors?.operatorDirection ?? settled.code),
@@ -1480,7 +1517,6 @@ function OperatorFinalImageField({
 function SelectableItem({
   contentLocale,
   disabled,
-  footerMeta,
   headerMeta,
   label,
   onSelect,
@@ -1490,8 +1526,7 @@ function SelectableItem({
 }: {
   contentLocale: ContentLocale;
   disabled: boolean;
-  footerMeta?: string;
-  headerMeta: string;
+  headerMeta?: ReactNode;
   label: string;
   onSelect: () => void;
   preview: string;
@@ -1499,41 +1534,41 @@ function SelectableItem({
   statusMeta?: string;
 }) {
   return (
-    <Button
-      aria-pressed={selected}
-      className="grid h-auto w-full justify-normal gap-1 whitespace-normal p-2 text-start data-selected:border-primary/40 data-selected:bg-accent data-selected:ring-1 data-selected:ring-primary/30 data-selected:forced-colors:border-[HighlightText] data-selected:forced-colors:bg-[Highlight] data-selected:forced-colors:text-[HighlightText] data-selected:forced-colors:[&_.text-muted-foreground]:text-[HighlightText]"
-      data-selected={selected || undefined}
-      disabled={disabled}
-      onClick={onSelect}
-      type="button"
-      variant={selected ? "secondary" : "outline"}
-    >
-      <span className="flex w-full items-center gap-1">
-        {selected ? (
-          <CheckIcon aria-hidden="true" className="size-3.5" />
-        ) : null}
-        <strong className="min-w-0 flex-1 truncate">{label}</strong>
-        {statusMeta ? (
-          <span className="ticket-label shrink-0 text-primary">
-            {statusMeta}
-          </span>
-        ) : null}
-        <span className="shrink-0 font-normal text-muted-foreground">
-          {headerMeta}
+    <div className="grid">
+      <Button
+        aria-label={label}
+        aria-pressed={selected}
+        className="col-start-1 row-start-1 h-auto min-h-full w-full self-stretch"
+        disabled={disabled}
+        onClick={onSelect}
+        type="button"
+        variant="outline"
+      />
+      <div className="pointer-events-none col-start-1 row-start-1 grid gap-1 p-2">
+        <span className="flex w-full min-w-0 flex-wrap items-center gap-1">
+          {selected ? (
+            <CheckIcon aria-hidden="true" className="size-3.5" />
+          ) : null}
+          <strong className="wrap-anywhere min-w-0 flex-1">{label}</strong>
+          {statusMeta ? (
+            <span className="ticket-label shrink-0 text-primary">
+              {statusMeta}
+            </span>
+          ) : null}
+          {headerMeta ? (
+            <span className="flex min-w-0 flex-wrap items-center gap-1 font-normal text-muted-foreground [&_button]:pointer-events-auto [&_button]:shrink-0">
+              {headerMeta}
+            </span>
+          ) : null}
         </span>
-      </span>
-      <span
-        className="line-clamp-2 w-full font-normal text-muted-foreground"
-        lang={contentLocale}
-      >
-        <Bdi>{preview}</Bdi>
-      </span>
-      {footerMeta ? (
-        <span className="ticket-label w-full text-muted-foreground">
-          {footerMeta}
+        <span
+          className="line-clamp-2 w-full font-normal text-muted-foreground"
+          lang={contentLocale}
+        >
+          <Bdi>{preview}</Bdi>
         </span>
-      ) : null}
-    </Button>
+      </div>
+    </div>
   );
 }
 
@@ -1542,7 +1577,6 @@ function CandidateHistory({
   disabled,
   generating,
   onSelectCandidate,
-  onSelectRevision,
   selectedSource,
 }: {
   card: PlatformDraftCard;
@@ -1551,129 +1585,74 @@ function CandidateHistory({
   onSelectCandidate: (
     candidate: PlatformDraftCard["candidates"][number],
   ) => void;
-  onSelectRevision: (revision: Revision) => void;
   selectedSource: EditSource | null;
 }) {
-  const format = useFormatter();
   const t = useTranslations(EDITORIAL_NAMESPACE);
-  const at = (value: Date) =>
-    format.dateTime(value, { dateStyle: "short", timeStyle: "short" });
   return (
-    <div className="grid min-h-0 flex-1 content-start gap-4 min-[900px]:grid-rows-[minmax(0,1fr)_auto]">
-      <section
-        aria-busy={generating || undefined}
-        aria-labelledby={`candidates-${card.id}`}
-        className="rounded-xl border border-primary/20 bg-linear-to-br from-accent/50 via-card to-card p-3 min-[900px]:flex min-[900px]:min-h-0 min-[900px]:flex-col"
-      >
+    <section
+      aria-busy={generating || undefined}
+      aria-labelledby={`candidates-${card.id}`}
+      className="workspace:flex workspace:min-h-0 workspace:flex-1 workspace:flex-col workspace:overflow-hidden rounded-xl border border-primary/20 bg-linear-to-br from-accent/50 via-card to-card p-3"
+    >
+      <header className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <h3 className="font-medium text-sm" id={`candidates-${card.id}`}>
           {t("cardSheet.candidates")}
         </h3>
-        {generating ? (
-          <div
-            aria-live="polite"
-            className="mt-2 grid min-h-0 gap-2 overflow-hidden min-[900px]:flex-1"
-            role="status"
-          >
-            <span className="sr-only">{t("cardSheet.generatingStyles")}</span>
-            {[0, 1, 2].map((row) => (
-              <SelectableItemSkeleton key={row} />
-            ))}
-          </div>
-        ) : card.candidates.length === 0 ? (
-          <p className="mt-2 text-muted-foreground">
-            {t("cardSheet.candidatesEmpty")}
-          </p>
-        ) : (
-          <div className="scrollbar-none mt-2 max-h-72 overflow-y-auto overscroll-contain p-px min-[900px]:max-h-none min-[900px]:min-h-0 min-[900px]:flex-1">
-            <ul className="grid gap-2">
-              {card.candidates.map((candidate) => (
-                <li key={candidate.id}>
-                  <SelectableItem
-                    contentLocale={candidate.contentLocale}
-                    disabled={disabled}
-                    headerMeta={t("cardSheet.candidateMeta", {
-                      locale: candidate.contentLocale,
-                      model: candidate.modelOptionKey,
-                    })}
-                    label={
-                      candidate.variantKey === "to_the_point"
-                        ? t("cardSheet.variant.toThePoint")
-                        : candidate.variantKey
-                    }
-                    onSelect={() => onSelectCandidate(candidate)}
-                    preview={candidate.headline}
-                    selected={
-                      selectedSource?.kind === "copy_variant" &&
-                      selectedSource.id === candidate.id
-                    }
-                  />
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </section>
-      <Collapsible
-        className="rounded-xl border border-border bg-card"
-        defaultOpen
-        key={card.id}
-      >
-        <CollapsibleTrigger
-          render={
-            <Button
-              className="group w-full justify-start px-3"
-              variant="ghost"
-            />
-          }
+      </header>
+      {generating ? (
+        <div
+          aria-live="polite"
+          className="mt-2 grid gap-2 overflow-hidden"
+          role="status"
         >
-          <HistoryIcon aria-hidden="true" />
-          {t("cardSheet.revisions")}
-          <ChevronDownIcon
-            className="ms-auto transition-transform group-data-panel-open:rotate-180"
-            aria-hidden="true"
-          />
-        </CollapsibleTrigger>
-        <CollapsibleContent className="p-3 pt-1 data-closed:hidden" keepMounted>
-          <div>
-            {card.revisions.length === 0 ? (
-              <p className="text-muted-foreground">
-                {t("cardSheet.historyEmpty")}
-              </p>
-            ) : (
-              <div className="scrollbar-none max-h-64 overflow-y-auto overscroll-contain p-px">
-                <ol className="grid gap-2">
-                  {card.revisions.map((revision) => (
-                    <li
-                      id={`revision-history-${revision.id}`}
-                      key={revision.id}
-                    >
-                      <SelectableItem
-                        contentLocale={revision.contentLocale}
-                        disabled={disabled}
-                        label={t("cardSheet.revision", {
-                          n: revision.revisionNumber,
+          <span className="sr-only">{t("cardSheet.generatingStyles")}</span>
+          {[0, 1, 2].map((row) => (
+            <SelectableItemSkeleton key={row} pace="live" />
+          ))}
+        </div>
+      ) : card.candidates.length === 0 ? (
+        <p className="mt-2 text-muted-foreground">
+          {t("cardSheet.candidatesEmpty")}
+        </p>
+      ) : (
+        <div className="scrollbar-none mt-2 max-h-72 workspace:max-h-none workspace:min-h-0 workspace:flex-1 overflow-y-auto overscroll-contain p-px">
+          <ul className="flex min-h-full flex-col justify-center gap-2">
+            {card.candidates.map((candidate) => (
+              <li key={candidate.id}>
+                <SelectableItem
+                  contentLocale={candidate.contentLocale}
+                  disabled={disabled}
+                  headerMeta={
+                    <>
+                      <span className="wrap-anywhere min-w-0">
+                        {t("cardSheet.candidateMeta", {
+                          locale: candidate.contentLocale,
+                          model: candidate.modelOptionKey,
                         })}
-                        footerMeta={at(revision.createdAt)}
-                        headerMeta={t("cardSheet.revisionMeta", {
-                          author: revision.authorName,
-                          locale: revision.contentLocale,
-                        })}
-                        onSelect={() => onSelectRevision(revision)}
-                        preview={revision.headline}
-                        selected={
-                          selectedSource?.kind === "draft_revision" &&
-                          selectedSource.id === revision.id
-                        }
-                      />
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            )}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    </div>
+                      </span>
+                      <CopyVariantTranslationButton candidate={candidate} />
+                    </>
+                  }
+                  label={t("cardSheet.variantLabel", {
+                    key: candidate.variantKey,
+                  })}
+                  onSelect={() => onSelectCandidate(candidate)}
+                  preview={candidate.headline}
+                  selected={
+                    selectedSource?.kind === "copy_variant" &&
+                    selectedSource.id === candidate.id &&
+                    sameEditSource(
+                      selectedSource,
+                      candidateEditSource(candidate),
+                    )
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1806,6 +1785,7 @@ function HashtagField({
 }
 
 function RevisionEditor({
+  disabled,
   dirty,
   form,
   hashtagDraft,
@@ -1813,15 +1793,18 @@ function RevisionEditor({
   nextRevisionNumber,
   onEditorChange,
   onHashtagDraftChange,
+  onSelectRevision,
   onSubmit,
   platform,
   resolveError,
+  revisions,
   rootError,
   source,
   sourceLoading,
   stale,
   updatePending,
 }: {
+  disabled: boolean;
   form: UseFormReturn<DraftEditorInput>;
   dirty: boolean;
   hashtagDraft: string;
@@ -1829,9 +1812,11 @@ function RevisionEditor({
   nextRevisionNumber: number;
   onEditorChange: () => void;
   onHashtagDraftChange: (value: string) => void;
+  onSelectRevision: (revision: Revision) => void;
   platform: Platform;
   onSubmit: NonNullable<ComponentProps<"form">["onSubmit"]>;
   resolveError: (code: string | undefined) => string;
+  revisions: readonly Revision[];
   rootError: string | undefined;
   source: EditSource | null;
   sourceLoading: boolean;
@@ -1863,7 +1848,7 @@ function RevisionEditor({
       {source ? (
         <form
           aria-busy={updatePending}
-          className="grid gap-4 rounded-xl border border-border bg-card p-4 min-[900px]:h-full"
+          className="grid workspace:h-full workspace:grid-rows-[auto_minmax(0,1fr)] gap-4 rounded-xl border border-border bg-card p-4"
           onChange={onEditorChange}
           onSubmit={onSubmit}
         >
@@ -1880,14 +1865,47 @@ function RevisionEditor({
                     })}
               </p>
             </div>
-            <Badge variant={dirty ? "secondary" : "outline"}>
-              {dirty
-                ? t("cardSheet.editor.edited")
-                : t("cardSheet.editor.sourceReady")}
-            </Badge>
+            <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+              {dirty ? (
+                <Badge variant="secondary">
+                  {t("cardSheet.editor.edited")}
+                </Badge>
+              ) : null}
+              {revisions.length > 0 ? (
+                <LabeledSelect
+                  busy={updatePending}
+                  className="w-fit max-w-full shrink-0 gap-0"
+                  disabled={disabled}
+                  label={
+                    <span className="sr-only">{t("cardSheet.revisions")}</span>
+                  }
+                  onValueChange={(revisionId) => {
+                    if (revisionId === null) return;
+                    const revision = revisions.find(
+                      (entry) => entry.id === revisionId,
+                    );
+                    if (revision) onSelectRevision(revision);
+                  }}
+                  options={revisions.map((revision) => ({
+                    label: t("cardSheet.revision", {
+                      n: revision.revisionNumber,
+                    }),
+                    value: revision.id,
+                  }))}
+                  orientation="horizontal"
+                  placeholder={t("cardSheet.editor.generatedVariation")}
+                  triggerClassName="h-7 max-w-48 min-w-32"
+                  value={source.kind === "draft_revision" ? source.id : null}
+                />
+              ) : (
+                <span className="text-muted-foreground text-xs">
+                  {t("cardSheet.editor.noRevisions")}
+                </span>
+              )}
+            </div>
           </header>
-          <fieldset disabled={updatePending}>
-            <FieldGroup className="gap-3">
+          <fieldset className="flex min-w-0 flex-col" disabled={disabled}>
+            <FieldGroup className="flex-1 gap-3">
               <FormInputField
                 control={form.control}
                 dir={DIRECTION[contentLocale]}
@@ -1911,22 +1929,6 @@ function RevisionEditor({
                 onDraftChange={onHashtagDraftChange}
                 resolveError={resolveError}
               />
-              <FormSelectField
-                control={form.control}
-                label={t("cardSheet.editor.locale")}
-                name="contentLocale"
-                onValueChange={() => onEditorChange()}
-                options={[
-                  { label: t("route.localeEn"), value: "en" },
-                  { label: t("route.localeFa"), value: "fa" },
-                ]}
-                resolveError={resolveError}
-              />
-              {localeMismatch ? (
-                <p className="text-muted-foreground text-xs">
-                  {t("cardSheet.editor.localeRegenerate")}
-                </p>
-              ) : null}
               <p
                 className={
                   used > limit
@@ -1955,9 +1957,10 @@ function RevisionEditor({
               />
               <Button
                 aria-busy={isSubmitting || updatePending}
+                className="mt-auto"
                 disabled={
                   isSubmitting ||
-                  updatePending ||
+                  disabled ||
                   blocked ||
                   stale ||
                   hashtagDraft.trim() !== "" ||
@@ -1979,7 +1982,7 @@ function RevisionEditor({
       ) : sourceLoading ? (
         <div aria-live="polite" className="h-full" role="status">
           <span className="sr-only">{t("cardSheet.generatingStyles")}</span>
-          <RevisionWorkspaceSkeleton />
+          <RevisionWorkspaceSkeleton pace="live" />
         </div>
       ) : (
         <Field className="rounded-xl border border-border bg-card p-5">
@@ -2011,6 +2014,7 @@ function CopyControls({
   onPendingChange: (pending: boolean) => void;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
+  const uiLocale = useLocale();
   const onSettled = () => {
     onGenerationPendingChange(false);
     onPendingChange(false);
@@ -2022,7 +2026,7 @@ function CopyControls({
   const retry = useAction(retryCopyGenerationAction, { onSettled });
   const pending =
     regenerate.isPending || refreshArticle.isPending || retry.isPending;
-  const nonterminal = isCopyGenerationNonterminal(card.generation);
+  const nonterminal = isOperationInProgress(card.generation?.lifecycle);
   const failedUnits =
     card.generation?.units.filter((unit) => unit.status === "failed").length ??
     0;
@@ -2036,13 +2040,13 @@ function CopyControls({
       platformDraftId: card.id,
       idempotencyKey: crypto.randomUUID(),
     };
-    const requestedContentLocale = form.getValues("contentLocale");
+    const requestedContentLocale = uiLocale;
     const modelOptionKey = card.generation?.modelOptionKey ?? "";
     onGenerationPendingChange(true);
     onPendingChange(true);
     const settled =
       kind === "retry_failed"
-        ? await retry.execute({ kind, ...common })
+        ? await retry.execute({ kind, ...common, requestedContentLocale })
         : kind === "refresh_article"
           ? await refreshArticle.execute({
               kind,
@@ -2056,6 +2060,9 @@ function CopyControls({
               modelOptionKey,
               requestedContentLocale,
             });
+    if (settled.data?.status === "created") {
+      operationCreated(settled.data.operationId);
+    }
     if (settled.status === "error") {
       form.setError("root.server", {
         message: settled.code,
@@ -2122,7 +2129,8 @@ function CopyControls({
             {t("cardSheet.refreshArticle")}
           </Button>
         ) : null}
-        {failedUnits > 0 ? (
+        {failedUnits > 0 &&
+        card.generation?.requestedContentLocale === uiLocale ? (
           <Button
             aria-describedby={
               generationBlocked ? `copy-actions-dirty-${card.id}` : undefined

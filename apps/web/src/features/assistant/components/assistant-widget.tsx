@@ -20,6 +20,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import { signalUsageRefresh } from "@/features/usage/lib/usage-refresh-signal";
 import { usePathname } from "@/i18n/navigation";
 
 import { ASSISTANT_NAMESPACE } from "../constants";
@@ -77,6 +78,11 @@ export function AssistantWidget({ identity }: { identity: AssistantIdentity }) {
   const chat = useChat<AssistantUIMessage>({
     id: restoreKey ?? PENDING_RESTORE_ID,
     messages: restored,
+    onData: (part) => {
+      if (part.type === "data-usage-settled") {
+        signalUsageRefresh();
+      }
+    },
     onFinish: ({ isAbort, isDisconnect, isError, messages: settled }) => {
       if (isAbort || isDisconnect || isError) {
         return;
@@ -189,7 +195,7 @@ export function AssistantWidget({ identity }: { identity: AssistantIdentity }) {
       <Button
         aria-controls={panelId}
         aria-expanded={open}
-        className="fixed inset-e-4 bottom-4 z-60 shadow-lg"
+        className="fixed inset-e-4 bottom-4 z-60 size-11 shadow-lg"
         data-assistant-fab
         data-assistant-surface
         onClick={() => setOpen(!open)}
@@ -208,7 +214,7 @@ export function AssistantWidget({ identity }: { identity: AssistantIdentity }) {
       >
         <DialogPortal>
           <DialogPopup
-            className="fixed inset-e-4 bottom-20 z-70 flex h-[min(32rem,70svh)] w-[min(24rem,calc(100vw-2rem))] flex-col gap-3 max-[600px]:inset-e-0 max-[600px]:inset-s-0 max-[600px]:bottom-0 max-[600px]:h-[70svh] max-[600px]:w-auto max-[600px]:rounded-b-none"
+            className="fixed inset-e-4 bottom-20 z-70 flex h-[min(32rem,70svh)] w-[min(24rem,calc(100vw-2rem))] flex-col gap-3 max-sm:**:data-[slot=button]:min-h-11 max-sm:**:data-[slot=button]:min-w-11 max-compact:inset-e-0 max-compact:inset-s-0 max-compact:bottom-0 max-compact:h-[70svh] max-compact:w-auto max-compact:rounded-b-none max-compact:pb-[calc(--spacing(5)+env(safe-area-inset-bottom))]"
             closeLabel={t("panel.close")}
             data-assistant-surface
             id={panelId}

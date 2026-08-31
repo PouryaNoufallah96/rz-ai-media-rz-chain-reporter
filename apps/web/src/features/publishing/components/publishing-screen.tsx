@@ -26,10 +26,10 @@ export function PublishingScreen({
     >
       {(t) => (
         <>
-          <h1 className="font-semibold text-2xl tracking-display">
+          <h1 className="text-balance font-semibold text-2xl tracking-display">
             {t("desk.title")}
           </h1>
-          <p className="mt-2 max-w-3xl text-muted-foreground text-sm/relaxed">
+          <p className="mt-2 max-w-3xl text-pretty text-muted-foreground text-sm/relaxed">
             {t("desk.subtitle")}
           </p>
           <Suspended

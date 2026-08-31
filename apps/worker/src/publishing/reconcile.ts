@@ -244,17 +244,6 @@ export async function reconcilePublication(
         };
       },
     );
-    await publishOperationStatus(
-      step,
-      input.workspaceId,
-      {
-        ...settled,
-        actorId: claim.operation.actor,
-        operationId: input.operationId,
-        sharedImport: false,
-      },
-      "worker.publishing.realtime-unavailable",
-    );
     return { operation: settled, status: "still_unknown" as const };
   }
 
@@ -332,17 +321,6 @@ export async function reconcilePublication(
         operationVersion: settled.operation.version,
       };
     },
-  );
-  await publishOperationStatus(
-    step,
-    input.workspaceId,
-    {
-      ...operationSettled,
-      actorId: claim.operation.actor,
-      operationId: input.operationId,
-      sharedImport: false,
-    },
-    "worker.publishing.realtime-unavailable",
   );
   return { operation: operationSettled, status: decision };
 }

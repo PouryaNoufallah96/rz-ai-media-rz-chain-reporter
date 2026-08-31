@@ -22,6 +22,12 @@ import type {
   SourceOrigin,
   TelegramOrderingMode,
 } from "@rz-chain-reporter/contracts";
+import {
+  cardOriginReferenceSchema,
+  contentLocaleSchema,
+  dispatchStateSchema,
+  operationLifecycleSchema,
+} from "@rz-chain-reporter/contracts";
 import type { AnalysisRunProgress } from "@rz-chain-reporter/db/repositories/analysis-run";
 import { createLoader, parseAsString, type SearchParams } from "nuqs/server";
 import { z } from "zod";
@@ -53,6 +59,35 @@ export const analysisRunIdSchema = z.uuid();
 export const cancelAnalysisRunInputSchema = z.object({
   analysisRunId: analysisRunIdSchema,
 });
+
+export const startPresentationTranslationInputSchema = z.strictObject({
+  origin: cardOriginReferenceSchema,
+  presentationLocale: contentLocaleSchema,
+  idempotencyKey: z.uuid({ error: "IDEMPOTENCY_KEY_REQUIRED" }),
+});
+
+export const translationCommandResultSchema = z.discriminatedUnion("status", [
+  z.strictObject({ status: z.literal("already_available") }),
+  z.strictObject({
+    status: z.enum(["created", "replayed"]),
+    operationId: z.uuid(),
+    lifecycle: operationLifecycleSchema,
+  }),
+]);
+
+export const presentationTranslationCommandResultSchema =
+  translationCommandResultSchema;
+
+export const translationStatusSchema = z.strictObject({
+  dispatchState: dispatchStateSchema,
+  lifecycle: operationLifecycleSchema,
+  operationId: z.uuid(),
+});
+
+export const presentationTranslationStatusSchema = translationStatusSchema;
+
+export type TranslationStatus = z.infer<typeof translationStatusSchema>;
+export type PresentationTranslationStatus = TranslationStatus;
 
 export const startAnalysisRunResultSchema = z.object({
   operationId: z.uuid(),
@@ -113,6 +148,7 @@ export type RunHead = {
   provenance: RunProvenance;
   progress: AnalysisRunProgress;
   telegramAcquisition: TelegramAcquisition;
+  topicTranslationFallback: boolean;
 };
 
 export type RunOption = {
@@ -140,6 +176,8 @@ export type SelectionCard = {
   sourceName: string;
   sourceOrigin: SourceOrigin;
   publishedAt: Date | null;
+  presentationReady: boolean;
+  presentationTranslation: PresentationTranslationStatus | null;
 };
 
 export type PromoIdeaCard = {
@@ -148,6 +186,8 @@ export type PromoIdeaCard = {
   title: string;
   description: string;
   angle: string;
+  presentationReady: boolean;
+  presentationTranslation: PresentationTranslationStatus | null;
 };
 
 export type ModelLane = {
@@ -186,6 +226,8 @@ export type TelegramCard = {
   sourceRank: number | null;
   keywordScore: number | null;
   duplicateRssCount: number;
+  presentationReady: boolean;
+  presentationTranslation: PresentationTranslationStatus | null;
 };
 
 type TelegramSourceFailure = {

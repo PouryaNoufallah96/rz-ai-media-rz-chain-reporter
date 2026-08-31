@@ -2,6 +2,7 @@ import type { InvocationKey } from "@rz-chain-reporter/contracts";
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   check,
   foreignKey,
   index,
@@ -53,6 +54,7 @@ export const aiUsageEvent = pgTable(
     generationId: text("generation_id"),
     providerRequestId: text("provider_request_id"),
     status: usageStatus("status").default("pending").notNull(),
+    failureRetryable: boolean("failure_retryable"),
     finishReason: text("finish_reason"),
     promptTokens: bigint("prompt_tokens", { mode: "number" }),
     completionTokens: bigint("completion_tokens", { mode: "number" }),
@@ -103,6 +105,10 @@ export const aiUsageEvent = pgTable(
     check(
       "ck_ai_usage_event_raw_usage",
       sql`${t.rawUsage} is null or (jsonb_typeof(${t.rawUsage}) = 'object' and ${t.rawUsage} - array['isByok', 'nativeFinishReason', 'route', 'routingAttempts'] = '{}'::jsonb)`,
+    ),
+    check(
+      "ck_ai_usage_event_failure_retryable",
+      sql`${t.failureRetryable} is null or ${t.status} = 'failed'`,
     ),
     unique("uq_ai_usage_event_operation_attempt_id_invocation_key").on(
       t.operationAttemptId,

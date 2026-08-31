@@ -123,6 +123,14 @@ export function createModelGateway(options: {
           backend: route.backend,
           providerGateway,
           requestedModel: route.model,
+          ...(input.claimFence
+            ? {
+                claimFence: {
+                  ...input.claimFence,
+                  now: new Date(),
+                },
+              }
+            : {}),
         },
       );
 
@@ -151,6 +159,7 @@ export function createModelGateway(options: {
           input.workspaceId,
           pending.event.id,
           error,
+          invocationClaimFence(input),
         ),
       );
 
@@ -164,6 +173,7 @@ export function createModelGateway(options: {
               id: pending.event.id,
               status: "succeeded",
               ...embedded.observation,
+              claimFence: invocationClaimFence(input),
             },
             (tx) => persistResult(tx, embedded.embeddings),
           );
@@ -179,6 +189,7 @@ export function createModelGateway(options: {
             input.workspaceId,
             pending.event.id,
             embedded.observation,
+            invocationClaimFence(input),
           );
           throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
             ambiguous: true,
@@ -200,6 +211,7 @@ export function createModelGateway(options: {
           id: pending.event.id,
           status: "succeeded",
           ...embedded.observation,
+          claimFence: invocationClaimFence(input),
         },
       );
 
@@ -485,6 +497,19 @@ export function createModelGateway(options: {
           },
         });
       } catch (error) {
+        const providerFailure = readProviderFailure(error);
+        if (providerFailure) {
+          options.logger.warn("model-gateway.structured-failed", {
+            attemptId: input.operationAttemptId,
+            invocationKey: input.invocationKey,
+            operationId: input.operationId,
+            reason: providerFailure.code,
+            taskKey,
+            ...(providerFailure.httpStatus === undefined
+              ? {}
+              : { httpStatus: providerFailure.httpStatus }),
+          });
+        }
         if (
           error instanceof AdapterInvocationError &&
           error.kind === "structured-output-invalid"
@@ -708,6 +733,7 @@ async function finalizeDefiniteImageFailure(
   const finalized = await finalizeUsage(executor, workspaceId, {
     id: usageEventId,
     status: "failed",
+    failureRetryable: false,
     ...observation,
     claimFence,
   });
@@ -737,6 +763,7 @@ async function finalizeStructuredFailure(
       {
         id: usageEventId,
         status: "failed",
+        failureRetryable: false,
         ...error.observation,
         claimFence,
       },
@@ -928,6 +955,12 @@ async function finalizeAdapterFailure(
           : error.kind === "unknown"
             ? "unknown"
             : "failed",
+      failureRetryable:
+        error.kind === "failed"
+          ? error.retryable
+          : error.kind === "structured-output-invalid"
+            ? false
+            : null,
       ...error.observation,
       finishReason: error.observation.finishReason ?? error.reason,
       claimFence,

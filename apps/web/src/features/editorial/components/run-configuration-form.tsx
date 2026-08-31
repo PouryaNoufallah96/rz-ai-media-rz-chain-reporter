@@ -64,6 +64,7 @@ import {
   FormSwitchField,
   FormTextareaField,
 } from "@/components/form/form-field";
+import { operationCreated } from "@/features/operations/lib/focus-operation";
 import type { SourceCatalogEntry } from "@/features/sources/schemas/catalog";
 import { applyActionErrorToForm, useAction } from "@/hooks/use-action";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
@@ -71,9 +72,9 @@ import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 import { startAnalysisRunAction } from "../actions/commands";
 import { EDITORIAL_NAMESPACE } from "../constants";
 import { useEditorialErrorMessage } from "../hooks/use-editorial-error-message";
+import type { BoardPresentation } from "../lib/board-presentation";
 import type { RunOptions } from "../schemas/workspace";
 import { workspaceSearchParsers } from "../schemas/workspace";
-import type { BoardPresentation } from "./lane-board";
 
 type RunSubmission = z.input<typeof runConfigurationTransportSchema>;
 
@@ -94,11 +95,13 @@ export function RunConfigurationForm({
   initialConfiguration,
   onPresentationChange,
   options,
+  runInProgress,
   sources,
 }: {
   initialConfiguration: RunConfiguration | null;
   onPresentationChange: (presentation: BoardPresentation) => void;
   options: RunOptions;
+  runInProgress: boolean;
   sources: readonly SourceCatalogEntry[];
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
@@ -157,6 +160,7 @@ export function RunConfigurationForm({
   });
 
   const isPending = isSubmitting || action.isPending || isNavigationPending;
+  const isBusy = isPending || runInProgress;
   const { field: kind } = useController({
     control,
     name: "kind",
@@ -165,7 +169,8 @@ export function RunConfigurationForm({
     onPresentationChange({
       brandKeys: values.kind === "promo" ? values.promo.brands : values.brands,
       kind: values.kind,
-      platforms: values.kind === "promo" ? options.platforms : values.platforms,
+      modelKeys: values.models,
+      platforms: values.platforms,
       telegramOnly: values.kind === "news" && values.telegramOnly,
     }),
   );
@@ -175,7 +180,14 @@ export function RunConfigurationForm({
       subscribe({
         callback: ({ values }) => publish(values),
         formState: { values: true },
-        name: ["kind", "brands", "promo.brands", "platforms", "telegramOnly"],
+        name: [
+          "kind",
+          "brands",
+          "promo.brands",
+          "models",
+          "platforms",
+          "telegramOnly",
+        ],
       }),
     [subscribe],
   );
@@ -192,6 +204,7 @@ export function RunConfigurationForm({
       return;
     }
 
+    operationCreated(result.data.operationId);
     await setValues(
       { draft: null, run: result.data.analysisRunId },
       { history: "push" },
@@ -202,7 +215,11 @@ export function RunConfigurationForm({
     const previous = options.previousRun;
     if (!previous) return;
 
-    const previousValues = toFormValues(previous.configuration, getValues());
+    const previousValues = toFormValues(
+      previous.configuration,
+      getValues(),
+      options.platforms,
+    );
     reset(
       previousValues.kind === "news"
         ? {
@@ -290,7 +307,7 @@ export function RunConfigurationForm({
         {t("run.title")}
       </h2>
       <form
-        aria-busy={isPending}
+        aria-busy={isBusy}
         className="max-sm:**:data-[slot=input-group-control]:min-h-11 max-sm:**:data-[slot=input-group]:min-h-11 max-sm:**:data-[slot=input]:min-h-11 max-sm:**:data-[slot=select-trigger]:min-h-11 max-sm:**:data-[slot=checkbox]:after:-inset-3.75 max-sm:[&_button]:min-h-11 max-sm:[&_button]:min-w-11 max-sm:[&_li]:min-h-11 max-sm:[&_summary]:min-h-11"
         noValidate
         onSubmit={onSubmit}
@@ -298,14 +315,15 @@ export function RunConfigurationForm({
         <FieldGroup>
           <KindField
             control={control}
-            disabled={isPending}
+            disabled={isBusy}
             resolveError={resolveError}
           />
           {kind.value === "promo" ? (
             <PromoFields
               control={control}
-              disabled={isPending}
+              disabled={isBusy}
               models={options.models}
+              platforms={options.platforms}
               promoBrands={promoBrands}
               resolveError={resolveError}
             />
@@ -313,7 +331,7 @@ export function RunConfigurationForm({
             <NewsFields
               announce={setAnnouncement}
               control={control}
-              disabled={isPending}
+              disabled={isBusy}
               onSourceIdsChange={reconcileTelegramOnly}
               onToggleTelegramOnly={toggleTelegramOnly}
               options={options}
@@ -338,6 +356,7 @@ export function RunConfigurationForm({
             isPending={isPending}
             onUsePreviousRun={loadPreviousRun}
             promoBrands={promoBrands}
+            runInProgress={runInProgress}
           />
         </FieldGroup>
       </form>
@@ -352,6 +371,7 @@ function RunFooter({
   isPending,
   onUsePreviousRun,
   promoBrands,
+  runInProgress,
 }: {
   control: RunFormControl;
   fromPreviousRun: boolean;
@@ -359,26 +379,32 @@ function RunFooter({
   isPending: boolean;
   onUsePreviousRun: () => void;
   promoBrands: RunOptions["brands"];
+  runInProgress: boolean;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const { field } = useController({ control, name: "kind" });
   const noPromoBrand = field.value === "promo" && promoBrands.length === 0;
+  const runButtonPending = isPending || runInProgress;
 
   return (
     <div className="mt-1 grid gap-2 border-border border-t pt-3">
       <div className="grid gap-2">
         <MetalButton
           className="h-auto min-h-10 w-full whitespace-normal py-2"
-          disabled={isPending || noPromoBrand}
-          paused={isPending}
+          disabled={runButtonPending || noPromoBrand}
+          paused={runButtonPending}
           type="submit"
         >
-          {isPending ? <Spinner data-icon="inline-start" /> : null}
-          {isPending ? t("run.starting") : t("run.start")}
+          {runButtonPending ? <Spinner data-icon="inline-start" /> : null}
+          {runInProgress
+            ? t("run.inProgress")
+            : isPending
+              ? t("run.starting")
+              : t("run.start")}
         </MetalButton>
         <Button
           className="h-auto min-h-8 w-full whitespace-normal py-1.5"
-          disabled={isPending || !hasPreviousRun}
+          disabled={runButtonPending || !hasPreviousRun}
           onClick={onUsePreviousRun}
           type="button"
           variant="link"
@@ -409,10 +435,12 @@ function PromoFields({
   control,
   disabled,
   models,
+  platforms,
   promoBrands,
   resolveError,
 }: FieldProps & {
   models: RunOptions["models"];
+  platforms: RunOptions["platforms"];
   promoBrands: RunOptions["brands"];
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
@@ -443,6 +471,17 @@ function PromoFields({
         options={models.map((model) => ({
           label: model.name,
           value: model.key,
+        }))}
+        resolveError={resolveError}
+      />
+      <CheckboxListField
+        control={control}
+        disabled={disabled}
+        legend={t("run.platforms")}
+        name="platforms"
+        options={platforms.map((platform) => ({
+          label: t(`run.platform.${platform}`),
+          value: platform,
         }))}
         resolveError={resolveError}
       />
@@ -595,7 +634,7 @@ function KindField({ control, disabled, resolveError }: FieldProps) {
                 onClick={() => field.onChange(value)}
                 size="xs"
                 type="button"
-                variant={field.value === value ? "default" : "outline"}
+                variant="outline"
               >
                 {t(`run.kind.${value}`)}
               </Button>
@@ -678,7 +717,7 @@ function CheckboxListField({
                       ref={index === 0 ? field.ref : undefined}
                     />
                     <FieldLabel
-                      className="min-w-0 truncate font-normal"
+                      className="wrap-anywhere min-w-0 font-normal"
                       htmlFor={`${controlId}-${option.value}`}
                     >
                       <Bdi>{option.label}</Bdi>
@@ -851,7 +890,7 @@ function SourceSubsetField({
                                 }}
                                 size="xs"
                                 type="button"
-                                variant={isSelected ? "default" : "outline"}
+                                variant="outline"
                               >
                                 <Bdi
                                   className="wrap-anywhere min-w-0"
@@ -985,7 +1024,7 @@ function RecencyField({
                 onClick={() => field.onChange(hours)}
                 size="xs"
                 type="button"
-                variant={field.value === hours ? "default" : "outline"}
+                variant="outline"
               >
                 {t(`run.recency.${hours}`)}
               </Button>
@@ -1188,6 +1227,7 @@ function TopicsField({
                 <div className="flex flex-wrap gap-1">
                   {recentTopics.map((topic) => (
                     <Button
+                      className="max-w-full"
                       disabled={disabled || topics.includes(topic)}
                       key={topic}
                       onClick={() => add(topic)}
@@ -1195,7 +1235,7 @@ function TopicsField({
                       type="button"
                       variant="outline"
                     >
-                      <Bdi>{topic}</Bdi>
+                      <Bdi className="block max-w-full truncate">{topic}</Bdi>
                     </Button>
                   ))}
                 </div>
@@ -1233,7 +1273,11 @@ function initialValues(
 
   if (initialConfiguration === null) return defaults;
 
-  const configured = toFormValues(initialConfiguration, defaults);
+  const configured = toFormValues(
+    initialConfiguration,
+    defaults,
+    options.platforms,
+  );
   if (configured.kind === "promo") return configured;
 
   const selectableIds = new Set(selectable.map((entry) => entry.id));
@@ -1253,6 +1297,7 @@ function toConfiguration(
     return {
       kind: "promo",
       models: values.models,
+      platforms: values.platforms,
       promo: {
         brands: values.promo.brands,
         prompts: promptsOf(values.promo),
@@ -1275,12 +1320,14 @@ function toConfiguration(
 function toFormValues(
   configuration: RunConfiguration,
   current: RunFormValues,
+  legacyPromoPlatforms: readonly Platform[],
 ): RunFormValues {
   if (configuration.kind === "promo") {
     return {
       ...current,
       kind: "promo",
       models: configuration.models,
+      platforms: configuration.platforms ?? [...legacyPromoPlatforms],
       promo: {
         brands: configuration.promo.brands,
         prompts: promptsOf(configuration.promo),
