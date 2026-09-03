@@ -1,6 +1,6 @@
 "use client";
 
-import { Mesh, Program, Renderer, Triangle } from "ogl";
+import { Mesh, Renderer as OglRenderer, Program, Triangle } from "ogl";
 import { useEffect, useRef } from "react";
 
 type RaysOrigin = "top-left" | "top-right";
@@ -137,9 +137,9 @@ function LightRays({ color, origin }: LightRaysProps) {
     });
     if (!webgl) return;
 
-    let renderer: Renderer;
+    let oglRenderer: OglRenderer;
     try {
-      renderer = new Renderer({
+      oglRenderer = new OglRenderer({
         alpha: true,
         canvas,
         depth: false,
@@ -152,7 +152,7 @@ function LightRays({ color, origin }: LightRaysProps) {
       return;
     }
 
-    const gl = renderer.gl;
+    const gl = oglRenderer.gl;
     gl.clearColor(0, 0, 0, 0);
     gl.canvas.className = "block size-full bg-transparent";
     container.replaceChildren(gl.canvas);
@@ -184,7 +184,7 @@ function LightRays({ color, origin }: LightRaysProps) {
     const render = (time: number) => {
       lastRenderTime = time;
       uniforms.iTime.value = time * 0.001;
-      renderer.render({ scene: mesh });
+      oglRenderer.render({ scene: mesh });
     };
 
     const updateSize = () => {
@@ -192,10 +192,10 @@ function LightRays({ color, origin }: LightRaysProps) {
       const height = container.clientHeight;
       if (width === 0 || height === 0) return;
 
-      renderer.dpr = canvasPixelRatio();
-      renderer.setSize(width, height);
-      const pixelWidth = Math.round(width * renderer.dpr);
-      const pixelHeight = Math.round(height * renderer.dpr);
+      oglRenderer.dpr = canvasPixelRatio();
+      oglRenderer.setSize(width, height);
+      const pixelWidth = Math.round(width * oglRenderer.dpr);
+      const pixelHeight = Math.round(height * oglRenderer.dpr);
       uniforms.iResolution.value = [pixelWidth, pixelHeight];
       const placement = getPlacement(
         appearanceRef.current.origin,

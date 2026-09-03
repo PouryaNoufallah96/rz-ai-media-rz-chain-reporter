@@ -2,7 +2,10 @@ import {
   type DraftEditorInput,
   draftEditorSchema,
   type PlatformDraftCard,
+  type PlatformDraftExactCard,
 } from "../schemas/drafts";
+
+export type RevisionDraftCard = PlatformDraftCard | PlatformDraftExactCard;
 
 export type EditSource = {
   kind: "copy_variant" | "draft_revision";
@@ -12,7 +15,7 @@ export type EditSource = {
 };
 
 export type RevisionEditorState = {
-  card: PlatformDraftCard | null;
+  card: RevisionDraftCard | null;
   freshContentLocale: DraftEditorInput["contentLocale"];
   source: EditSource | null;
   editorValues: DraftEditorInput;
@@ -97,19 +100,19 @@ export function canChangeSavedCard(
 }
 
 export function candidateValues(
-  candidate: PlatformDraftCard["candidates"][number],
+  candidate: RevisionDraftCard["candidates"][number],
 ): DraftEditorInput {
   return cloneValues(candidate);
 }
 
 export function revisionValues(
-  revision: PlatformDraftCard["revisions"][number],
+  revision: RevisionDraftCard["revisions"][number],
 ): DraftEditorInput {
   return cloneValues(revision);
 }
 
 export function candidateEditSource(
-  candidate: PlatformDraftCard["candidates"][number],
+  candidate: RevisionDraftCard["candidates"][number],
 ): EditSource {
   return {
     kind: "copy_variant",
@@ -120,7 +123,7 @@ export function candidateEditSource(
 }
 
 export function revisionEditSource(
-  revision: PlatformDraftCard["revisions"][number],
+  revision: RevisionDraftCard["revisions"][number],
 ): EditSource {
   return {
     kind: "draft_revision",
@@ -130,7 +133,7 @@ export function revisionEditSource(
   };
 }
 
-function defaultSource(card: PlatformDraftCard | null) {
+function defaultSource(card: RevisionDraftCard | null) {
   const active = card?.revisions.find(
     (revision) => revision.id === card.activeRevisionId,
   );
@@ -139,7 +142,7 @@ function defaultSource(card: PlatformDraftCard | null) {
   return candidate ? candidateEditSource(candidate) : null;
 }
 
-function currentSource(card: PlatformDraftCard, source: EditSource) {
+function currentSource(card: RevisionDraftCard, source: EditSource) {
   if (source.kind === "draft_revision") {
     const revision = card.revisions.find((entry) => entry.id === source.id);
     return revision ? revisionEditSource(revision) : null;
@@ -149,7 +152,7 @@ function currentSource(card: PlatformDraftCard, source: EditSource) {
 }
 
 export function initialContentLocale(
-  card: PlatformDraftCard | null,
+  card: RevisionDraftCard | null,
   freshContentLocale: DraftEditorInput["contentLocale"],
 ) {
   return (
@@ -160,7 +163,7 @@ export function initialContentLocale(
 }
 
 export function revisionEditorState(
-  card: PlatformDraftCard | null,
+  card: RevisionDraftCard | null,
   freshContentLocale: DraftEditorInput["contentLocale"],
 ): RevisionEditorState {
   const source = defaultSource(card);
@@ -196,7 +199,7 @@ export function selectEditSource(
 
 export function acceptRevisionCard(
   current: RevisionEditorState,
-  incoming: PlatformDraftCard | null,
+  incoming: RevisionDraftCard | null,
   preserveSource: boolean,
 ): RevisionEditorState {
   const previous = current.card;

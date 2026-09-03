@@ -24,6 +24,7 @@
       "translating": "Translating {title}",
       "unknown": "Translation outcome is unknown. Retry {title}",
       "retry": "Translation failed. Retry {title}",
+      "text": "Translation",
       "hint": {
         "translate": "Translate",
         "queueing": "Queueing translation…",
@@ -43,6 +44,7 @@
       "translating": "Translating variation {title}",
       "unknown": "Translation outcome is unknown. Retry variation {title}",
       "retry": "Translation failed. Retry variation {title}",
+      "text": "Translation",
       "hint": {
         "translate": "Translate variation",
         "queueing": "Queueing translation…",
@@ -315,7 +317,8 @@
         "latest": "Choose a run",
         "option": "{kind} · {time}",
         "viewing": "Viewing a historical run.",
-        "recent": "Recent runs"
+        "recent": "Recent runs",
+        "updating": "Loading the selected run…"
       },
       "templateChanged": {
         "tag": "template changed",
@@ -513,7 +516,8 @@
       "position": "Lane {i, number} of {n, number}",
       "telegram": {
         "title": "Telegram source · {brand}",
-        "zone": "Telegram source lanes"
+        "zone": "Telegram source lanes",
+        "heading": "Telegram source"
       },
       "unit": {
         "cancelled": "cancelled",

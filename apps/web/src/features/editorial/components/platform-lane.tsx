@@ -16,10 +16,10 @@ import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import {
   type CardOriginReference,
   type ContentLocale,
-  cardOriginReferenceSchema,
   contentLocaleSchema,
   type Platform,
   platformSchema,
+  runCardOriginReferenceSchema,
 } from "@rz-chain-reporter/contracts";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { Hint } from "@rz-chain-reporter/ui/components/hint";
@@ -39,6 +39,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import { PlatformIcon } from "@/components/common/platform-icon";
 import { useAction } from "@/hooks/use-action";
 
 import {
@@ -225,6 +226,8 @@ export function RouteProvider({
   const route = (request: RouteRequest) => {
     const { brandKey, contentLocale, origin, platform, returnFocusId, title } =
       request;
+    const runOrigin = runCardOriginReferenceSchema.safeParse(origin);
+    if (!runOrigin.success) return;
     const id = routeKey(brandKey, origin, platform);
     if (pendingRouteKeys.current.has(id)) return;
 
@@ -244,7 +247,7 @@ export function RouteProvider({
       );
 
       const settled = await action.execute({
-        origin,
+        origin: runOrigin.data,
         platform,
         modelOptionKey: defaultModelOptionKey,
         requestedContentLocale: contentLocale,
@@ -594,7 +597,10 @@ export function PlatformLaneGroup({
         key={platform}
       >
         <header className="px-3 py-3">
-          <h4 className="ticket-label">{t(`run.platform.${platform}`)}</h4>
+          <h4 className="ticket-label flex items-center gap-1.5">
+            <PlatformIcon className="size-3.5" platform={platform} />
+            {t(`run.platform.${platform}`)}
+          </h4>
         </header>
         {pending.length > 0 ? (
           pending.map((prediction) => (
@@ -649,11 +655,9 @@ function PlatformLane({ lane }: { lane: PlatformDraftLaneValue }) {
       ref={ref}
     >
       <header className="px-3 py-3">
-        <h4 className="wrap-anywhere font-medium text-sm">
-          {t("platformDraft.lane", {
-            brand: lane.brandName,
-            platform: t(`run.platform.${lane.platform}`),
-          })}
+        <h4 className="wrap-anywhere flex items-center gap-1.5 font-medium text-sm">
+          <PlatformIcon className="size-4 shrink-0" platform={lane.platform} />
+          {t(`run.platform.${lane.platform}`)}
         </h4>
         <p className="text-muted-foreground text-xs">
           {t("platformDraft.count", { n: lane.drafts.length })}
@@ -732,12 +736,6 @@ function SortablePlatformDraft({
         card={card}
         controls={
           <>
-            <PresentationTranslationButton
-              origin={card.origin}
-              presentationReady={card.presentationReady}
-              translation={card.presentationTranslation}
-              title={card.originTitle}
-            />
             <Hint label={t("platformDraft.hint.drag")}>
               <Button
                 aria-label={t("platformDraft.drag", {
@@ -754,6 +752,12 @@ function SortablePlatformDraft({
                 <GripVerticalIcon aria-hidden="true" />
               </Button>
             </Hint>
+            <PresentationTranslationButton
+              origin={card.origin}
+              presentationReady={card.presentationReady}
+              translation={card.presentationTranslation}
+              title={card.originTitle}
+            />
             <Hint label={t("platformDraft.hint.moveEarlier")}>
               <Button
                 aria-label={t("platformDraft.moveEarlier", {
@@ -881,7 +885,15 @@ function sameOrigin(left: CardOriginReference, right: CardOriginReference) {
       left.telegramFilterResultId === right.telegramFilterResultId
     );
   }
-  return right.kind === "promo_idea" && left.promoIdeaId === right.promoIdeaId;
+  if (left.kind === "promo_idea") {
+    return (
+      right.kind === "promo_idea" && left.promoIdeaId === right.promoIdeaId
+    );
+  }
+  return (
+    right.kind === "market_analysis_handoff" &&
+    left.marketAnalysisHandoffId === right.marketAnalysisHandoffId
+  );
 }
 
 function hasOrigin(lane: PlatformDraftLaneValue, origin: CardOriginReference) {
@@ -924,7 +936,8 @@ function originKey(origin: CardOriginReference) {
   if (origin.kind === "telegram_filter_result") {
     return origin.telegramFilterResultId;
   }
-  return origin.promoIdeaId;
+  if (origin.kind === "promo_idea") return origin.promoIdeaId;
+  return origin.marketAnalysisHandoffId;
 }
 
 export function originUiKey(brandKey: string, origin: CardOriginReference) {
@@ -942,7 +955,7 @@ function originData(value: unknown): OriginDragData | null {
     return null;
   }
   const contentLocale = contentLocaleSchema.safeParse(candidate.contentLocale);
-  const origin = cardOriginReferenceSchema.safeParse(candidate.origin);
+  const origin = runCardOriginReferenceSchema.safeParse(candidate.origin);
   if (!contentLocale.success || !origin.success) return null;
   return {
     kind: "origin",
@@ -979,7 +992,7 @@ function dragData(value: unknown): DragData | null {
   ) {
     return null;
   }
-  const origin = cardOriginReferenceSchema.safeParse(candidate.origin);
+  const origin = runCardOriginReferenceSchema.safeParse(candidate.origin);
   if (!origin.success) return null;
   return {
     kind: "draft",

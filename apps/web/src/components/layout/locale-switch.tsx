@@ -1,5 +1,6 @@
 "use client";
 
+import { DEFAULT_LOCALE, LOCALES } from "@rz-chain-reporter/i18n";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { Hint } from "@rz-chain-reporter/ui/components/hint";
 import { LanguagesIcon } from "lucide-react";
@@ -13,7 +14,8 @@ export function LocaleSwitch() {
   const pathname = usePathname();
   const router = useRouter();
   const t = useTranslations(SHARED_NAMESPACE);
-  const nextLocale = locale === "en" ? "fa" : "en";
+  const nextLocale =
+    LOCALES.find((candidate) => candidate !== locale) ?? DEFAULT_LOCALE;
   const label = t("language.switchTo", {
     language: t(`language.${nextLocale}`),
   });

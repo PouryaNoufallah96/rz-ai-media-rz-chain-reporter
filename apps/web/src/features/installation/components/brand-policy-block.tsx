@@ -1,5 +1,6 @@
 import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
+import { BrandMark } from "@/components/common/brand-mark";
 import { getFormatter, getT } from "@/i18n/server";
 import {
   customerBrandPolicy,
@@ -38,7 +39,8 @@ export async function BrandPolicyBlock({
             className="grid items-baseline gap-1.5 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] sm:gap-x-6"
             key={brand.key}
           >
-            <span className="min-w-0 text-sm">
+            <span className="flex min-w-0 items-center gap-2 text-sm">
+              <BrandMark logo={brand.logo} name={brand.name} />
               <Bdi>{brand.name}</Bdi>
             </span>
             <ReferenceCell

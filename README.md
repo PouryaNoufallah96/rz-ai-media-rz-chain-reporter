@@ -9,10 +9,19 @@ worker.
 ChainReporter is one reusable product, deployed and configured as a separate
 installation per customer. Each installation has its own host, database, object
 storage, and provider credentials; its media brands, sources, destination
-accounts, models, and editorial behavior are configuration rather than code. The
-crypto ChainReporter is one such installation — another customer could work in an
-entirely different domain. There is no public signup and no shared multi-tenant
-instance: operator accounts are provisioned when a deployment is set up.
+accounts, models, editorial behavior, and optional Market Analysis capability
+are configuration rather than code. There is no public signup and no shared
+multi-tenant instance: operator accounts are provisioned when a deployment is
+set up.
+
+The two real customer configurations are explicit. `chainreporter` preserves
+the four-brand legacy ChainReporter editorial product and disables Market
+Analysis. `rzwire` preserves the seven-brand legacy RZWire product and enables
+Market Analysis. Its six controlled instruments use CoinMarketCap's documented
+keyless public K-line API with explicit BSC contract addresses, with Binance
+public spot comparisons through its market-data-only endpoint. Keyed
+CoinMarketCap Pro historical quotes remain a separate supported adapter, not an
+alias for the public K-line capability (ADR 0015).
 
 ## Current foundation
 
@@ -28,6 +37,7 @@ instance: operator accounts are provisioned when a deployment is set up.
 - `packages/env`: client, web-server, worker, build, and migration environment validation.
 - `packages/i18n`: framework-free locale, direction, script, and font facts.
 - `packages/model-gateway`: framework-free ModelGateway and OpenRouter/Ollama adapters shared by server runtimes.
+- `packages/market-chart`: deterministic Market Analysis chart geometry and SVG serialization shared by web and worker.
 - `packages/storage`: framework-free MinIO/`Storage` seam (ADR 0009).
 - `packages/ui`: owned shadcn/Base UI source and Tailwind 4 tokens.
 
@@ -46,7 +56,8 @@ Current local verification:
 ```bash
 pnpm install --frozen-lockfile
 pnpm validate
-CUSTOMER_TEMPLATE_KEY=<key> pnpm build
+CUSTOMER_TEMPLATE_KEY=chainreporter pnpm build
+# or: CUSTOMER_TEMPLATE_KEY=rzwire pnpm build
 ```
 
 Copy root `.env.example` to a local ignored `.env` and set `POSTGRES_PASSWORD`

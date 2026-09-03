@@ -20,6 +20,10 @@ export default {
         files: ["src/components/layout/locale-switch.tsx"],
         rules: ["react-doctor/rerender-defer-reads-hook"],
       },
+      {
+        files: ["src/features/auth/components/light-rays.tsx"],
+        rules: ["react-doctor/three-prefer-set-animation-loop"],
+      },
     ],
   },
 } satisfies ReactDoctorConfig;

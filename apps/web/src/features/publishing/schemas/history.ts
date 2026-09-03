@@ -1,5 +1,6 @@
 import type {
   ContentLocale,
+  MarketExecutionScopeTarget,
   Platform,
   PublicationLifecycle,
   PublishCheckpointKind,
@@ -58,11 +59,13 @@ export function normalizePublishingQuery(
 
 export type SavedHistoryRow = {
   id: string;
-  analysisRunId: string;
+  analysisRunId: string | null;
+  executionScope: MarketExecutionScopeTarget;
   platformDraftId: string;
   savedAt: Date;
   discardedAt: Date | null;
   version: number;
+  brandKey: string;
   brandName: string;
   platform: Platform;
   originTitle: string;
@@ -78,6 +81,7 @@ export type PublishingHistoryRow = {
   id: string;
   platformDraftId: string;
   occurredAt: Date;
+  brandKey: string;
   brandName: string;
   headline: string;
   body: string;

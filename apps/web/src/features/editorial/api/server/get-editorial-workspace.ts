@@ -1,13 +1,12 @@
 import "server-only";
 
+import type { ContentLocale } from "@rz-chain-reporter/contracts";
 import { cacheLife, cacheTag } from "next/cache";
-
 import { requireSession } from "@/features/auth/api/server/session";
 import { currentLocale } from "@/i18n/server";
 import { customerTemplateFingerprint } from "@/lib/customer-template.server";
 import { rpcDb } from "@/server/rpc/db";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
-
 import { editorialTags } from "../../db/cache/tags";
 import { readEditorialWorkspace } from "../../db/queries";
 import {
@@ -72,7 +71,7 @@ async function readPinnedEditorialWorkspace(
   workspaceId: string,
   userId: string,
   analysisRunId: string,
-  presentationLocale: "en" | "fa",
+  presentationLocale: ContentLocale,
 ) {
   "use cache";
   cacheTag(editorialTags.reads(workspaceId));

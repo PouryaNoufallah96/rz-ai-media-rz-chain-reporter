@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "./dotmatrix-loader.css";
+@import "./image-generation.css";
 @source "../../../../apps/web/src/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
@@ -68,6 +69,14 @@
   letter-spacing: var(--tracking-display);
 }
 
+@utility ready-ring {
+  animation: var(--animate-ready-ring);
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
 .dark {
   --background: oklch(0.16 0.004 285);
   --foreground: oklch(0.985 0 0);
@@ -110,6 +119,7 @@
   --breakpoint-compact: 37.5rem;
   --breakpoint-workspace: 56.25rem;
   --breakpoint-wide: 75rem;
+  --header-height: calc(3.25rem + 1px);
   --font-sans: var(--font-ui-sans), sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -151,6 +161,9 @@
   --radius-4xl: calc(var(--radius) + 16px);
   --animate-dmx-spiral: dmx-spiral-snake 1110ms linear infinite;
   --animate-ready-ring: ready-ring 2s ease-in-out infinite;
+  --animate-ig-morph: ig-morph 9s ease-in-out infinite;
+  --animate-ig-breathe: ig-breathe 3s ease-in-out infinite;
+  --animate-ig-shine: ig-shine 2.4s ease-in-out infinite;
 }
 
 @keyframes ready-ring {

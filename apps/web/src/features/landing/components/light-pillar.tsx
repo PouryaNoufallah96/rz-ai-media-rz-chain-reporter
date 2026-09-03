@@ -292,7 +292,6 @@ function mountLightPillar(
 
   let time = 0;
   let hidden = document.hidden;
-  let rafId: number | null = null;
 
   const render = () => {
     renderer.render(scene, camera);
@@ -321,10 +320,8 @@ function mountLightPillar(
       } else if (hidden) {
         lastTime = currentTime;
       }
-
-      rafId = requestAnimationFrame(animate);
     };
-    rafId = requestAnimationFrame(animate);
+    renderer.setAnimationLoop(animate);
   }
 
   let resizeTimeout: number | null = null;
@@ -353,7 +350,7 @@ function mountLightPillar(
       window.removeEventListener("resize", handleResize);
       document.removeEventListener("visibilitychange", handleVisibility);
       if (resizeTimeout) clearTimeout(resizeTimeout);
-      if (rafId !== null) cancelAnimationFrame(rafId);
+      renderer.setAnimationLoop(null);
       renderer.dispose();
       renderer.forceContextLoss();
       if (container.contains(renderer.domElement)) {

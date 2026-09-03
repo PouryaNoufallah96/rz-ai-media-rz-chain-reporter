@@ -21,8 +21,6 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, "../.."),
-  // The tracer finds neither entry on its own. Naming one customer's directory
-  // is what keeps a crypto image from carrying demo-sports.
   outputFileTracingIncludes: {
     "/*": [
       `../../customer-templates/${buildEnv.CUSTOMER_TEMPLATE_KEY}/**`,

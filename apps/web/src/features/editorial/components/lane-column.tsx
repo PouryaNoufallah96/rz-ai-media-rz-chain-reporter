@@ -1,6 +1,9 @@
 "use client";
 
-import type { ModelUnitStatus } from "@rz-chain-reporter/contracts";
+import type {
+  ModelUnitStatus,
+  ModelVendor,
+} from "@rz-chain-reporter/contracts";
 import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import {
   Empty,
@@ -12,6 +15,8 @@ import { cn } from "@rz-chain-reporter/ui/lib/utils";
 import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import { ModelIcon } from "@/components/common/model-icon";
+import { PlatformIcon } from "@/components/common/platform-icon";
 import { StateMark, type StateMarkState } from "@/components/common/state-mark";
 import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
 import { OPERATION_ERROR_KEYS } from "@/features/operations/lib/panel-state";
@@ -39,6 +44,7 @@ export type ModelSlot = {
   lane: ModelLane | null;
   modelName: string;
   modelOptionKey: string;
+  modelVendor: ModelVendor | null;
 };
 
 export function ModelLaneColumn({
@@ -64,11 +70,6 @@ export function ModelLaneColumn({
   const fallback = lane?.invocationKey === "fallback";
   const cardCount =
     (promo ? lane?.promoIdeas.length : lane?.selections.length) ?? 0;
-  const waitingForCards =
-    cardCount === 0 &&
-    (lane?.status === "pending" || lane?.status === "running");
-  const recovered =
-    lane?.status === "succeeded" && cardCount > 0 && lane.failureCode !== null;
 
   return (
     <LaneColumn
@@ -78,73 +79,199 @@ export function ModelLaneColumn({
         lane ? <StateMark state={UNIT_MARK[lane.status ?? "pending"]} /> : null
       }
       status={
-        <>
-          {lane?.status ? (
-            <span className={cn(lane.status === "succeeded" && "sr-only")}>
-              {t(`lane.unit.${lane.status}`)}
-            </span>
-          ) : null}
-          {lane === null && unitsPlanned ? (
-            <Tag>{t("lane.noShortlist.tag")}</Tag>
-          ) : null}
-          {limitedGuidance ? <Tag>{t("lane.limitedGuidance.tag")}</Tag> : null}
-          {lane?.failureCode ? (
-            recovered ? (
-              <span className="text-working">{t("lane.unit.recovered")}</span>
-            ) : (
-              <UnitFailure code={lane.failureCode} />
-            )
-          ) : null}
-        </>
+        <ModelLaneStatus
+          cardCount={cardCount}
+          lane={lane}
+          limitedGuidance={limitedGuidance}
+          unitsPlanned={unitsPlanned}
+        />
+      }
+      heading={modelName}
+      icon={
+        <ModelIcon
+          className="mt-px size-4 shrink-0"
+          vendor={slot.modelVendor}
+        />
       }
       title={title}
       total={total}
     >
-      {lane === null ? (
-        unitsPlanned ? (
-          <p className="p-2 text-muted-foreground text-xs">
-            {t("lane.noShortlist.body")}
-          </p>
-        ) : (
-          <LaneSkeleton />
-        )
-      ) : waitingForCards ? (
-        <LaneSkeleton />
-      ) : promo ? (
-        <>
-          {lane.promoIdeas.map((card) =>
-            lane.unitId === null ? null : (
-              <PromoLaneCard
-                brandKey={slot.brandKey}
-                brandName={brandName}
-                card={card}
-                fallback={fallback}
-                key={card.id}
-                limitedGuidance={limitedGuidance}
-              />
-            ),
-          )}
-          {lane.promoIdeas.length === 0 ? (
-            <LaneEmpty promo status={lane.status} />
-          ) : null}
-        </>
-      ) : (
-        <>
-          {lane.selections.map((card) => (
-            <SelectionLaneCard
-              brandKey={slot.brandKey}
-              card={card}
-              degraded={degraded}
-              fallback={fallback}
-              key={card.id}
-            />
-          ))}
-          {lane.selections.length === 0 ? (
-            <LaneEmpty status={lane.status} />
-          ) : null}
-        </>
-      )}
+      <ModelLaneContent
+        brandKey={slot.brandKey}
+        brandName={brandName}
+        degraded={degraded}
+        fallback={fallback}
+        lane={lane}
+        limitedGuidance={limitedGuidance}
+        promo={promo}
+        unitsPlanned={unitsPlanned}
+      />
     </LaneColumn>
+  );
+}
+
+function ModelLaneStatus({
+  cardCount,
+  lane,
+  limitedGuidance,
+  unitsPlanned,
+}: {
+  cardCount: number;
+  lane: ModelLane | null;
+  limitedGuidance: boolean;
+  unitsPlanned: boolean;
+}) {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+
+  return (
+    <>
+      {lane?.status ? (
+        <span className={cn(lane.status === "succeeded" && "sr-only")}>
+          {t(`lane.unit.${lane.status}`)}
+        </span>
+      ) : null}
+      {lane === null && unitsPlanned ? (
+        <Tag>{t("lane.noShortlist.tag")}</Tag>
+      ) : null}
+      {limitedGuidance ? <Tag>{t("lane.limitedGuidance.tag")}</Tag> : null}
+      <ModelLaneFailure cardCount={cardCount} lane={lane} />
+    </>
+  );
+}
+
+function ModelLaneFailure({
+  cardCount,
+  lane,
+}: {
+  cardCount: number;
+  lane: ModelLane | null;
+}) {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+
+  if (lane?.failureCode === null || lane?.failureCode === undefined)
+    return null;
+  if (lane.status === "succeeded" && cardCount > 0) {
+    return <span className="text-working">{t("lane.unit.recovered")}</span>;
+  }
+
+  return <UnitFailure code={lane.failureCode} />;
+}
+
+function ModelLaneContent({
+  brandKey,
+  brandName,
+  degraded,
+  fallback,
+  lane,
+  limitedGuidance,
+  promo,
+  unitsPlanned,
+}: {
+  brandKey: string;
+  brandName: string;
+  degraded: boolean;
+  fallback: boolean;
+  lane: ModelLane | null;
+  limitedGuidance: boolean;
+  promo: boolean;
+  unitsPlanned: boolean;
+}) {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+
+  if (lane === null) {
+    return unitsPlanned ? (
+      <p className="p-2 text-muted-foreground text-xs">
+        {t("lane.noShortlist.body")}
+      </p>
+    ) : (
+      <LaneSkeleton />
+    );
+  }
+
+  const cardCount = promo ? lane.promoIdeas.length : lane.selections.length;
+  if (
+    cardCount === 0 &&
+    (lane.status === "pending" || lane.status === "running")
+  ) {
+    return <LaneSkeleton />;
+  }
+
+  return promo ? (
+    <PromoLaneCards
+      brandKey={brandKey}
+      brandName={brandName}
+      fallback={fallback}
+      lane={lane}
+      limitedGuidance={limitedGuidance}
+    />
+  ) : (
+    <SelectionLaneCards
+      brandKey={brandKey}
+      degraded={degraded}
+      fallback={fallback}
+      lane={lane}
+    />
+  );
+}
+
+function PromoLaneCards({
+  brandKey,
+  brandName,
+  fallback,
+  lane,
+  limitedGuidance,
+}: {
+  brandKey: string;
+  brandName: string;
+  fallback: boolean;
+  lane: ModelLane;
+  limitedGuidance: boolean;
+}) {
+  return (
+    <>
+      {lane.promoIdeas.map((card) =>
+        lane.unitId === null ? null : (
+          <PromoLaneCard
+            brandKey={brandKey}
+            brandName={brandName}
+            card={card}
+            fallback={fallback}
+            key={card.id}
+            limitedGuidance={limitedGuidance}
+          />
+        ),
+      )}
+      {lane.promoIdeas.length === 0 ? (
+        <LaneEmpty promo status={lane.status} />
+      ) : null}
+    </>
+  );
+}
+
+function SelectionLaneCards({
+  brandKey,
+  degraded,
+  fallback,
+  lane,
+}: {
+  brandKey: string;
+  degraded: boolean;
+  fallback: boolean;
+  lane: ModelLane;
+}) {
+  return (
+    <>
+      {lane.selections.map((card) => (
+        <SelectionLaneCard
+          brandKey={brandKey}
+          card={card}
+          degraded={degraded}
+          fallback={fallback}
+          key={card.id}
+        />
+      ))}
+      {lane.selections.length === 0 ? <LaneEmpty status={lane.status} /> : null}
+    </>
   );
 }
 
@@ -169,6 +296,10 @@ export function TelegramLaneColumn({
     <LaneColumn
       count={lane.cards.length}
       index={index}
+      heading={t("lane.telegram.heading")}
+      icon={
+        <PlatformIcon className="mt-px size-4 shrink-0" platform="telegram" />
+      }
       mark={null}
       status={null}
       title={t("lane.telegram.title", { brand: lane.brandName })}
@@ -197,6 +328,8 @@ const EMPTY_BRANDS: readonly string[] = [];
 function LaneColumn({
   children,
   count,
+  heading,
+  icon,
   index,
   mark,
   status,
@@ -205,6 +338,8 @@ function LaneColumn({
 }: {
   children: ReactNode;
   count: number;
+  heading: string;
+  icon?: ReactNode;
   index: number;
   mark: ReactNode;
   status: ReactNode;
@@ -225,7 +360,10 @@ function LaneColumn({
       <header className="px-3 py-3">
         <div className="flex items-start gap-2">
           {mark}
-          <h4 className="ticket-label wrap-anywhere min-w-0 flex-1">{title}</h4>
+          {icon}
+          <h4 className="ticket-label wrap-anywhere min-w-0 flex-1">
+            {heading}
+          </h4>
           <span className="rounded-md bg-background px-1.5 text-muted-foreground text-xs tabular-nums">
             {format.number(count)}
           </span>

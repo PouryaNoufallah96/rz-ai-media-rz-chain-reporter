@@ -20,6 +20,7 @@ COPY packages/customer-template/package.json packages/customer-template/package.
 COPY packages/db/package.json packages/db/package.json
 COPY packages/env/package.json packages/env/package.json
 COPY packages/i18n/package.json packages/i18n/package.json
+COPY packages/market-chart/package.json packages/market-chart/package.json
 COPY packages/model-gateway/package.json packages/model-gateway/package.json
 COPY packages/storage/package.json packages/storage/package.json
 COPY packages/ui/package.json packages/ui/package.json
@@ -35,6 +36,7 @@ COPY packages/customer-template packages/customer-template
 COPY packages/db packages/db
 COPY packages/env packages/env
 COPY packages/i18n packages/i18n
+COPY packages/market-chart packages/market-chart
 COPY packages/model-gateway packages/model-gateway
 COPY packages/storage packages/storage
 COPY packages/ui packages/ui
@@ -59,6 +61,25 @@ RUN --mount=type=secret,id=web_build \
     pnpm --dir apps/web run build
 # standalone output excludes public/; ensure it exists so the runner copy never fails
 RUN mkdir -p apps/web/public
+RUN mkdir -p /operator-admin \
+  && pnpm --filter web exec esbuild \
+    scripts/create-operator.ts scripts/reset-operator-password.ts \
+    --bundle \
+    --platform=node \
+    --format=cjs \
+    --target=node24 \
+    --conditions=react-server \
+    --out-extension:.js=.cjs \
+    --outdir=/operator-admin
+
+FROM node:24.19.0-slim AS admin
+WORKDIR /app
+RUN groupadd --system --gid 1001 nodejs \
+  && useradd --system --uid 1001 --gid nodejs operator
+COPY --from=builder --chown=operator:nodejs /operator-admin ./operator-admin
+USER operator
+ENTRYPOINT ["node"]
+CMD ["/app/operator-admin/create-operator.cjs"]
 
 # apps/worker builds the prestart command that must run without a workspace
 # install; ship that bundle into both runtime images.
@@ -77,6 +98,8 @@ COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/customer-template/package.json packages/customer-template/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/env/package.json packages/env/package.json
+COPY packages/i18n/package.json packages/i18n/package.json
+COPY packages/market-chart/package.json packages/market-chart/package.json
 COPY packages/model-gateway/package.json packages/model-gateway/package.json
 COPY packages/storage/package.json packages/storage/package.json
 RUN --mount=type=cache,target=/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
@@ -88,6 +111,8 @@ COPY packages/contracts packages/contracts
 COPY packages/customer-template packages/customer-template
 COPY packages/db packages/db
 COPY packages/env packages/env
+COPY packages/i18n packages/i18n
+COPY packages/market-chart packages/market-chart
 COPY packages/model-gateway packages/model-gateway
 COPY packages/storage packages/storage
 RUN pnpm --filter worker build:bundle

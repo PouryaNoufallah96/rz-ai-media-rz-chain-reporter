@@ -67,7 +67,7 @@ export function AssistantComposer({
       />
 
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-2xs text-muted-foreground tabular-nums">
+        <span className="text-2xs text-muted-foreground tabular-nums">
           {t("composer.counter", {
             length: trimmed.length,
             limit: MAX_QUESTION_CHARS,

@@ -9,7 +9,8 @@ import {
 } from "@rz-chain-reporter/contracts";
 import { useRealtime } from "inngest/react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-
+import { useRealtimeRouterRefresh } from "@/hooks/use-realtime-router-refresh";
+import { usePathname } from "@/i18n/navigation";
 import {
   type RealtimeConnectionState,
   type RealtimeRefreshQueue,
@@ -43,6 +44,9 @@ export function useOperationsRealtime({
     isFetching,
     refetch,
   });
+  const route = useRealtimeRouterRefresh();
+  const refreshRoute = useEffectEvent(route.requestRefresh);
+  const pathname = usePathname();
   const refetchSnapshot = useEffectEvent(snapshot.requestRefresh);
   const connection = useRef<RealtimeConnectionState>({
     active: false,
@@ -93,8 +97,9 @@ export function useOperationsRealtime({
 
     if (requiresSnapshot) {
       refetchSnapshot();
+      if (pathname.startsWith("/market-analysis")) refreshRoute();
     }
-  }, [realtime.messages.delta, viewerId]);
+  }, [pathname, realtime.messages.delta, viewerId]);
 
   useEffect(() => {
     const transition = transitionRealtimeConnection(connection.current, [

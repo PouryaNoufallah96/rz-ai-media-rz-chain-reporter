@@ -26,7 +26,7 @@
     },
     "stage": {
       "acquiring": "در حال گردآوری",
-      "enriching": "در حال غنی‌سازی · {n} از {m}"
+      "enriching": "در حال غنی‌سازی · {n, number} از {m, number}"
     },
     "transport": {
       "live": "زنده",
@@ -47,6 +47,11 @@
       "analysisRun": "اجرای تحلیل",
       "copyVariantTranslation": "ترجمهٔ تنوع",
       "presentationTranslation": "ترجمهٔ کارت",
+      "marketAnalysisHandoff": "آماده‌سازی انتشار تحلیل بازار",
+      "marketCatalogRefresh": "تازه‌سازی فهرست بازار",
+      "marketChartRender": "رندر نمودار بازار",
+      "marketGeneration": "تولید تصویر بازار",
+      "marketVerification": "بررسی بازار",
       "publishing": "انتشار"
     },
     "dispatch": {

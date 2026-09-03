@@ -55,16 +55,20 @@ export async function readSavedHistory(
       : query.state === "discarded"
         ? sql`and saved.discarded_at is not null`
         : sql``;
-  const result = await executor.execute<SavedHistoryRow & CursorRow>(sql`
+  const result = await executor.execute<
+    Omit<SavedHistoryRow, "executionScope"> &
+      CursorRow & { marketAnalysisId: string | null }
+  >(sql`
     select saved.id,
       coalesce(selection_unit.analysis_run_id, telegram.analysis_run_id, promo_unit.analysis_run_id) as "analysisRunId",
+      market_handoff.market_analysis_id as "marketAnalysisId",
       saved.platform_draft_id as "platformDraftId",
       saved.created_at as "savedAt",
       saved.created_at as "occurredAt",
       to_char(saved.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as "cursorOccurredAt",
       saved.discarded_at as "discardedAt", saved.version,
-      brand.name as "brandName", draft.platform,
-      coalesce(source_item.title, telegram_item.title, promo.title, '—') as "originTitle",
+      brand.key as "brandKey", brand.name as "brandName", draft.platform,
+      coalesce(source_item.title, telegram_item.title, promo.title, market_handoff.story_headline, '—') as "originTitle",
       active_revision.revision_number as "revisionNumber",
       active_revision.headline, active_revision.body,
       active_revision.content_locale as "contentLocale",
@@ -80,6 +84,7 @@ export async function readSavedHistory(
     left join source_item telegram_item on telegram_item.id = telegram.source_item_id and telegram_item.workspace_id = draft.workspace_id
     left join promo_idea promo on promo.id = draft.promo_idea_id and promo.workspace_id = draft.workspace_id
     left join analysis_model_unit promo_unit on promo_unit.id = promo.analysis_model_unit_id and promo_unit.workspace_id = draft.workspace_id
+    left join market_analysis_handoff market_handoff on market_handoff.id = draft.market_analysis_handoff_id and market_handoff.workspace_id = draft.workspace_id
     left join draft_revision active_revision
       on active_revision.id = draft.active_revision_id
       and active_revision.workspace_id = draft.workspace_id
@@ -101,8 +106,31 @@ export async function readSavedHistory(
   });
   return {
     ...page,
-    rows: ordered.map(({ cursorOccurredAt: _cursor, ...row }) => row),
+    rows: ordered.map(
+      ({ cursorOccurredAt: _cursor, marketAnalysisId, ...row }) => {
+        return {
+          ...row,
+          executionScope: savedExecutionScope(
+            marketAnalysisId,
+            row.analysisRunId,
+          ),
+        };
+      },
+    ),
   };
+}
+
+function savedExecutionScope(
+  marketAnalysisId: string | null,
+  analysisRunId: string | null,
+) {
+  if (marketAnalysisId) {
+    return { kind: "market_analysis" as const, marketAnalysisId };
+  }
+  if (!analysisRunId) {
+    throw new Error("saved draft is missing its execution scope");
+  }
+  return { kind: "analysis_run" as const, analysisRunId };
 }
 
 export async function readPublishingHistory(
@@ -118,7 +146,7 @@ export async function readPublishingHistory(
     query.view === "scheduled"
       ? sql`
         select schedule.id, draft.id as "platformDraftId", schedule.scheduled_at as "occurredAt",
-          brand.name as "brandName", revision.headline, revision.body,
+          brand.key as "brandKey", brand.name as "brandName", revision.headline, revision.body,
           revision.content_locale as "contentLocale",
           (revision.selected_final_media_asset_id is not null) as "hasImage",
           schedule.destination_account_id as "destinationAccountId",
@@ -169,7 +197,7 @@ export async function readPublishingHistory(
       : sql`
         select publication.id, draft.id as "platformDraftId",
           ${query.view === "reconciliation" ? sql`coalesce(reconciliation."occurredAt", publication.updated_at)` : sql`publication.updated_at`} as "occurredAt",
-          brand.name as "brandName", revision.headline, revision.body,
+          brand.key as "brandKey", brand.name as "brandName", revision.headline, revision.body,
           revision.content_locale as "contentLocale",
           (revision.selected_final_media_asset_id is not null) as "hasImage",
           publish_operation.destination_account_id as "destinationAccountId",

@@ -10,8 +10,8 @@ import { Button } from "@rz-chain-reporter/ui/components/button";
 import type { TableOptions } from "@tanstack/react-table";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
-
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { PlatformIcon } from "@/components/common/platform-icon";
 import { StateMark } from "@/components/common/state-mark";
 import { CoreDataTable } from "@/components/data-table/data-table";
 import { KeysetPagination } from "@/components/data-table/keyset-pagination";
@@ -141,7 +141,16 @@ export function PublishingDesk({
         </span>
       ),
     },
-    { accessorKey: "platform", header: t("desk.columns.platform") },
+    {
+      accessorKey: "platform",
+      header: t("desk.columns.platform"),
+      cell: ({ row }) => (
+        <span className="inline-flex items-center gap-1.5">
+          <PlatformIcon className="size-3.5" platform={row.original.platform} />
+          {t(`platform.${row.original.platform}`)}
+        </span>
+      ),
+    },
     {
       accessorKey: "revisionNumber",
       header: t("desk.columns.revision"),

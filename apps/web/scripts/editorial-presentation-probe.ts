@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import {
   COPY_VARIANT_TRANSLATION_COMMAND_TYPE,
+  type ContentLocale,
   OPERATION_COPY_VARIANT_TRANSLATION_REQUESTED_EVENT_NAME,
 } from "@rz-chain-reporter/contracts";
 import { createDb } from "@rz-chain-reporter/db";
@@ -352,21 +353,24 @@ async function main() {
           body: "Canonical English body",
           hashtags: ["#Brand", "#English"],
         });
-        const before = await readEffectCounts(tx);
-        const pendingEditorialEn = await readEditorialWorkspace(
-          tx,
-          ids.workspace,
-          actorId,
-          ids.analysisRun,
-          "en",
-        );
-        const pendingEditorialFa = await readEditorialWorkspace(
-          tx,
-          ids.workspace,
-          actorId,
-          ids.analysisRun,
-          "fa",
-        );
+        const [before, pendingEditorialEn, pendingEditorialFa] =
+          await Promise.all([
+            readEffectCounts(tx),
+            readEditorialWorkspace(
+              tx,
+              ids.workspace,
+              actorId,
+              ids.analysisRun,
+              "en",
+            ),
+            readEditorialWorkspace(
+              tx,
+              ids.workspace,
+              actorId,
+              ids.analysisRun,
+              "fa",
+            ),
+          ]);
         const pendingEnCard = pendingEditorialEn.modelLanes[0]?.selections[0];
         const pendingFaCard = pendingEditorialFa.modelLanes[0]?.selections[0];
         assert.ok(pendingEnCard && pendingFaCard);
@@ -375,24 +379,26 @@ async function main() {
         assert.equal(pendingFaCard.reasoning, "Original reasoning");
         assert.equal(pendingFaCard.presentationReady, false);
 
-        const pendingPlatformEn = await readPlatformDrafts(
-          tx,
-          ids.workspace,
-          { analysisRunId: ids.analysisRun },
-          actorId,
-          false,
-          "UTC",
-          "en",
-        );
-        const pendingPlatformFa = await readPlatformDrafts(
-          tx,
-          ids.workspace,
-          { analysisRunId: ids.analysisRun },
-          actorId,
-          false,
-          "UTC",
-          "fa",
-        );
+        const [pendingPlatformEn, pendingPlatformFa] = await Promise.all([
+          readPlatformDrafts(
+            tx,
+            ids.workspace,
+            { analysisRunId: ids.analysisRun },
+            actorId,
+            false,
+            "UTC",
+            "en",
+          ),
+          readPlatformDrafts(
+            tx,
+            ids.workspace,
+            { analysisRunId: ids.analysisRun },
+            actorId,
+            false,
+            "UTC",
+            "fa",
+          ),
+        ]);
         assert.equal(pendingPlatformEn.length, 1);
         const pendingEnDraft = pendingPlatformEn[0]?.card;
         const pendingFaDraft = pendingPlatformFa[0]?.card;
@@ -571,20 +577,22 @@ async function main() {
           reasoning: "دلیل فارسی",
         });
 
-        const editorialEn = await readEditorialWorkspace(
-          tx,
-          ids.workspace,
-          actorId,
-          ids.analysisRun,
-          "en",
-        );
-        const editorialFa = await readEditorialWorkspace(
-          tx,
-          ids.workspace,
-          actorId,
-          ids.analysisRun,
-          "fa",
-        );
+        const [editorialEn, editorialFa] = await Promise.all([
+          readEditorialWorkspace(
+            tx,
+            ids.workspace,
+            actorId,
+            ids.analysisRun,
+            "en",
+          ),
+          readEditorialWorkspace(
+            tx,
+            ids.workspace,
+            actorId,
+            ids.analysisRun,
+            "fa",
+          ),
+        ]);
         assert.ok(editorialEn.head && editorialFa.head);
         const enCard = editorialEn.modelLanes[0]?.selections[0];
         const faCard = editorialFa.modelLanes[0]?.selections[0];
@@ -600,33 +608,35 @@ async function main() {
         assert.equal(editorialEn.head.topicTranslationFallback, false);
         assert.equal(editorialFa.head.topicTranslationFallback, false);
 
-        const platformEn = await readPlatformDrafts(
-          tx,
-          ids.workspace,
-          { analysisRunId: ids.analysisRun },
-          actorId,
-          false,
-          "UTC",
-          "en",
-        );
-        const platformFa = await readPlatformDrafts(
-          tx,
-          ids.workspace,
-          { analysisRunId: ids.analysisRun },
-          actorId,
-          false,
-          "UTC",
-          "fa",
-        );
-        const exactFa = await readPlatformDrafts(
-          tx,
-          ids.workspace,
-          { platformDraftId: ids.draft },
-          actorId,
-          false,
-          "UTC",
-          "fa",
-        );
+        const [platformEn, platformFa, exactFa] = await Promise.all([
+          readPlatformDrafts(
+            tx,
+            ids.workspace,
+            { analysisRunId: ids.analysisRun },
+            actorId,
+            false,
+            "UTC",
+            "en",
+          ),
+          readPlatformDrafts(
+            tx,
+            ids.workspace,
+            { analysisRunId: ids.analysisRun },
+            actorId,
+            false,
+            "UTC",
+            "fa",
+          ),
+          readPlatformDrafts(
+            tx,
+            ids.workspace,
+            { platformDraftId: ids.draft },
+            actorId,
+            false,
+            "UTC",
+            "fa",
+          ),
+        ]);
         const enDraft = platformEn[0]?.card;
         const faDraft = platformFa[0]?.card;
         const exactFaDraft = exactFa[0]?.card;
@@ -693,7 +703,7 @@ async function main() {
   function nonTextIdentity(card: {
     canonicalUrl: string;
     confidenceScore: number | null;
-    contentLocale: "en" | "fa";
+    contentLocale: ContentLocale;
     impactScore: number | null;
     rank: number;
     sourceItemId: string;
@@ -717,14 +727,16 @@ async function main() {
   }
 
   async function readEffectCounts(executor: Executor) {
-    const attempts = await executor
-      .select({ rows: count() })
-      .from(operationAttempt)
-      .where(eq(operationAttempt.workspaceId, ids.workspace));
-    const usage = await executor
-      .select({ rows: count() })
-      .from(aiUsageEvent)
-      .where(eq(aiUsageEvent.workspaceId, ids.workspace));
+    const [attempts, usage] = await Promise.all([
+      executor
+        .select({ rows: count() })
+        .from(operationAttempt)
+        .where(eq(operationAttempt.workspaceId, ids.workspace)),
+      executor
+        .select({ rows: count() })
+        .from(aiUsageEvent)
+        .where(eq(aiUsageEvent.workspaceId, ids.workspace)),
+    ]);
     return {
       attempts: attempts[0]?.rows ?? 0,
       usage: usage[0]?.rows ?? 0,

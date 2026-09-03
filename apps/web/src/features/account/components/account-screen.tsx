@@ -4,11 +4,17 @@ import { Suspended } from "@/components/fetcher/suspended";
 import { requireSession } from "@/features/auth/api/server/session";
 import { getPlatformDraft } from "@/features/editorial/api/server/get-platform-draft";
 import { getRecentTopics } from "@/features/editorial/api/server/get-recent-topics";
+import { EDITORIAL_NAMESPACE } from "@/features/editorial/constants";
+import { MARKET_ANALYSIS_NAMESPACE } from "@/features/market-analysis/constants";
 import { getPublishingHistory } from "@/features/publishing/api/server/get-publishing-history";
 import { getSavedHistory } from "@/features/publishing/api/server/get-saved-history";
+import { PUBLISHING_NAMESPACE } from "@/features/publishing/constants";
 import { Localized } from "@/i18n/client";
 import { getT } from "@/i18n/server";
-import { enabledImageModels } from "@/lib/customer-template.server";
+import {
+  customerEditorial,
+  enabledImageModels,
+} from "@/lib/customer-template.server";
 
 import { getAccountSummary } from "../api/server/get-account-summary";
 import { getActivityHistory } from "../api/server/get-activity-history";
@@ -45,7 +51,12 @@ export function AccountScreen({
           >
             {(view) => (
               <Localized
-                namespaces={[ACCOUNT_NAMESPACE, "editorial", "publishing"]}
+                namespaces={[
+                  ACCOUNT_NAMESPACE,
+                  EDITORIAL_NAMESPACE,
+                  MARKET_ANALYSIS_NAMESPACE,
+                  PUBLISHING_NAMESPACE,
+                ]}
               >
                 <AccountDesk {...view} />
               </Localized>
@@ -87,6 +98,8 @@ async function readAccountDesk(searchParams: AccountSearchParams) {
       email: session.user.email,
       createdAt: session.user.createdAt,
     },
+    brands: customerEditorial.brands,
+    models: customerEditorial.models,
     imageModels: enabledImageModels,
     summary,
     activities,

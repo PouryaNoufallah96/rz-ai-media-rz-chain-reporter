@@ -1,5 +1,5 @@
-limit_req_zone $binary_remote_addr zone=chainreporter_app:10m rate=20r/s;
-limit_req_zone $binary_remote_addr zone=chainreporter_auth:10m rate=2r/s;
+limit_req_zone $binary_remote_addr zone=@RATE_LIMIT_ZONE_PREFIX@_app:10m rate=20r/s;
+limit_req_zone $binary_remote_addr zone=@RATE_LIMIT_ZONE_PREFIX@_auth:10m rate=2r/s;
 
 server {
     listen 80;
@@ -46,23 +46,23 @@ server {
 
     location ^~ /api/publishing-media/ {
         access_log off;
-        limit_req zone=chainreporter_app burst=20 nodelay;
+        limit_req zone=@RATE_LIMIT_ZONE_PREFIX@_app burst=20 nodelay;
         proxy_pass http://127.0.0.1:@WEB_LOOPBACK_PORT@;
     }
 
     location = /api/auth/sign-in/email {
-        limit_req zone=chainreporter_auth burst=5 nodelay;
+        limit_req zone=@RATE_LIMIT_ZONE_PREFIX@_auth burst=5 nodelay;
         proxy_pass http://127.0.0.1:@WEB_LOOPBACK_PORT@;
     }
 
     location /api/chat {
-        limit_req zone=chainreporter_app burst=20 nodelay;
+        limit_req zone=@RATE_LIMIT_ZONE_PREFIX@_app burst=20 nodelay;
         proxy_read_timeout 300s;
         proxy_pass http://127.0.0.1:@WEB_LOOPBACK_PORT@;
     }
 
     location / {
-        limit_req zone=chainreporter_app burst=40 nodelay;
+        limit_req zone=@RATE_LIMIT_ZONE_PREFIX@_app burst=40 nodelay;
         proxy_pass http://127.0.0.1:@WEB_LOOPBACK_PORT@;
     }
 }

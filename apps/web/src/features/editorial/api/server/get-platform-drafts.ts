@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Platform } from "@rz-chain-reporter/contracts";
+import type { ContentLocale, Platform } from "@rz-chain-reporter/contracts";
 import { env } from "@rz-chain-reporter/env/server";
 import { cacheLife, cacheTag } from "next/cache";
 
@@ -48,7 +48,7 @@ async function readCachedPlatformDrafts(
   environmentForcedPause: boolean,
   timeZone: string,
   analysisRunId: string,
-  presentationLocale: "en" | "fa",
+  presentationLocale: ContentLocale,
   enabledBrands: readonly { key: string; name: string }[],
   enabledPlatforms: readonly Platform[],
 ): Promise<PlatformDraftLane[]> {

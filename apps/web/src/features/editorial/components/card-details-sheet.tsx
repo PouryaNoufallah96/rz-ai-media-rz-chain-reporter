@@ -10,6 +10,7 @@ import {
 import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import { PlatformIcon } from "@/components/common/platform-icon";
 import { EDITORIAL_NAMESPACE } from "../constants";
 import { useNarrowViewport } from "../hooks/use-narrow-viewport";
 import type {
@@ -88,7 +89,13 @@ export function SelectionDetails({ card }: { card: SelectionCard }) {
         <span className="font-mono">{card.contentLocale}</span>
       </CardDetail>
       <CardDetail label={t("detail.platform")}>
-        {t(`run.platform.${card.suggestedPlatform}`)}
+        <span className="inline-flex items-center gap-1.5">
+          <PlatformIcon
+            className="size-3.5"
+            platform={card.suggestedPlatform}
+          />
+          {t(`run.platform.${card.suggestedPlatform}`)}
+        </span>
       </CardDetail>
       {card.summary ? (
         <CardDetail label={t("detail.summary")}>
@@ -146,6 +153,17 @@ export function TelegramDetails({
   card: TelegramCard;
   topics: readonly string[];
 }) {
+  return (
+    <>
+      <TelegramSourceFacts card={card} />
+      <TelegramRoutingFacts card={card} topics={topics} />
+      <TelegramDuplicateFacts alsoIn={alsoIn} card={card} />
+      <TelegramContentFacts card={card} />
+    </>
+  );
+}
+
+function TelegramSourceFacts({ card }: { card: TelegramCard }) {
   const format = useFormatter();
   const t = useTranslations(EDITORIAL_NAMESPACE);
 
@@ -170,6 +188,22 @@ export function TelegramDetails({
           <span className="tabular-nums">{format.number(card.views)}</span>
         </CardDetail>
       )}
+    </>
+  );
+}
+
+function TelegramRoutingFacts({
+  card,
+  topics,
+}: {
+  card: TelegramCard;
+  topics: readonly string[];
+}) {
+  const format = useFormatter();
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+
+  return (
+    <>
       <CardDetail label={t("telegram.ordering.label")}>
         {t(`run.telegram.ordering.${card.orderingMode}`)}
       </CardDetail>
@@ -206,6 +240,22 @@ export function TelegramDetails({
           {t("semantic.outsideBound.detail")}
         </div>
       ) : null}
+    </>
+  );
+}
+
+function TelegramDuplicateFacts({
+  alsoIn,
+  card,
+}: {
+  alsoIn: readonly string[];
+  card: TelegramCard;
+}) {
+  const format = useFormatter();
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+
+  return (
+    <>
       {card.duplicateMethod ? (
         <CardDetail label={t("detail.duplicate")}>
           {t(`duplicateMethod.${card.duplicateMethod}`)}
@@ -220,6 +270,15 @@ export function TelegramDetails({
           <Bdi>{format.list(alsoIn)}</Bdi>
         </CardDetail>
       ) : null}
+    </>
+  );
+}
+
+function TelegramContentFacts({ card }: { card: TelegramCard }) {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+
+  return (
+    <>
       <CardDetail label={t("detail.contentLocale")}>
         <span className="font-mono">{card.contentLocale}</span>
       </CardDetail>

@@ -107,7 +107,10 @@ function ComboboxItem({
 function ComboboxEmpty({ className, ...props }: ComboboxPrimitive.Empty.Props) {
   return (
     <ComboboxPrimitive.Empty
-      className={cn("p-3 text-muted-foreground text-xs", className)}
+      className={cn(
+        "p-3 text-muted-foreground text-xs empty:hidden",
+        className,
+      )}
       {...props}
     />
   );

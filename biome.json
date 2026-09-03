@@ -113,6 +113,9 @@
         "apps/web/src/features/**/*.ts",
         "apps/web/src/features/**/*.tsx",
         "!apps/web/src/features/editorial/components/card-sheet.tsx",
+        "!apps/web/src/features/market-analysis/components/draft-workspace.tsx",
+        "!apps/web/src/features/market-analysis/components/market-analysis-report.tsx",
+        "!apps/web/src/features/market-analysis/components/report-publishing.tsx",
         "!apps/web/src/features/account/components/**"
       ],
       "linter": {
@@ -129,6 +132,94 @@
                   {
                     "group": ["@/features/*/components/**"],
                     "message": "A slice's components/ are private to that slice and its routes. Across slices go through api/server/, schemas/, or lib/; shared UI belongs in apps/web/src/components. See chainreporter-feature-slice."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "apps/web/src/features/market-analysis/components/market-analysis-report.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/features/*/actions/**", "@/features/*/db/**"],
+                    "message": "A slice's actions/ and db/ are private. Within a slice import relatively; across a slice go through api/server/, schemas/, or lib/. See chainreporter-feature-slice."
+                  },
+                  {
+                    "group": [
+                      "@/features/*/components/**",
+                      "!@/features/publishing/components/publishing-freshness"
+                    ],
+                    "message": "MarketAnalysisReport may compose only PublishingFreshness across feature boundaries. Other feature components remain private. See chainreporter-feature-slice."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "apps/web/src/features/market-analysis/components/report-publishing.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/features/*/actions/**", "@/features/*/db/**"],
+                    "message": "A slice's actions/ and db/ are private. Within a slice import relatively; across a slice go through api/server/, schemas/, or lib/. See chainreporter-feature-slice."
+                  },
+                  {
+                    "group": [
+                      "@/features/*/components/**",
+                      "!@/features/editorial/components/card-sheet"
+                    ],
+                    "message": "Market Analysis ReportPublishing may compose only CardSheet across feature boundaries. Other feature components remain private. See chainreporter-feature-slice."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "apps/web/src/features/market-analysis/components/draft-workspace.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/features/*/actions/**", "@/features/*/db/**"],
+                    "message": "A slice's actions/ and db/ are private. Within a slice import relatively; across a slice go through api/server/, schemas/, or lib/. See chainreporter-feature-slice."
+                  },
+                  {
+                    "group": [
+                      "@/features/*/components/**",
+                      "!@/features/editorial/components/copy-variant-editor",
+                      "!@/features/publishing/components/publishing-ticket"
+                    ],
+                    "message": "Market Analysis DraftWorkspace may compose only CopyVariantSelector, CopyVariantEditor, and PublishingTicket across feature boundaries. Other feature components remain private. See chainreporter-feature-slice."
                   }
                 ]
               }
@@ -253,10 +344,11 @@
                     "group": [
                       "@/features/*/components/**",
                       "!@/features/editorial/components/card-sheet",
+                      "!@/features/market-analysis/components/market-analysis-freshness",
                       "!@/features/publishing/components/publishing-freshness",
                       "!@/features/publishing/components/scheduled-publication-actions"
                     ],
-                    "message": "Account components may compose only CardSheet, PublishingFreshness, and ScheduledPublicationActions across feature boundaries. Other feature components remain private. See chainreporter-feature-slice."
+                    "message": "Account components may compose only CardSheet, MarketAnalysisFreshness, PublishingFreshness, and ScheduledPublicationActions across feature boundaries. Other feature components remain private. See chainreporter-feature-slice."
                   }
                 ]
               }

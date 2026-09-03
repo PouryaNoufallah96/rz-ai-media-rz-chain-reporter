@@ -2,6 +2,7 @@
 
 import {
   isOperationInProgress,
+  type ModelOption,
   type Platform,
 } from "@rz-chain-reporter/contracts";
 import { Button } from "@rz-chain-reporter/ui/components/button";
@@ -26,6 +27,7 @@ import {
 import { PanelLeftIcon, PlusIcon, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
+  startTransition,
   useEffect,
   useId,
   useRef,
@@ -81,7 +83,7 @@ export function EditorialCoordinator({
   workspace,
 }: {
   defaultModelOptionKey: string;
-  imageModels: readonly { key: string; name: string }[];
+  imageModels: readonly ModelOption[];
   limitedGuidanceBrands: readonly string[];
   options: RunOptions;
   platformDraftLanes: readonly PlatformDraftLane[];
@@ -96,7 +98,7 @@ export function EditorialCoordinator({
     initialPresentation(workspace.head, options, templatePlatforms),
   );
   const [finalFocus, setFinalFocus] = useState<HTMLElement | null>(null);
-  const { clearCard, pinCard, setBrandKeys } = useAssistant();
+  const { pinCard, setBrandKeys } = useAssistant();
 
   useEffect(() => {
     setBrandKeys(presentation.brandKeys);
@@ -114,7 +116,9 @@ export function EditorialCoordinator({
   const sidebarPanel = useRef<HTMLDivElement>(null);
   const sidebarTrigger = useRef<HTMLButtonElement>(null);
   const sidebarClose = useRef<HTMLButtonElement>(null);
-  const { setValues, values } = useTransitionUrlState(workspaceSearchParsers);
+  const { isPending, setValues, values } = useTransitionUrlState(
+    workspaceSearchParsers,
+  );
   const selectedDraft = platformDraftLanes
     .flatMap((lane) => lane.drafts)
     .find((card) => card.id === values.draft);
@@ -129,6 +133,8 @@ export function EditorialCoordinator({
       />
       <RunHeadPanel
         head={workspace.head}
+        isPending={isPending}
+        onSelectRun={(run) => void setValues({ draft: null, run })}
         readAt={workspace.readAt}
         runs={options.runs}
         selectedRunId={workspace.query.run}
@@ -216,8 +222,10 @@ export function EditorialCoordinator({
             </SidebarContent>
           ) : null}
           <section
+            aria-busy={isPending || undefined}
             aria-labelledby={boardHeadingId}
-            className="col-start-2 row-start-2 min-w-0"
+            className="col-start-2 row-start-2 min-w-0 data-pending:pointer-events-none data-pending:animate-pulse motion-reduce:animate-none"
+            data-pending={isPending || undefined}
           >
             <LaneBoard
               brands={options.brands}
@@ -244,13 +252,19 @@ export function EditorialCoordinator({
                     platform: card.platform,
                   });
                 }
-                void setValues({ draft: card.id }, { shallow: true });
+                void setValues(
+                  { draft: card.id },
+                  { shallow: true, startTransition },
+                );
               }}
               platformDraftLanes={platformDraftLanes}
               presentation={presentation}
               templatePlatforms={templatePlatforms}
               telegramLanes={workspace.telegramLanes}
             />
+            <span className="sr-only" role="status">
+              {isPending ? t("run.selector.updating") : ""}
+            </span>
           </section>
         </Sidebar>
         {desktopSidebar ? null : (
@@ -291,6 +305,7 @@ export function EditorialCoordinator({
       <CardSheet
         card={selectedDraft ?? null}
         finalFocus={finalFocus}
+        models={options.models}
         freshness={
           workspace.head
             ? {
@@ -302,8 +317,7 @@ export function EditorialCoordinator({
         imageModels={imageModels}
         onOpenChange={(open) => {
           if (!open) {
-            clearCard();
-            void setValues({ draft: null }, { shallow: true });
+            void setValues({ draft: null }, { shallow: true, startTransition });
           }
         }}
         open={values.draft !== null}

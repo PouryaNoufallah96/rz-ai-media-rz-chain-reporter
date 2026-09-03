@@ -18,6 +18,11 @@ import {
 } from "@rz-chain-reporter/ui/components/select";
 import { Switch } from "@rz-chain-reporter/ui/components/switch";
 import { Textarea } from "@rz-chain-reporter/ui/components/textarea";
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@rz-chain-reporter/ui/components/toggle-group";
+import { cn } from "@rz-chain-reporter/ui/lib/utils";
 import { type ComponentProps, type ReactNode, type Ref, useId } from "react";
 import type {
   ControllerFieldState,
@@ -774,6 +779,120 @@ export function LabeledSelect<T extends string>({
         value={value ?? (emptyLabel ? EMPTY_SELECT_VALUE : null)}
       />
     </Field>
+  );
+}
+
+export function LabeledInput({
+  className,
+  id,
+  inputClassName,
+  label,
+  ...inputProps
+}: Omit<ComponentProps<typeof Input>, "className"> & {
+  className?: string;
+  inputClassName?: ComponentProps<typeof Input>["className"];
+  label: ReactNode;
+}) {
+  const generatedId = useId();
+  const controlId = id ?? generatedId;
+  return (
+    <Field className={className}>
+      <FieldCaption htmlFor={controlId}>{label}</FieldCaption>
+      <Input {...inputProps} className={inputClassName} id={controlId} />
+    </Field>
+  );
+}
+
+export type ToggleOption<T extends string | number> = {
+  label: ReactNode;
+  title?: string;
+  value: T;
+};
+
+export function FormToggleGroupField<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+  TValue extends string | number,
+>({
+  className,
+  control,
+  defaultValue,
+  description,
+  disabled,
+  groupClassName,
+  hint,
+  id,
+  label,
+  name,
+  onValueChange,
+  options,
+  resolveError,
+  rules,
+  shouldUnregister,
+}: FormAdapterProps<TFieldValues, TName> & {
+  groupClassName?: string;
+  hint?: ReactNode;
+  onValueChange?: (value: TValue) => void;
+  options: readonly ToggleOption<TValue>[];
+}) {
+  return (
+    <FormField
+      className={className}
+      control={control}
+      defaultValue={defaultValue}
+      description={description}
+      disabled={disabled}
+      id={id}
+      name={name}
+      resolveError={resolveError}
+      rules={rules}
+      shouldUnregister={shouldUnregister}
+    >
+      {({ controlId, controlProps, descriptionNode, field }) => {
+        const labelId = `${controlId}-label`;
+        return (
+          <div className="grid min-w-0 gap-1.5">
+            <span className="flex h-6 items-center gap-1">
+              <span className="ticket-label" id={labelId}>
+                {label}
+              </span>
+              {hint}
+            </span>
+            <ToggleGroup
+              aria-describedby={controlProps["aria-describedby"]}
+              aria-invalid={controlProps["aria-invalid"]}
+              aria-labelledby={labelId}
+              className={cn("flex-wrap", groupClassName)}
+              disabled={controlProps.disabled}
+              id={controlId}
+              onBlur={field.onBlur}
+              onValueChange={(next) => {
+                const chosen = next.at(-1);
+                const option = options.find(
+                  (candidate) => String(candidate.value) === chosen,
+                );
+                if (!option) return;
+                field.onChange(option.value);
+                onValueChange?.(option.value);
+              }}
+              ref={field.ref}
+              value={[String(field.value)]}
+            >
+              {options.map((option) => (
+                <ToggleGroupItem
+                  key={String(option.value)}
+                  title={option.title}
+                  value={String(option.value)}
+                >
+                  {option.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+            {descriptionNode}
+          </div>
+        );
+      }}
+    </FormField>
   );
 }
 

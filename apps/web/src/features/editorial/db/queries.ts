@@ -9,6 +9,7 @@ import {
   type ModelUnitStatus,
   OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME,
   type OperationLifecycle,
+  type RunCardOriginReference,
   type RunConfiguration,
   type SourceFetchOutcome,
   type SourceFetchReason,
@@ -73,7 +74,10 @@ import {
   RECENT_TOPIC_RUNS,
   REPORT_PAGE_SIZE,
 } from "../constants";
-import type { PlatformDraftCard } from "../schemas/drafts";
+import type {
+  PlatformDraftCard,
+  PlatformDraftExactCard,
+} from "../schemas/drafts";
 import {
   type ReportBrandOption,
   type ReportCursor,
@@ -253,13 +257,14 @@ export async function readEditorialWorkspace(
 
 type PlatformDraftProjectionRow = {
   id: string;
-  analysisRunId: string;
+  analysisRunId: string | null;
+  marketAnalysisId: string | null;
   originLifecycle: OperationLifecycle;
   mediaBrandId: string;
   brandKey: string;
   brandName: string;
   platform: PlatformDraftCard["platform"];
-  lanePosition: number;
+  lanePosition: number | null;
   version: number;
   activeRevisionId: string | null;
   revisionVersion: number;
@@ -267,9 +272,10 @@ type PlatformDraftProjectionRow = {
   editorialSelectionId: string | null;
   telegramFilterResultId: string | null;
   promoIdeaId: string | null;
+  marketAnalysisHandoffId: string | null;
   originTitle: string;
   presentationReady: boolean;
-  sourceKind: "promo" | "rss" | "telegram";
+  sourceKind: "market" | "promo" | "rss" | "telegram";
   originSourceName: string | null;
   originPublishedAt: string | null;
   originCanonicalUrl: string | null;
@@ -280,6 +286,7 @@ type PlatformDraftProjectionRow = {
   originSuggestedPlatform: PlatformDraftCard["platform"] | null;
   originTelegramReason: FilteringReason | null;
   originPromoAngle: string | null;
+  originVerifiedFacts: unknown | null;
   operationId: string | null;
   lifecycle: OperationLifecycle | null;
   modelOptionKey: string | null;
@@ -304,10 +311,39 @@ type PlatformDraftSelector =
   | { analysisRunId?: never; platformDraftId: string };
 
 type PlatformDraftRead = {
+  analysisRunId: string | null;
+  executionScope:
+    | { kind: "analysis_run"; analysisRunId: string }
+    | { kind: "market_analysis"; marketAnalysisId: string };
+  lifecycle: OperationLifecycle;
+  card: PlatformDraftExactCard;
+};
+
+type PlatformDraftLaneRead = {
   analysisRunId: string;
+  executionScope: { kind: "analysis_run"; analysisRunId: string };
   lifecycle: OperationLifecycle;
   card: PlatformDraftCard;
 };
+
+export function readPlatformDrafts(
+  database: Executor,
+  workspaceId: string,
+  selector: { analysisRunId: string; platformDraftId?: never },
+  userId: string,
+  environmentForcedPause: boolean,
+  timeZone: string,
+  presentationLocale: ContentLocale,
+): Promise<PlatformDraftLaneRead[]>;
+export function readPlatformDrafts(
+  database: Executor,
+  workspaceId: string,
+  selector: { analysisRunId?: never; platformDraftId: string },
+  userId: string,
+  environmentForcedPause: boolean,
+  timeZone: string,
+  presentationLocale: ContentLocale,
+): Promise<PlatformDraftRead[]>;
 
 export async function readPlatformDrafts(
   database: Executor,
@@ -317,7 +353,7 @@ export async function readPlatformDrafts(
   environmentForcedPause: boolean,
   timeZone: string,
   presentationLocale: ContentLocale,
-): Promise<PlatformDraftRead[]> {
+): Promise<PlatformDraftRead[] | PlatformDraftLaneRead[]> {
   return database.transaction(
     async (executor) => {
       const selectorSql =
@@ -350,6 +386,8 @@ export async function readPlatformDrafts(
               and ${platformPromoPresentation.angle} is not null
             )`;
       const presentationReadySql = sql`(
+        draft.market_analysis_handoff_id is not null
+        or
         (
           draft.promo_idea_id is not null
           and ${promoPresentationReadySql}
@@ -396,7 +434,8 @@ export async function readPlatformDrafts(
     select
       draft.id,
       origin_run.id as "analysisRunId",
-      origin_operation.lifecycle as "originLifecycle",
+      market_analysis.id as "marketAnalysisId",
+      coalesce(origin_operation.lifecycle, market_owner_operation.lifecycle) as "originLifecycle",
       draft.media_brand_id as "mediaBrandId",
       brand.key as "brandKey",
       brand.name as "brandName",
@@ -409,9 +448,11 @@ export async function readPlatformDrafts(
       draft.editorial_selection_id as "editorialSelectionId",
       draft.telegram_filter_result_id as "telegramFilterResultId",
       draft.promo_idea_id as "promoIdeaId",
-      coalesce(${sourceTitleSql}, ${promoTitleSql}) as "originTitle",
+      draft.market_analysis_handoff_id as "marketAnalysisHandoffId",
+      coalesce(${sourceTitleSql}, ${promoTitleSql}, market_handoff.story_headline) as "originTitle",
       ${presentationReadySql} as "presentationReady",
       case
+        when draft.market_analysis_handoff_id is not null then 'market'
         when draft.promo_idea_id is not null then 'promo'
         when draft.telegram_filter_result_id is not null or origin_item.origin = 'telegram_public' then 'telegram'
         else 'rss'
@@ -419,13 +460,14 @@ export async function readPlatformDrafts(
       origin_source.name as "originSourceName",
       origin_item.published_at as "originPublishedAt",
       origin_revision.canonical_url as "originCanonicalUrl",
-      coalesce(${sourceSummarySql}, ${promoDescriptionSql}) as "originSummary",
-      origin_revision.content_locale as "originContentLocale",
+      coalesce(${sourceSummarySql}, ${promoDescriptionSql}, market_handoff.story_supporting_text) as "originSummary",
+      coalesce(origin_revision.content_locale, market_handoff.content_locale) as "originContentLocale",
       selection.selection_suitability_score as "originSuitabilityScore",
       ${selectionReasoningSql} as "originReasoning",
       coalesce(selection.suggested_platform, draft.platform) as "originSuggestedPlatform",
       telegram.reason as "originTelegramReason",
       ${promoAngleSql} as "originPromoAngle",
+      market_handoff.verified_facts as "originVerifiedFacts",
       latest.operation_id as "operationId",
       latest.lifecycle,
       latest.model_option_key as "modelOptionKey",
@@ -463,16 +505,25 @@ export async function readPlatformDrafts(
     left join analysis_model_unit promo_unit
       on promo_unit.id = promo.analysis_model_unit_id
       and promo_unit.workspace_id = draft.workspace_id
-    inner join analysis_run origin_run
+    left join analysis_run origin_run
       on origin_run.id = coalesce(
         selection_unit.analysis_run_id,
         telegram.analysis_run_id,
         promo_unit.analysis_run_id
       )
       and origin_run.workspace_id = draft.workspace_id
-    inner join operation origin_operation
+    left join operation origin_operation
       on origin_operation.id = origin_run.operation_id
       and origin_operation.workspace_id = draft.workspace_id
+    left join market_analysis_handoff market_handoff
+      on market_handoff.id = draft.market_analysis_handoff_id
+      and market_handoff.workspace_id = draft.workspace_id
+    left join market_analysis market_analysis
+      on market_analysis.id = market_handoff.market_analysis_id
+      and market_analysis.workspace_id = draft.workspace_id
+    left join operation market_owner_operation
+      on market_owner_operation.id = market_analysis.operation_id
+      and market_owner_operation.workspace_id = draft.workspace_id
     left join ${publishingControl}
       on ${publishingControl.workspaceId} = draft.workspace_id
     left join source_item origin_item
@@ -539,7 +590,7 @@ export async function readPlatformDrafts(
     ) latest_image on true
     where draft.workspace_id = ${workspaceId}::uuid
       and draft.deleted_at is null
-      and origin_operation.actor = ${userId}
+      and coalesce(origin_operation.actor, market_owner_operation.actor) = ${userId}
       and ${selectorSql}
     order by brand.sort_order, draft.platform, draft.lane_position, draft.id
   `);
@@ -672,7 +723,7 @@ export async function readPlatformDrafts(
                         where prior_generation.workspace_id = ${copyGeneration.workspaceId}
                           and prior_generation.platform_draft_id = ${copyGeneration.platformDraftId}
                           and prior_generation.requested_content_locale = ${copyGeneration.requestedContentLocale}
-                          and prior_operation.lifecycle = 'succeeded'
+                          and prior_operation.lifecycle in ('succeeded', 'failed', 'cancelled', 'unknown')
                           and prior_operation.command_type in (
                             'copy-generation:route',
                             'copy-generation:regenerate',
@@ -910,9 +961,11 @@ export async function readPlatformDrafts(
           executor,
           workspaceId,
           userId,
-          result.rows.flatMap((row) =>
-            row.presentationReady ? [] : [platformDraftOrigin(row)],
-          ),
+          result.rows.flatMap((row) => {
+            if (row.presentationReady) return [];
+            const origin = platformDraftOrigin(row);
+            return origin.kind === "market_analysis_handoff" ? [] : [origin];
+          }),
           presentationLocale,
         ),
         translatableVariantIds.length === 0
@@ -1020,13 +1073,22 @@ export async function readPlatformDrafts(
               }
             : null;
 
-        const card: PlatformDraftCard = {
+        const card: PlatformDraftExactCard = {
           id: row.id,
           mediaBrandId: row.mediaBrandId,
           brandKey: row.brandKey,
           brandName: row.brandName,
           platform: row.platform,
           lanePosition: row.lanePosition,
+          executionScope: row.marketAnalysisId
+            ? {
+                kind: "market_analysis",
+                marketAnalysisId: row.marketAnalysisId,
+              }
+            : {
+                kind: "analysis_run",
+                analysisRunId: requireAnalysisRunId(row),
+              },
           version: row.version,
           activeRevisionId: row.activeRevisionId,
           revisionVersion: row.revisionVersion,
@@ -1036,7 +1098,10 @@ export async function readPlatformDrafts(
           originTitle: row.originTitle,
           presentationReady: row.presentationReady,
           presentationTranslation:
-            translationByOrigin.get(presentationOriginKey(origin)) ?? null,
+            origin.kind === "market_analysis_handoff"
+              ? null
+              : (translationByOrigin.get(presentationOriginKey(origin)) ??
+                null),
           sourceKind: row.sourceKind,
           originDetails: platformDraftOriginDetails(row),
           generation,
@@ -1048,8 +1113,18 @@ export async function readPlatformDrafts(
             emptyPublishingProjection(environmentForcedPause, timeZone),
         };
 
+        const executionScope = row.marketAnalysisId
+          ? ({
+              kind: "market_analysis",
+              marketAnalysisId: row.marketAnalysisId,
+            } as const)
+          : ({
+              kind: "analysis_run",
+              analysisRunId: requireAnalysisRunId(row),
+            } as const);
         return {
           analysisRunId: row.analysisRunId,
+          executionScope,
           lifecycle: row.originLifecycle,
           card,
         };
@@ -1427,7 +1502,10 @@ export async function readPlatformDraftRunConfiguration(
 function platformDraftOrigin(
   row: Pick<
     PlatformDraftProjectionRow,
-    "editorialSelectionId" | "promoIdeaId" | "telegramFilterResultId"
+    | "editorialSelectionId"
+    | "marketAnalysisHandoffId"
+    | "promoIdeaId"
+    | "telegramFilterResultId"
   >,
 ): CardOriginReference {
   if (row.editorialSelectionId) {
@@ -1445,13 +1523,30 @@ function platformDraftOrigin(
   if (row.promoIdeaId) {
     return { kind: "promo_idea", promoIdeaId: row.promoIdeaId };
   }
+  if (row.marketAnalysisHandoffId) {
+    return {
+      kind: "market_analysis_handoff",
+      marketAnalysisHandoffId: row.marketAnalysisHandoffId,
+    };
+  }
   throw new Error("platform draft origin is missing");
+}
+
+function requireAnalysisRunId(row: PlatformDraftProjectionRow) {
+  if (!row.analysisRunId) {
+    throw new Error("run-backed platform draft is missing its analysis run");
+  }
+  return row.analysisRunId;
 }
 
 function platformDraftOriginDetails(
   row: PlatformDraftProjectionRow,
-): PlatformDraftCard["originDetails"] {
-  if (row.originSourceName === null && row.originPromoAngle === null) {
+): PlatformDraftExactCard["originDetails"] {
+  if (
+    row.originSourceName === null &&
+    row.originPromoAngle === null &&
+    row.marketAnalysisHandoffId === null
+  ) {
     return null;
   }
 
@@ -1467,6 +1562,8 @@ function platformDraftOriginDetails(
     suggestedPlatform: row.originSuggestedPlatform,
     telegramReason: row.originTelegramReason,
     promoAngle: row.originPromoAngle,
+    marketAnalysisId: row.marketAnalysisId,
+    verifiedFacts: row.originVerifiedFacts,
   };
 }
 
@@ -2191,8 +2288,8 @@ async function readTelegramLanes(
 function editorialWorkspaceOrigins(
   modelLanes: readonly ModelLane[],
   telegramLanes: readonly TelegramLane[],
-): CardOriginReference[] {
-  const origins: CardOriginReference[] = [];
+): RunCardOriginReference[] {
+  const origins: RunCardOriginReference[] = [];
 
   for (const lane of modelLanes) {
     for (const card of lane.selections) {
@@ -2235,7 +2332,7 @@ function presentationTranslationByOrigin(
   );
 }
 
-function presentationOriginKey(origin: CardOriginReference): string {
+function presentationOriginKey(origin: RunCardOriginReference): string {
   if (origin.kind === "editorial_selection") {
     return `editorial_selection:${origin.editorialSelectionId}`;
   }

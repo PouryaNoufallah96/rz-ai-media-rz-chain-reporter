@@ -8,6 +8,7 @@ import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
 import { cn } from "@rz-chain-reporter/ui/lib/utils";
 import type { ReactNode } from "react";
 
+import { PlatformIcon } from "@/components/common/platform-icon";
 import { getFormatter, getT } from "@/i18n/server";
 
 import { INSTALLATION_NAMESPACE } from "../constants";
@@ -92,7 +93,11 @@ export async function InstallationSections({
               {destinations.map((destination) => (
                 <li className="flex flex-col gap-2 py-3" key={destination.key}>
                   <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-                    <span className="wrap-anywhere min-w-0 flex-1 text-sm">
+                    <span className="wrap-anywhere flex min-w-0 flex-1 items-center gap-2 text-sm">
+                      <PlatformIcon
+                        className="size-4 shrink-0"
+                        platform={destination.platform}
+                      />
                       <Bdi>{destination.label}</Bdi>
                     </span>
                     <StateBadge

@@ -7,6 +7,7 @@ import {
   assembleCopy,
   COPY_CONFIGURATION_VERSION,
   COPY_PROMPT_VERSION,
+  type ContentLocale,
   effectiveNewsSourceIds,
   INLINE_HASHTAG_TOKEN,
   isOperationSettled,
@@ -474,7 +475,7 @@ function hashPayload(value: unknown) {
 
 function normalizeRevisionContent(
   content: {
-    contentLocale: "en" | "fa";
+    contentLocale: ContentLocale;
     headline: string;
     body: string;
     hashtags: readonly string[];
@@ -652,6 +653,9 @@ export const routeDraft = installationProcedure
       });
     }
     if (!("draft" in result)) throw errors.TRANSIENT_CONFLICT();
+    if (result.draft.lanePosition === null) {
+      throw errors.TRANSIENT_CONFLICT();
+    }
 
     return {
       status: result.status,

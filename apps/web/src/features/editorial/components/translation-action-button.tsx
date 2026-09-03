@@ -4,8 +4,6 @@ import { isOperationInProgress } from "@rz-chain-reporter/contracts";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { Hint } from "@rz-chain-reporter/ui/components/hint";
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
-import { LanguagesIcon } from "lucide-react";
-
 import type { TranslationStatus } from "../schemas/workspace";
 
 type TranslationActionCopy = {
@@ -14,6 +12,7 @@ type TranslationActionCopy = {
   translating: string;
   unknown: string;
   retry: string;
+  text: string;
   hint: {
     translate: string;
     queueing: string;
@@ -37,27 +36,11 @@ export function TranslationActionButton({
 }) {
   if (available) return null;
 
-  const translating =
-    isOperationInProgress(status?.lifecycle) &&
-    (status.lifecycle !== "queued" || status.dispatchState !== "exhausted");
-  const pending = isActionPending || translating;
-  const failed = status !== null && !translating;
-  const label = isActionPending
-    ? copy.queueing
-    : translating
-      ? copy.translating
-      : status?.lifecycle === "unknown"
-        ? copy.unknown
-        : failed
-          ? copy.retry
-          : copy.translate;
-  const hint = isActionPending
-    ? copy.hint.queueing
-    : translating
-      ? copy.hint.translating
-      : failed
-        ? copy.hint.retry
-        : copy.hint.translate;
+  const { failed, hint, label, pending } = resolveTranslationAction(
+    copy,
+    isActionPending,
+    status,
+  );
 
   return (
     <Hint label={hint}>
@@ -66,21 +49,61 @@ export function TranslationActionButton({
         aria-label={label}
         className={
           failed
-            ? "text-destructive max-compact:size-11"
-            : "max-compact:size-11"
+            ? "h-5 px-1.5 text-[11px] text-destructive"
+            : "h-5 px-1.5 text-[11px]"
         }
         disabled={pending}
         onClick={onTranslate}
-        size="icon-xs"
+        size="xs"
         type="button"
         variant="ghost"
       >
-        {pending ? (
-          <Spinner label={label} />
-        ) : (
-          <LanguagesIcon aria-hidden="true" />
-        )}
+        {pending ? <Spinner label={label} /> : null}
+        {copy.text}
       </Button>
     </Hint>
   );
+}
+
+function resolveTranslationAction(
+  copy: TranslationActionCopy,
+  isActionPending: boolean,
+  status: TranslationStatus | null,
+) {
+  const translating =
+    isOperationInProgress(status?.lifecycle) &&
+    (status.lifecycle !== "queued" || status.dispatchState !== "exhausted");
+  const failed = status !== null && !translating;
+
+  if (isActionPending) {
+    return {
+      failed,
+      hint: copy.hint.queueing,
+      label: copy.queueing,
+      pending: true,
+    };
+  }
+  if (translating) {
+    return {
+      failed,
+      hint: copy.hint.translating,
+      label: copy.translating,
+      pending: true,
+    };
+  }
+  if (status?.lifecycle === "unknown") {
+    return {
+      failed,
+      hint: copy.hint.retry,
+      label: copy.unknown,
+      pending: false,
+    };
+  }
+
+  return {
+    failed,
+    hint: failed ? copy.hint.retry : copy.hint.translate,
+    label: failed ? copy.retry : copy.translate,
+    pending: false,
+  };
 }

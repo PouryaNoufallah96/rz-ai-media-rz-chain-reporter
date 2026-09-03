@@ -3,32 +3,12 @@
 import type { Platform } from "@rz-chain-reporter/contracts";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { Hint } from "@rz-chain-reporter/ui/components/hint";
-import { SimpleIconsInstagram } from "@rz-chain-reporter/ui/components/icons/simple-icons/instagram";
-import { SimpleIconsTelegram } from "@rz-chain-reporter/ui/components/icons/simple-icons/telegram";
-import { SimpleIconsX } from "@rz-chain-reporter/ui/components/icons/simple-icons/x";
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
 import { CheckIcon } from "lucide-react";
-import type { ComponentType, SVGProps } from "react";
+
+import { PlatformIcon } from "@/components/common/platform-icon";
 
 import { ROUTE_STATUS_CLASS_NAME } from "./lane-layout";
-
-const PLATFORM_ICONS: Record<
-  Platform,
-  ComponentType<SVGProps<SVGSVGElement>>
-> = {
-  instagram: SimpleIconsInstagram,
-  telegram: SimpleIconsTelegram,
-  x: SimpleIconsX,
-};
-
-function PlatformIcon({
-  platform,
-  ...props
-}: SVGProps<SVGSVGElement> & { platform: Platform }) {
-  const Icon = PLATFORM_ICONS[platform];
-
-  return <Icon {...props} />;
-}
 
 export function PlatformRouteButton({
   accessibleLabel,

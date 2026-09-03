@@ -29,8 +29,10 @@ async function writeSnapshot() {
 }
 
 async function checkSnapshot() {
-  const snapshot = await renderSnapshot();
-  const committed = await readFile(target, "utf8").catch(() => null);
+  const [snapshot, committed] = await Promise.all([
+    renderSnapshot(),
+    readFile(target, "utf8").catch(() => null),
+  ]);
 
   if (committed === snapshot) return;
 

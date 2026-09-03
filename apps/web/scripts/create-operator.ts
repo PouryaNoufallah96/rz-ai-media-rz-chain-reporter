@@ -12,12 +12,18 @@ function fail(message: string): never {
 }
 
 async function createOperator() {
-  const email = process.argv[2];
+  const validateOnly = process.argv[2] === "--validate-email";
+  const email = process.argv[validateOnly ? 3 : 2];
   const name = process.argv[3];
 
   if (!email || !z.email().safeParse(email).success) {
-    fail("Usage: operator:create <email> [name]");
+    fail(
+      validateOnly
+        ? "Invalid operator email."
+        : "Usage: operator:create <email> [name]",
+    );
   }
+  if (validateOnly) return;
 
   const password = await readNewPassword(await operatorPasswordPolicy());
   if (password === null) process.exit(1);

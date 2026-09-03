@@ -9,6 +9,7 @@ import {
   platformSchema,
   publicationLifecycleSchema,
   publishCheckpointKindSchema,
+  runCardOriginReferenceSchema,
   scheduleStatusSchema,
   settlementActivityStatusSchema,
 } from "@rz-chain-reporter/contracts";
@@ -86,6 +87,19 @@ export type DraftRevisionProjection = z.infer<
   typeof draftRevisionProjectionSchema
 >;
 
+const platformDraftOriginDetailsSchema = z.strictObject({
+  sourceName: z.string().nullable(),
+  publishedAt: z.date().nullable(),
+  canonicalUrl: z.string().nullable(),
+  summary: z.string().nullable(),
+  contentLocale: contentLocaleSchema.nullable(),
+  suitabilityScore: z.int().nullable(),
+  reasoning: z.string().nullable(),
+  suggestedPlatform: platformSchema.nullable(),
+  telegramReason: filteringReasonSchema.nullable(),
+  promoAngle: z.string().nullable(),
+});
+
 export const platformDraftCardSchema = z.strictObject({
   id: z.uuid(),
   mediaBrandId: z.uuid(),
@@ -98,25 +112,12 @@ export const platformDraftCardSchema = z.strictObject({
   revisionVersion: z.int().nonnegative(),
   projectionVersion: z.int().nonnegative(),
   nextRevisionNumber: z.int().positive(),
-  origin: cardOriginReferenceSchema,
+  origin: runCardOriginReferenceSchema,
   originTitle: z.string(),
   presentationReady: z.boolean(),
   presentationTranslation: presentationTranslationStatusSchema.nullable(),
   sourceKind: z.enum(["promo", "rss", "telegram"]),
-  originDetails: z
-    .strictObject({
-      sourceName: z.string().nullable(),
-      publishedAt: z.date().nullable(),
-      canonicalUrl: z.string().nullable(),
-      summary: z.string().nullable(),
-      contentLocale: contentLocaleSchema.nullable(),
-      suitabilityScore: z.int().nullable(),
-      reasoning: z.string().nullable(),
-      suggestedPlatform: platformSchema.nullable(),
-      telegramReason: filteringReasonSchema.nullable(),
-      promoAngle: z.string().nullable(),
-    })
-    .nullable(),
+  originDetails: platformDraftOriginDetailsSchema.nullable(),
   generation: platformDraftGenerationSchema.nullable(),
   candidates: z.array(copyVariantProjectionSchema),
   revisions: z.array(
@@ -192,6 +193,33 @@ export const platformDraftCardSchema = z.strictObject({
 
 export type PlatformDraftCard = z.infer<typeof platformDraftCardSchema>;
 
+export const platformDraftExactCardSchema = platformDraftCardSchema.extend({
+  lanePosition: z.int().positive().nullable(),
+  executionScope: z
+    .strictObject({
+      kind: z.literal("analysis_run"),
+      analysisRunId: z.uuid(),
+    })
+    .or(
+      z.strictObject({
+        kind: z.literal("market_analysis"),
+        marketAnalysisId: z.uuid(),
+      }),
+    ),
+  origin: cardOriginReferenceSchema,
+  sourceKind: z.enum(["market", "promo", "rss", "telegram"]),
+  originDetails: platformDraftOriginDetailsSchema
+    .extend({
+      marketAnalysisId: z.uuid().nullable(),
+      verifiedFacts: z.unknown().nullable(),
+    })
+    .nullable(),
+});
+
+export type PlatformDraftExactCard = z.infer<
+  typeof platformDraftExactCardSchema
+>;
+
 export const platformDraftLaneSchema = z.strictObject({
   mediaBrandId: z.uuid(),
   brandKey: z.string(),
@@ -205,7 +233,7 @@ export type PlatformDraftLane = z.infer<typeof platformDraftLaneSchema>;
 export const platformDraftLanesSchema = z.array(platformDraftLaneSchema);
 
 export const routePlatformDraftInputSchema = z.strictObject({
-  origin: cardOriginReferenceSchema,
+  origin: runCardOriginReferenceSchema,
   platform: platformSchema,
   modelOptionKey: z.string().trim().min(1, { error: "MODEL_REQUIRED" }),
   requestedContentLocale: contentLocaleSchema,
@@ -399,7 +427,7 @@ export const updateDraftRevisionResultSchema = z.strictObject({
     id: z.uuid(),
     revisionNumber: z.int().positive(),
   }),
-  card: platformDraftCardSchema,
+  card: platformDraftExactCardSchema,
 });
 
 export type DraftEditorInput = Extract<

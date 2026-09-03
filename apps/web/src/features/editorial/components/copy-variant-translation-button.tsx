@@ -30,6 +30,7 @@ export function CopyVariantTranslationButton({
         translating: t("copyVariantTranslation.translating", { title }),
         unknown: t("copyVariantTranslation.unknown", { title }),
         retry: t("copyVariantTranslation.retry", { title }),
+        text: t("copyVariantTranslation.text"),
         hint: {
           translate: t("copyVariantTranslation.hint.translate"),
           queueing: t("copyVariantTranslation.hint.queueing"),

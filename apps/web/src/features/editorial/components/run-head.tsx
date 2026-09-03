@@ -53,12 +53,16 @@ type Translate = ReturnType<typeof useTranslations<typeof EDITORIAL_NAMESPACE>>;
 
 export function RunHead({
   head,
+  isPending,
+  onSelectRun,
   readAt,
   runs,
   selectedRunId,
   showFreshness = true,
 }: {
   head: RunHeadView | null;
+  isPending: boolean;
+  onSelectRun: (run: string | null) => void;
   readAt: Date;
   runs: readonly RunOption[];
   selectedRunId: string | null;
@@ -104,6 +108,8 @@ export function RunHead({
             keepMounted
           >
             <RunSelector
+              isPending={isPending}
+              onSelectRun={onSelectRun}
               runs={runs}
               selected={
                 selectedRunId === null || head === null
@@ -174,32 +180,7 @@ function RunState({
 
   return (
     <>
-      <div className="flex items-start gap-2">
-        <StateMark state={mark} />
-        <div className="min-w-0 flex-1">
-          <p className={stateTone(mark)}>{stateLabel(head, t)}</p>
-          {head.progress.partial ? (
-            <p className="text-muted-foreground text-xs tabular-nums">
-              {t("state.partial", {
-                n: head.progress.units.failed + head.progress.units.cancelled,
-              })}
-            </p>
-          ) : null}
-          {head.lifecycle === "failed" && head.failureCode ? (
-            <FailureText code={head.failureCode} />
-          ) : null}
-          {head.progress.lateCancellation ? (
-            <p className="text-muted-foreground text-xs">
-              {t("run.cancelLate")}
-            </p>
-          ) : null}
-          {head.execution.dispatch === "exhausted" ? (
-            <p className="text-destructive text-xs">
-              {t("state.dispatchExhausted")}
-            </p>
-          ) : null}
-        </div>
-      </div>
+      <RunStateSummary head={head} mark={mark} />
       <p className="text-muted-foreground text-xs tabular-nums">
         {t("run.progress.elapsed", { duration: elapsed })}
         {" · "}
@@ -208,6 +189,67 @@ function RunState({
         })}
       </p>
       <RunProgress head={head} />
+      <RunStateNotices head={head} settled={settled} />
+      <p
+        aria-atomic="true"
+        className={cn("text-sm", selectedRunId !== null && "sr-only")}
+        role="status"
+      >
+        {announcement(head, selectedRunId, t)}
+      </p>
+      <RunStateActions head={head} settled={settled} />
+    </>
+  );
+}
+
+function RunStateSummary({
+  head,
+  mark,
+}: {
+  head: RunHeadView;
+  mark: StateMarkState;
+}) {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+
+  return (
+    <div className="flex items-start gap-2">
+      <StateMark state={mark} />
+      <div className="min-w-0 flex-1">
+        <p className={stateTone(mark)}>{stateLabel(head, t)}</p>
+        {head.progress.partial ? (
+          <p className="text-muted-foreground text-xs tabular-nums">
+            {t("state.partial", {
+              n: head.progress.units.failed + head.progress.units.cancelled,
+            })}
+          </p>
+        ) : null}
+        {head.lifecycle === "failed" && head.failureCode ? (
+          <FailureText code={head.failureCode} />
+        ) : null}
+        {head.progress.lateCancellation ? (
+          <p className="text-muted-foreground text-xs">{t("run.cancelLate")}</p>
+        ) : null}
+        {head.execution.dispatch === "exhausted" ? (
+          <p className="text-destructive text-xs">
+            {t("state.dispatchExhausted")}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function RunStateNotices({
+  head,
+  settled,
+}: {
+  head: RunHeadView;
+  settled: boolean;
+}) {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+
+  return (
+    <>
       {head.templateChanged ? (
         <p className="text-working text-xs">
           {t("run.templateChanged.notice")}
@@ -230,13 +272,21 @@ function RunState({
           {t("state.telegramOnlyComplete")}
         </p>
       ) : null}
-      <p
-        aria-atomic="true"
-        className={cn("text-sm", selectedRunId !== null && "sr-only")}
-        role="status"
-      >
-        {announcement(head, selectedRunId, t)}
-      </p>
+    </>
+  );
+}
+
+function RunStateActions({
+  head,
+  settled,
+}: {
+  head: RunHeadView;
+  settled: boolean;
+}) {
+  const t = useTranslations(EDITORIAL_NAMESPACE);
+
+  return (
+    <>
       <Button
         className="w-full max-sm:min-h-11"
         nativeButton={false}

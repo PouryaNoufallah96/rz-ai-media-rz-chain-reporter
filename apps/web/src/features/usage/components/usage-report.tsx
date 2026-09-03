@@ -1,6 +1,10 @@
 "use client";
 
-import { MODEL_BACKENDS, USAGE_STATUSES } from "@rz-chain-reporter/contracts";
+import {
+  MODEL_BACKENDS,
+  modelVendor,
+  USAGE_STATUSES,
+} from "@rz-chain-reporter/contracts";
 import { DIRECTION } from "@rz-chain-reporter/i18n";
 import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
@@ -23,8 +27,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@rz-chain-reporter/ui/components/empty";
-import { Field } from "@rz-chain-reporter/ui/components/field";
-import { Input } from "@rz-chain-reporter/ui/components/input";
 import {
   Table,
   TableBody,
@@ -37,6 +39,7 @@ import type { TableOptions } from "@tanstack/react-table";
 import { ChevronDownIcon, FileTextIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import type { SubmitEventHandler } from "react";
+import { ModelIcon } from "@/components/common/model-icon";
 import { StateMark } from "@/components/common/state-mark";
 import { CoreDataTable } from "@/components/data-table/data-table";
 import { KeysetPagination } from "@/components/data-table/keyset-pagination";
@@ -44,7 +47,7 @@ import {
   type keysetDataTableFeatures,
   useKeysetDataTable,
 } from "@/components/data-table/use-keyset-data-table";
-import { FieldCaption, LabeledSelect } from "@/components/form/form-field";
+import { LabeledInput, LabeledSelect } from "@/components/form/form-field";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 
 import { USAGE_NAMESPACE, USAGE_PERIODS, USAGE_PROVIDERS } from "../constants";
@@ -303,9 +306,13 @@ function UsageFilters({
         }))}
         value={query.period}
       />
-      <FilterText
+      <LabeledInput
+        className="min-w-0 flex-1 sm:w-fit sm:flex-none"
         defaultValue={query.model ?? ""}
+        inputClassName="w-full sm:w-40"
+        key={`model:${query.model ?? ""}`}
         label={t("filters.model")}
+        maxLength={200}
         name="model"
         placeholder={t("filters.modelPlaceholder")}
       />
@@ -333,9 +340,13 @@ function UsageFilters({
         }))}
         value={query.provider}
       />
-      <FilterText
+      <LabeledInput
+        className="min-w-0 flex-1 sm:w-fit sm:flex-none"
         defaultValue={query.task ?? ""}
+        inputClassName="w-full sm:w-40"
+        key={`task:${query.task ?? ""}`}
         label={t("filters.task")}
+        maxLength={200}
         name="task"
         placeholder={t("filters.taskPlaceholder")}
       />
@@ -352,34 +363,6 @@ function UsageFilters({
         value={query.status}
       />
     </form>
-  );
-}
-
-function FilterText({
-  defaultValue,
-  label,
-  name,
-  placeholder,
-}: {
-  defaultValue: string;
-  label: string;
-  name: string;
-  placeholder: string;
-}) {
-  const id = `usage-filter-${name}`;
-  return (
-    <Field className="min-w-0 flex-1 sm:w-fit sm:flex-none">
-      <FieldCaption htmlFor={id}>{label}</FieldCaption>
-      <Input
-        className="w-full sm:w-40"
-        defaultValue={defaultValue}
-        id={id}
-        key={defaultValue}
-        maxLength={200}
-        name={name}
-        placeholder={placeholder}
-      />
-    </Field>
   );
 }
 
@@ -432,7 +415,13 @@ function UsageSummaryBlock({ summary }: { summary: UsageSummary }) {
                 {summary.models.map((model) => (
                   <TableRow key={`${model.backend}:${model.model}`}>
                     <TableCell>
-                      <Bdi className="font-mono">{model.model}</Bdi>
+                      <span className="flex items-center gap-2">
+                        <ModelIcon
+                          className="size-4 shrink-0"
+                          vendor={modelVendor(model.model)}
+                        />
+                        <Bdi className="font-mono">{model.model}</Bdi>
+                      </span>
                     </TableCell>
                     <TableCell>{t(`backend.${model.backend}`)}</TableCell>
                     <TableCell className="tabular-nums">
@@ -494,7 +483,13 @@ function ModelValue({ row }: { row: UsageRow }) {
   const changed = row.resolvedModel && row.resolvedModel !== row.requestedModel;
   return (
     <span className="flex max-w-56 flex-wrap items-center gap-1 text-xs">
-      <Bdi className="font-mono">{row.requestedModel}</Bdi>
+      <span className="inline-flex items-center gap-1">
+        <ModelIcon
+          className="size-4 shrink-0"
+          vendor={modelVendor(row.requestedModel)}
+        />
+        <Bdi className="font-mono">{row.requestedModel}</Bdi>
+      </span>
       {changed ? (
         <>
           <span aria-hidden="true">

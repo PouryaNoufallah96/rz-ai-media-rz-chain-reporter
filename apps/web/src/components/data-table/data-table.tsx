@@ -37,7 +37,7 @@ export function CoreDataTable<
   return (
     <div
       aria-busy={isPending}
-      className="overflow-hidden rounded-lg border border-s-transparent bg-card data-pending:pointer-events-none data-pending:border-s-working"
+      className="overflow-hidden rounded-lg border bg-card data-pending:pointer-events-none data-pending:animate-pulse motion-reduce:animate-none"
       data-pending={isPending || undefined}
     >
       <Table>
@@ -85,10 +85,7 @@ export function CoreDataTable<
           )}
         </TableBody>
       </Table>
-      <span
-        className="block min-h-5 px-3 text-muted-foreground text-xs"
-        role="status"
-      >
+      <span className="sr-only" role="status">
         {isPending ? labels.updating : ""}
       </span>
     </div>

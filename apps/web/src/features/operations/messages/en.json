@@ -26,7 +26,7 @@
     },
     "stage": {
       "acquiring": "acquiring",
-      "enriching": "enriching · {n} / {m}"
+      "enriching": "enriching · {n, number} / {m, number}"
     },
     "transport": {
       "live": "live",
@@ -47,6 +47,11 @@
       "analysisRun": "Analysis run",
       "copyVariantTranslation": "Variation translation",
       "presentationTranslation": "Card translation",
+      "marketAnalysisHandoff": "Market publishing preparation",
+      "marketCatalogRefresh": "Market catalog refresh",
+      "marketChartRender": "Market chart render",
+      "marketGeneration": "Market image generation",
+      "marketVerification": "Market verification",
       "publishing": "Publishing"
     },
     "dispatch": {

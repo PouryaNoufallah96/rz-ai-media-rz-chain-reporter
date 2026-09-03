@@ -11,7 +11,10 @@ import { SHARED_NAMESPACE } from "@/features/shared/constants";
 import { Localized } from "@/i18n/client";
 import { Link } from "@/i18n/navigation";
 import { getT } from "@/i18n/server";
-import { customerProductName } from "@/lib/customer-template.server";
+import {
+  customerProductName,
+  customerTemplate,
+} from "@/lib/customer-template.server";
 
 import { LocaleSwitch } from "./locale-switch";
 import { ModeToggle } from "./mode-toggle";
@@ -84,6 +87,8 @@ export default async function Header() {
               accountLabel={t("header.account")}
               dashboardLabel={t("header.multiMedia")}
               label={t("header.primaryNav")}
+              marketAnalysisEnabled={customerTemplate.marketAnalysis.enabled}
+              marketAnalysisLabel={t("header.marketAnalysis")}
               usageLabel={t("header.usage")}
             />
           </UrlDataBoundary>

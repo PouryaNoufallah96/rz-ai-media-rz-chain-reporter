@@ -51,6 +51,9 @@
       "delivery": {
         "inProgress": "A publication is already in progress. Wait for it to finish before trying again."
       },
+      "alreadyScheduled": "Already scheduled for {when}.",
+      "missed": "This schedule was missed and needs confirmation.",
+      "openDesk": "Open dispatch ledger",
       "republishRequiresRevision": "Already published. Edit the card and save a new revision to publish it again.",
       "telegramPhotoOverflow": "This caption is too long for a Telegram photo. Shorten and save the revision, or remove its image to use the longer text-only limit."
     },

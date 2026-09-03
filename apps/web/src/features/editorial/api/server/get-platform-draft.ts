@@ -1,14 +1,13 @@
 import "server-only";
 
+import type { ContentLocale } from "@rz-chain-reporter/contracts";
 import { env } from "@rz-chain-reporter/env/server";
 import { cacheLife, cacheTag } from "next/cache";
-
 import { requireSession } from "@/features/auth/api/server/session";
 import { currentLocale } from "@/i18n/server";
 import { customerTimeZone } from "@/lib/customer-template.server";
 import { rpcDb } from "@/server/rpc/db";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
-
 import { draftsTags } from "../../db/cache/tags";
 import { readPlatformDrafts } from "../../db/queries";
 
@@ -36,7 +35,7 @@ async function readCachedPlatformDraft(
   platformDraftId: string,
   environmentForcedPause: boolean,
   timeZone: string,
-  presentationLocale: "en" | "fa",
+  presentationLocale: ContentLocale,
 ) {
   "use cache";
   cacheTag(...draftsTags.platformDraftReads(workspaceId));

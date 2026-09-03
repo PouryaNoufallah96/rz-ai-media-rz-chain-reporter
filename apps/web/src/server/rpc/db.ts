@@ -9,6 +9,6 @@ const pools = globalThis as typeof globalThis & {
 };
 
 export function rpcDb() {
-  pools.__rpcDb ??= createDb(env.DATABASE_URL);
+  pools.__rpcDb ??= createDb(env.DATABASE_URL, { pipeline: true });
   return pools.__rpcDb.db;
 }

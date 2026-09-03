@@ -18,6 +18,7 @@ import { ChevronDownIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId } from "react";
 
+import { SourceOriginIcon } from "@/components/common/source-origin-icon";
 import { StateMark, type StateMarkState } from "@/components/common/state-mark";
 
 import { SOURCE_LIFECYCLES, SOURCES_NAMESPACE } from "../constants";
@@ -95,7 +96,10 @@ function SourceGroup({
   return (
     <section aria-labelledby={labelId} className="mt-6">
       <h3 className="flex items-baseline gap-2" id={labelId}>
-        <span className="ticket-label">{t(`catalog.kind.${origin}`)}</span>
+        <span className="ticket-label inline-flex items-center gap-1.5">
+          <SourceOriginIcon className="size-3.5" origin={origin} />
+          {t(`catalog.kind.${origin}`)}
+        </span>
         <span className="text-muted-foreground text-xs tabular-nums">
           {groupMeta(origin, ordered, format, t)}
         </span>

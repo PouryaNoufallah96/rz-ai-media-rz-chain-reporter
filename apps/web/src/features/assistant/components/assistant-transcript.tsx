@@ -202,10 +202,7 @@ function AssistantTurn({
         {citations.size > 0 ? (
           <ul className="grid gap-0.5">
             {[...citations].map(([key, citation]) => (
-              <li
-                className="font-mono text-2xs text-muted-foreground"
-                key={key}
-              >
+              <li className="text-2xs text-muted-foreground" key={key}>
                 <Bdi lang={citation.locale ?? undefined}>{citation.title}</Bdi>
               </li>
             ))}

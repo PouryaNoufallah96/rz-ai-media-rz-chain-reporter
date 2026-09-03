@@ -8,9 +8,11 @@ import type {
   FilteringReason,
   InvocationKey,
   ModelBackend,
+  ModelOption,
   ModelUnitStatus,
   OperationLifecycle,
   Platform,
+  RunCardOriginReference,
   RunConfiguration,
   RunConfigurationBounds,
   SemanticDegradedReason,
@@ -31,6 +33,7 @@ import {
 import type { AnalysisRunProgress } from "@rz-chain-reporter/db/repositories/analysis-run";
 import { createLoader, parseAsString, type SearchParams } from "nuqs/server";
 import { z } from "zod";
+import type { BrandLogo } from "@/components/common/brand-mark";
 
 export const workspaceSearchParsers = {
   draft: parseAsString,
@@ -61,7 +64,18 @@ export const cancelAnalysisRunInputSchema = z.object({
 });
 
 export const startPresentationTranslationInputSchema = z.strictObject({
-  origin: cardOriginReferenceSchema,
+  origin: cardOriginReferenceSchema.transform<RunCardOriginReference>(
+    (origin, context) => {
+      if (origin.kind === "market_analysis_handoff") {
+        context.addIssue({
+          code: "custom",
+          message: "MARKET_PRESENTATION_TRANSLATION_NOT_APPLICABLE",
+        });
+        return z.NEVER;
+      }
+      return origin;
+    },
+  ),
   presentationLocale: contentLocaleSchema,
   idempotencyKey: z.uuid({ error: "IDEMPOTENCY_KEY_REQUIRED" }),
 });
@@ -263,8 +277,13 @@ export type PreviousRun = {
 };
 
 export type RunOptions = {
-  models: readonly { key: string; name: string }[];
-  brands: readonly { key: string; name: string; promoEnabled: boolean }[];
+  models: readonly ModelOption[];
+  brands: readonly {
+    key: string;
+    name: string;
+    logo: BrandLogo | null;
+    promoEnabled: boolean;
+  }[];
   platforms: readonly Platform[];
   defaults: {
     brands: readonly string[];

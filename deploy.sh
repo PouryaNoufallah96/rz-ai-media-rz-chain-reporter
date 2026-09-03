@@ -1,20 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly PROJECT="chainreporter-platform"
 readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly COMPOSE_FILE="$ROOT/deploy/compose.production.yml"
 readonly NGINX_TEMPLATE="$ROOT/deploy/nginx/site.conf.template"
-readonly DEFAULT_CONFIG="/var/www/chainreporter-platform/deploy.env"
 
 readonly REQUIRED_CONFIG=(
-  APP_VERSION CUSTOMER_TEMPLATE_KEY IMAGE_PREFIX ENV_DIR BUILD_SECRET_FILE
-  APP_ROOT APP_USER PUBLIC_HOST PUBLIC_IP WEB_LOOPBACK_PORT WORKER_LOOPBACK_PORT
+  COMPOSE_PROJECT_NAME APP_VERSION CUSTOMER_TEMPLATE_KEY IMAGE_PREFIX
+  ENV_DIR BUILD_SECRET_FILE APP_ROOT APP_USER PUBLIC_HOST PUBLIC_IP
+  WEB_LOOPBACK_PORT WORKER_LOOPBACK_PORT
+  MINIO_API_LOOPBACK_PORT MINIO_CONSOLE_LOOPBACK_PORT
   TLS_CERTIFICATE TLS_CERTIFICATE_KEY NGINX_SITE_AVAILABLE NGINX_SITE_ENABLED
   MIN_FREE_MEMORY_MB
 )
-readonly LEGACY_PATHS=(/var/www/chainreporter /opt/embeddinggemma /usr/bin/node /var/www/rz-ecosystem)
-readonly LEGACY_NAMES=(chainreporter-backend chainreporter-frontend embeddinggemma)
+readonly LEGACY_PATHS=(
+  /var/www/chainreporter /var/www/rzwire /opt/embeddinggemma
+  /usr/bin/node /var/www/rz-ecosystem
+)
+readonly LEGACY_NAMES=(
+  chainreporter-backend chainreporter-frontend embeddinggemma rzwire
+)
 readonly LEGACY_HOST_PORTS=(3000 3001 8081)
 readonly ENV_FILES=(postgres.env minio.env migrate.env reconcile.env web.env worker.env build.env)
 
@@ -24,12 +29,16 @@ fail() {
 }
 
 usage() {
-  cat >&2 <<USAGE
-usage: deploy.sh check [config]
-       deploy.sh deploy [config]
-       deploy.sh rollback <previous-app-version> [config]
-       deploy.sh render-nginx [config]
-config defaults to $DEFAULT_CONFIG
+  cat >&2 <<'USAGE'
+usage: deploy.sh check <config>
+       deploy.sh deploy <config>
+       deploy.sh deploy-prebuilt <config>
+       deploy.sh rollback <previous-app-version> <config>
+       deploy.sh render-nginx <config>
+
+deploy builds from the checked-out source tree. deploy-prebuilt uses exact
+images already loaded or pulled on the host. Every command requires an explicit
+instance config; no mutation can fall back to another customer's deployment.
 USAGE
   exit 64
 }
@@ -47,19 +56,19 @@ load_config() {
     [ -n "${!name:-}" ] || fail MISSING_CONFIG_VALUE "$name is not set in $config"
   done
 
-  case "${ENV_DIR}" in
+  case "$ENV_DIR" in
     /*) ;;
     *) ENV_DIR="$ROOT/deploy/${ENV_DIR#./}" ;;
   esac
-  case "${BUILD_SECRET_FILE}" in
+  case "$BUILD_SECRET_FILE" in
     /*) ;;
     *) BUILD_SECRET_FILE="$ROOT/deploy/${BUILD_SECRET_FILE#./}" ;;
   esac
-  export ENV_DIR BUILD_SECRET_FILE
+  export COMPOSE_PROJECT_NAME ENV_DIR BUILD_SECRET_FILE
 }
 
 compose() {
-  docker compose --project-name "$PROJECT" -f "$COMPOSE_FILE" \
+  docker compose --project-name "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" \
     --project-directory "$ROOT/deploy" "$@"
 }
 
@@ -76,15 +85,68 @@ refuse_env_key() {
   return 0
 }
 
+assert_matching_env_values() {
+  local label="$1" left_file="$2" left_key="$3" right_file="$4" right_key="$5"
+  local left right
+  left="$(env_value "$left_file" "$left_key")"
+  right="$(env_value "$right_file" "$right_key")"
+  [ -n "$left" ] && [ -n "$right" ] \
+    || fail MISSING_ENV_KEY "$label requires $left_key and $right_key"
+  [ "$left" = "$right" ] \
+    || fail ENV_VALUE_MISMATCH "$label differs between runtime env files"
+}
+
+assert_identifier() {
+  printf '%s' "$2" | grep -Eq '^[a-z0-9][a-z0-9_-]*$' \
+    || fail INVALID_IDENTIFIER "$1 is not a lowercase deployment identifier"
+}
+
+assert_port() {
+  printf '%s' "$2" | grep -Eq '^[0-9]+$' \
+    || fail INVALID_PORT "$1 must be numeric"
+  [ "$2" -ge 1 ] && [ "$2" -le 65535 ] \
+    || fail INVALID_PORT "$1 must be between 1 and 65535"
+}
+
 assert_version() {
   case "$APP_VERSION" in
     dev | latest | "") fail MUTABLE_VERSION "APP_VERSION must be an immutable tag" ;;
+    *replace-me*) fail PLACEHOLDER_ENV_VALUE "$CONFIG_FILE still holds an APP_VERSION placeholder" ;;
   esac
-  case "$APP_VERSION" in
-    *replace-me*) fail PLACEHOLDER_ENV_VALUE "$CONFIG_FILE still holds a placeholder for APP_VERSION" ;;
-  esac
-  echo "$APP_VERSION" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*$' \
+  printf '%s' "$APP_VERSION" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*$' \
     || fail MUTABLE_VERSION "APP_VERSION is not a usable image tag"
+}
+
+assert_instance_config() {
+  assert_identifier COMPOSE_PROJECT_NAME "$COMPOSE_PROJECT_NAME"
+  assert_identifier CUSTOMER_TEMPLATE_KEY "$CUSTOMER_TEMPLATE_KEY"
+  printf '%s' "$IMAGE_PREFIX" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._:/-]*$' \
+    || fail INVALID_IMAGE_PREFIX "IMAGE_PREFIX is not usable"
+  printf '%s' "$PUBLIC_HOST" | grep -Eq '^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$' \
+    || fail INVALID_PUBLIC_HOST "PUBLIC_HOST is not a lowercase hostname"
+  printf '%s' "$PUBLIC_IP" | grep -Eq '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' \
+    || fail INVALID_PUBLIC_IP "PUBLIC_IP must be an IPv4 address"
+  case "$APP_ROOT" in
+    /*) ;;
+    *) fail INVALID_APP_ROOT "APP_ROOT must be absolute" ;;
+  esac
+  local path_name
+  for path_name in TLS_CERTIFICATE TLS_CERTIFICATE_KEY NGINX_SITE_AVAILABLE NGINX_SITE_ENABLED; do
+    case "${!path_name}" in
+      /*) ;;
+      *) fail INVALID_PATH "$path_name must be absolute" ;;
+    esac
+  done
+
+  local name value seen=" "
+  for name in WEB_LOOPBACK_PORT WORKER_LOOPBACK_PORT MINIO_API_LOOPBACK_PORT MINIO_CONSOLE_LOOPBACK_PORT; do
+    value="${!name}"
+    assert_port "$name" "$value"
+    case "$seen" in
+      *" $value "*) fail DUPLICATE_PORT "$name reuses loopback port $value" ;;
+    esac
+    seen="$seen$value "
+  done
 }
 
 assert_no_legacy_target() {
@@ -95,12 +157,15 @@ assert_no_legacy_target() {
     esac
   done
   for path in "${LEGACY_NAMES[@]}"; do
-    [ "$PROJECT" = "$path" ] && fail LEGACY_TARGET "project name collides with $path"
+    [ "$COMPOSE_PROJECT_NAME" = "$path" ] \
+      && fail LEGACY_TARGET "project name collides with $path"
   done
   local port
   for port in "${LEGACY_HOST_PORTS[@]}"; do
-    [ "$WEB_LOOPBACK_PORT" = "$port" ] && fail LEGACY_PORT "web must not bind host port $port"
-    [ "$WORKER_LOOPBACK_PORT" = "$port" ] && fail LEGACY_PORT "worker must not bind host port $port"
+    [ "$WEB_LOOPBACK_PORT" = "$port" ] \
+      && fail LEGACY_PORT "web must not bind host port $port"
+    [ "$WORKER_LOOPBACK_PORT" = "$port" ] \
+      && fail LEGACY_PORT "worker must not bind host port $port"
   done
   return 0
 }
@@ -110,6 +175,8 @@ assert_env_files() {
   for file in "${ENV_FILES[@]}"; do
     [ -f "$ENV_DIR/$file" ] || fail MISSING_ENV_FILE "$ENV_DIR/$file does not exist"
   done
+  [ "$BUILD_SECRET_FILE" = "$ENV_DIR/build.env" ] \
+    || fail BUILD_SECRET_MISMATCH "BUILD_SECRET_FILE must be the instance env/build.env"
 
   assert_env_key "$ENV_DIR/migrate.env" MIGRATION_DATABASE_URL
   refuse_env_key "$ENV_DIR/migrate.env" DATABASE_URL
@@ -133,8 +200,19 @@ assert_env_files() {
   refuse_env_key "$ENV_DIR/web.env" INNGEST_DEV
   refuse_env_key "$ENV_DIR/web.env" SENTRY_AUTH_TOKEN
   refuse_env_key "$ENV_DIR/worker.env" SENTRY_AUTH_TOKEN
-  refuse_env_key "$ENV_DIR/worker.env" OLLAMA_BASE_URL
   refuse_env_key "$ENV_DIR/web.env" OLLAMA_BASE_URL
+
+  local configured_template configured_version
+  for target in web.env worker.env; do
+    configured_template="$(env_value "$ENV_DIR/$target" CUSTOMER_TEMPLATE_KEY)"
+    [ "$configured_template" = "$CUSTOMER_TEMPLATE_KEY" ] \
+      || fail TEMPLATE_MISMATCH "$target selects ${configured_template:-nothing}, expected $CUSTOMER_TEMPLATE_KEY"
+  done
+  configured_version="$(env_value "$ENV_DIR/build.env" APP_VERSION)"
+  if [ "${SKIP_BUILD_VERSION_MATCH:-0}" != "1" ]; then
+    [ "$configured_version" = "$APP_VERSION" ] \
+      || fail VERSION_MISMATCH "build.env APP_VERSION does not match deploy config"
+  fi
 
   local placeholder_file placeholder_key
   for placeholder_file in "${ENV_FILES[@]}"; do
@@ -159,6 +237,17 @@ assert_env_files() {
     grep -q "^DATABASE_URL=postgresql://$app_role:" "$ENV_DIR/$target" \
       || fail ROLE_NOT_SPLIT "$target does not connect as $app_role"
   done
+
+  assert_matching_env_values storage-user "$ENV_DIR/minio.env" MINIO_ROOT_USER "$ENV_DIR/web.env" S3_ACCESS_KEY_ID
+  assert_matching_env_values storage-user "$ENV_DIR/minio.env" MINIO_ROOT_USER "$ENV_DIR/worker.env" S3_ACCESS_KEY_ID
+  assert_matching_env_values storage-secret "$ENV_DIR/minio.env" MINIO_ROOT_PASSWORD "$ENV_DIR/web.env" S3_SECRET_ACCESS_KEY
+  assert_matching_env_values storage-secret "$ENV_DIR/minio.env" MINIO_ROOT_PASSWORD "$ENV_DIR/worker.env" S3_SECRET_ACCESS_KEY
+  assert_matching_env_values storage-bucket "$ENV_DIR/minio.env" S3_BUCKET "$ENV_DIR/web.env" S3_BUCKET
+  assert_matching_env_values storage-bucket "$ENV_DIR/minio.env" S3_BUCKET "$ENV_DIR/worker.env" S3_BUCKET
+  assert_matching_env_values cache-invalidation "$ENV_DIR/web.env" CACHE_INVALIDATION_WEBHOOK_SECRET "$ENV_DIR/worker.env" CACHE_INVALIDATION_WEBHOOK_SECRET
+  assert_matching_env_values cache-invalidation "$ENV_DIR/web.env" CACHE_INVALIDATION_WEBHOOK_SECRET "$ENV_DIR/reconcile.env" CACHE_INVALIDATION_WEBHOOK_SECRET
+  assert_matching_env_values inngest-signing "$ENV_DIR/web.env" INNGEST_SIGNING_KEY "$ENV_DIR/worker.env" INNGEST_SIGNING_KEY
+  assert_matching_env_values openrouter "$ENV_DIR/web.env" OPENROUTER_API_KEY "$ENV_DIR/worker.env" OPENROUTER_API_KEY
 }
 
 assert_env_file_modes() {
@@ -174,47 +263,53 @@ assert_compose() {
   rendered="$(compose --env-file "$CONFIG_FILE" config)" \
     || fail INVALID_COMPOSE "production compose does not resolve"
 
-  echo "$rendered" | grep -Eq '"?0\.0\.0\.0"?' \
+  printf '%s\n' "$rendered" | grep -Eq 'host_ip: "?0\.0\.0\.0"?' \
     && fail PUBLIC_BINDING "production compose publishes a non-loopback port"
   local port
   for port in "${LEGACY_HOST_PORTS[@]}"; do
-    echo "$rendered" | grep -Eq "published: \"?$port\"?" \
+    printf '%s\n' "$rendered" | grep -Eq "published: \"?$port\"?" \
       && fail LEGACY_PORT "production compose publishes legacy host port $port"
   done
-  local path
-  for path in "${LEGACY_PATHS[@]}" "${LEGACY_NAMES[@]}"; do
-    echo "$rendered" | grep -Eq "$path([^-_A-Za-z0-9]|\$)" \
-      && fail LEGACY_TARGET "production compose references $path"
-  done
-  echo "$rendered" | grep -q "INNGEST_DEV" \
+  printf '%s\n' "$rendered" | grep -q 'INNGEST_DEV' \
     && fail INNGEST_DEV_ADMITTED "production compose admits INNGEST_DEV"
-  echo "$rendered" | grep -q "container_name" \
+  printf '%s\n' "$rendered" | grep -q 'container_name' \
     && fail FIXED_CONTAINER_NAME "production compose pins a container name"
   return 0
 }
 
 render_nginx() {
+  local rate_limit_zone_prefix="${COMPOSE_PROJECT_NAME//-/_}"
   sed \
     -e "s|@PUBLIC_HOST@|$PUBLIC_HOST|g" \
     -e "s|@WEB_LOOPBACK_PORT@|$WEB_LOOPBACK_PORT|g" \
     -e "s|@TLS_CERTIFICATE@|$TLS_CERTIFICATE|g" \
     -e "s|@TLS_CERTIFICATE_KEY@|$TLS_CERTIFICATE_KEY|g" \
+    -e "s|@RATE_LIMIT_ZONE_PREFIX@|$rate_limit_zone_prefix|g" \
     "$NGINX_TEMPLATE"
 }
 
 assert_nginx() {
-  local site
+  local site upstream
   site="$(render_nginx)"
-  echo "$site" | grep -q "@" && fail NGINX_TEMPLATE "rendered site still holds a placeholder"
-  echo "$site" | grep -q "location ^~ /api/internal/" || fail NGINX_INTERNAL "site does not block /api/internal/"
-  echo "$site" | grep -q "location ^~ /api/health" || fail NGINX_HEALTH "site does not block /api/health"
-  echo "$site" | grep -q "return 301 https://$PUBLIC_HOST" || fail NGINX_REDIRECT "site does not redirect to HTTPS"
-  echo "$site" | grep -q "proxy_buffering off" || fail NGINX_STREAMING "site buffers proxied responses"
-  echo "$site" | grep -q "access_log off" || fail NGINX_MEDIA_LOG "site logs publishing-media grants"
-  local upstream
-  upstream="$(echo "$site" | grep -c "proxy_pass http://127.0.0.1:$WEB_LOOPBACK_PORT;" || true)"
+  printf '%s\n' "$site" | grep -q '@' \
+    && fail NGINX_TEMPLATE "rendered site still holds a placeholder"
+  printf '%s\n' "$site" | grep -q 'location ^~ /api/internal/' \
+    || fail NGINX_INTERNAL "site does not block /api/internal/"
+  printf '%s\n' "$site" | grep -q 'location ^~ /api/health' \
+    || fail NGINX_HEALTH "site does not block /api/health"
+  printf '%s\n' "$site" | grep -q "return 301 https://$PUBLIC_HOST" \
+    || fail NGINX_REDIRECT "site does not redirect to HTTPS"
+  printf '%s\n' "$site" | grep -q 'proxy_buffering off' \
+    || fail NGINX_STREAMING "site buffers proxied responses"
+  printf '%s\n' "$site" | grep -q 'access_log off' \
+    || fail NGINX_MEDIA_LOG "site logs publishing-media grants"
+  printf '%s\n' "$site" | grep -q "zone=${COMPOSE_PROJECT_NAME//-/_}_app:10m" \
+    || fail NGINX_RATE_LIMIT_ZONE "site does not isolate the application rate-limit zone"
+  printf '%s\n' "$site" | grep -q "zone=${COMPOSE_PROJECT_NAME//-/_}_auth:10m" \
+    || fail NGINX_RATE_LIMIT_ZONE "site does not isolate the authentication rate-limit zone"
+  upstream="$(printf '%s\n' "$site" | grep -c "proxy_pass http://127.0.0.1:$WEB_LOOPBACK_PORT;" || true)"
   [ "$upstream" -ge 1 ] || fail NGINX_UPSTREAM "site does not proxy the web loopback port"
-  echo "$site" | grep -Eq "proxy_pass .*:($WORKER_LOOPBACK_PORT|5432|9000|9001)" \
+  printf '%s\n' "$site" | grep -Eq "proxy_pass .*:($WORKER_LOOPBACK_PORT|5432|$MINIO_API_LOOPBACK_PORT|$MINIO_CONSOLE_LOOPBACK_PORT)" \
     && fail NGINX_EXPOSURE "site proxies worker health, PostgreSQL or MinIO"
   return 0
 }
@@ -222,16 +317,17 @@ assert_nginx() {
 assert_static() {
   command -v docker >/dev/null || fail MISSING_TOOL "docker is not installed"
   assert_version
+  assert_instance_config
   assert_no_legacy_target
   assert_env_files
   assert_compose
   assert_nginx
-  echo "static assertions passed for $PUBLIC_HOST at version $APP_VERSION"
+  echo "static assertions passed for $COMPOSE_PROJECT_NAME at $PUBLIC_HOST, version $APP_VERSION"
 }
 
 assert_host() {
   local tool
-  for tool in nginx curl install id stat; do
+  for tool in nginx curl install id stat getent useradd; do
     command -v "$tool" >/dev/null || fail MISSING_TOOL "$tool is not installed"
   done
   [ "$(id -u)" -eq 0 ] || fail NOT_ROOT "deploy must run as root"
@@ -239,27 +335,48 @@ assert_host() {
   [ -f "$TLS_CERTIFICATE_KEY" ] || fail MISSING_TLS "no certificate key at $TLS_CERTIFICATE_KEY"
   assert_env_file_modes
 
-  local free_mb
+  local free_mb address
   free_mb="$(awk '/MemAvailable/ {print int($2 / 1024)}' /proc/meminfo)"
   [ "$free_mb" -ge "$MIN_FREE_MEMORY_MB" ] \
     || fail LOW_MEMORY "$free_mb MiB available, $MIN_FREE_MEMORY_MB MiB required"
-
-  local address
   address="$(getent hosts "$PUBLIC_HOST" | awk '{print $1; exit}')"
   [ "$address" = "$PUBLIC_IP" ] \
     || fail DNS_MISMATCH "$PUBLIC_HOST resolves to ${address:-nothing}, expected $PUBLIC_IP"
 }
 
+assert_source_tree() {
+  local required
+  for required in package.json pnpm-lock.yaml apps/web/Dockerfile apps/worker/Dockerfile packages/db/Dockerfile; do
+    [ -f "$ROOT/$required" ] || fail MISSING_SOURCE "$ROOT/$required is required for a source build"
+  done
+  [ -f "$ROOT/customer-templates/$CUSTOMER_TEMPLATE_KEY/template.json" ] \
+    || fail MISSING_TEMPLATE "source tree has no customer template $CUSTOMER_TEMPLATE_KEY"
+}
+
+image_ref() {
+  printf '%s/%s:%s' "$IMAGE_PREFIX" "$1" "$APP_VERSION"
+}
+
+assert_images() {
+  local component
+  for component in web worker db-ops web-admin; do
+    docker image inspect "$(image_ref "$component")" >/dev/null \
+      || fail MISSING_IMAGE "no local image $(image_ref "$component")"
+  done
+}
+
 prepare_host_paths() {
-  id "$APP_USER" >/dev/null 2>&1 || useradd --system --home "$APP_ROOT" --shell /usr/sbin/nologin "$APP_USER"
-  install -d -o "$APP_USER" -g "$APP_USER" -m 750 "$APP_ROOT" "$APP_ROOT/releases" "$APP_ROOT/backups"
+  id "$APP_USER" >/dev/null 2>&1 \
+    || useradd --system --user-group --home "$APP_ROOT" --shell /usr/sbin/nologin "$APP_USER"
+  install -d -o "$APP_USER" -g "$APP_USER" -m 750 \
+    "$APP_ROOT" "$APP_ROOT/releases" "$APP_ROOT/backups"
 }
 
 build_images() {
-  # web and admin share the same builder stage; one invocation lets the second
-  # reuse the first's layers instead of repeating next build and tsc.
-  compose --env-file "$CONFIG_FILE" build web admin
-  compose --env-file "$CONFIG_FILE" build worker migrate
+  compose --env-file "$CONFIG_FILE" build web
+  compose --env-file "$CONFIG_FILE" build admin
+  compose --env-file "$CONFIG_FILE" build worker
+  compose --env-file "$CONFIG_FILE" build migrate
 }
 
 reconcile_template() {
@@ -274,7 +391,6 @@ bootstrap_data_services() {
 
 run_database_steps() {
   compose --env-file "$CONFIG_FILE" run --rm migrate
-  compose --env-file "$CONFIG_FILE" run --rm --entrypoint node bindings dist/bindings-check.js preflight
   local reconcile_status=0
   reconcile_template --check || reconcile_status=$?
   [ "$reconcile_status" -eq 0 ] || [ "$reconcile_status" -eq 2 ] \
@@ -282,6 +398,20 @@ run_database_steps() {
   reconcile_template
   compose --env-file "$CONFIG_FILE" run --rm bindings
   compose --env-file "$CONFIG_FILE" run --rm --entrypoint node worker dist/prestart.js worker
+}
+
+run_rollback_checks() {
+  local reconcile_status=0
+  reconcile_template --check || reconcile_status=$?
+  [ "$reconcile_status" -eq 0 ] || [ "$reconcile_status" -eq 2 ] \
+    || fail RECONCILE_CHECK_FAILED "template dry run failed with $reconcile_status"
+  [ "$reconcile_status" -eq 0 ] || reconcile_template
+  compose --env-file "$CONFIG_FILE" run --rm --entrypoint node worker dist/prestart.js worker
+}
+
+run_binding_preflight() {
+  compose --env-file "$CONFIG_FILE" run --rm --no-deps --entrypoint node \
+    bindings dist/bindings-check.js preflight
 }
 
 await_ready() {
@@ -302,6 +432,42 @@ start_processes() {
   await_ready "http://127.0.0.1:$WORKER_LOOPBACK_PORT/health/ready"
 }
 
+running_writers() {
+  compose --env-file "$CONFIG_FILE" ps --services --status running \
+    | grep -E '^(web|worker)$' || true
+}
+
+activate_release() {
+  local database_mode="$1" resume
+  resume="$(running_writers)"
+  if [ -n "$resume" ]; then
+    # shellcheck disable=SC2086
+    compose --env-file "$CONFIG_FILE" stop $resume
+  fi
+
+  local sequence_status
+  set +e
+  (
+    set -e
+    bootstrap_data_services
+    if [ "$database_mode" = "forward" ]; then
+      run_database_steps
+    else
+      run_rollback_checks
+    fi
+  )
+  sequence_status=$?
+  set -e
+  if [ "$sequence_status" -ne 0 ]; then
+    if [ -n "$resume" ]; then
+      # shellcheck disable=SC2086
+      compose --env-file "$CONFIG_FILE" start $resume || true
+    fi
+    fail RELEASE_PRESTART "database/template/prestart sequence failed; previous stopped writers were restarted"
+  fi
+  start_processes
+}
+
 install_nginx_site() {
   local staged
   staged="$(mktemp)"
@@ -313,27 +479,40 @@ install_nginx_site() {
   nginx -s reload
 }
 
-record_release() {
-  local previous="$1" manifest="$APP_ROOT/releases/$APP_VERSION.json" metadata
-  metadata="$(docker run --rm --entrypoint cat "$IMAGE_PREFIX/web:$APP_VERSION" /app/prestart/build-metadata.json)"
-  printf '{"appVersion":"%s","previousAppVersion":"%s","webImage":"%s","workerImage":"%s","dbOpsImage":"%s","buildMetadata":%s}\n' \
-    "$APP_VERSION" "$previous" \
-    "$IMAGE_PREFIX/web:$APP_VERSION" "$IMAGE_PREFIX/worker:$APP_VERSION" "$IMAGE_PREFIX/db-ops:$APP_VERSION" \
-    "$metadata" > "$manifest"
-  chown "$APP_USER:$APP_USER" "$manifest"
-  echo "release manifest $manifest"
+current_release() {
+  local pointer="$APP_ROOT/releases/current-release" version
+  [ -f "$pointer" ] || return 0
+  IFS= read -r version < "$pointer"
+  printf '%s' "$version" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*$' \
+    || fail INVALID_RELEASE_POINTER "$pointer is invalid"
+  [ -f "$APP_ROOT/releases/$version.json" ] \
+    || fail INVALID_RELEASE_POINTER "$pointer names a missing release manifest"
+  printf '%s\n' "$version"
 }
 
-current_release() {
-  ls -1 "$APP_ROOT/releases" 2>/dev/null | sed -n 's/\.json$//p' | tail -n 1
+record_release() {
+  local previous="$1" manifest="$APP_ROOT/releases/$APP_VERSION.json"
+  local metadata staged pointer_staged
+  metadata="$(docker run --rm --entrypoint cat "$(image_ref web)" /app/prestart/build-metadata.json)"
+  staged="$(mktemp "$APP_ROOT/releases/.release.XXXXXX")"
+  pointer_staged="$(mktemp "$APP_ROOT/releases/.current.XXXXXX")"
+  printf '{"appVersion":"%s","previousAppVersion":"%s","webImage":"%s","workerImage":"%s","dbOpsImage":"%s","adminImage":"%s","buildMetadata":%s}\n' \
+    "$APP_VERSION" "$previous" "$(image_ref web)" "$(image_ref worker)" \
+    "$(image_ref db-ops)" "$(image_ref web-admin)" "$metadata" > "$staged"
+  printf '%s\n' "$APP_VERSION" > "$pointer_staged"
+  chown "$APP_USER:$APP_USER" "$staged" "$pointer_staged"
+  chmod 640 "$staged" "$pointer_staged"
+  mv "$staged" "$manifest"
+  mv "$pointer_staged" "$APP_ROOT/releases/current-release"
+  echo "release manifest $manifest"
 }
 
 report_host_assertions() {
   cat <<REPORT
-check mode does not execute host assertions; deploy mode runs:
-  root privileges, nginx/curl/install/id/stat present
-  $TLS_CERTIFICATE and $TLS_CERTIFICATE_KEY exist
-  every $ENV_DIR file is mode 600
+check mode does not execute host assertions; deploy modes run:
+  root privileges and required host tools
+  configured TLS certificate and key exist
+  every file under $ENV_DIR is mode 600
   MemAvailable >= $MIN_FREE_MEMORY_MB MiB
   $PUBLIC_HOST resolves to $PUBLIC_IP
 REPORT
@@ -341,16 +520,22 @@ REPORT
 
 command="${1:-}"
 [ -n "$command" ] || usage
-shift || true
+shift
 
 rollback_version=""
-if [ "$command" = "rollback" ]; then
-  rollback_version="${1:-}"
-  [ -n "$rollback_version" ] || usage
-  shift
-fi
+case "$command" in
+  rollback)
+    rollback_version="${1:-}"
+    [ -n "$rollback_version" ] || usage
+    shift
+    ;;
+  check | deploy | deploy-prebuilt | render-nginx) ;;
+  *) usage ;;
+esac
 
-CONFIG_FILE="${1:-$DEFAULT_CONFIG}"
+CONFIG_FILE="${1:-}"
+[ -n "$CONFIG_FILE" ] || usage
+[ "$#" -eq 1 ] || usage
 load_config "$CONFIG_FILE"
 
 case "$command" in
@@ -359,39 +544,45 @@ case "$command" in
     report_host_assertions
     ;;
   render-nginx)
+    assert_instance_config
+    assert_no_legacy_target
+    assert_nginx
     render_nginx
     ;;
   deploy)
+    assert_static
+    assert_source_tree
+    assert_host
+    build_images
+    assert_images
+    run_binding_preflight
+    prepare_host_paths
     previous="$(current_release)"
+    install_nginx_site
+    activate_release forward
+    record_release "$previous"
+    ;;
+  deploy-prebuilt)
     assert_static
     assert_host
+    assert_images
+    run_binding_preflight
     prepare_host_paths
-    build_images
-    bootstrap_data_services
-    run_database_steps
-    start_processes
+    previous="$(current_release)"
     install_nginx_site
+    activate_release forward
     record_release "$previous"
     ;;
   rollback)
     previous="$APP_VERSION"
     APP_VERSION="$rollback_version"
-    export APP_VERSION
+    SKIP_BUILD_VERSION_MATCH=1
+    export APP_VERSION SKIP_BUILD_VERSION_MATCH
     assert_static
     assert_host
-    docker image inspect "$IMAGE_PREFIX/web:$APP_VERSION" >/dev/null \
-      || fail MISSING_IMAGE "no web image tagged $APP_VERSION"
-    docker image inspect "$IMAGE_PREFIX/worker:$APP_VERSION" >/dev/null \
-      || fail MISSING_IMAGE "no worker image tagged $APP_VERSION"
-    reconcile_status=0
-    reconcile_template --check || reconcile_status=$?
-    [ "$reconcile_status" -eq 0 ] || [ "$reconcile_status" -eq 2 ] \
-      || fail RECONCILE_CHECK_FAILED "template dry run failed with $reconcile_status"
-    [ "$reconcile_status" -eq 0 ] || reconcile_template
-    start_processes
+    assert_images
+    run_binding_preflight
+    activate_release rollback
     record_release "$previous"
-    ;;
-  *)
-    usage
     ;;
 esac

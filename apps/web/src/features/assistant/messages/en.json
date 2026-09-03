@@ -32,7 +32,7 @@
     },
     "fallback": "I do not have an answer for that in this workspace. Ask about this run, the open card, or one of your media brands.",
     "askUser": {
-      "progress": "Question {current} of {total}",
+      "progress": "Question {current, number} of {total, number}",
       "progressLabel": "Brand question progress",
       "brand": {
         "title": "Which media brand is this about?",
@@ -51,7 +51,7 @@
     "composer": {
       "label": "Your question",
       "placeholder": "Ask a question",
-      "counter": "{length}/{limit}",
+      "counter": "{length, number}/{limit, number}",
       "send": "Send",
       "stop": "Stop",
       "clear": "Clear"

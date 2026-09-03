@@ -44,6 +44,7 @@ import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
 import { ChevronDownIcon, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
+  type ReactNode,
   type Ref,
   useEffect,
   useEffectEvent,
@@ -53,7 +54,10 @@ import {
 } from "react";
 import { type Control, useController, useForm } from "react-hook-form";
 import { z } from "zod";
-
+import { BrandMark } from "@/components/common/brand-mark";
+import { ModelIcon } from "@/components/common/model-icon";
+import { PlatformIcon } from "@/components/common/platform-icon";
+import { SourceOriginIcon } from "@/components/common/source-origin-icon";
 import {
   FieldCaption,
   FormField,
@@ -458,6 +462,9 @@ function PromoFields({
         legend={t("run.brands")}
         name="promo.brands"
         options={promoBrands.map((brand) => ({
+          icon: (
+            <BrandMark className="size-4" logo={brand.logo} name={brand.name} />
+          ),
           label: brand.name,
           value: brand.key,
         }))}
@@ -469,6 +476,7 @@ function PromoFields({
         legend={t("run.models")}
         name="models"
         options={models.map((model) => ({
+          icon: <ModelIcon className="size-4 shrink-0" vendor={model.vendor} />,
           label: model.name,
           value: model.key,
         }))}
@@ -480,6 +488,9 @@ function PromoFields({
         legend={t("run.platforms")}
         name="platforms"
         options={platforms.map((platform) => ({
+          icon: (
+            <PlatformIcon className="size-4 shrink-0" platform={platform} />
+          ),
           label: t(`run.platform.${platform}`),
           value: platform,
         }))}
@@ -533,6 +544,9 @@ function NewsFields({
         legend={t("run.brands")}
         name="brands"
         options={options.brands.map((brand) => ({
+          icon: (
+            <BrandMark className="size-4" logo={brand.logo} name={brand.name} />
+          ),
           label: brand.name,
           value: brand.key,
         }))}
@@ -550,6 +564,9 @@ function NewsFields({
             legend={t("run.models")}
             name="models"
             options={options.models.map((model) => ({
+              icon: (
+                <ModelIcon className="size-4 shrink-0" vendor={model.vendor} />
+              ),
               label: model.name,
               value: model.key,
             }))}
@@ -561,6 +578,9 @@ function NewsFields({
             legend={t("run.platforms")}
             name="platforms"
             options={options.platforms.map((platform) => ({
+              icon: (
+                <PlatformIcon className="size-4 shrink-0" platform={platform} />
+              ),
               label: t(`run.platform.${platform}`),
               value: platform,
             }))}
@@ -656,7 +676,7 @@ function CheckboxListField({
 }: FieldProps & {
   legend: string;
   name: "brands" | "models" | "platforms" | "promo.brands";
-  options: readonly { label: string; value: string }[];
+  options: readonly { icon?: ReactNode; label: string; value: string }[];
 }) {
   const searchable = name === "models" && options.length > 5;
 
@@ -720,6 +740,7 @@ function CheckboxListField({
                       className="wrap-anywhere min-w-0 font-normal"
                       htmlFor={`${controlId}-${option.value}`}
                     >
+                      {option.icon}
                       <Bdi>{option.label}</Bdi>
                     </FieldLabel>
                   </li>
@@ -811,7 +832,11 @@ function SourceSubsetField({
                         ref={origin === refOrigin ? field.ref : undefined}
                         render={<Button variant="ghost" />}
                       >
-                        <span className="ticket-label">
+                        <span className="ticket-label inline-flex items-center gap-1.5">
+                          <SourceOriginIcon
+                            className="size-3.5"
+                            origin={origin}
+                          />
                           {t(`run.sources.kind.${origin}`)}
                         </span>
                         <span className="text-muted-foreground text-xs tabular-nums">

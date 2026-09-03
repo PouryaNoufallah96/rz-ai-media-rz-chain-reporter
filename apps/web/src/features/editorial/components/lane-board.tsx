@@ -25,6 +25,7 @@ import {
   useState,
 } from "react";
 
+import { type BrandLogo, BrandMark } from "@/components/common/brand-mark";
 import { Link } from "@/i18n/navigation";
 
 import { EDITORIAL_NAMESPACE } from "../constants";
@@ -210,7 +211,11 @@ export function LaneBoard({
                       className="min-w-0 rounded-xl border border-border bg-card/40 p-3"
                       key={brand.key}
                     >
-                      <BrandRail brandKey={brand.key} brandName={brand.name}>
+                      <BrandRail
+                        brandKey={brand.key}
+                        brandName={brand.name}
+                        logo={brand.logo}
+                      >
                         {telegramLane ? (
                           <TelegramLaneColumn
                             alsoIn={alsoIn}
@@ -279,10 +284,12 @@ function BrandRail({
   brandKey,
   brandName,
   children,
+  logo,
 }: {
   brandKey: string;
   brandName: string;
   children: ReactNode;
+  logo: BrandLogo | null;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const rail = useRef<HTMLElement>(null);
@@ -329,12 +336,7 @@ function BrandRail({
   return (
     <>
       <header className="flex items-center gap-2 pb-1">
-        <span
-          aria-hidden="true"
-          className="grid size-7 place-items-center rounded-md bg-accent font-semibold text-accent-foreground text-xs"
-        >
-          {brandName.slice(0, 1)}
-        </span>
+        <BrandMark className="size-7 rounded-md" logo={logo} name={brandName} />
         <h3
           className="wrap-anywhere min-w-0 flex-1 font-medium"
           id={`brand-rail-${brandKey}`}
@@ -439,7 +441,7 @@ function modelSlots(
   models: RunOptions["models"],
 ): ModelSlot[] {
   const brandNames = new Map(brands.map((brand) => [brand.key, brand.name]));
-  const modelNames = new Map(models.map((model) => [model.key, model.name]));
+  const modelsByKey = new Map(models.map((model) => [model.key, model]));
   const laneByPair = new Map(
     modelLanes.map((lane) => [`${lane.modelOptionKey}:${lane.brandKey}`, lane]),
   );
@@ -449,8 +451,9 @@ function modelSlots(
       brandKey,
       brandName: brandNames.get(brandKey) ?? brandKey,
       lane: laneByPair.get(`${modelOptionKey}:${brandKey}`) ?? null,
-      modelName: modelNames.get(modelOptionKey) ?? modelOptionKey,
+      modelName: modelsByKey.get(modelOptionKey)?.name ?? modelOptionKey,
       modelOptionKey,
+      modelVendor: modelsByKey.get(modelOptionKey)?.vendor ?? null,
     })),
   );
 }

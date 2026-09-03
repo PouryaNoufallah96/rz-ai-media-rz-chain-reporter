@@ -1,6 +1,6 @@
 "use client";
 
-import { DIRECTION } from "@rz-chain-reporter/i18n";
+import { CALENDAR, DIRECTION } from "@rz-chain-reporter/i18n";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import { Calendar, TZDate } from "@rz-chain-reporter/ui/components/calendar";
 import {
@@ -45,14 +45,14 @@ const TIME_FORMATS = {
 
 const DATE_FORMATS = {
   en: new Intl.DateTimeFormat("en", {
-    calendar: "gregory",
+    calendar: CALENDAR.en,
     timeZone: "UTC",
     year: "numeric",
     month: "long",
     day: "numeric",
   }),
   fa: new Intl.DateTimeFormat("fa", {
-    calendar: "persian",
+    calendar: CALENDAR.fa,
     timeZone: "UTC",
     year: "numeric",
     month: "long",
@@ -72,6 +72,20 @@ type DateTimePickerLabels = {
   gregorian: string;
 };
 
+type DateTimePickerProps = {
+  id?: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  onBlur?: () => void;
+  min: string;
+  timeZone: string;
+  label: string;
+  labels: DateTimePickerLabels;
+  invalid?: boolean;
+  disabled?: boolean;
+  ref?: Ref<HTMLButtonElement>;
+};
+
 export function DateTimePicker({
   id,
   value,
@@ -84,43 +98,12 @@ export function DateTimePicker({
   invalid = false,
   disabled = false,
   ref,
-}: {
-  id?: string;
-  value: string;
-  onValueChange: (value: string) => void;
-  onBlur?: () => void;
-  min: string;
-  timeZone: string;
-  label: string;
-  labels: DateTimePickerLabels;
-  invalid?: boolean;
-  disabled?: boolean;
-  ref?: Ref<HTMLButtonElement>;
-}) {
+}: DateTimePickerProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const locale = useLocale();
-  const persian = locale === "fa";
-  const [datePart = "", timePart = ""] = value.split("T");
-  const [hour = "", minute = ""] = timePart.split(":");
-  const minimumDatePart = min.slice(0, 10);
-  const minimumHour = min.slice(11, 13);
-  const minimumMinute = min.slice(14, 16);
-  const effectiveDate = datePart || minimumDatePart;
-  const effectiveHour = hour || minimumHour;
-  const atMinimumDate = effectiveDate === minimumDatePart;
-  const timeFormat = TIME_FORMATS[persian ? "fa" : "en"];
-  const timeLabel = /^\d{2}:\d{2}$/.test(timePart)
-    ? timePart
-        .split(":")
-        .map((part) => timeFormat.format(Number(part)))
-        .join(":")
-    : "";
-  const minimumDate = civilDay(minimumDatePart);
-  const selected = civilDay(datePart);
-  const dateLabel = selected
-    ? DATE_FORMATS[persian ? "fa" : "en"].format(selected)
-    : labels.choose;
+  const state = dateTimePickerState(value, min, locale, labels, disabled);
+  const errorId = invalid ? `${inputId}-error` : undefined;
 
   return (
     <div className="grid min-w-0 gap-1.5">
@@ -133,16 +116,16 @@ export function DateTimePicker({
           disabled={disabled}
           onBlur={onBlur}
           aria-invalid={invalid || undefined}
-          aria-describedby={`${inputId}-hint${invalid ? ` ${inputId}-error` : ""}`}
+          aria-describedby={`${inputId}-hint${errorId ? ` ${errorId}` : ""}`}
           className="h-auto min-h-11 w-full justify-start gap-2 whitespace-normal py-2 sm:min-h-8"
         >
           <CalendarIcon aria-hidden="true" />
           <span className="min-w-0">
-            {dateLabel}
-            {timeLabel ? (
+            {state.dateLabel}
+            {state.timeLabel ? (
               <>
                 {" "}
-                · <bdi dir="ltr">{timeLabel}</bdi>
+                · <bdi dir="ltr">{state.timeLabel}</bdi>
               </>
             ) : null}
           </span>
@@ -152,116 +135,163 @@ export function DateTimePicker({
             {label}
           </PopoverTitle>
           <Calendar
-            calendar={persian ? "persian" : "gregory"}
+            calendar={CALENDAR[locale]}
             dir={DIRECTION[locale]}
             lang={locale}
             mode="single"
             required
-            selected={selected}
-            defaultMonth={selected ?? minimumDate}
-            today={minimumDate}
+            selected={state.selected}
+            defaultMonth={state.selected ?? state.minimumDate}
+            today={state.minimumDate}
             timeZone="UTC"
             noonSafe
-            disabled={
-              disabled
-                ? true
-                : minimumDate
-                  ? { before: minimumDate }
-                  : undefined
-            }
+            disabled={state.disabledDates}
             onSelect={(day) =>
               onValueChange(
-                `${day.toISOString().slice(0, 10)}T${timePart || min.slice(11)}`,
+                `${day.toISOString().slice(0, 10)}T${state.timePart || min.slice(11)}`,
               )
             }
             aria-label={labels.date}
           />
-          <div className="grid gap-2 border-t p-3">
-            <FieldSet className="gap-2" disabled={disabled}>
-              <FieldLegend className="ticket-label" variant="label">
-                {labels.time}
-              </FieldLegend>
-              <FieldGroup className="grid grid-cols-2 gap-3">
-                <LabeledSelect
-                  aria-describedby={invalid ? `${inputId}-error` : undefined}
-                  aria-invalid={invalid || undefined}
-                  contentProps={TIME_MENU_PROPS}
-                  disabled={disabled}
-                  id={`${inputId}-hour`}
-                  label={labels.hour}
-                  onBlur={onBlur}
-                  onValueChange={(next) => {
-                    if (next === null) return;
-                    onValueChange(
-                      `${effectiveDate}T${next}:${minute || minimumMinute}`,
-                    );
-                  }}
-                  options={HOURS.map((value) => ({
-                    disabled: atMinimumDate && value < minimumHour,
-                    label: timeFormat.format(Number(value)),
-                    value,
-                  }))}
-                  placeholder={labels.hour}
-                  triggerClassName="min-h-11 sm:min-h-8"
-                  value={hour || null}
-                />
-                <LabeledSelect
-                  aria-describedby={invalid ? `${inputId}-error` : undefined}
-                  aria-invalid={invalid || undefined}
-                  contentProps={TIME_MENU_PROPS}
-                  disabled={disabled}
-                  id={`${inputId}-minute`}
-                  label={labels.minute}
-                  onBlur={onBlur}
-                  onValueChange={(next) => {
-                    if (next === null) return;
-                    onValueChange(`${effectiveDate}T${effectiveHour}:${next}`);
-                  }}
-                  options={MINUTES.map((value) => ({
-                    disabled:
-                      atMinimumDate &&
-                      (effectiveHour < minimumHour ||
-                        (effectiveHour === minimumHour &&
-                          value < minimumMinute)),
-                    label: timeFormat.format(Number(value)),
-                    value,
-                  }))}
-                  placeholder={labels.minute}
-                  triggerClassName="min-h-11 sm:min-h-8"
-                  value={minute || null}
-                />
-              </FieldGroup>
-            </FieldSet>
-            <p className="text-muted-foreground text-xs">
-              <bdi dir="ltr">{timeZone}</bdi>
-            </p>
-            <div className="flex justify-between gap-2">
-              <Button
-                className="min-h-11 sm:min-h-8"
-                disabled={disabled || !value}
-                onClick={() => onValueChange("")}
-                type="button"
-                variant="ghost"
-              >
-                {labels.clear}
-              </Button>
-              <PopoverClose
-                render={<Button variant="secondary" />}
-                className="min-h-11 sm:min-h-8"
-              >
-                {labels.close}
-              </PopoverClose>
-            </div>
-          </div>
+          <PickerTimeFields
+            disabled={disabled}
+            errorId={errorId}
+            inputId={inputId}
+            invalid={invalid}
+            labels={labels}
+            onBlur={onBlur}
+            onValueChange={onValueChange}
+            state={state}
+            timeZone={timeZone}
+            value={value}
+          />
         </PopoverContent>
       </Popover>
+      <PickerFeedback
+        datePart={state.datePart}
+        gregorianLabel={labels.gregorian}
+        inputId={inputId}
+        invalid={invalid}
+        invalidLabel={labels.invalid}
+        showGregorian={state.showGregorian}
+        timeZone={timeZone}
+      />
+    </div>
+  );
+}
+
+type PickerState = ReturnType<typeof dateTimePickerState>;
+
+function PickerTimeFields({
+  disabled,
+  errorId,
+  inputId,
+  invalid,
+  labels,
+  onBlur,
+  onValueChange,
+  state,
+  timeZone,
+  value,
+}: {
+  disabled: boolean;
+  errorId: string | undefined;
+  inputId: string;
+  invalid: boolean;
+  labels: DateTimePickerLabels;
+  onBlur?: () => void;
+  onValueChange: (value: string) => void;
+  state: PickerState;
+  timeZone: string;
+  value: string;
+}) {
+  return (
+    <div className="grid gap-2 border-t p-3">
+      <FieldSet className="gap-2" disabled={disabled}>
+        <FieldLegend className="ticket-label" variant="label">
+          {labels.time}
+        </FieldLegend>
+        <FieldGroup className="grid grid-cols-2 gap-3">
+          <LabeledSelect
+            aria-describedby={errorId}
+            aria-invalid={invalid || undefined}
+            contentProps={TIME_MENU_PROPS}
+            disabled={disabled}
+            id={`${inputId}-hour`}
+            label={labels.hour}
+            onBlur={onBlur}
+            onValueChange={(next) => updateHour(next, state, onValueChange)}
+            options={state.hourOptions}
+            placeholder={labels.hour}
+            triggerClassName="min-h-11 sm:min-h-8"
+            value={state.hour || null}
+          />
+          <LabeledSelect
+            aria-describedby={errorId}
+            aria-invalid={invalid || undefined}
+            contentProps={TIME_MENU_PROPS}
+            disabled={disabled}
+            id={`${inputId}-minute`}
+            label={labels.minute}
+            onBlur={onBlur}
+            onValueChange={(next) => updateMinute(next, state, onValueChange)}
+            options={state.minuteOptions}
+            placeholder={labels.minute}
+            triggerClassName="min-h-11 sm:min-h-8"
+            value={state.minute || null}
+          />
+        </FieldGroup>
+      </FieldSet>
+      <p className="text-muted-foreground text-xs">
+        <bdi dir="ltr">{timeZone}</bdi>
+      </p>
+      <div className="flex justify-between gap-2">
+        <Button
+          className="min-h-11 sm:min-h-8"
+          disabled={disabled || !value}
+          onClick={() => onValueChange("")}
+          type="button"
+          variant="ghost"
+        >
+          {labels.clear}
+        </Button>
+        <PopoverClose
+          render={<Button variant="secondary" />}
+          className="min-h-11 sm:min-h-8"
+        >
+          {labels.close}
+        </PopoverClose>
+      </div>
+    </div>
+  );
+}
+
+function PickerFeedback({
+  datePart,
+  gregorianLabel,
+  inputId,
+  invalid,
+  invalidLabel,
+  showGregorian,
+  timeZone,
+}: {
+  datePart: string;
+  gregorianLabel: string;
+  inputId: string;
+  invalid: boolean;
+  invalidLabel: string;
+  showGregorian: boolean;
+  timeZone: string;
+}) {
+  return (
+    <>
       <p
         id={`${inputId}-hint`}
         className="wrap-break-word text-muted-foreground text-xs/relaxed"
       >
-        {persian && selected ? (
+        {showGregorian ? (
           <>
-            {labels.gregorian}: <bdi dir="ltr">{datePart}</bdi> ·{" "}
+            {gregorianLabel}: <bdi dir="ltr">{datePart}</bdi> ·{" "}
           </>
         ) : null}
         <bdi dir="ltr">{timeZone}</bdi>
@@ -272,11 +302,89 @@ export function DateTimePicker({
           className="text-destructive text-xs"
           role="status"
         >
-          {labels.invalid}
+          {invalidLabel}
         </p>
       ) : null}
-    </div>
+    </>
   );
+}
+
+function dateTimePickerState(
+  value: string,
+  min: string,
+  locale: keyof typeof TIME_FORMATS,
+  labels: DateTimePickerLabels,
+  disabled: boolean,
+) {
+  const [datePart = "", timePart = ""] = value.split("T");
+  const [hour = "", minute = ""] = timePart.split(":");
+  const minimumDatePart = min.slice(0, 10);
+  const minimumHour = min.slice(11, 13);
+  const minimumMinute = min.slice(14, 16);
+  const effectiveDate = datePart || minimumDatePart;
+  const effectiveHour = hour || minimumHour;
+  const atMinimumDate = effectiveDate === minimumDatePart;
+  const timeFormat = TIME_FORMATS[locale];
+  const minimumDate = civilDay(minimumDatePart);
+  const selected = civilDay(datePart);
+
+  return {
+    datePart,
+    timePart,
+    hour,
+    minute,
+    effectiveDate,
+    effectiveHour,
+    minimumMinute,
+    minimumDate,
+    selected,
+    dateLabel: selected ? DATE_FORMATS[locale].format(selected) : labels.choose,
+    timeLabel: /^\d{2}:\d{2}$/.test(timePart)
+      ? timePart
+          .split(":")
+          .map((part) => timeFormat.format(Number(part)))
+          .join(":")
+      : "",
+    disabledDates: disabled
+      ? true
+      : minimumDate
+        ? { before: minimumDate }
+        : undefined,
+    showGregorian: CALENDAR[locale] === "persian" && Boolean(selected),
+    hourOptions: HOURS.map((option) => ({
+      disabled: atMinimumDate && option < minimumHour,
+      label: timeFormat.format(Number(option)),
+      value: option,
+    })),
+    minuteOptions: MINUTES.map((option) => ({
+      disabled:
+        atMinimumDate &&
+        (effectiveHour < minimumHour ||
+          (effectiveHour === minimumHour && option < minimumMinute)),
+      label: timeFormat.format(Number(option)),
+      value: option,
+    })),
+  };
+}
+
+function updateHour(
+  hour: string | null,
+  state: PickerState,
+  onValueChange: (value: string) => void,
+) {
+  if (hour === null) return;
+  onValueChange(
+    `${state.effectiveDate}T${hour}:${state.minute || state.minimumMinute}`,
+  );
+}
+
+function updateMinute(
+  minute: string | null,
+  state: PickerState,
+  onValueChange: (value: string) => void,
+) {
+  if (minute === null) return;
+  onValueChange(`${state.effectiveDate}T${state.effectiveHour}:${minute}`);
 }
 
 function civilDay(value: string) {

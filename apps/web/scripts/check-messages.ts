@@ -103,13 +103,16 @@ function signatureOf(
   return [...signature.values()].sort().join(" ");
 }
 
-const slices = readdirSync(featuresPath, { withFileTypes: true })
-  .filter(
-    (entry) =>
-      entry.isDirectory() &&
-      existsSync(`${featuresPath}${entry.name}/messages`),
-  )
-  .map((entry) => entry.name);
+const slices: string[] = [];
+
+for (const entry of readdirSync(featuresPath, { withFileTypes: true })) {
+  if (
+    entry.isDirectory() &&
+    existsSync(`${featuresPath}${entry.name}/messages`)
+  ) {
+    slices.push(entry.name);
+  }
+}
 
 const problems: string[] = [];
 

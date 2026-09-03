@@ -2,6 +2,8 @@
 
 import type {
   ActivityEventType,
+  MarketExecutionScopeTarget,
+  ModelOption,
   OperationLifecycle,
 } from "@rz-chain-reporter/contracts";
 import { DIRECTION, type Locale } from "@rz-chain-reporter/i18n";
@@ -34,12 +36,15 @@ import {
   useState,
 } from "react";
 
+import { type BrandLogo, BrandMark } from "@/components/common/brand-mark";
+import { PlatformIcon } from "@/components/common/platform-icon";
 import { StateMark, type StateMarkState } from "@/components/common/state-mark";
 import { KeysetPagination } from "@/components/data-table/keyset-pagination";
 import { LabeledSelect } from "@/components/form/form-field";
-import { useAssistant } from "@/features/assistant/lib/assistant-context";
 import { CardSheet } from "@/features/editorial/components/card-sheet";
-import type { PlatformDraftCard } from "@/features/editorial/schemas/drafts";
+import type { PlatformDraftExactCard } from "@/features/editorial/schemas/drafts";
+import type { RunOptions } from "@/features/editorial/schemas/workspace";
+import { MarketAnalysisFreshness } from "@/features/market-analysis/components/market-analysis-freshness";
 import { PublishingFreshness } from "@/features/publishing/components/publishing-freshness";
 import { ScheduledPublicationActions } from "@/features/publishing/components/scheduled-publication-actions";
 import { publicationMark } from "@/features/publishing/lib/publication-mark";
@@ -92,16 +97,29 @@ const ACTIVITY_MARK = {
 } as const satisfies Record<ActivityEventType, StateMarkState>;
 
 type SelectedDraft = {
-  analysisRunId: string;
+  analysisRunId: string | null;
+  executionScope: MarketExecutionScopeTarget;
   lifecycle: OperationLifecycle;
-  card: PlatformDraftCard;
+  card: PlatformDraftExactCard;
   readAt: Date;
 } | null;
 
+type BrandCatalog = readonly {
+  key: string;
+  name: string;
+  logo: BrandLogo | null;
+}[];
+
+function brandLogo(brands: BrandCatalog, brandKey: string | null) {
+  return brands.find((brand) => brand.key === brandKey)?.logo ?? null;
+}
+
 export function AccountDesk({
   activities,
+  brands,
   imageModels,
   ledger,
+  models,
   profile,
   query,
   saved,
@@ -111,8 +129,10 @@ export function AccountDesk({
   topics,
 }: {
   activities: ActivityHistoryRow[];
-  imageModels: readonly { key: string; name: string }[];
+  brands: BrandCatalog;
+  imageModels: readonly ModelOption[];
   ledger: KeysetPage<ActivityLedgerRow>;
+  models: RunOptions["models"];
   profile: { name: string; email: string; createdAt: Date };
   query: AccountQuery;
   saved: { page: KeysetPage<SavedHistoryRow>; query: SavedQuery };
@@ -126,7 +146,6 @@ export function AccountDesk({
   topics: string[];
 }) {
   const t = useTranslations(ACCOUNT_NAMESPACE);
-  const assistant = useAssistant();
   const { isPending, setValues, values } =
     useTransitionUrlState(accountSearchParsers);
   const [opener, setOpener] = useState<HTMLElement | null>(null);
@@ -135,9 +154,10 @@ export function AccountDesk({
   const card =
     selectedDraft?.card.id === selectedDraftId ? selectedDraft.card : null;
   const freshness =
-    selectedDraft?.card.id === selectedDraftId
+    selectedDraft?.card.id === selectedDraftId &&
+    selectedDraft.executionScope.kind === "analysis_run"
       ? {
-          analysisRunId: selectedDraft.analysisRunId,
+          analysisRunId: selectedDraft.executionScope.analysisRunId,
           lifecycle: selectedDraft.lifecycle,
           readAt: selectedDraft.readAt,
         }
@@ -157,6 +177,7 @@ export function AccountDesk({
       <div className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-stretch">
         <div className="grid min-w-0 content-start gap-4 lg:grid-rows-[auto_1fr]">
           <SavedCards
+            brands={brands}
             isPending={isPending}
             onFallbackFocus={setFallbackFocus}
             onOpenDraft={openDraft}
@@ -165,6 +186,7 @@ export function AccountDesk({
             setValues={setValues}
           />
           <ScheduledCards
+            brands={brands}
             installationTimeZone={scheduled.installationTimeZone}
             onOpenDraft={openDraft}
             rows={scheduled.page.rows}
@@ -172,7 +194,7 @@ export function AccountDesk({
           />
         </div>
         <div className="grid min-w-0 content-start gap-4 lg:grid-rows-[auto_auto_1fr]">
-          <BrandList brands={summary.brands} />
+          <BrandList brands={summary.brands} catalog={brands} />
           <TopicList topics={topics} />
           <ActivityList activities={activities} />
         </div>
@@ -204,17 +226,22 @@ export function AccountDesk({
       <CardSheet
         card={card}
         finalFocus={finalFocus}
+        models={models}
         freshness={freshness}
         imageModels={imageModels}
         loading={selectedDraftId !== null && selectedDraftId !== query.draft}
         onOpenChange={(open) => {
           if (!open) {
-            assistant.clearCard();
             void setValues({ draft: null }, { startTransition });
           }
         }}
         open={selectedDraftId !== null}
       />
+      {card?.executionScope.kind === "market_analysis" ? (
+        <MarketAnalysisFreshness
+          analysisId={card.executionScope.marketAnalysisId}
+        />
+      ) : null}
     </>
   );
 }
@@ -277,7 +304,13 @@ function Overview({
   );
 }
 
-function BrandList({ brands }: { brands: AccountSummary["brands"] }) {
+function BrandList({
+  brands,
+  catalog,
+}: {
+  brands: AccountSummary["brands"];
+  catalog: BrandCatalog;
+}) {
   const t = useTranslations(ACCOUNT_NAMESPACE);
   return (
     <section aria-labelledby="account-brands-title" className="min-w-0">
@@ -291,7 +324,12 @@ function BrandList({ brands }: { brands: AccountSummary["brands"] }) {
               className="grid min-w-0 gap-3 rounded-lg border bg-muted/30 p-3"
               key={brand.key}
             >
-              <dt className="wrap-anywhere font-medium text-xs">
+              <dt className="wrap-anywhere flex items-center gap-2 font-medium text-xs">
+                <BrandMark
+                  className="size-4"
+                  logo={brandLogo(catalog, brand.key)}
+                  name={brand.name}
+                />
                 <Bdi>{brand.name}</Bdi>
               </dt>
               <dd className="grid grid-cols-3 gap-2 text-muted-foreground">
@@ -428,7 +466,14 @@ function ActivityRows({ activities }: { activities: ActivityHistoryRow[] }) {
             {activity.platform ? (
               <>
                 {" "}
-                · <Bdi>{t(`platform.${activity.platform}`)}</Bdi>
+                ·{" "}
+                <span className="inline-flex items-center gap-1.5">
+                  <PlatformIcon
+                    className="size-3.5"
+                    platform={activity.platform}
+                  />
+                  <Bdi>{t(`platform.${activity.platform}`)}</Bdi>
+                </span>
               </>
             ) : null}
           </p>
@@ -480,11 +525,13 @@ function TopicList({ topics }: { topics: string[] }) {
 }
 
 function ScheduledCards({
+  brands,
   installationTimeZone,
   onOpenDraft,
   rows,
   showFreshness,
 }: {
+  brands: BrandCatalog;
   installationTimeZone: string;
   onOpenDraft: (event: MouseEvent<HTMLButtonElement>, id: string) => void;
   rows: PublishingHistoryRow[];
@@ -524,6 +571,7 @@ function ScheduledCards({
           <Collapsible onOpenChange={setExpanded} open={expanded}>
             <ul className="divide-y divide-border">
               <ScheduledRows
+                brands={brands}
                 installationTimeZone={installationTimeZone}
                 onOpenDraft={onOpenDraft}
                 rows={rows.slice(0, visibleCount)}
@@ -537,6 +585,7 @@ function ScheduledCards({
               >
                 <ul className="divide-y divide-border">
                   <ScheduledRows
+                    brands={brands}
                     installationTimeZone={installationTimeZone}
                     onOpenDraft={onOpenDraft}
                     rows={rows.slice(visibleCount)}
@@ -570,10 +619,12 @@ function ScheduledCards({
 }
 
 function ScheduledRows({
+  brands,
   installationTimeZone,
   onOpenDraft,
   rows,
 }: {
+  brands: BrandCatalog;
   installationTimeZone: string;
   onOpenDraft: (event: MouseEvent<HTMLButtonElement>, id: string) => void;
   rows: PublishingHistoryRow[];
@@ -593,8 +644,17 @@ function ScheduledRows({
             </span>
           </p>
           <p className="wrap-anywhere text-muted-foreground">
-            <Bdi>{row.brandName}</Bdi> ·{" "}
-            <Bdi>{t(`platform.${row.platform}`)}</Bdi>
+            <span className="inline-flex items-center gap-1.5">
+              <BrandMark
+                className="size-3.5"
+                logo={brandLogo(brands, row.brandKey)}
+                name={row.brandName}
+              />
+              <Bdi>{row.brandName}</Bdi>
+              <span aria-hidden="true">·</span>
+              <PlatformIcon className="size-3.5" platform={row.platform} />
+              <Bdi>{t(`platform.${row.platform}`)}</Bdi>
+            </span>
           </p>
         </div>
         <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
@@ -647,6 +707,7 @@ function ScheduledRows({
 }
 
 function SavedCards({
+  brands,
   isPending,
   onFallbackFocus,
   onOpenDraft,
@@ -654,6 +715,7 @@ function SavedCards({
   query,
   setValues,
 }: {
+  brands: BrandCatalog;
   isPending: boolean;
   onFallbackFocus: (node: HTMLElement | null) => void;
   onOpenDraft: (event: MouseEvent<HTMLButtonElement>, id: string) => void;
@@ -723,8 +785,20 @@ function SavedCards({
                             : t("saved.active")}
                         </CardTitle>
                         <p className="wrap-anywhere text-muted-foreground text-xs">
-                          <Bdi>{row.brandName}</Bdi> ·{" "}
-                          <Bdi>{t(`platform.${row.platform}`)}</Bdi>
+                          <span className="inline-flex items-center gap-1.5">
+                            <BrandMark
+                              className="size-3.5"
+                              logo={brandLogo(brands, row.brandKey)}
+                              name={row.brandName}
+                            />
+                            <Bdi>{row.brandName}</Bdi>
+                            <span aria-hidden="true">·</span>
+                            <PlatformIcon
+                              className="size-3.5"
+                              platform={row.platform}
+                            />
+                            <Bdi>{t(`platform.${row.platform}`)}</Bdi>
+                          </span>
                         </p>
                       </CardHeader>
                       <CardContent>
