@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  type ContentLocale,
   type CreativeImageBrief,
   creativeImageBriefSchema,
   IMAGE_GENERATION_COMMAND_PREFIX,
@@ -31,7 +32,6 @@ import {
   FAILED_ORIGINAL_CLEANUP_DELAY_MS,
   findImageExecutionContext,
   findOldestImageOperationForBrand,
-  findServableFinalMedia,
   IMAGE_QUEUED_STALE_MS,
   inspectImageAttemptTruth,
   listImageStageUsage,
@@ -60,6 +60,7 @@ import {
   allocateOperationAttempt,
   settleOperationAttempt,
 } from "@rz-chain-reporter/db/repositories/operation-attempt";
+import { findServableMedia } from "@rz-chain-reporter/db/repositories/servable-media";
 import { aiUsageEvent } from "@rz-chain-reporter/db/schema/ai-usage-event";
 import { analysisModelUnit } from "@rz-chain-reporter/db/schema/analysis-model-unit";
 import { analysisRun } from "@rz-chain-reporter/db/schema/analysis-run";
@@ -199,7 +200,7 @@ async function mainLocal() {
       installation.workspaceId,
       opened.template,
       opened.identity.fingerprint,
-      "rz-prime",
+      requireImageBrandKey(opened.template),
       "fa",
     );
     failureFixtures.push(fixture);
@@ -2146,7 +2147,7 @@ async function mainPaid() {
     assert.ok((original?.actualBytes ?? 0) > 0);
     assert.ok((proof?.finalBytes ?? 0) > 0);
     assert.ok(
-      await findServableFinalMedia(
+      await findServableMedia(
         opened.database.db,
         installation.workspaceId,
         committed.finalId,
@@ -2560,7 +2561,9 @@ async function mainFinalization() {
       workspaceId,
       opened.template,
       opened.identity.fingerprint,
-      "coin-hall",
+      requireImageBrandKey(opened.template, (profile) =>
+        Boolean(profile.restrictions.bannedSubjectTerms?.length),
+      ),
     );
     fixtures.push(bannedBrief);
     const rejectedBriefOperationId = await proveBannedCreativeBriefRejection(
@@ -3743,9 +3746,9 @@ async function proveFinalizationCommit(
     hash(await readStorageBytes(workerStorage(), finalAsset.objectKey)),
     finalAsset.checksum,
   );
-  const servable = await findServableFinalMedia(db, workspaceId, finalId);
+  const servable = await findServableMedia(db, workspaceId, finalId);
   assert.equal(servable?.objectKey, finalAsset.objectKey);
-  assert.equal(await findServableFinalMedia(db, workspaceId, originalId), null);
+  assert.equal(await findServableMedia(db, workspaceId, originalId), null);
 
   const derivations = await db
     .select()
@@ -5041,7 +5044,7 @@ async function createFixture(
   template: CustomerTemplate,
   fingerprint: string,
   sourceBrandKey?: string,
-  contentLocale: "en" | "fa" = "en",
+  contentLocale: ContentLocale = "en",
   modelOptionKey?: string,
 ): Promise<Fixture> {
   const [actor] = await db
@@ -5077,13 +5080,15 @@ async function createFixture(
   const revisionId = randomUUID();
   const referenceId = randomUUID();
   const referenceObjectKey = `workspaces/${workspaceId}/probe-references/${referenceId}.png`;
+  if (!templateBrand.brandLogo) {
+    throw new Error("IMAGE_FIXTURE_BRAND_LOGO_REQUIRED");
+  }
   const referenceBytes = readFileSync(
     resolve(
       resolveArtifactRoot(import.meta.url),
       "customer-templates",
-      "crypto",
-      "brand-logos",
-      "coin-hall.png",
+      template.customer.key,
+      templateBrand.brandLogo.path,
     ),
   );
   const referenceMetadata = await sharp(referenceBytes).metadata();
@@ -5288,6 +5293,30 @@ function proveDirectionBounds() {
   assert.equal(new TextEncoder().encode(loneSurrogate).byteLength, 3);
 }
 
+function requireImageBrandKey(
+  template: CustomerTemplate,
+  predicate: (profile: z.infer<typeof imageProfileSchema>) => boolean = () =>
+    true,
+) {
+  const customerRoot = resolve(
+    resolveArtifactRoot(import.meta.url),
+    "customer-templates",
+    template.customer.key,
+  );
+  const brand = template.mediaBrands.find((candidate) => {
+    if (!candidate.imageProfile || !candidate.brandLogo) return false;
+    const profile = imageProfileSchema.parse(
+      JSON.parse(
+        readFileSync(resolve(customerRoot, candidate.imageProfile), "utf8"),
+      ),
+    );
+    return predicate(profile);
+  });
+
+  if (!brand) throw new Error("IMAGE_FIXTURE_TEMPLATE_REQUIRED");
+  return brand.key;
+}
+
 function proveCreativeBriefNormalizationProfiles(template: CustomerTemplate) {
   const customerRoot = resolve(
     resolveArtifactRoot(import.meta.url),
@@ -5367,12 +5396,11 @@ function proveCreativeBriefNormalizationProfiles(template: CustomerTemplate) {
     }
     return [brand.key];
   });
-  assert.deepEqual([...proven].sort(), [
-    "chain-reporter",
-    "coin-hall",
-    "meta-coin-guard",
-    "rz-prime",
-  ]);
+  assert.equal(proven.length > 0, true);
+  assert.equal(
+    proven.length,
+    template.mediaBrands.filter((brand) => brand.imageProfile).length,
+  );
   return proven.length;
 }
 
@@ -5441,12 +5469,11 @@ function proveSelectionOutputSchema(template: CustomerTemplate) {
     assert.deepEqual(schema.parse(fallback.selection), fallback.selection);
     return [brand.key];
   });
-  assert.deepEqual([...proven].sort(), [
-    "chain-reporter",
-    "coin-hall",
-    "meta-coin-guard",
-    "rz-prime",
-  ]);
+  assert.equal(proven.length > 0, true);
+  assert.equal(
+    proven.length,
+    template.mediaBrands.filter((brand) => brand.imageProfile).length,
+  );
   return proven.length;
 }
 
@@ -5482,12 +5509,11 @@ function proveImagePromptProfileBounds(template: CustomerTemplate) {
       ];
     }),
   );
-  assert.deepEqual(lengths, {
-    "chain-reporter": 2_384,
-    "coin-hall": 41_097,
-    "meta-coin-guard": 26_610,
-    "rz-prime": 32_919,
-  });
+  assert.equal(Object.keys(lengths).length > 0, true);
+  assert.equal(
+    Object.keys(lengths).length,
+    template.mediaBrands.filter((brand) => brand.imageProfile).length,
+  );
   assert.equal(
     Object.values(lengths).every((length) => length <= 48_000),
     true,
@@ -5502,6 +5528,7 @@ async function proveGatewayBounds(
   const imageCalls = adapter.imageCalls;
   await assert.rejects(
     gateway.invokeImage({
+      aspectRatio: "3:4",
       compensatePreparedResult: async () => "compensated",
       deadlineMs: 1,
       invocationKey: "primary",

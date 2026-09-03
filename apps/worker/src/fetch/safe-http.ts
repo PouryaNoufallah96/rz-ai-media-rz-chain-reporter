@@ -33,6 +33,7 @@ export class SafeHttpError extends Error {
 }
 
 export type SafeHttpRequest = {
+  credentialedRedirects?: "reject" | "same-origin";
   headers?: Record<string, string>;
   maxDecodedBytes: number;
   mimeAllowlist: readonly string[];
@@ -50,7 +51,7 @@ export type SafeHttpResponse = {
 
 const MAX_REDIRECTS = 5;
 const MAX_HEADER_BYTES = 16_384;
-const CONNECT_TIMEOUT_MS = 5_000;
+const CONNECT_TIMEOUT_MS = 10_000;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const RETRY_AFTER_STATUSES = new Set([429, 503]);
 const DEADLINE_ERROR_NAMES = new Set([
@@ -195,14 +196,24 @@ async function dispatch(
         return await readResponse(request, current, response);
       }
       await response.body?.cancel();
+      if (request.credentialedRedirects === "reject") {
+        throw new SafeHttpError("redirect_blocked", hostOf(current));
+      }
       if (redirects === MAX_REDIRECTS) {
         break;
       }
-      current = redirectTarget(
+      const next = redirectTarget(
         current,
         response.headers.get("location"),
         exemptOrigins,
       );
+      if (
+        request.credentialedRedirects === "same-origin" &&
+        next.origin !== current.origin
+      ) {
+        throw new SafeHttpError("redirect_blocked", hostOf(next));
+      }
+      current = next;
     }
   } finally {
     await agent.destroy();

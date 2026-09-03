@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
 import { REFERENCE_IMAGE_MIME_TYPES } from "@rz-chain-reporter/contracts";
+import type { Executor } from "@rz-chain-reporter/db/executor";
+import { withWorkspaceContext } from "@rz-chain-reporter/db/executor";
+import { scheduleDetachedMediaCleanup } from "@rz-chain-reporter/db/repositories/media-asset";
 import { ImagePreparationError } from "@rz-chain-reporter/model-gateway/errors";
 import type { Storage } from "@rz-chain-reporter/storage";
 import { storageFromBindings } from "@rz-chain-reporter/storage";
@@ -8,6 +11,7 @@ import { workerEnv } from "../runtime/env";
 
 const MAX_PROVIDER_IMAGE_BYTES = 16 * 1024 * 1024;
 const MAX_BRANDED_FINAL_BYTES = 12 * 1024 * 1024;
+const MAX_MARKET_CHART_BYTES = 12 * 1024 * 1024;
 const BRANDED_FINAL_MIME_TYPE = "image/png";
 const MAX_PROVIDER_IMAGE_DIMENSION = 8192;
 const MAX_PROVIDER_IMAGE_PIXELS = 64_000_000;
@@ -79,6 +83,28 @@ export async function validateStaticRaster(
 
 export function workerStorage() {
   return storageFromBindings(workerEnv);
+}
+
+export async function scheduleDetachedMarketMediaCleanup(
+  executor: Executor,
+  workspaceId: string,
+  mediaAssetIds: readonly string[],
+  detachedAt = new Date(),
+) {
+  const scheduled: string[] = [];
+  for (const mediaAssetId of new Set(mediaAssetIds)) {
+    const asset = await executor.transaction(async (tx) => {
+      await withWorkspaceContext(tx, workspaceId);
+      return scheduleDetachedMediaCleanup(
+        tx,
+        workspaceId,
+        mediaAssetId,
+        detachedAt,
+      );
+    });
+    if (asset?.cleanupAfter) scheduled.push(mediaAssetId);
+  }
+  return scheduled;
 }
 
 export async function readStorageBytes(storage: Storage, objectKey: string) {
@@ -211,6 +237,59 @@ export async function prepareBrandedFinal(
     width: storedDecoded.width,
   };
 }
+
+export async function prepareMarketChartRender(
+  storage: Storage,
+  input: {
+    bytes: Uint8Array;
+    height: number;
+    mediaAssetId: string;
+    objectKey: string;
+    width: number;
+  },
+) {
+  const bounds = {
+    maxBytes: MAX_MARKET_CHART_BYTES,
+    maxDimension: Math.max(input.width, input.height),
+    maxPixels: input.width * input.height,
+    mimeType: BRANDED_FINAL_MIME_TYPE,
+  };
+  const decoded = await validateStaticRaster(input.bytes, bounds);
+  if (decoded.width !== input.width || decoded.height !== input.height) {
+    throw new ImagePreparationError({ outcome: "definite" });
+  }
+  const checksum = createHash("sha256").update(input.bytes).digest("hex");
+  await storage
+    .put(input.objectKey, input.bytes, BRANDED_FINAL_MIME_TYPE)
+    .catch(() => {
+      throw new ImagePreparationError({ outcome: "ambiguous" });
+    });
+  const stored = await readStorageBytes(storage, input.objectKey).catch(() => {
+    throw new ImagePreparationError({ outcome: "ambiguous" });
+  });
+  const storedDecoded = await validateStaticRaster(stored, bounds).catch(() => {
+    throw new ImagePreparationError({ outcome: "ambiguous" });
+  });
+  if (
+    stored.byteLength !== input.bytes.byteLength ||
+    storedDecoded.width !== input.width ||
+    storedDecoded.height !== input.height ||
+    createHash("sha256").update(stored).digest("hex") !== checksum
+  ) {
+    throw new ImagePreparationError({ outcome: "ambiguous" });
+  }
+  return {
+    actualBytes: stored.byteLength,
+    checksum,
+    height: storedDecoded.height,
+    mediaAssetId: input.mediaAssetId,
+    mimeType: BRANDED_FINAL_MIME_TYPE,
+    objectKey: input.objectKey,
+    width: storedDecoded.width,
+  };
+}
+
+export const compensateMarketChartRender = compensateProviderOriginal;
 
 export async function readVerifiedProviderOriginal(
   storage: Storage,

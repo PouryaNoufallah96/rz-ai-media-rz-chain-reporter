@@ -17,7 +17,9 @@ COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/customer-template/package.json packages/customer-template/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/env/package.json packages/env/package.json
+COPY packages/i18n/package.json packages/i18n/package.json
 COPY packages/model-gateway/package.json packages/model-gateway/package.json
+COPY packages/market-chart/package.json packages/market-chart/package.json
 COPY packages/storage/package.json packages/storage/package.json
 RUN --mount=type=cache,target=/pnpm/store pnpm install --frozen-lockfile
 
@@ -28,7 +30,9 @@ COPY packages/contracts packages/contracts
 COPY packages/customer-template packages/customer-template
 COPY packages/db packages/db
 COPY packages/env packages/env
+COPY packages/i18n packages/i18n
 COPY packages/model-gateway packages/model-gateway
+COPY packages/market-chart packages/market-chart
 COPY packages/storage packages/storage
 
 ARG CUSTOMER_TEMPLATE_KEY
@@ -47,12 +51,22 @@ RUN mkdir -p /sharp-runtime/node_modules \
 FROM node:24.19.0-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nodejs worker
+ENV FONTCONFIG_FILE=/etc/fonts/chainreporter.conf
+RUN apt-get update \
+  && apt-get install --yes --no-install-recommends fontconfig \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd --system --gid 1001 nodejs \
+  && useradd --system --uid 1001 --gid nodejs worker
 
 ARG CUSTOMER_TEMPLATE_KEY
 COPY --from=builder --chown=worker:nodejs /app/apps/worker/dist ./dist
 COPY --from=builder --chown=worker:nodejs /sharp-runtime/node_modules ./node_modules
 COPY --from=builder --chown=worker:nodejs /app/customer-templates/${CUSTOMER_TEMPLATE_KEY}/ ./customer-templates/${CUSTOMER_TEMPLATE_KEY}/
+COPY --chown=worker:nodejs apps/worker/fonts/Geist-Regular.ttf apps/worker/fonts/Vazirmatn-Regular.ttf /usr/local/share/fonts/chainreporter/
+COPY apps/worker/fonts/fonts.conf /etc/fonts/chainreporter.conf
+RUN mkdir -p /tmp/fontconfig-cache \
+  && chown worker:nodejs /tmp/fontconfig-cache \
+  && fc-cache --force
 COPY --chmod=0755 apps/worker/docker-entrypoint.sh ./docker-entrypoint.sh
 
 USER worker

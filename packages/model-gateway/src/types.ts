@@ -1,4 +1,7 @@
-import type { InvocationKey } from "@rz-chain-reporter/contracts";
+import type {
+  ImageAspectRatio,
+  InvocationKey,
+} from "@rz-chain-reporter/contracts";
 import type { ModelTaskKey } from "@rz-chain-reporter/customer-template/schema";
 import type { Transaction } from "@rz-chain-reporter/db/executor";
 import type { FinalizeUsageInput } from "@rz-chain-reporter/db/repositories/ai-usage-event";
@@ -97,10 +100,19 @@ export type EmbeddingAdapterResult = {
 
 export type ImageAdapterInput = {
   abortSignal?: AbortSignal;
+  aspectRatio?: ImageAspectRatio;
   deadlineMs: number;
   model: string;
   prompt: string;
-  reference?: { bytes: Uint8Array; mimeType: string };
+  reference?: ImageReference;
+  references?: readonly ImageReference[];
+};
+
+export type ImageReference = {
+  bytes: Uint8Array;
+  height: number;
+  mimeType: string;
+  width: number;
 };
 
 export type ImageAdapterResult = {
@@ -200,6 +212,7 @@ export type PreparedImageResult = {
 
 export type ImageModelInvocation = {
   abortSignal?: AbortSignal;
+  aspectRatio: ImageAspectRatio;
   deadlineMs: number;
   invocationKey: InvocationKey;
   operationAttemptId: string;
@@ -222,7 +235,7 @@ export type ImageModelInvocation = {
     usageEventId: string;
   }) => Promise<PreparedImageResult>;
   prompt: string;
-  reference?: { bytes: Uint8Array; mimeType: string };
+  references?: readonly ImageReference[];
   taskKey: ModelTaskKey;
   workspaceId: string;
   claimFence?: ModelInvocationClaimFence;

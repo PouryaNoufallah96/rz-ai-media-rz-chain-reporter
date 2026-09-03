@@ -14,13 +14,20 @@ import {
   listStaleImageOperations,
   settleStaleImageOperation,
 } from "@rz-chain-reporter/db/repositories/image-generation";
+import { reconcileStaleMarketGenerations } from "@rz-chain-reporter/db/repositories/market-generation";
 import {
   expirePendingMedia,
   getMediaAssetByObjectKey,
   listMediaReconciliationCandidates,
   requeueStaleMediaValidation,
 } from "@rz-chain-reporter/db/repositories/media-asset";
+import {
+  marketChartRender,
+  marketGeneration,
+} from "@rz-chain-reporter/db/schema/market-analysis";
+import { mediaAsset } from "@rz-chain-reporter/db/schema/media-asset";
 import type { Storage } from "@rz-chain-reporter/storage";
+import { and, asc, eq, exists, gt, isNull, or } from "drizzle-orm";
 import { NonRetriableError } from "inngest";
 import { z } from "zod";
 import { stableFailureCode, workerLogger } from "../logging/logger";
@@ -30,6 +37,11 @@ import {
   notifyDraftsChanged,
 } from "../web-cache/drafts";
 import { notifyEditorialPresentationTranslationChanged } from "../web-cache/editorial";
+import {
+  notifyMarketAnalysisChanged,
+  notifyMarketCatalogChanged,
+  notifyMarketDraftsChanged,
+} from "../web-cache/market-analysis";
 import { notifySourcesAndUsageChanged } from "../web-cache/sources";
 import { publishOperationStatus } from "./channels";
 import type { WorkerInngestClient } from "./client";
@@ -38,7 +50,13 @@ import {
   translationChange,
 } from "./copy-variant-translation";
 import { durableEvents } from "./events";
-import { workerStorage } from "./media-storage";
+import { reconcileStaleMarketCatalogRefreshes } from "./market-catalog-refresh";
+import { reconcileStaleMarketChartRenders } from "./market-chart-render";
+import { reconcileStaleMarketVerifications } from "./market-verification";
+import {
+  scheduleDetachedMarketMediaCleanup,
+  workerStorage,
+} from "./media-storage";
 import { cleanupMediaAsset, verifyMediaUpload } from "./media-verification";
 import {
   presentationTranslationChangeCode,
@@ -51,16 +69,43 @@ const RECONCILIATION_BATCH_SIZE = 25;
 const OBJECT_ORPHAN_GRACE_MS = 60 * 60 * 1000;
 const VALIDATION_STALE_MS = 15 * 60 * 1000;
 const STALE_COPY_OPERATION_BATCH = 10;
+
+type SettledDraftNotification =
+  | (DraftChange & { kind: "draft" })
+  | (DraftChange & { kind: "market"; marketAnalysisId: string });
+
+async function notifySettledDraftChange(
+  step: Parameters<typeof notifyDraftsChanged>[0],
+  workspaceId: string,
+  notification: SettledDraftNotification,
+  prefix: string,
+) {
+  return notification.kind === "market"
+    ? notifyMarketDraftsChanged(
+        step,
+        workspaceId,
+        notification.marketAnalysisId,
+        `${prefix}-${notification.operationId}`,
+      )
+    : notifyDraftsChanged(
+        step,
+        workspaceId,
+        notification,
+        `${prefix}-${notification.operationId}`,
+      );
+}
 const STALE_IMAGE_OPERATION_BATCH = 10;
 
 type ReconciliationCursor = {
   db?: string | null;
+  market?: string | null;
   objects?: string | null;
 };
 
 const reconciliationCursorSchema = z
   .object({
     db: z.uuid().nullable().optional(),
+    market: z.uuid().nullable().optional(),
     objects: z.string().min(1).nullable().optional(),
   })
   .strict();
@@ -91,7 +136,8 @@ function decodeCursor(cursor?: string): ReconciliationCursor {
 }
 
 function encodeCursor(cursor: ReconciliationCursor) {
-  if (cursor.db === null && cursor.objects === null) return undefined;
+  if (cursor.db === null && cursor.market === null && cursor.objects === null)
+    return undefined;
   const encoded = Buffer.from(JSON.stringify(cursor)).toString("base64url");
   if (encoded.length > MAX_RECONCILIATION_CURSOR_LENGTH) {
     return invalidCursor();
@@ -167,6 +213,74 @@ export async function reconcileStorage(
     }
   }
 
+  const detachedMarketCandidates =
+    cursor.market === null
+      ? []
+      : await executor
+          .select({ id: mediaAsset.id })
+          .from(mediaAsset)
+          .where(
+            and(
+              eq(mediaAsset.workspaceId, workspaceId),
+              eq(mediaAsset.lifecycle, "verified"),
+              isNull(mediaAsset.cleanupAfter),
+              cursor.market ? gt(mediaAsset.id, cursor.market) : undefined,
+              or(
+                exists(
+                  executor
+                    .select({ id: marketChartRender.id })
+                    .from(marketChartRender)
+                    .where(
+                      and(
+                        eq(marketChartRender.workspaceId, workspaceId),
+                        eq(marketChartRender.mediaAssetId, mediaAsset.id),
+                      ),
+                    ),
+                ),
+                exists(
+                  executor
+                    .select({ id: marketGeneration.id })
+                    .from(marketGeneration)
+                    .where(
+                      and(
+                        eq(marketGeneration.workspaceId, workspaceId),
+                        or(
+                          eq(marketGeneration.chartMediaAssetId, mediaAsset.id),
+                          eq(
+                            marketGeneration.providerOriginalMediaAssetId,
+                            mediaAsset.id,
+                          ),
+                          eq(marketGeneration.finalMediaAssetId, mediaAsset.id),
+                        ),
+                      ),
+                    ),
+                ),
+              ),
+            ),
+          )
+          .orderBy(asc(mediaAsset.id))
+          .limit(RECONCILIATION_BATCH_SIZE);
+  let detachedMarketCleanupScheduled = 0;
+  let failedDetachedMarketCleanup = 0;
+  for (const candidate of detachedMarketCandidates) {
+    try {
+      const scheduled = await scheduleDetachedMarketMediaCleanup(
+        executor,
+        workspaceId,
+        [candidate.id],
+        now,
+      );
+      detachedMarketCleanupScheduled += scheduled.length;
+    } catch (error) {
+      failedDetachedMarketCleanup += 1;
+      workerLogger.error("worker.market-media.cleanup-scheduling-failed", {
+        errorCode: stableFailureCode(error, "MEDIA_RECONCILIATION_FAILED"),
+        mediaAssetId: candidate.id,
+        workspaceId,
+      });
+    }
+  }
+
   const objectPage =
     cursor.objects === null
       ? { items: [], nextCursor: undefined }
@@ -207,12 +321,23 @@ export async function reconcileStorage(
     lastCandidate
       ? lastCandidate.id
       : null;
+  const lastDetachedMarketCandidate = detachedMarketCandidates.at(-1);
+  const nextMarket =
+    cursor.market !== null &&
+    detachedMarketCandidates.length === RECONCILIATION_BATCH_SIZE &&
+    lastDetachedMarketCandidate
+      ? lastDetachedMarketCandidate.id
+      : null;
   return {
     candidatesObserved: candidates.length,
     failedCandidates,
     failedObjects,
+    detachedMarketCleanupScheduled,
+    detachedMarketCandidatesObserved: detachedMarketCandidates.length,
+    failedDetachedMarketCleanup,
     nextCursor: encodeCursor({
       db: nextDb,
+      market: nextMarket,
       objects: objectPage.nextCursor ?? null,
     }),
     objectCandidatesObserved: objectPage.items.length,
@@ -229,7 +354,7 @@ export async function reconcileStaleImageOperations(
     limit: STALE_IMAGE_OPERATION_BATCH,
     now,
   });
-  const changes: DraftChange[] = [];
+  const changes: SettledDraftNotification[] = [];
   let settled = 0;
   for (const candidate of candidates) {
     const admitted =
@@ -273,7 +398,7 @@ export async function reconcileStaleCopyOperations(
     limit: STALE_COPY_OPERATION_BATCH,
     now,
   });
-  const changes: DraftChange[] = [];
+  const changes: SettledDraftNotification[] = [];
   for (const candidate of candidates) {
     const settled = await settleStaleCopyOperation(executor, workspaceId, {
       expectedVersion: candidate.operationVersion,
@@ -300,19 +425,29 @@ async function loadSettledCopyDraftChange(
   executor: Executor,
   workspaceId: string,
   operationId: string,
-): Promise<DraftChange> {
+): Promise<SettledDraftNotification> {
   const copy = await findCopyExecutionContext(
     executor,
     workspaceId,
     operationId,
   );
   if (!copy) throw new NonRetriableError("NOT_FOUND");
-  return {
-    analysisRunId: copy.analysisRunId,
-    code: "failed",
-    operationId,
-    platformDraftId: copy.platformDraftId,
-  };
+  return copy.executionScope.kind === "market_analysis"
+    ? {
+        analysisRunId: copy.analysisRunId,
+        code: "failed",
+        kind: "market",
+        marketAnalysisId: copy.executionScope.marketAnalysisId,
+        operationId,
+        platformDraftId: copy.platformDraftId,
+      }
+    : {
+        analysisRunId: copy.executionScope.analysisRunId,
+        code: "failed",
+        kind: "draft",
+        operationId,
+        platformDraftId: copy.platformDraftId,
+      };
 }
 
 async function loadSettledDraftChange(
@@ -320,7 +455,7 @@ async function loadSettledDraftChange(
   workspaceId: string,
   operationId: string,
   code: DraftChange["code"],
-): Promise<DraftChange> {
+): Promise<SettledDraftNotification> {
   const image = await findImageExecutionContext(
     executor,
     workspaceId,
@@ -333,12 +468,22 @@ async function loadSettledDraftChange(
     image.copyOperationId,
   );
   if (!copy) throw new NonRetriableError("NOT_FOUND");
-  return {
-    analysisRunId: copy.analysisRunId,
-    code,
-    operationId,
-    platformDraftId: image.platformDraftId,
-  };
+  return copy.executionScope.kind === "market_analysis"
+    ? {
+        analysisRunId: copy.analysisRunId,
+        code,
+        kind: "market",
+        marketAnalysisId: copy.executionScope.marketAnalysisId,
+        operationId,
+        platformDraftId: image.platformDraftId,
+      }
+    : {
+        analysisRunId: copy.executionScope.analysisRunId,
+        code,
+        kind: "draft",
+        operationId,
+        platformDraftId: image.platformDraftId,
+      };
 }
 
 export function createStorageReconciliationFunction(
@@ -378,23 +523,23 @@ export function createStorageReconciliationFunction(
         const staleCopy = await step.run("settle-stale-copy-operations", () =>
           reconcileStaleCopyOperations(runtime.db, result.workspaceId, now),
         );
-        for (const change of staleCopy.settledDraftChanges) {
-          await notifyDraftsChanged(
+        for (const notification of staleCopy.settledDraftChanges) {
+          await notifySettledDraftChange(
             step,
             result.workspaceId,
-            change,
-            `stale-copy-${change.operationId}`,
+            notification,
+            "stale-copy",
           );
         }
         const stale = await step.run("settle-stale-image-operations", () =>
           reconcileStaleImageOperations(runtime.db, result.workspaceId, now),
         );
-        for (const change of stale.settledDraftChanges) {
-          await notifyDraftsChanged(
+        for (const notification of stale.settledDraftChanges) {
+          await notifySettledDraftChange(
             step,
             result.workspaceId,
-            change,
-            `stale-image-${change.operationId}`,
+            notification,
+            "stale-image",
           );
         }
         const staleSourceImports = await step.run(
@@ -431,6 +576,61 @@ export function createStorageReconciliationFunction(
               now,
             ),
         );
+        const staleMarketVerifications = await step.run(
+          "settle-stale-market-verifications",
+          () =>
+            reconcileStaleMarketVerifications(runtime, result.workspaceId, now),
+        );
+        for (const terminal of staleMarketVerifications) {
+          await notifyMarketAnalysisChanged(
+            step,
+            result.workspaceId,
+            terminal.marketAnalysisId,
+            `stale-${terminal.operationId}`,
+          );
+        }
+        const staleMarketChartRenders = await step.run(
+          "settle-stale-market-chart-renders",
+          () =>
+            reconcileStaleMarketChartRenders(runtime, result.workspaceId, now),
+        );
+        for (const terminal of staleMarketChartRenders) {
+          await notifyMarketAnalysisChanged(
+            step,
+            result.workspaceId,
+            terminal.marketAnalysisId,
+            `stale-chart-${terminal.operationId}`,
+          );
+        }
+        const staleMarketGenerations = await step.run(
+          "settle-stale-market-generations",
+          () =>
+            reconcileStaleMarketGenerations(
+              runtime.db,
+              result.workspaceId,
+              now,
+            ),
+        );
+        for (const terminal of staleMarketGenerations) {
+          await notifyMarketAnalysisChanged(
+            step,
+            result.workspaceId,
+            terminal.marketAnalysisId,
+            `stale-generation-${terminal.operationId}`,
+          );
+        }
+        const staleMarketCatalog = await step.run(
+          "settle-stale-market-catalog-refreshes",
+          () =>
+            reconcileStaleMarketCatalogRefreshes(
+              runtime,
+              result.workspaceId,
+              now,
+            ),
+        );
+        if (staleMarketCatalog.settled > 0) {
+          await notifyMarketCatalogChanged(step, result.workspaceId, "stale");
+        }
         for (const terminal of staleCopyTranslations.staleCopyVariantTranslationsSettled) {
           await notifyDraftsAndUsageChanged(
             step,

@@ -1,11 +1,12 @@
 import {
+  IMAGE_OPTION_CAPABILITIES,
   type ModelBackend,
-  referenceImageMimeTypeSchema,
   type UsageProviderGateway,
   type UsageStatus,
 } from "@rz-chain-reporter/contracts";
 import { MAX_EMBEDDING_VALUES } from "@rz-chain-reporter/contracts/editorial";
 import type { CustomerTemplate } from "@rz-chain-reporter/customer-template/schema";
+import { IMAGE_GENERATION_TASK_PREFIX } from "@rz-chain-reporter/customer-template/schema";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import {
   type FinalizeUsageInput,
@@ -229,12 +230,12 @@ export function createModelGateway(options: {
       };
     },
     async invokeImage(input) {
-      assertImageBounds(input);
       const { route, taskKey } = resolveModelTask(
         options.template,
         input.taskKey,
         input.invocationKey,
       );
+      assertImageInvocationBounds(input, taskKey);
       await assertTemplateCurrent(options, input.workspaceId);
       if (route.backend !== "remote") {
         throw new ModelBindingError(
@@ -280,10 +281,12 @@ export function createModelGateway(options: {
       const generated = await remoteAdapter
         .generateImage({
           abortSignal: input.abortSignal,
+          aspectRatio: input.aspectRatio,
           deadlineMs: input.deadlineMs,
           model: route.model,
+          reference: input.references?.[0],
           prompt: input.prompt,
-          reference: input.reference,
+          references: input.references,
         })
         .catch(async (error: unknown) => {
           const failure = readProviderFailure(error);
@@ -878,18 +881,47 @@ function assertEmbeddingBounds(input: EmbeddingModelInvocation) {
   }
 }
 
-function assertImageBounds(input: ImageModelInvocation) {
+export function assertImageInvocationBounds(
+  input: ImageModelInvocation,
+  taskKey: string,
+) {
+  const optionKey = taskKey.startsWith(IMAGE_GENERATION_TASK_PREFIX)
+    ? taskKey.slice(IMAGE_GENERATION_TASK_PREFIX.length)
+    : "";
+  const capability =
+    IMAGE_OPTION_CAPABILITIES[
+      optionKey as keyof typeof IMAGE_OPTION_CAPABILITIES
+    ];
+  const references = input.references ?? [];
+  const totalReferenceBytes = references.reduce(
+    (total, reference) => total + reference.bytes.byteLength,
+    0,
+  );
   if (
     input.prompt.length === 0 ||
     input.prompt.length > MAX_IMAGE_PROMPT_LENGTH ||
     !Number.isInteger(input.deadlineMs) ||
     input.deadlineMs < 1 ||
     input.deadlineMs > MAX_DEADLINE_MS ||
-    (input.reference !== undefined &&
-      (input.reference.bytes.byteLength === 0 ||
-        input.reference.bytes.byteLength > 10 * 1024 * 1024 ||
-        !referenceImageMimeTypeSchema.safeParse(input.reference.mimeType)
-          .success))
+    !capability ||
+    !capability.aspectRatios.includes(input.aspectRatio) ||
+    references.length > capability.maxOrderedReferences ||
+    totalReferenceBytes > capability.maxTotalReferenceBytes ||
+    references.some(
+      (reference) =>
+        reference.bytes.byteLength === 0 ||
+        reference.bytes.byteLength > capability.reference.maxBytes ||
+        !capability.reference.mimeTypes.includes(
+          reference.mimeType as (typeof capability.reference.mimeTypes)[number],
+        ) ||
+        !Number.isInteger(reference.width) ||
+        reference.width < 1 ||
+        reference.width > capability.reference.maxDimension ||
+        !Number.isInteger(reference.height) ||
+        reference.height < 1 ||
+        reference.height > capability.reference.maxDimension ||
+        reference.width * reference.height > capability.reference.maxPixels,
+    )
   ) {
     throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
       reason: "invocation-bounds",

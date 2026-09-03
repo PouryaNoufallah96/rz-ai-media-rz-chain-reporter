@@ -15,6 +15,9 @@ async function main() {
     OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME,
     OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
     OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME,
+    OPERATION_MARKET_CATALOG_REFRESH_REQUESTED_EVENT_NAME,
+    OPERATION_MARKET_GENERATION_REQUESTED_EVENT_NAME,
+    OPERATION_MARKET_VERIFICATION_REQUESTED_EVENT_NAME,
     OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME,
     OPERATION_PUBLICATION_REQUESTED_EVENT_NAME,
     OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
@@ -69,7 +72,12 @@ async function main() {
         copyOperationId,
       );
       if (!context) throw new Error("copy context not found");
-      return notifyDraftsCacheChanged(installation.workspaceId);
+      return context.executionScope.kind === "market_analysis"
+        ? notifyCacheInvalidation([
+            workspaceCacheTag(installation.workspaceId, "market-analysis"),
+            workspaceCacheTag(installation.workspaceId, "drafts"),
+          ])
+        : notifyDraftsCacheChanged(installation.workspaceId);
     };
     const cacheInvalidation = await (async () => {
       try {
@@ -96,6 +104,17 @@ async function main() {
         ) {
           return await notifyCacheInvalidation([
             workspaceCacheTag(installation.workspaceId, "editorial"),
+          ]);
+        }
+        if (
+          event.eventType ===
+            OPERATION_MARKET_VERIFICATION_REQUESTED_EVENT_NAME ||
+          event.eventType ===
+            OPERATION_MARKET_CATALOG_REFRESH_REQUESTED_EVENT_NAME ||
+          event.eventType === OPERATION_MARKET_GENERATION_REQUESTED_EVENT_NAME
+        ) {
+          return await notifyCacheInvalidation([
+            workspaceCacheTag(installation.workspaceId, "market-analysis"),
           ]);
         }
         if (

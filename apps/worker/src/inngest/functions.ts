@@ -4,6 +4,10 @@ import { createCopyGenerationFunctions } from "./copy-generation";
 import { createCopyVariantTranslationFunctions } from "./copy-variant-translation";
 import { createGenerationProbeFunction } from "./generation-probe";
 import { createImageGenerationFunctions } from "./image-generation";
+import { createMarketCatalogRefreshFunctions } from "./market-catalog-refresh";
+import { createMarketChartRenderFunctions } from "./market-chart-render";
+import { createMarketGenerationFunctions } from "./market-generation";
+import { createMarketVerificationFunctions } from "./market-verification";
 import { createMediaUploadVerificationFunction } from "./media-upload-function";
 import { createPresentationTranslationFunctions } from "./presentation-translation";
 import { createPublishingFunctions } from "./publishing";
@@ -22,6 +26,10 @@ export function createWorkerFunctions(
     createGenerationProbeFunction(client, runtime),
     createMediaUploadVerificationFunction(client, runtime),
     createStorageReconciliationFunction(client, runtime),
+    ...createMarketVerificationFunctions(client, runtime),
+    ...createMarketCatalogRefreshFunctions(client, runtime),
+    ...createMarketChartRenderFunctions(client, runtime),
+    ...createMarketGenerationFunctions(client, runtime),
     ...createSourceImportFunctions(client, runtime),
     ...createAnalysisRunFunctions(client, runtime),
     ...createCopyGenerationFunctions(client, runtime),

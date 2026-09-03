@@ -1,5 +1,6 @@
 import type {
   DraftsChangedRealtimeMessage,
+  MarketAnalysisChangedRealtimeMessage,
   OperationStatusRealtimeMessage,
   OperationsChangedRealtimeMessage,
   PublishingChangedRealtimeMessage,
@@ -7,6 +8,7 @@ import type {
 import {
   draftsRealtimeChannel,
   editorialRealtimeChannel,
+  marketAnalysisRealtimeChannel,
   operationsRealtimeChannel,
   publishingRealtimeChannel,
   sourcesRealtimeChannel,
@@ -166,6 +168,50 @@ export function publishEditorialChangedNow(
     ),
     "worker.editorial.realtime-unavailable",
     { analysisRunId, workspaceId },
+  );
+}
+
+export function publishMarketAnalysisChanged(
+  step: WorkerStep,
+  workspaceId: string,
+  message: MarketAnalysisChangedRealtimeMessage,
+  callSite: string,
+) {
+  return settled(
+    step.realtime.publish(
+      `publish-market-analysis-changed-${callSite}`,
+      marketAnalysisRealtimeChannel(workspaceId, message.marketAnalysisId)
+        .changed,
+      message,
+    ),
+    "worker.market-analysis.realtime-unavailable",
+    {
+      ...(message.operationId === null
+        ? {}
+        : { operationId: message.operationId }),
+      workspaceId,
+    },
+  );
+}
+
+export function publishMarketAnalysisChangedNow(
+  client: WorkerInngestClient,
+  workspaceId: string,
+  message: MarketAnalysisChangedRealtimeMessage,
+) {
+  return settled(
+    client.realtime.publish(
+      marketAnalysisRealtimeChannel(workspaceId, message.marketAnalysisId)
+        .changed,
+      message,
+    ),
+    "worker.market-analysis.realtime-unavailable",
+    {
+      ...(message.operationId === null
+        ? {}
+        : { operationId: message.operationId }),
+      workspaceId,
+    },
   );
 }
 

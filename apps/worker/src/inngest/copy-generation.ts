@@ -13,6 +13,7 @@ import {
   PLATFORM_COPY_HARD_MAX,
   type Platform,
   platformCopyLength,
+  TELEGRAM_READ_MORE_LABEL,
 } from "@rz-chain-reporter/contracts";
 import { computeBrandPolicyFingerprint } from "@rz-chain-reporter/customer-template/fingerprint";
 import {
@@ -37,6 +38,7 @@ import {
   settleCopyGeneration,
   settleCopyGenerationUnit,
 } from "@rz-chain-reporter/db/repositories/copy-generation";
+import { SCRIPT } from "@rz-chain-reporter/i18n";
 import { ModelGatewayInvocationError } from "@rz-chain-reporter/model-gateway/errors";
 import {
   MAX_OUTPUT_TOKENS,
@@ -55,6 +57,7 @@ import {
   notifyDraftsAndUsageChanged,
   notifyDraftsChanged,
 } from "../web-cache/drafts";
+import { notifyMarketDraftsChanged } from "../web-cache/market-analysis";
 import { notifyUsageLedgerChanged } from "../web-cache/usage-ledger";
 
 import { publishOperationStatus } from "./channels";
@@ -174,6 +177,13 @@ export async function loadCopyGenerationSource(
   if (source.kind === "rss") return resolveRssSource(source, maxChars);
   if (source.kind === "telegram") {
     return resolveTelegramSource(source, maxChars);
+  }
+  if (source.kind === "market") {
+    return {
+      ...source,
+      headline: source.headline.slice(0, maxChars).trim(),
+      supportingText: source.supportingText.slice(0, maxChars).trim(),
+    };
   }
   return source;
 }
@@ -304,7 +314,7 @@ export function copyMatchesContentLocale(
     );
     if (letters.length === 0) return false;
     const requested = letters.filter((character) =>
-      locale === "fa"
+      SCRIPT[locale] === "arab"
         ? ARABIC_SCRIPT.test(character)
         : LATIN_SCRIPT.test(character),
     ).length;
@@ -536,12 +546,48 @@ function copyChange(
   context: NonNullable<Awaited<ReturnType<typeof findCopyExecutionContext>>>,
   code: Parameters<typeof notifyDraftsChanged>[2]["code"],
 ) {
+  if (context.executionScope.kind !== "analysis_run") {
+    throw new Error("draft notification requires an analysis-run scope");
+  }
   return {
-    analysisRunId: context.analysisRunId,
+    analysisRunId: context.executionScope.analysisRunId,
     code,
     operationId: context.operationId,
     platformDraftId: context.platformDraftId,
   };
+}
+
+async function notifyCopyChanged(
+  step: Parameters<typeof notifyDraftsChanged>[0],
+  workspaceId: string,
+  context: NonNullable<Awaited<ReturnType<typeof findCopyExecutionContext>>>,
+  code: Parameters<typeof notifyDraftsChanged>[2]["code"],
+  callSite: string,
+  usageActorId?: string | null,
+) {
+  if (context.executionScope.kind === "market_analysis") {
+    return notifyMarketDraftsChanged(
+      step,
+      workspaceId,
+      context.executionScope.marketAnalysisId,
+      callSite,
+      usageActorId,
+    );
+  }
+  return usageActorId === undefined
+    ? notifyDraftsChanged(
+        step,
+        workspaceId,
+        copyChange(context, code),
+        callSite,
+      )
+    : notifyDraftsAndUsageChanged(
+        step,
+        workspaceId,
+        copyChange(context, code),
+        callSite,
+        usageActorId,
+      );
 }
 
 type CopyRejection = {
@@ -639,8 +685,7 @@ function copyPrompt(
           ? {
               attribution: publishSource.attribution,
               canonicalUrl: publishSource.canonicalUrl,
-              label:
-                input.locale === "fa" ? "مطالعه کامل خبر" : "Read full story",
+              label: TELEGRAM_READ_MORE_LABEL[input.locale],
             }
           : null,
     }),
@@ -659,7 +704,7 @@ function copyPrompt(
 function copyPublishSource(
   source: NonNullable<Awaited<ReturnType<typeof loadCopyGenerationSource>>>,
 ): CopyPublishSource {
-  return source.kind === "promo"
+  return source.kind === "promo" || source.kind === "market"
     ? null
     : {
         attribution: source.attribution,
@@ -764,9 +809,7 @@ export async function executeCopyGenerationUnit(
   const task = runtime.template.models?.tasks[taskKey];
   if (!variant || !task) throw new NonRetriableError("TEMPLATE_DRIFT");
   const canonicalHashtag =
-    context.requestedContentLocale === "en"
-      ? brand.editorial.canonicalHashtags.en
-      : brand.editorial.canonicalHashtags.fa;
+    brand.editorial.canonicalHashtags[context.requestedContentLocale];
   const brandGuidance = loadCopyBrandGuidance(runtime, context.brandKey);
   const sourceAttribution = copyPublishSource(source);
 
@@ -952,17 +995,15 @@ export function createCopyGenerationFunctions(
       );
       const actorId = event.data.actorId ?? null;
       if (context) {
-        await notifyDraftsAndUsageChanged(
+        await notifyCopyChanged(
           step,
           event.data.workspaceId,
-          copyChange(
-            context,
-            result.status === "succeeded"
-              ? "unit_succeeded"
-              : result.status === "cancelled"
-                ? "unit_cancelled"
-                : "unit_failed",
-          ),
+          context,
+          result.status === "succeeded"
+            ? "unit_succeeded"
+            : result.status === "cancelled"
+              ? "unit_cancelled"
+              : "unit_failed",
           `unit-${event.data.unitId}`,
           actorId,
         );
@@ -1004,10 +1045,11 @@ export function createCopyGenerationFunctions(
             settleCopyGeneration(runtime.db, workspaceId, operationId, true),
           );
         }
-        await notifyDraftsAndUsageChanged(
+        await notifyCopyChanged(
           step,
           workspaceId,
-          copyChange(context, "failed"),
+          context,
+          "failed",
           "failure",
           null,
         );
@@ -1034,12 +1076,7 @@ export function createCopyGenerationFunctions(
         findCopyExecutionContext(runtime.db, workspaceId, operationId),
       );
       if (!context) throw new NonRetriableError("NOT_FOUND");
-      await notifyDraftsChanged(
-        step,
-        workspaceId,
-        copyChange(context, "running"),
-        "running",
-      );
+      await notifyCopyChanged(step, workspaceId, context, "running", "running");
 
       await step.run("bind-copy-source", () =>
         bindCopyGenerationSource(
@@ -1125,10 +1162,11 @@ export function createCopyGenerationFunctions(
               : settled.lifecycle === "succeeded"
                 ? "succeeded"
                 : "failed";
-      await notifyDraftsAndUsageChanged(
+      await notifyCopyChanged(
         step,
         workspaceId,
-        copyChange(terminal, code),
+        terminal,
+        code,
         "terminal",
         claimed.operation.actor,
       );
@@ -1202,10 +1240,11 @@ export function createCopyGenerationFunctions(
         settleCopyGeneration(runtime.db, workspaceId, operationId),
       );
       if (!settled || "waiting" in settled) return { settled: false };
-      await notifyDraftsAndUsageChanged(
+      await notifyCopyChanged(
         step,
         workspaceId,
-        copyChange(context, "cancelled"),
+        context,
+        "cancelled",
         "cancelled",
         null,
       );

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import type { ContentLocale } from "@rz-chain-reporter/contracts";
 import { createDb } from "@rz-chain-reporter/db";
 import { insertPendingUsage } from "@rz-chain-reporter/db/repositories/ai-usage-event";
 import {
@@ -25,7 +26,6 @@ import { workspace } from "@rz-chain-reporter/db/schema/workspace";
 import { validateMigrationEnv } from "@rz-chain-reporter/env/migration";
 import dotenv from "dotenv";
 import { eq } from "drizzle-orm";
-
 import {
   effectiveTopicValues,
   originalEffectiveTopics,
@@ -199,7 +199,7 @@ assert.equal(embeddingFailureAttemptOutcome(true), "ambiguous");
 let syntheticGatewayCalls = 0;
 function syntheticGatewayOutput(
   topics: readonly string[],
-  contentLocale: "en" | "fa",
+  contentLocale: ContentLocale,
   output: unknown,
 ) {
   syntheticGatewayCalls += 1;

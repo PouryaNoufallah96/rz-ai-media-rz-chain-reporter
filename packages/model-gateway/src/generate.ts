@@ -52,12 +52,19 @@ export async function generateImageOnce(
       abortSignal: input.abortSignal
         ? AbortSignal.any([input.abortSignal, deadline])
         : deadline,
+      ...(input.aspectRatio ? { aspectRatio: input.aspectRatio } : {}),
       maxRetries: 0,
       model,
       n: 1,
-      prompt: input.reference
-        ? { images: [input.reference.bytes], text: input.prompt }
-        : input.prompt,
+      prompt:
+        input.references?.length || input.reference
+          ? {
+              images: (input.references ?? [input.reference]).flatMap(
+                (reference) => (reference ? [reference.bytes] : []),
+              ),
+              text: input.prompt,
+            }
+          : input.prompt,
     });
     if (result.images.length !== 1) {
       throw noImageReturned();

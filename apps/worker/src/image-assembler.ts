@@ -62,6 +62,37 @@ export function assembleImagePrompt(input: {
   };
 }
 
+const CANVAS_ASPECT_TOLERANCE = 0.01;
+const CANVAS_BACKDROP_BLUR_SIGMA = 40;
+
+export async function fitToCanvas(
+  original: Uint8Array,
+  width: number,
+  height: number,
+) {
+  const source = sharp(original, { failOn: "warning" });
+  const metadata = await source.metadata();
+  const sourceRatio = (metadata.width ?? width) / (metadata.height ?? height);
+  if (Math.abs(sourceRatio / (width / height) - 1) <= CANVAS_ASPECT_TOLERANCE) {
+    return source.resize(width, height, { fit: "fill" }).png().toBuffer();
+  }
+  const [backdrop, foreground] = await Promise.all([
+    sharp(original, { failOn: "warning" })
+      .resize(width, height, { fit: "cover", position: "centre" })
+      .blur(CANVAS_BACKDROP_BLUR_SIGMA)
+      .png()
+      .toBuffer(),
+    sharp(original, { failOn: "warning" })
+      .resize(width, height, { fit: "inside", withoutEnlargement: false })
+      .png()
+      .toBuffer(),
+  ]);
+  return sharp(backdrop)
+    .composite([{ input: foreground, gravity: "centre" }])
+    .png()
+    .toBuffer();
+}
+
 export async function composeBrandedFinal(input: {
   logo: Uint8Array;
   original: Uint8Array;
@@ -92,8 +123,7 @@ export async function composeBrandedFinal(input: {
   ) {
     throw new Error("IMAGE_LOGO_GEOMETRY_INVALID");
   }
-  return sharp(input.original, { failOn: "warning" })
-    .resize({ fit: "cover", height, position: "centre", width })
+  return sharp(await fitToCanvas(input.original, width, height))
     .composite([{ input: logo, left, top }])
     .png()
     .toBuffer();

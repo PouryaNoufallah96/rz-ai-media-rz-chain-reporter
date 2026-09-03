@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import {
   DURABLE_EVENT_SCHEMA_VERSION,
   OPERATION_GENERATION_REQUESTED_EVENT_NAME,
+  OPERATION_MARKET_CATALOG_REFRESH_REQUESTED_EVENT_NAME,
+  OPERATION_MARKET_VERIFICATION_REQUESTED_EVENT_NAME,
   operationsChangedRealtimeMessageSchema,
 } from "@rz-chain-reporter/contracts";
 import { createDb } from "@rz-chain-reporter/db";
@@ -15,6 +17,7 @@ import { workspace } from "@rz-chain-reporter/db/schema/workspace";
 import { asc, eq, inArray } from "drizzle-orm";
 
 import { createInngestClient } from "../inngest/client";
+import { createInngestEvent } from "../inngest/events";
 import { workerLogger } from "../logging/logger";
 import { workerEnv } from "../runtime/env";
 import { OutboxRelay } from "./relay";
@@ -50,6 +53,35 @@ workerLogger.warn = (event, fields) => {
 };
 
 try {
+  const marketAnalysisId = randomUUID();
+  const marketOperationId = randomUUID();
+  assert.equal(
+    createInngestEvent({
+      eventType: OPERATION_MARKET_VERIFICATION_REQUESTED_EVENT_NAME,
+      id: randomUUID(),
+      payload: {
+        marketAnalysisId,
+        operationId: marketOperationId,
+        schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+        workspaceId,
+      },
+      schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+    }).name,
+    OPERATION_MARKET_VERIFICATION_REQUESTED_EVENT_NAME,
+  );
+  assert.equal(
+    createInngestEvent({
+      eventType: OPERATION_MARKET_CATALOG_REFRESH_REQUESTED_EVENT_NAME,
+      id: randomUUID(),
+      payload: {
+        operationId: marketOperationId,
+        schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+        workspaceId,
+      },
+      schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+    }).name,
+    OPERATION_MARKET_CATALOG_REFRESH_REQUESTED_EVENT_NAME,
+  );
   const [actor] = await database.db
     .select({ id: user.id })
     .from(user)

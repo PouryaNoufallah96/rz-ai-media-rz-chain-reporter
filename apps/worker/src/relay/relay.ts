@@ -1,13 +1,19 @@
 import {
+  marketGenerationRequestedPayloadSchema,
+  marketVerificationRequestedPayloadSchema,
   OPERATION_ANALYSIS_RUN_CANCELLED_EVENT_NAME,
   OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME,
   OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
   OPERATION_COPY_VARIANT_TRANSLATION_REQUESTED_EVENT_NAME,
   OPERATION_IMAGE_GENERATION_REQUESTED_EVENT_NAME,
+  OPERATION_MARKET_CATALOG_REFRESH_REQUESTED_EVENT_NAME,
+  OPERATION_MARKET_GENERATION_REQUESTED_EVENT_NAME,
+  OPERATION_MARKET_VERIFICATION_REQUESTED_EVENT_NAME,
   OPERATION_PRESENTATION_TRANSLATION_REQUESTED_EVENT_NAME,
   OPERATION_PUBLICATION_RECONCILIATION_REQUESTED_EVENT_NAME,
   OPERATION_PUBLICATION_REQUESTED_EVENT_NAME,
   OPERATION_SOURCE_IMPORT_REQUESTED_EVENT_NAME,
+  workspaceCacheTag,
 } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import { recordPublicationSettlementActivity } from "@rz-chain-reporter/db/repositories/activity-event";
@@ -16,6 +22,7 @@ import { findCopyExecutionContext } from "@rz-chain-reporter/db/repositories/cop
 import { loadCopyVariantTranslationRequest } from "@rz-chain-reporter/db/repositories/copy-variant-localization";
 import { loadEditorialPresentationTranslationRequest } from "@rz-chain-reporter/db/repositories/editorial-presentation-localization-request";
 import { findImageExecutionContext } from "@rz-chain-reporter/db/repositories/image-generation";
+import { ensureMarketComparisonCatalogRefresh } from "@rz-chain-reporter/db/repositories/market-comparison-catalog";
 import {
   claimOutboxEvents,
   markOutboxDispatched,
@@ -43,6 +50,11 @@ import {
   notifyEditorialChangedNow,
   notifyEditorialTranslationDispatchChangedNow,
 } from "../web-cache/editorial";
+import {
+  notifyMarketAnalysisChangedNow,
+  notifyMarketDraftsChangedNow,
+} from "../web-cache/market-analysis";
+import { notifyCacheInvalidation } from "../web-cache/notify";
 import { notifyPublishingChangedNow } from "../web-cache/publishing";
 import {
   notifySourcesCacheChanged,
@@ -62,6 +74,8 @@ const MAX_BACKOFF_MS = 60_000;
 const POLL_INTERVAL_MS = 500;
 const PUBLICATION_FOLLOW_UP_RETRY_MS = 30_000;
 const RECOVERY_SCAN_INTERVAL_MS = 10_000;
+const MARKET_CATALOG_WAITING_CHECK_MS = 10_000;
+const MARKET_CATALOG_ACTIVE_CHECK_MS = 30_000;
 
 function nextBackoffMs(attempt: number, maximum: number) {
   return Math.min(1_000 * 2 ** Math.max(0, attempt - 1), maximum);
@@ -80,12 +94,14 @@ export class OutboxRelay {
   private accepting = false;
   private lastRecoveryScanAt = 0;
   private loopPromise: Promise<void> | null = null;
+  private nextMarketCatalogCheckAt = 0;
 
   constructor(
     private readonly executor: Executor,
     private readonly workspaceId: string,
     private readonly client: WorkerInngestClient,
     claimedBy: string,
+    private readonly marketCatalogRefreshEnabled = false,
   ) {
     this.claimedBy = claimedBy;
   }
@@ -125,6 +141,7 @@ export class OutboxRelay {
             });
           }
           await this.repairPublicationFollowUps();
+          await this.ensureMarketCatalogRefresh();
           this.lastRecoveryScanAt = Date.now();
         }
         const events = await claimOutboxEvents(
@@ -227,6 +244,39 @@ export class OutboxRelay {
         await abortableDelay(POLL_INTERVAL_MS, this.abortController.signal);
       }
     }
+  }
+
+  private async ensureMarketCatalogRefresh() {
+    const now = new Date();
+    if (
+      !this.marketCatalogRefreshEnabled ||
+      now.getTime() < this.nextMarketCatalogCheckAt
+    ) {
+      return;
+    }
+    const result = await ensureMarketComparisonCatalogRefresh(
+      this.executor,
+      this.workspaceId,
+      now,
+    );
+    if (result.status === "created") {
+      workerLogger.info("worker.market-catalog.refresh-enqueued", {
+        operationId: result.operationId,
+        workspaceId: this.workspaceId,
+      });
+    }
+    if (
+      result.status === "fresh" ||
+      result.status === "retry_bucket_complete"
+    ) {
+      this.nextMarketCatalogCheckAt = result.nextEligibleAt.getTime();
+      return;
+    }
+    this.nextMarketCatalogCheckAt =
+      now.getTime() +
+      (result.status === "waiting_for_operator"
+        ? MARKET_CATALOG_WAITING_CHECK_MS
+        : MARKET_CATALOG_ACTIVE_CHECK_MS);
   }
 
   private async repairPublicationFollowUps() {
@@ -372,6 +422,7 @@ export class OutboxRelay {
     await this.notifyCopyDispatchChanged(event, "queued");
     await this.notifyImageDispatchChanged(event, "queued");
     await this.notifyPublishingDispatchChanged(event);
+    await this.notifyMarketDispatchChanged(event);
     return "queued" as const;
   }
 
@@ -416,6 +467,7 @@ export class OutboxRelay {
     await this.notifyCopyDispatchChanged(event, code);
     await this.notifyImageDispatchChanged(event, code);
     await this.notifyPublishingDispatchChanged(event);
+    await this.notifyMarketDispatchChanged(event);
     return code;
   }
 
@@ -430,6 +482,45 @@ export class OutboxRelay {
       workerLogger.warn("worker.sources.cache-notification-unavailable", {
         workspaceId: event.workspaceId,
       });
+    }
+  }
+
+  private async notifyMarketDispatchChanged(event: ClaimedOutboxEvent) {
+    if (
+      event.eventType !== OPERATION_MARKET_VERIFICATION_REQUESTED_EVENT_NAME &&
+      event.eventType !==
+        OPERATION_MARKET_CATALOG_REFRESH_REQUESTED_EVENT_NAME &&
+      event.eventType !== OPERATION_MARKET_GENERATION_REQUESTED_EVENT_NAME
+    )
+      return;
+    try {
+      if (
+        event.eventType ===
+          OPERATION_MARKET_VERIFICATION_REQUESTED_EVENT_NAME ||
+        event.eventType === OPERATION_MARKET_GENERATION_REQUESTED_EVENT_NAME
+      ) {
+        const payload =
+          event.eventType === OPERATION_MARKET_GENERATION_REQUESTED_EVENT_NAME
+            ? marketGenerationRequestedPayloadSchema.parse(event.payload)
+            : marketVerificationRequestedPayloadSchema.parse(event.payload);
+        await notifyMarketAnalysisChangedNow(
+          this.client,
+          event.workspaceId,
+          payload.marketAnalysisId,
+        );
+        return;
+      }
+      await notifyCacheInvalidation([
+        workspaceCacheTag(event.workspaceId, "market-analysis"),
+      ]);
+    } catch {
+      workerLogger.warn(
+        "worker.market-analysis.cache-notification-unavailable",
+        {
+          operationId: event.operationId,
+          workspaceId: event.workspaceId,
+        },
+      );
     }
   }
 
@@ -502,12 +593,20 @@ export class OutboxRelay {
         event.operationId,
       );
       if (context) {
-        await notifyDraftsChangedNow(this.client, event.workspaceId, {
-          analysisRunId: context.analysisRunId,
-          code,
-          operationId: event.operationId,
-          platformDraftId: context.platformDraftId,
-        });
+        if (context.executionScope.kind === "market_analysis") {
+          await notifyMarketDraftsChangedNow(
+            this.client,
+            event.workspaceId,
+            context.executionScope.marketAnalysisId,
+          );
+        } else {
+          await notifyDraftsChangedNow(this.client, event.workspaceId, {
+            analysisRunId: context.executionScope.analysisRunId,
+            code,
+            operationId: event.operationId,
+            platformDraftId: context.platformDraftId,
+          });
+        }
       }
     } catch {
       workerLogger.warn("worker.drafts.cache-notification-unavailable", {
@@ -563,12 +662,20 @@ export class OutboxRelay {
         context.copyOperationId,
       );
       if (!copy) return;
-      await notifyDraftsChangedNow(this.client, event.workspaceId, {
-        analysisRunId: copy.analysisRunId,
-        code,
-        operationId: event.operationId,
-        platformDraftId: context.platformDraftId,
-      });
+      if (copy.executionScope.kind === "market_analysis") {
+        await notifyMarketDraftsChangedNow(
+          this.client,
+          event.workspaceId,
+          copy.executionScope.marketAnalysisId,
+        );
+      } else {
+        await notifyDraftsChangedNow(this.client, event.workspaceId, {
+          analysisRunId: copy.executionScope.analysisRunId,
+          code,
+          operationId: event.operationId,
+          platformDraftId: context.platformDraftId,
+        });
+      }
     } catch {
       workerLogger.warn("worker.drafts.cache-notification-unavailable", {
         operationId: event.operationId,

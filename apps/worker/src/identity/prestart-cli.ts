@@ -23,6 +23,10 @@ import { resolveModelTask } from "@rz-chain-reporter/model-gateway/task";
 import { assertFirecrawlBinding } from "../articles/firecrawl";
 import { checkDestinationBindings } from "../bindings/check";
 import {
+  MarketProviderBindingError,
+  resolveMarketProviderBindings,
+} from "../market/bindings";
+import {
   assertObjectStoreBound,
   deriveWorkerRuntimeConfig,
   WorkerRuntimeBindingError,
@@ -148,6 +152,8 @@ try {
     );
     assertModelCapabilities(loaded.template, workerEnvironment);
     assertFirecrawlBinding(loaded.template, workerEnvironment);
+    resolveMarketProviderBindings(loaded.template, workerEnvironment);
+    console.log("worker market provider bindings: satisfied");
 
     const report = checkDestinationBindings(
       artifactRoot,
@@ -168,6 +174,7 @@ try {
     error instanceof BuildMetadataError ||
     error instanceof CustomerTemplateError ||
     error instanceof DestinationBindingError ||
+    error instanceof MarketProviderBindingError ||
     error instanceof InstallationIdentityError
   ) {
     console.error(`${command} failed [${error.code}]: ${error.message}`);

@@ -2,9 +2,11 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  closestSupportedAspectRatio,
   creativeImageBriefSchema,
   type InvocationKey,
   imageGenerationRequestedPayloadSchema,
+  imageOptionCapabilityKeySchema,
   MAX_REFERENCE_IMAGE_BYTES,
   MAX_REFERENCE_IMAGE_DIMENSION,
   MAX_REFERENCE_IMAGE_PIXELS,
@@ -471,7 +473,12 @@ async function loadVerifiedReference(
   ) {
     throw new NonRetriableError("REFERENCE_INVALID");
   }
-  return { bytes, mimeType: decoded.mimeType };
+  return {
+    bytes,
+    height: decoded.height,
+    mimeType: decoded.mimeType,
+    width: decoded.width,
+  };
 }
 
 type ImageStage = "creative" | "final" | "provider" | "selection";
@@ -1172,6 +1179,15 @@ export async function executeImageProvider(
   const taskKey = modelTaskKeySchema.parse(
     `${IMAGE_GENERATION_TASK_PREFIX}${initialProviderInput.generation.modelOptionKey}`,
   );
+  if (!existingContext) {
+    return { operationId: input.operationId, status: "failed" } as const;
+  }
+  const aspectRatio = closestSupportedAspectRatio(
+    imageOptionCapabilityKeySchema.parse(
+      initialProviderInput.generation.modelOptionKey,
+    ),
+    loadArtifacts(runtime, existingContext.mediaBrandKey).profile.output,
+  );
   const task = runtime.template.models?.tasks[taskKey];
   const slots: InvocationKey[] = task?.fallback
     ? ["primary", "retry-1", "fallback"]
@@ -1231,7 +1247,9 @@ export async function executeImageProvider(
     if (!providerInput?.brief.providerPrompt) {
       return { operationId: input.operationId, status: "failed" } as const;
     }
-    let reference: { bytes: Uint8Array; mimeType: string } | undefined;
+    let reference:
+      | Awaited<ReturnType<typeof loadVerifiedReference>>
+      | undefined;
     if (providerInput.generation.referenceMediaAssetId) {
       reference = await loadVerifiedReference(storage, providerInput.reference);
     }
@@ -1262,6 +1280,7 @@ export async function executeImageProvider(
 
     try {
       await gateway.invokeImage({
+        aspectRatio,
         compensatePreparedResult: async () => {
           const rejected = await markCompensatedProviderOriginal(
             runtime.db,
@@ -1325,7 +1344,7 @@ export async function executeImageProvider(
             objectKey,
           }),
         prompt: providerInput.brief.providerPrompt,
-        reference,
+        references: reference ? [reference] : undefined,
         rejectUnpreparedResult: () =>
           rejectReservedProviderOriginal(runtime.db, input.workspaceId, {
             attemptId: claimed.attempt.id,

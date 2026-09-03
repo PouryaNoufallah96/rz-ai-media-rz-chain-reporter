@@ -3,9 +3,9 @@ import {
   DestinationBindingError,
   formatDestinationBindingReport,
 } from "@rz-chain-reporter/env/destination-bindings";
-
+import { MarketProviderBindingError } from "../market/bindings";
 import { resolveArtifactRoot } from "../runtime/artifact-root";
-import { checkDestinationBindings } from "./check";
+import { checkDestinationBindings, checkMarketProviderBindings } from "./check";
 
 const artifactRoot = resolveArtifactRoot(import.meta.url);
 
@@ -51,13 +51,17 @@ try {
 
   if (!report.satisfied) {
     process.exitCode = EXIT_UNBOUND;
+  } else {
+    checkMarketProviderBindings(artifactRoot, customerTemplateKey, process.env);
+    console.log("market provider bindings: satisfied");
   }
 } catch (error) {
   process.exitCode = EXIT_FAILURE;
 
   if (
     error instanceof CustomerTemplateError ||
-    error instanceof DestinationBindingError
+    error instanceof DestinationBindingError ||
+    error instanceof MarketProviderBindingError
   ) {
     console.error(`${command} failed [${error.code}]: ${error.message}`);
   } else {

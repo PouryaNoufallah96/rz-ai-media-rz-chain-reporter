@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import { fetchArticle } from "../articles/fetcher";
 import { runArticleFixtures } from "../articles/fixtures";
 import { runSourceFixtures } from "../sources/fixtures";
@@ -31,6 +32,9 @@ try {
     case "extract":
       process.exitCode = (await runArticleFixtures(args[0])) ? 0 : EXIT_FAILURE;
       break;
+    case "redirect-mode":
+      await probeRedirectMode();
+      break;
     default:
       failUsage();
   }
@@ -39,6 +43,100 @@ try {
   console.error(
     `probe failed [${error instanceof Error ? error.message : "UNKNOWN"}]`,
   );
+}
+
+async function probeRedirectMode() {
+  let crossOriginRequests = 0;
+  const destination = createServer((_request, response) => {
+    crossOriginRequests += 1;
+    response.writeHead(200, { "content-type": "text/plain" });
+    response.end("unexpected");
+  });
+  await new Promise<void>((resolve) =>
+    destination.listen(0, "127.0.0.1", resolve),
+  );
+  const destinationAddress = destination.address();
+  if (!destinationAddress || typeof destinationAddress === "string") {
+    throw new Error("REDIRECT_PROBE_DESTINATION_UNAVAILABLE");
+  }
+  let sameOriginCredential = false;
+  const source = createServer((request, response) => {
+    if (request.url === "/same-target") {
+      sameOriginCredential = request.headers.authorization === "Bearer probe";
+      response.writeHead(200, { "content-type": "text/plain" });
+      response.end("ok");
+      return;
+    }
+    response.writeHead(302, {
+      location:
+        request.url === "/same"
+          ? "/same-target"
+          : `http://127.0.0.1:${destinationAddress.port}/target`,
+    });
+    response.end();
+  });
+  await new Promise<void>((resolve) => source.listen(0, "127.0.0.1", resolve));
+  const sourceAddress = source.address();
+  if (!sourceAddress || typeof sourceAddress === "string") {
+    throw new Error("REDIRECT_PROBE_SOURCE_UNAVAILABLE");
+  }
+  const sourceOrigin = `http://127.0.0.1:${sourceAddress.port}`;
+  const destinationOrigin = `http://127.0.0.1:${destinationAddress.port}`;
+  const request = {
+    credentialedRedirects: "same-origin" as const,
+    headers: { authorization: "Bearer probe" },
+    maxDecodedBytes: 64,
+    mimeAllowlist: ["text/plain"],
+    timeoutMs: 2_000,
+  };
+  try {
+    const sameOrigin = await probeFetchWithExemptions(
+      { ...request, url: `${sourceOrigin}/same` },
+      [sourceOrigin, destinationOrigin],
+    );
+    if (!sameOriginCredential || sameOrigin.text !== "ok") {
+      throw new Error("REDIRECT_PROBE_SAME_ORIGIN_FAILED");
+    }
+    let crossOriginBlocked = false;
+    try {
+      await probeFetchWithExemptions(
+        { ...request, url: `${sourceOrigin}/cross` },
+        [sourceOrigin, destinationOrigin],
+      );
+    } catch (error) {
+      crossOriginBlocked =
+        error instanceof SafeHttpError && error.reason === "redirect_blocked";
+    }
+    let rejectModeBlocked = false;
+    try {
+      await probeFetchWithExemptions(
+        {
+          ...request,
+          credentialedRedirects: "reject",
+          url: `${sourceOrigin}/same`,
+        },
+        [sourceOrigin],
+      );
+    } catch (error) {
+      rejectModeBlocked =
+        error instanceof SafeHttpError && error.reason === "redirect_blocked";
+    }
+    if (
+      !crossOriginBlocked ||
+      !rejectModeBlocked ||
+      crossOriginRequests !== 0
+    ) {
+      throw new Error("REDIRECT_PROBE_POLICY_FAILED");
+    }
+    console.log(
+      "redirect-mode same-origin-forwarded=true cross-origin-blocked=true reject-mode-blocked=true credential-cross-origin-requests=0 status=pass",
+    );
+  } finally {
+    await Promise.all([
+      new Promise<void>((resolve) => source.close(() => resolve())),
+      new Promise<void>((resolve) => destination.close(() => resolve())),
+    ]);
+  }
 }
 
 async function probeFirecrawl(args: string[]) {
@@ -130,6 +228,6 @@ async function probeSsrf(args: string[]) {
 
 function failUsage(): never {
   throw new Error(
-    "USAGE: ssrf <url> [--allow <origin>]... | firecrawl <url> [mode] | parse-feed [fixture] | extract [fixture]",
+    "USAGE: ssrf <url> [--allow <origin>]... | redirect-mode | firecrawl <url> [mode] | parse-feed [fixture] | extract [fixture]",
   );
 }

@@ -1,6 +1,6 @@
 {
   "template": {
-    "schemaVersion": 8,
+    "schemaVersion": 11,
     "customer": {
       "key": "crypto",
       "productName": "RZ ChainReporter",
@@ -2206,7 +2206,10 @@
         "brandKey": "meta-coin-guard",
         "destinationKey": "chainreporter-x"
       }
-    ]
+    ],
+    "marketAnalysis": {
+      "enabled": false
+    }
   },
   "runStartedAt": "2026-08-20T12:00:00.000Z",
   "topics": ["bitcoin etf", "stablecoin"],

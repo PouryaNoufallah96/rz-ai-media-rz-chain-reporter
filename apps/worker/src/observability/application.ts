@@ -189,6 +189,7 @@ export async function runWorkerApplication(client: WorkerInngestClient) {
       installation.workspaceId,
       client,
       `worker:${connection.connectionId}`,
+      template.marketAnalysis.enabled,
     );
     state.relay = relay;
     relay.start();

@@ -8,8 +8,10 @@ import {
   COPY_CONFIGURATION_VERSION,
   COPY_GENERATION_COMMAND_PREFIX,
   COPY_PROMPT_VERSION,
+  type ContentLocale,
   type EnrichmentReason,
   type Platform,
+  platformCopyLength,
 } from "@rz-chain-reporter/contracts";
 import { computeBrandPolicyFingerprint } from "@rz-chain-reporter/customer-template/fingerprint";
 import {
@@ -665,7 +667,7 @@ class CopySourceFixture {
 
   async createExecutionGeneration(
     platform: Platform,
-    requestedContentLocale: "en" | "fa" = "en",
+    requestedContentLocale: ContentLocale = "en",
   ) {
     const policy = opened.template.editorial.drafting.copy.platforms.find(
       (entry) => entry.platform === platform,
@@ -703,7 +705,7 @@ class CopySourceFixture {
 
   async startBaseGeneration(
     platformDraftId: string,
-    requestedContentLocale: "en" | "fa",
+    requestedContentLocale: ContentLocale,
     mode: "refresh_article" | "regenerate",
   ) {
     const brand = opened.template.mediaBrands.find(
@@ -842,7 +844,7 @@ class CopySourceFixture {
 
   async retryFailedGeneration(
     operationId: string,
-    requestedContentLocale: "en" | "fa",
+    requestedContentLocale: ContentLocale,
   ) {
     const [generation] = await opened.database.db
       .select({ platformDraftId: copyGeneration.platformDraftId })
@@ -1211,7 +1213,7 @@ class CopySourceFixture {
     execution?: {
       modelOptionKey: string;
       platform: Platform;
-      requestedContentLocale: "en" | "fa";
+      requestedContentLocale: ContentLocale;
       variantKeys: readonly string[];
     },
   ) {
@@ -1593,12 +1595,24 @@ function proveCopyNormalization(
   assert.deepEqual(belowMin.failures, ["HASHTAGS_BELOW_MIN"]);
   assert.deepEqual(belowMin.hashtags, [canonical]);
 
+  const floorHashtags = [canonical, "#markets"];
+  const floorHeadlineLength =
+    Math.min(policy.assembledCharacters.max, X_HARD_MAXIMUM) -
+    platformCopyLength(
+      "x",
+      assembleCopy("x", {
+        body: "flows…",
+        hashtags: floorHashtags,
+        headline: "",
+      }),
+    );
+  assert.ok(floorHeadlineLength > 0);
   const floor = normalizeCopyCandidate(
     "x",
     {
       body: Array.from({ length: 80 }, () => "flows").join(" "),
       hashtags: ["#markets", "#flows"],
-      headline: "H".repeat(232),
+      headline: "H".repeat(floorHeadlineLength),
     },
     input,
   );
@@ -1772,11 +1786,7 @@ function proveBrandGuidanceOwners() {
   const declared = opened.template.mediaBrands.find(
     (brand) => brand.brandBible !== undefined,
   );
-  const absent = opened.template.mediaBrands.find(
-    (brand) => brand.brandBible === undefined,
-  );
   assert.ok(declared);
-  assert.ok(absent);
 
   const reviewed = loadCopyBrandGuidance(runtime, declared.key);
   assert.equal(reviewed.kind, "brand_bible");
@@ -1784,17 +1794,29 @@ function proveBrandGuidanceOwners() {
   assert.ok(reviewed.content.length > 0);
   assert.ok(Array.from(reviewed.content).length <= 8_000);
 
-  const fallback = loadCopyBrandGuidance(runtime, absent.key);
+  const fallbackBrand = { ...declared, brandBible: undefined };
+  const fallback = loadCopyBrandGuidance(
+    {
+      identity: runtime.identity,
+      template: {
+        ...runtime.template,
+        mediaBrands: runtime.template.mediaBrands.map((brand) =>
+          brand.key === fallbackBrand.key ? fallbackBrand : brand,
+        ),
+      },
+    },
+    fallbackBrand.key,
+  );
   assert.deepEqual(fallback, {
-    brandName: absent.name,
-    focus: absent.editorial.semanticAnchors
+    brandName: fallbackBrand.name,
+    focus: fallbackBrand.editorial.semanticAnchors
       .slice(0, 8)
       .join(", ")
       .slice(0, 400),
     kind: "template_fallback",
   });
   console.log(
-    "copy-generation execution brand-guidance reviewed-root=true bounded=true absent-bible=template-only status=pass",
+    "copy-generation execution brand-guidance reviewed-root=true bounded=true explicit-absent-bible=template-only status=pass",
   );
 }
 

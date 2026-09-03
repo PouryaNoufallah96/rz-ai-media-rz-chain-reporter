@@ -4,6 +4,8 @@ import {
   type DestinationBindingReport,
   resolveDestinationBindings,
 } from "@rz-chain-reporter/env/destination-bindings";
+import { validateWorkerEnv } from "@rz-chain-reporter/env/worker";
+import { resolveMarketProviderBindings } from "../market/bindings";
 
 // Database-free: run before template:reconcile so a missing credential fails first.
 export function checkDestinationBindings(
@@ -24,4 +26,13 @@ export function checkDestinationBindings(
     ),
     runtimeEnv,
   );
+}
+
+export function checkMarketProviderBindings(
+  rootDir: string,
+  customerTemplateKey: string,
+  runtimeEnv: Record<string, string | undefined>,
+) {
+  const { template } = loadCustomerTemplate(rootDir, customerTemplateKey);
+  return resolveMarketProviderBindings(template, validateWorkerEnv(runtimeEnv));
 }
