@@ -39,6 +39,7 @@
     "@rz-chain-reporter/db": "workspace:*",
     "@rz-chain-reporter/env": "workspace:*",
     "@rz-chain-reporter/i18n": "workspace:*",
+    "@rz-chain-reporter/market-chart": "workspace:*",
     "@rz-chain-reporter/model-gateway": "workspace:*",
     "@rz-chain-reporter/storage": "workspace:*",
     "@rz-chain-reporter/ui": "workspace:*",
@@ -74,6 +75,7 @@
     "@types/react-dom": "catalog:",
     "@types/three": "0.185.4",
     "babel-plugin-react-compiler": "1.0.0",
+    "esbuild": "0.28.2",
     "tailwindcss": "catalog:",
     "tsx": "4.23.12",
     "typescript": "catalog:"

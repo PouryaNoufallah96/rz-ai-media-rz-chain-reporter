@@ -16,6 +16,20 @@ import {
   updateDraftRevision,
 } from "./editorial";
 import { overview } from "./installation";
+import {
+  approveChart as approveMarketChart,
+  approveDesign as approveMarketDesign,
+  approveFinal as approveMarketFinal,
+  approveStory as approveMarketStory,
+  create as createMarketAnalysis,
+  finish as finishMarketAnalysis,
+  preparePlatform as prepareMarketPlatform,
+  retryChart as retryMarketChart,
+  saveChartDefault as saveMarketChartDefault,
+  searchComparisons as searchMarketComparisons,
+  updateMarketRequest,
+  verify as verifyMarketAnalysis,
+} from "./market-analysis";
 import { confirm, createIntent } from "./media";
 import { list } from "./operations";
 import {
@@ -53,6 +67,20 @@ export const appRouter = {
   },
   installation: { overview },
   media: { confirm, createIntent },
+  marketAnalysis: {
+    approveChart: approveMarketChart,
+    approveDesign: approveMarketDesign,
+    approveFinal: approveMarketFinal,
+    approveStory: approveMarketStory,
+    create: createMarketAnalysis,
+    finish: finishMarketAnalysis,
+    preparePlatform: prepareMarketPlatform,
+    retryChart: retryMarketChart,
+    saveChartDefault: saveMarketChartDefault,
+    searchComparisons: searchMarketComparisons,
+    updateMarketRequest,
+    verify: verifyMarketAnalysis,
+  },
   operations: { list },
   publishing: {
     approve,

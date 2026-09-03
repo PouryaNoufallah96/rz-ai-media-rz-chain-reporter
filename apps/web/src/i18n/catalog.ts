@@ -13,6 +13,8 @@ import installationEn from "@/features/installation/messages/en.json";
 import installationFa from "@/features/installation/messages/fa.json";
 import landingEn from "@/features/landing/messages/en.json";
 import landingFa from "@/features/landing/messages/fa.json";
+import marketAnalysisEn from "@/features/market-analysis/messages/en.json";
+import marketAnalysisFa from "@/features/market-analysis/messages/fa.json";
 import operationsEn from "@/features/operations/messages/en.json";
 import operationsFa from "@/features/operations/messages/fa.json";
 import publishingEn from "@/features/publishing/messages/en.json";
@@ -33,6 +35,7 @@ const CATALOGS = {
     ...editorialEn,
     ...installationEn,
     ...landingEn,
+    ...marketAnalysisEn,
     ...operationsEn,
     ...publishingEn,
     ...sourcesEn,
@@ -46,6 +49,7 @@ const CATALOGS = {
     ...editorialFa,
     ...installationFa,
     ...landingFa,
+    ...marketAnalysisFa,
     ...operationsFa,
     ...publishingFa,
     ...sourcesFa,

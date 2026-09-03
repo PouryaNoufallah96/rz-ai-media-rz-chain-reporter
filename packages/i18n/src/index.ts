@@ -6,6 +6,10 @@ export type Direction = "ltr" | "rtl";
 
 export type Script = "latn" | "arab";
 
+export type Calendar = "gregory" | "persian";
+
+export type FontFamily = "Geist" | "Vazirmatn";
+
 export const DEFAULT_LOCALE: Locale = "en";
 
 export const DIRECTION: Record<Locale, Direction> = {
@@ -16,6 +20,21 @@ export const DIRECTION: Record<Locale, Direction> = {
 export const SCRIPT: Record<Locale, Script> = {
   en: "latn",
   fa: "arab",
+};
+
+export const CALENDAR: Record<Locale, Calendar> = {
+  en: "gregory",
+  fa: "persian",
+};
+
+export const INTL_LOCALE: Record<Locale, string> = {
+  en: "en-US-u-ca-gregory-nu-latn",
+  fa: "fa-IR-u-ca-gregory-nu-arabext",
+};
+
+export const FONT_FAMILY: Record<Locale, FontFamily> = {
+  en: "Geist",
+  fa: "Vazirmatn",
 };
 
 export const UI_FONT: Record<Locale, string> = {

@@ -1,0 +1,107 @@
+import { notFound } from "next/navigation";
+
+import { Suspended } from "@/components/fetcher/suspended";
+import { getPlatformDraft } from "@/features/editorial/api/server/get-platform-draft";
+import { EDITORIAL_NAMESPACE } from "@/features/editorial/constants";
+import { PUBLISHING_NAMESPACE } from "@/features/publishing/constants";
+import { Localized } from "@/i18n/client";
+import {
+  customerEditorial,
+  enabledImageModels,
+} from "@/lib/customer-template.server";
+
+import { getMarketAnalysis } from "../api/server/get-analysis";
+import { getMarketAnalysisCatalog } from "../api/server/get-catalog";
+import { getMarketAnalysisOptions } from "../api/server/get-options";
+import { getMarketAnalysisReport } from "../api/server/get-report";
+import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
+import {
+  loadAnalysisReportSearchParams,
+  type MarketAnalysisSearchParams,
+  normalizeAnalysisReportQuery,
+} from "../schemas/search";
+import { AnalysisWorkspace } from "./analysis-workspace";
+import { AnalysisFrameSkeleton } from "./analysis-workspace-frame";
+import { MarketAnalysisReport } from "./market-analysis-report";
+
+const NAMESPACES = [
+  MARKET_ANALYSIS_NAMESPACE,
+  EDITORIAL_NAMESPACE,
+  PUBLISHING_NAMESPACE,
+] as const;
+
+export function AnalysisScreen({
+  analysisId,
+  searchParams,
+}: {
+  analysisId: Promise<string>;
+  searchParams: MarketAnalysisSearchParams;
+}) {
+  return (
+    <div className="mx-auto flex min-h-full w-full max-w-[100rem] flex-col px-4 py-5 sm:px-6 sm:py-6">
+      <Localized namespaces={[MARKET_ANALYSIS_NAMESPACE]}>
+        <Suspended
+          data={() => readAnalysisView(analysisId, searchParams)}
+          fallback={<AnalysisFrameSkeleton />}
+        >
+          {(view) => (
+            <Localized namespaces={NAMESPACES}>
+              {view.report ? (
+                <MarketAnalysisReport {...view.report} />
+              ) : (
+                <AnalysisWorkspace
+                  analysis={view.workspace.analysis}
+                  catalog={view.workspace.catalog}
+                  options={view.workspace.options}
+                />
+              )}
+            </Localized>
+          )}
+        </Suspended>
+      </Localized>
+    </div>
+  );
+}
+
+async function readAnalysisView(
+  analysisId: Promise<string>,
+  searchParams: MarketAnalysisSearchParams,
+) {
+  const id = await analysisId;
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      id,
+    )
+  ) {
+    notFound();
+  }
+  const [report, analysis, catalog, options] = await Promise.all([
+    getMarketAnalysisReport(id),
+    getMarketAnalysis(id),
+    getMarketAnalysisCatalog(),
+    getMarketAnalysisOptions(),
+  ]);
+  if (report) {
+    const query = normalizeAnalysisReportQuery(
+      await loadAnalysisReportSearchParams(searchParams),
+    );
+    return {
+      report: {
+        ...report,
+        analysisId: id,
+        selectedDraft: query.draft ? await getPlatformDraft(query.draft) : null,
+        query,
+        models: customerEditorial.models,
+        imageModels: enabledImageModels,
+        copyModels: options.copyModels,
+        defaultCopyModelOptionKey: options.defaultCopyModelOptionKey,
+        platforms: customerEditorial.drafting.copy.platforms.map(
+          ({ platform }) => platform,
+        ),
+      },
+      workspace: null,
+    };
+  }
+  if (!analysis || analysis.status === "completed") notFound();
+  return { report: null, workspace: { analysis, catalog, options } };
+}
