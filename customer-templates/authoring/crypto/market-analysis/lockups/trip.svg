@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200" role="img" aria-labelledby="title desc">
+  <title id="title">TRIP TOKEN footer lockup</title>
+  <desc id="desc">The official white TRIP emblem beside a stacked TRIP TOKEN wordmark.</desc>
+  <defs>
+    <mask id="trip-cutout">
+      <rect width="360" height="200" fill="#000"/>
+      <path fill="#fff" d="M76 25 137 60v80l-61 35-61-35V60Z"/>
+      <path fill="#000" d="M76 27 17 139l59-34 59 34Z"/>
+    </mask>
+  </defs>
+  <rect width="150" height="200" fill="#fff" mask="url(#trip-cutout)"/>
+  <g fill="#fff" font-family="Arial Narrow, Roboto Condensed, Arial, sans-serif" font-size="55" font-weight="800" letter-spacing="-1.5">
+    <text x="159" y="91">TRIP</text>
+    <text x="159" y="146">TOKEN</text>
+  </g>
+</svg>

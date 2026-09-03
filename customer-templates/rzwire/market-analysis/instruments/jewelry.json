@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "theme": {
+    "background": "#f8f5ff",
+    "backgroundAlt": "#d8cbff",
+    "surface": "#ffffff",
+    "surfaceAlt": "#eee8ff",
+    "text": "#201348",
+    "muted": "#706a82",
+    "positive": "#2ba780",
+    "negative": "#cf5b78",
+    "accent": "#8f72ed",
+    "accentAlt": "#d68add",
+    "border": "#c9bdf0"
+  },
+  "motifs": [
+    "crystal refraction",
+    "platinum ring",
+    "lavender glass",
+    "soft pearl light"
+  ],
+  "scenes": [
+    "A luminous landscape of monumental faceted lavender crystal catching a soft pearl sunrise, with platinum reflections, elegant depth, and clean luxury-editorial negative space.",
+    "A sculptural platinum orbital ring surrounding a deep violet gemstone form, soft diffused gallery light, refined shadows, and a calm pearl-white field for typography.",
+    "An abstract luxury pavilion built from translucent lavender glass and polished platinum planes, subtle crystal refraction, airy cinematic scale, no literal coin, no text, and no chart-like graphics."
+  ],
+  "artDirection": "Luminous pearl-white and lavender Jewelry market editorial with monumental crystal scenery, violet refraction, platinum details, cinematic elegance, and luxury-tech clarity.",
+  "defaultChartColor": "#8f82e8",
+  "frozenStyle": {
+    "format": "market editorial poster with a protected factual chart and centered footer rail",
+    "palette": "pearl white, lavender, deep violet, platinum, and restrained emerald or rose outcome accents",
+    "materials": "faceted crystal, translucent lavender glass, polished platinum, and soft gallery surfaces",
+    "rendering": "airy luxury-tech editorial with elegant refraction, refined shadows, and precise factual hierarchy",
+    "backgroundVocab": "crystal landscapes, platinum orbital forms, gallery pavilions, and calm pearl-white fields",
+    "headlineZone": "preserve a clean high-contrast upper field for the approved Story",
+    "never": "never invent chart facts, tickers, logos, domains, slogans, gemstones as coins, or sample text; never disturb the protected chart or footer rail"
+  }
+}

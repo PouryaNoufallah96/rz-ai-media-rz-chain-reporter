@@ -1,0 +1,413 @@
+{
+  "families": {
+    "duotone": {
+      "name": "DUOTONE EDITORIAL",
+      "skeleton": "A black-and-white photographic or photo-real subject -- an object, building, or scene, never a generated face -- fills the frame, with ONE accent-color geometric treatment overlaid as a color-split background, duotone wash, or large sweeping rings or diagonal panels that interact with the subject.",
+      "textPolicy": "Headline only, art_only layout.",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "full_bleed_photo",
+        "energy": "newsroom_neutral",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "set in a clean overlay bar across the lower third, or a left-aligned editorial block"
+    },
+    "big_number": {
+      "name": "BIG NUMBER POSTER",
+      "skeleton": "A dark or single-color field holds ONE giant figure rendered in the accent color, dominating at least 30% of the frame height, with a short supporting line beneath it; abstract geometric or logo-derived shapes decorate the corners, and optionally one floating 3D token or object anchors a corner.",
+      "textPolicy": "One giant value (1-7 characters) plus one short supporting line (<=6 words). The value dominates the frame.",
+      "defaultAxes": {
+        "stage": "studio_dark",
+        "composition": "centered_hero",
+        "energy": "celebratory",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "the giant numeral dominates the frame; the headline is set small above or below it"
+    },
+    "hero_object": {
+      "name": "HERO OBJECT 3D",
+      "skeleton": "One premium 3D object -- a coin medallion, glass device, vault, rocket, or sculptural logo -- sits on a clean stage, rendered in glossy glass or metal materials with controlled studio reflections.",
+      "textPolicy": "Headline plus at most one short label or value near the object.",
+      "defaultAxes": {
+        "stage": "gradient_sweep",
+        "composition": "centered_hero",
+        "energy": "celebratory",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "set in a clean zone above or beside the object, modest scale"
+    },
+    "concept_photo": {
+      "name": "CONCEPT PHOTO / CAMPAIGN",
+      "skeleton": "A single striking photo-real scene -- a landmark, sky, or symbolic object in the world, never an identifiable generated face -- fills the frame with generous negative space, evoking political-ad or brand-campaign energy.",
+      "textPolicy": "Headline only, short and declarative (5 words or fewer ideal).",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "full_bleed_photo",
+        "energy": "newsroom_neutral",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "set small in the negative space as a minimal declarative tagline",
+      "headlineUppercase": false
+    },
+    "flat_explainer": {
+      "name": "FLAT EXPLAINER",
+      "skeleton": "A flat-vector or isometric illustration in a limited 2-3 color palette renders one diagrammatic concept -- stacked layers, connected nodes, or a simple machine -- with clean shapes and a friendly but precise tone.",
+      "textPolicy": "Headline plus at most 2 short labels (1-3 words each) inside the illustration; diagram content is otherwise abstract.",
+      "defaultAxes": {
+        "stage": "flat_field",
+        "composition": "isometric",
+        "energy": "newsroom_neutral",
+        "accent": "story_color"
+      },
+      "dataBudget": 2,
+      "headlineTreatment": "set in a clean horizontal band above the illustration"
+    },
+    "type_led": {
+      "name": "TYPE-LED MINIMAL",
+      "skeleton": "Typography is the design. Pick one sub-variant and describe it explicitly in the subject: brutalist dark (huge white sans on black plus one 3D chrome detail), gallery-light (a chrome or silver object on off-white with small type), editorial serif (elegant serif over a single macro-photo texture), or retro-mono (line art with spaced capitals).",
+      "textPolicy": "Headline (may render very large) plus at most one sub-element (a kicker word or small badge).",
+      "defaultAxes": {
+        "stage": "studio_dark",
+        "composition": "left_type_block",
+        "energy": "newsroom_neutral",
+        "accent": "free"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "may render very large, filling much of the frame"
+    },
+    "art_drop": {
+      "name": "ART DROP",
+      "skeleton": "Standalone artwork in a deliberately rotating style -- painterly illustration, dramatic black-and-white portrait-of-an-object, chalk or craft texture, cosmic gradient, woodcut, or similar -- with one crypto motif (a coin, chain link, or Bitcoin glyph) embedded naturally in the art.",
+      "textPolicy": "Zero in-image text. The headline and price live in the social copy, not the image.",
+      "defaultAxes": {
+        "stage": "texture_macro",
+        "composition": "full_bleed_photo",
+        "energy": "playful",
+        "accent": "free"
+      },
+      "dataBudget": 0
+    },
+    "meme": {
+      "name": "MEME / PLAYFUL",
+      "skeleton": "Whatever the joke needs -- a photoreal parody product shot, an absurdist photo composite, or candy-colored cartoon imagery -- staying at a premium craft bar while landing the visual joke in a single beat. Never use real brand marks or logos.",
+      "textPolicy": "At most one short text element if the joke requires it.",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "centered_hero",
+        "energy": "playful",
+        "accent": "free"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "a single short caption-style element, if used at all"
+    },
+    "stat_card": {
+      "name": "STAT CARD",
+      "skeleton": "A clean card-grid layout holds a title block plus 2-4 rounded stat tiles, each carrying one icon, one value and one micro-label, anchored by one hero visual element (a 3D object or illustration) in a corner.",
+      "textPolicy": "Headline plus at most 4 tiles, each a value plus a 1-2 word label. This is the text-heaviest mode -- a hard ceiling.",
+      "defaultAxes": {
+        "stage": "studio_light",
+        "composition": "card_grid",
+        "energy": "newsroom_neutral",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 4,
+      "headlineTreatment": "a bold title block spans the top of the grid"
+    },
+    "lockup": {
+      "name": "PARTNERSHIP LOCKUP",
+      "skeleton": "Two emblem medallions or badges, each carrying an abstract glyph standing in for a real logo, are joined by a connector device -- a bridge, an X-shaped crossing, or a light spark -- on a clean stage; alternatively, one cinematic backdrop carries both entity names typeset in an acquisition-style layout.",
+      "textPolicy": "Headline plus the two entity names as short labels (<=8 characters each) -- the one place proper nouns appear in-image.",
+      "defaultAxes": {
+        "stage": "gradient_sweep",
+        "composition": "centered_hero",
+        "energy": "celebratory",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 2,
+      "headlineTreatment": "set above the medallions, with the entity names as two short labels beneath or beside them",
+      "dataValueMaxLength": 8
+    },
+    "factory_campaign": {
+      "name": "SMART FACTORY CAMPAIGN",
+      "skeleton": "A credible advanced factory fills roughly 60 percent of the frame while a deep-indigo architectural copy field occupies the remaining side. One precise gold robotic cell is the focal point; conveyor, safety barriers, and workers remain secondary and physically plausible.",
+      "textPolicy": "One concise headline and optionally one short factual support line.",
+      "defaultAxes": {
+        "stage": "industrial_photo",
+        "composition": "split_editorial",
+        "energy": "precise_confidence",
+        "accent": "violet_gold"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "large white uppercase type on the indigo architectural field"
+    },
+    "digital_twin_lab": {
+      "name": "DIGITAL TWIN LAB",
+      "skeleton": "One real machine, production cell, or factory model is paired with its exact translucent digital twin in a premium engineering lab. The two versions align through one disciplined vertical or diagonal divide; use only sparse technical geometry and no fake dashboard.",
+      "textPolicy": "Headline only; all technical overlays remain abstract and unreadable.",
+      "defaultAxes": {
+        "stage": "violet_lab",
+        "composition": "twin_divide",
+        "energy": "technical_clarity",
+        "accent": "cyan_gold"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "compact uppercase title in a quiet upper or side field"
+    },
+    "traceability_route": {
+      "name": "TRACEABILITY ROUTE",
+      "skeleton": "A wide industrial journey connects port, warehouse, rail, and factory through one elegant continuous gold verification path. The route is visually readable from origin to destination without map labels, UI panels, or decorative blockchain nodes.",
+      "textPolicy": "One headline plus at most three source-supported stage words.",
+      "defaultAxes": {
+        "stage": "logistics_world",
+        "composition": "panoramic_path",
+        "energy": "forward_motion",
+        "accent": "violet_gold"
+      },
+      "dataBudget": 3,
+      "headlineTreatment": "strong title in the quiet sky or upper indigo band"
+    },
+    "challenge_arena": {
+      "name": "INDUSTRIAL CHALLENGE ARENA",
+      "skeleton": "A premium industrial challenge floor uses several clearly separated workstations around one central task. Generic adult engineers collaborate naturally beneath a restrained global light canopy; the scene communicates participation and skill, never spectacle or unsafe work.",
+      "textPolicy": "One energetic headline only.",
+      "defaultAxes": {
+        "stage": "industrial_forum",
+        "composition": "arena_depth",
+        "energy": "collaborative_momentum",
+        "accent": "violet_gold"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "bold white title anchored in clean upper-left darkness"
+    },
+    "sustainable_campus": {
+      "name": "SUSTAINABLE INDUSTRY CAMPUS",
+      "skeleton": "A realistic clean manufacturing campus combines one factory, solar roofs, wind generation, efficient logistics, and planted land at violet-blue hour. Warm gold operational light guides the eye; environmental performance is not quantified unless supplied by the source.",
+      "textPolicy": "One calm sustainability headline; one verified value only if supplied.",
+      "defaultAxes": {
+        "stage": "blue_hour_campus",
+        "composition": "campus_horizon",
+        "energy": "measured_optimism",
+        "accent": "green_gold"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "large restrained title in the sky with generous breathing room"
+    },
+    "predictive_machine": {
+      "name": "PREDICTIVE MACHINE PORTRAIT",
+      "skeleton": "One turbine, robotic arm, motor, or precision production cell is photographed like a premium industrial product portrait. A restrained predictive waveform or maintenance geometry follows the real contours of the machine; no readings, warnings, or performance claims are invented.",
+      "textPolicy": "One headline plus at most one source-verified value.",
+      "defaultAxes": {
+        "stage": "graphite_studio",
+        "composition": "machine_portrait",
+        "energy": "technical_clarity",
+        "accent": "amber_violet"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "compact uppercase title beside the machine, never over its key geometry"
+    },
+    "simulation_classroom": {
+      "name": "INDUSTRIAL SIMULATION CLASSROOM",
+      "skeleton": "A bright premium training environment centers an adult learner or small group around one tabletop factory simulation. Physical modules, process paths, and machine relationships are easy to understand; the image feels educational, tactile, and credible rather than futuristic theater.",
+      "textPolicy": "One learning headline plus at most three short step words.",
+      "defaultAxes": {
+        "stage": "training_studio",
+        "composition": "table_focus",
+        "energy": "accessible_learning",
+        "accent": "violet_gold"
+      },
+      "dataBudget": 3,
+      "headlineTreatment": "dark-indigo title in a broad clean wall or upper band"
+    },
+    "verified_service_network": {
+      "name": "VERIFIED SERVICE NETWORK",
+      "skeleton": "Three or four credible industrial facilities or service nodes sit in one coherent landscape and are joined by discreet verified light paths. A single line-built security form protects the network without becoming a giant shield, lock, dashboard, or fake certification mark.",
+      "textPolicy": "One headline; at most three short service labels if present in the source.",
+      "defaultAxes": {
+        "stage": "infrastructure_field",
+        "composition": "network_span",
+        "energy": "institutional_trust",
+        "accent": "cyan_gold"
+      },
+      "dataBudget": 3,
+      "headlineTreatment": "large white title on an uninterrupted deep-indigo edge field"
+    },
+    "ranking_forum": {
+      "name": "GLOBAL INDUSTRIAL RANKING FORUM",
+      "skeleton": "A global industrial gathering is organized as ascending collaborative stations rather than a sports podium. Diverse generic adults work at believable engineering challenges beneath one networked canopy; rank and progress are expressed through spatial height and light only.",
+      "textPolicy": "One competition or participation headline; no invented ranks or scores.",
+      "defaultAxes": {
+        "stage": "industrial_forum",
+        "composition": "ascending_forum",
+        "energy": "collaborative_momentum",
+        "accent": "violet_gold"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "bold uppercase title in the quiet upper third"
+    },
+    "real_economy_landscape": {
+      "name": "REAL-ECONOMY LANDSCAPE",
+      "skeleton": "Construction, logistics, clean energy, and manufacturing appear as one credible connected regional landscape. A restrained gold route unifies the sectors while each remains physically distinct; the composition reads as real economic infrastructure, not a generic smart-city collage.",
+      "textPolicy": "One broad ecosystem headline only.",
+      "defaultAxes": {
+        "stage": "blue_hour_campus",
+        "composition": "sector_quadrants",
+        "energy": "measured_optimism",
+        "accent": "violet_gold"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "large white title in a clean sky or indigo foreground panel"
+    }
+  },
+  "axes": {
+    "stage": {
+      "studio_dark": "The setting is a dark or single-color studio field, evenly lit and uncluttered.",
+      "studio_light": "The setting is a bright, clean studio field in soft off-white or pale neutral tones.",
+      "gradient_sweep": "The setting is a smooth soft-gradient sweep, like a seamless studio backdrop curving from floor to wall.",
+      "photo_real": "The setting is a photo-real environment -- a real-world object, building, or scene rendered with documentary realism.",
+      "flat_field": "The setting is a flat, evenly-lit field of color suited to vector or isometric illustration.",
+      "texture_macro": "The setting is an extreme close-up texture world -- paper, paint, woodgrain, or other tactile material filling the frame.",
+      "industrial_photo": "A credible working industrial environment uses deep-indigo atmosphere, realistic safety architecture, and controlled gold operational light.",
+      "violet_lab": "A premium engineering lab uses clean violet depth, tempered glass, and exact physical-to-digital alignment.",
+      "logistics_world": "A believable port, rail, warehouse, and factory environment is composed as one continuous industrial journey.",
+      "industrial_forum": "A large but orderly industrial convention or challenge hall uses distinct stations, safe circulation, and one restrained network canopy.",
+      "blue_hour_campus": "A wide industrial or infrastructure campus sits at violet-blue hour with warm operational light and realistic landscape detail.",
+      "graphite_studio": "One machine is isolated on brushed graphite like a premium engineering product portrait with no decorative UI.",
+      "training_studio": "A bright, credible adult training room centers a tactile industrial model with broad clean walls for editorial copy.",
+      "infrastructure_field": "Several real industrial facilities share one coherent deep-indigo geographic or architectural field."
+    },
+    "composition": {
+      "centered_hero": "The composition centers a single hero subject in the frame, symmetrical and commanding.",
+      "left_type_block": "The composition reserves the left portion of the frame for a stacked block of typography, with supporting imagery on the right.",
+      "full_bleed_photo": "The composition is a full-bleed photographic frame, the subject filling the entire image with no visible borders.",
+      "split_panel": "The composition divides the frame into two panels -- left/right or top/bottom -- contrasting two halves of the story.",
+      "isometric": "The composition is a three-quarter isometric view, giving an ordered, diagrammatic perspective.",
+      "card_grid": "The composition arranges the frame as a grid of cards or tiles around a title block.",
+      "split_editorial": "Reserve 35-42 percent for a deep-indigo copy field and let one credible industrial scene occupy the remaining frame.",
+      "twin_divide": "Align one physical system and its exact digital counterpart across a crisp vertical or diagonal division.",
+      "panoramic_path": "Lead the eye through a wide origin-to-destination route with one continuous path and clear spatial stages.",
+      "arena_depth": "Use a strong central challenge station with secondary collaboration bays receding symmetrically into depth.",
+      "campus_horizon": "Place infrastructure across a low architectural horizon and preserve a broad quiet sky for the headline.",
+      "machine_portrait": "Give one machine 55-70 percent of the frame and reserve one clean side field for concise copy.",
+      "table_focus": "Build the composition around one tactile tabletop simulation seen at a natural three-quarter angle.",
+      "network_span": "Distribute three or four facilities across the frame and join them with one restrained continuous network.",
+      "ascending_forum": "Arrange collaboration stations in a legible ascending rhythm without a literal sports podium.",
+      "sector_quadrants": "Integrate four real-economy sectors into one landscape using architecture and routes, not separate collage boxes."
+    },
+    "energy": {
+      "newsroom_neutral": "The lighting and mood are calm, controlled and editorial -- a neutral newsroom register.",
+      "celebratory": "The lighting is bright and triumphant, with a sense of milestone and momentum.",
+      "tension": "The lighting is high-contrast and charged, with fractured or unstable elements conveying tension.",
+      "playful": "The lighting and mood are light, warm and playful.",
+      "precise_confidence": "The mood is authoritative and exact, with controlled machinery, strong scale, and no theatrical excess.",
+      "technical_clarity": "The mood is analytical and calm, making one technical relationship immediately understandable.",
+      "forward_motion": "The scene has purposeful directional momentum without implying financial growth or guaranteed outcomes.",
+      "collaborative_momentum": "The energy comes from skilled people solving a task together, not from spectacle or corporate posing.",
+      "measured_optimism": "The mood is expansive and future-facing while remaining physically credible and evidence-conscious.",
+      "accessible_learning": "The mood is tactile, welcoming, and educational, with an adult professional register.",
+      "institutional_trust": "The mood is disciplined and transparent, using order and continuity instead of locks, shields, or certificates."
+    },
+    "accent": {
+      "workspace_signal": "The dominant accent treatment follows the locked Industrial Token palette and visual identity.",
+      "story_color": "The dominant accent color is justified by the story itself -- green for a green protocol's hack, gold for a gold-backed token, blue for an ocean-themed chain -- and the reason is named in the brief.",
+      "free": "The dominant accent color is chosen freely to suit this mode's rotating style, not tied to the brand accent.",
+      "violet_gold": "Deep indigo and industrial violet form the dominant field while precision gold marks the operational focal point.",
+      "cyan_gold": "Restrained cyan describes digital or verification structure while gold remains the physical industrial signal.",
+      "green_gold": "Muted clean-energy green supports the locked violet-and-gold identity only in sustainability stories.",
+      "amber_violet": "Warm amber light defines one machine against a controlled violet or graphite environment."
+    }
+  },
+  "frozenStyle": {
+    "format": "premium portrait 4:5 Industrial Token editorial, composed for safe square cropping with one strong factual story",
+    "palette": "deep indigo (#10072D), industrial violet (#3E127B), ultraviolet (#7816D2), metallic gold (#F4C224), warm amber (#E69B2E), clean white (#F8F5FF), and controlled graphite (#171427)",
+    "materials": "machined steel, precision gold robotic arms, brushed graphite, tempered glass, subtle holographic light paths, engineered concrete, and realistic factory surfaces",
+    "rendering": "cinematic premium industrial photography or physically plausible photoreal 3D with credible machinery, controlled purple atmosphere, warm gold key light, strong depth, and clear hierarchy",
+    "backgroundVocab": "advanced factories, digital-twin halls, logistics ports, clean energy campuses, precision labs, industrial convention spaces, and large quiet indigo fields for editorial typography",
+    "headlineZone": "reserve a broad uncluttered indigo or graphite region for one concise uppercase headline and keep the bottom-left corner open for the official lockup",
+    "never": "generic cyberpunk clutter, fake coin emblems, floating token swarms, copied exchange screens, illegible dashboards, impossible machinery, unsafe factory scenes, public figures, price predictions, investment promises, logo inventions, or dense tiny type"
+  },
+  "restrictions": {
+    "antiRepetition": "Do not repeat the same family twice in a row or the same approved direction within 6 posts. Across every 6 posts use at least one human-centered family, one infrastructure family, and one diagrammatic, still-life, or machine-led family. Alternate intimate and wide spatial scales and light and dark stages. Avoid repeating a robot pose, worker pose, turbine, port angle, hologram, campus horizon, or gold-arm close-up within 5 posts. big_number and stat_card appear at most once each in 6 posts. Preserve one immediate industrial idea and a protected bottom-left logo zone.",
+    "moodAccentDefault": "workspace_signal",
+    "moodAccentRestricted": {
+      "free": {
+        "families": [
+          "type_led",
+          "art_drop",
+          "meme"
+        ]
+      }
+    },
+    "bannedSubjectTerms": [
+      "art deco",
+      "audit certificate",
+      "candlestick chart",
+      "chandelier",
+      "coin pile",
+      "contract address",
+      "exchange listing",
+      "frosted glass",
+      "gatsby",
+      "glassmorphism",
+      "gold veining",
+      "guaranteed returns",
+      "guaranteed rewards",
+      "guaranteed savings",
+      "gunmetal",
+      "industrial logo",
+      "industrial token coin",
+      "industrial token logo",
+      "industrial.game",
+      "investment guarantee",
+      "looks like",
+      "price chart",
+      "real logo",
+      "real person",
+      "trading dashboard",
+      "verified partner",
+      "wallet screenshot",
+      "watermark",
+      "wireframe cube"
+    ]
+  },
+  "textPolicy": {
+    "rules": "1. Headline: seven words or fewer, uppercase, concrete, and factual. Prefer industry, systems, participation, learning, transparency, and sustainability over token-price language.\n2. All figures, dates, phases, percentages, prices, partner counts, and milestones must appear in the supplied approved source. Do not use remembered market data.\n3. Frame roadmap and whitepaper capabilities as proposed or planned unless current evidence proves they are live.\n4. Do not promise investment returns, passive income, savings, rewards, security, compliance, audits, or environmental impact.\n5. Do not put a contract address, QR code, buy button, market chart, exchange logo, wallet, or third-party dashboard in generated artwork.\n6. Never invent the Industrial Token emblem or wordmark. The official lockup is added after generation; leave its bottom-left safe area seamless.",
+    "headlineMaxWords": 7,
+    "headlineUppercase": true,
+    "legibilityLine": "All text is large, crisp and clearly legible.",
+    "dataElementTemplate": "a clean tile or label displaying \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " with the micro-label \"{label}\"",
+    "noTextMode": "art_drop",
+    "noTextLine": "No text, no letters, no numbers anywhere in the image."
+  },
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.096,
+    "insetShortSideRatio": 0.045
+  },
+  "fallbackBrief": {
+    "selection": {
+      "family": "factory_campaign",
+      "axes": {
+        "stage": "industrial_photo",
+        "composition": "split_editorial",
+        "energy": "precise_confidence",
+        "accent": "violet_gold"
+      }
+    },
+    "brief": {
+      "headline": "INDUSTRY MOVES FORWARD",
+      "subjectScene": "A realistic gold robotic arm works inside a deep-indigo advanced factory, while a broad quiet editorial field remains on the left. No coin, dashboard, or invented brand mark appears.",
+      "dataElements": []
+    }
+  },
+  "briefExamples": "Worked examples (guidance only; never copy headlines or scenes verbatim):\n\nA. Smart factory story\n{\"family\":\"factory_campaign\",\"headline\":\"PRODUCTION, CONNECTED WITH PURPOSE\",\"data_elements\":[],\"stage\":\"industrial_photo\",\"composition\":\"split_editorial\",\"energy\":\"precise_confidence\",\"accent\":\"violet_gold\",\"subject_scene\":\"A credible gold robotic cell operates inside a deep-indigo factory on the right while a broad architectural copy field occupies the left; safety barriers, conveyor geometry, and one distant technician remain physically plausible.\"}\n\nB. Supply-chain explainer\n{\"family\":\"traceability_route\",\"headline\":\"ONE ROUTE. EVERY HANDOFF.\",\"data_elements\":[{\"value\":\"PORT\",\"label\":\"\"},{\"value\":\"RAIL\",\"label\":\"\"},{\"value\":\"FACTORY\",\"label\":\"\"}],\"stage\":\"logistics_world\",\"composition\":\"panoramic_path\",\"energy\":\"forward_motion\",\"accent\":\"violet_gold\",\"subject_scene\":\"A single elegant gold verification route moves from a realistic port through rail and warehouse infrastructure into one advanced factory, with each stage readable before the short labels.\"}\n\nC. Industrial learning\n{\"family\":\"simulation_classroom\",\"headline\":\"LEARNING THROUGH REAL SYSTEMS\",\"data_elements\":[],\"stage\":\"training_studio\",\"composition\":\"table_focus\",\"energy\":\"accessible_learning\",\"accent\":\"violet_gold\",\"subject_scene\":\"Two generic adult learners study a tactile tabletop factory simulation in a bright premium training room while a clean indigo wall preserves the headline zone.\"}\n\nD. Sustainability\n{\"family\":\"sustainable_campus\",\"headline\":\"EFFICIENCY MEETS CLEANER INFRASTRUCTURE\",\"data_elements\":[],\"stage\":\"blue_hour_campus\",\"composition\":\"campus_horizon\",\"energy\":\"measured_optimism\",\"accent\":\"green_gold\",\"subject_scene\":\"A credible blue-hour manufacturing campus combines solar roofs, one distant wind installation, efficient logistics, and planted land beneath a broad quiet sky.\"}\n\nE. Predictive system\n{\"family\":\"predictive_machine\",\"headline\":\"SEE THE SYSTEM MORE CLEARLY\",\"data_elements\":[],\"stage\":\"graphite_studio\",\"composition\":\"machine_portrait\",\"energy\":\"technical_clarity\",\"accent\":\"amber_violet\",\"subject_scene\":\"One precision turbine is photographed against brushed graphite while a restrained abstract waveform follows its real geometry without numbers, alerts, or a dashboard.\"}\n\nF. Industrial collaboration\n{\"family\":\"ranking_forum\",\"headline\":\"SKILL MOVES INDUSTRY FORWARD\",\"data_elements\":[],\"stage\":\"industrial_forum\",\"composition\":\"ascending_forum\",\"energy\":\"collaborative_momentum\",\"accent\":\"violet_gold\",\"subject_scene\":\"Ascending collaborative engineering stations fill a premium industrial forum while diverse generic adults solve distinct physical challenges beneath one restrained global light canopy.\"}"
+}

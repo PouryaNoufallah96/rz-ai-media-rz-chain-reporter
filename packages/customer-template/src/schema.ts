@@ -1,8 +1,20 @@
 import {
   analysisRunWindowHoursSchema,
   articleFetchModeSchema,
+  CONTENT_LOCALES,
   contentLocaleSchema,
+  IMAGE_OPTION_CAPABILITIES,
+  type ImageOptionCapabilityKey,
   MAX_EMBEDDING_VALUES,
+  MAX_REFERENCE_IMAGE_BYTES,
+  MAX_REFERENCE_IMAGE_DIMENSION,
+  MAX_REFERENCE_IMAGE_PIXELS,
+  type MarketProvider,
+  marketComparisonProviderSchema,
+  marketOutputFormatSchema,
+  marketPeriodSchema,
+  marketProviderMappingSchema,
+  marketScaleSchema,
   modelBackendSchema,
   type Platform,
   platformSchema,
@@ -11,13 +23,14 @@ import {
 } from "@rz-chain-reporter/contracts";
 import { z } from "zod";
 
+import { frozenStyleSchema } from "./image-profile";
 import { stableKeySchema } from "./stable-key";
 
 export type { ImageProfile } from "./image-profile";
 export { imageProfileSchema } from "./image-profile";
 
 // Bump only when a previously valid customer template no longer loads.
-export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 8;
+export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 12;
 
 const trimmedText = z
   .string()
@@ -101,20 +114,31 @@ const brandEditorialSchema = z.strictObject({
     .optional(),
 });
 
-const brandLogoSchema = z.strictObject({
-  path: referencePathSchema,
-  mimeType: z.literal("image/png"),
-  pixelWidth: z.int().positive(),
-  pixelHeight: z.int().positive(),
-  sha256: z.string().regex(/^[a-f0-9]{64}$/, "Expected a SHA-256 digest"),
-});
+const staticRasterAssetReferenceSchema = z
+  .strictObject({
+    path: referencePathSchema,
+    mimeType: z.literal("image/png"),
+    byteLength: z.int().positive().max(MAX_REFERENCE_IMAGE_BYTES),
+    pixelWidth: z.int().positive().max(MAX_REFERENCE_IMAGE_DIMENSION),
+    pixelHeight: z.int().positive().max(MAX_REFERENCE_IMAGE_DIMENSION),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/, "Expected a SHA-256 digest"),
+  })
+  .superRefine((asset, ctx) => {
+    if (asset.pixelWidth * asset.pixelHeight > MAX_REFERENCE_IMAGE_PIXELS) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["pixelWidth"],
+        message: "STATIC_RASTER_PIXEL_LIMIT_EXCEEDED",
+      });
+    }
+  });
 
 const mediaBrandSchema = z.strictObject({
   key: stableKeySchema,
   name: trimmedText,
   brandBible: referencePathSchema.optional(),
   imageProfile: referencePathSchema.optional(),
-  brandLogo: brandLogoSchema.optional(),
+  brandLogo: staticRasterAssetReferenceSchema.optional(),
   editorial: brandEditorialSchema,
 });
 
@@ -126,6 +150,7 @@ export const MODEL_TASK_KEYS = [
   "text-translation",
   "image-template-selection",
   "image-creative-brief",
+  "market-art-director-brief",
 ] as const;
 
 export const EDITORIAL_SELECTION_TASK_PREFIX = "editorial-selection:";
@@ -158,7 +183,7 @@ const modelsSchema = z.strictObject({
 
 // UI locale, not source content locale: Reviewed Knowledge answers follow the
 // operator's interface language and are never mixed or translated.
-export const REVIEWED_KNOWLEDGE_LOCALES = ["en", "fa"] as const;
+export const REVIEWED_KNOWLEDGE_LOCALES = CONTENT_LOCALES;
 
 export type ReviewedKnowledgeLocale =
   (typeof REVIEWED_KNOWLEDGE_LOCALES)[number];
@@ -398,7 +423,7 @@ const destinationAccountSchema = z.discriminatedUnion("platform", [
     enabled: z.boolean(),
     metadata: z.strictObject({
       label: trimmedText,
-      channel: telegramDestinationChannelSchema,
+      channel: telegramDestinationChannelSchema.optional(),
     }),
   }),
   z.strictObject({
@@ -438,6 +463,202 @@ const brandDestinationSchema = z.strictObject({
   destinationKey: stableKeySchema,
 });
 
+const marketInstrumentSchema = z.strictObject({
+  key: stableKeySchema,
+  name: trimmedText,
+  symbol: z.string().regex(/^[A-Z0-9]{2,20}$/u),
+  enabled: z.boolean(),
+  providerMappings: z.array(marketProviderMappingSchema).min(1).max(5),
+  visualProfile: referencePathSchema,
+  selectorIcon: staticRasterAssetReferenceSchema,
+  footerLockup: staticRasterAssetReferenceSchema,
+});
+
+type ConfiguredMarketProvider = z.infer<
+  typeof marketInstrumentSchema
+>["providerMappings"][number]["provider"];
+
+type AssertMarketProviderCoverage =
+  ConfiguredMarketProvider extends MarketProvider
+    ? MarketProvider extends ConfiguredMarketProvider
+      ? true
+      : never
+    : never;
+
+const assertMarketProviderCoverage: AssertMarketProviderCoverage = true;
+void assertMarketProviderCoverage;
+
+const compositionDirectionSchema = z.strictObject({
+  composition: trimmedText,
+  geometry: trimmedText,
+  hierarchy: trimmedText,
+  typography: trimmedText,
+  spacing: trimmedText,
+  materials: trimmedText,
+  lighting: trimmedText,
+});
+
+const compositionVariantSchema = z.strictObject({
+  key: stableKeySchema,
+  displayName: trimmedText,
+  enabled: z.boolean(),
+  formats: z.array(marketOutputFormatSchema).min(1),
+  minSeries: z.int().min(1).max(6),
+  maxSeries: z.int().min(1).max(6),
+  direction: compositionDirectionSchema,
+  fallbackDirection: trimmedText,
+  chartScaleRule: z.strictObject({
+    allowedScales: z.array(marketScaleSchema).min(1),
+    preferredScale: marketScaleSchema,
+  }),
+  footerRailHeightRatio: z.number().min(0.05).max(0.25),
+  sample: staticRasterAssetReferenceSchema,
+});
+
+export const marketCompositionCatalogSchema = z
+  .strictObject({
+    schemaVersion: z.literal(1),
+    families: z
+      .array(
+        z.strictObject({
+          key: stableKeySchema,
+          displayName: trimmedText,
+          enabled: z.boolean(),
+          variants: z.array(compositionVariantSchema).min(1),
+        }),
+      )
+      .min(1),
+  })
+  .superRefine((catalog, ctx) => {
+    const familyKeys = new Set<string>();
+    const variantKeys = new Set<string>();
+
+    for (const [familyIndex, family] of catalog.families.entries()) {
+      if (familyKeys.has(family.key)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["families", familyIndex, "key"],
+          message: "DUPLICATE_MARKET_COMPOSITION_FAMILY",
+        });
+      }
+      familyKeys.add(family.key);
+
+      for (const [variantIndex, variant] of family.variants.entries()) {
+        const path = ["families", familyIndex, "variants", variantIndex];
+
+        if (variantKeys.has(variant.key)) {
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, "key"],
+            message: "DUPLICATE_MARKET_COMPOSITION_VARIANT",
+          });
+        }
+        variantKeys.add(variant.key);
+
+        if (variant.minSeries > variant.maxSeries) {
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, "minSeries"],
+            message: "MARKET_COMPOSITION_SERIES_RANGE_INVALID",
+          });
+        }
+
+        if (
+          !variant.chartScaleRule.allowedScales.includes(
+            variant.chartScaleRule.preferredScale,
+          )
+        ) {
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, "chartScaleRule", "preferredScale"],
+            message: "MARKET_COMPOSITION_PREFERRED_SCALE_NOT_ALLOWED",
+          });
+        }
+
+        reportDuplicateValues(
+          ctx,
+          variant.formats.map((value, index) => ({
+            path: [...path, "formats", index],
+            value,
+          })),
+          "DUPLICATE_MARKET_COMPOSITION_FORMAT",
+        );
+        reportDuplicateValues(
+          ctx,
+          variant.chartScaleRule.allowedScales.map((value, index) => ({
+            path: [...path, "chartScaleRule", "allowedScales", index],
+            value,
+          })),
+          "DUPLICATE_MARKET_COMPOSITION_SCALE",
+        );
+      }
+    }
+  });
+
+export type MarketCompositionCatalog = z.infer<
+  typeof marketCompositionCatalogSchema
+>;
+
+const paletteColorSchema = z.string().regex(/^#[a-fA-F0-9]{6}$/u);
+
+export const marketInstrumentProfileSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  theme: z.strictObject({
+    background: paletteColorSchema,
+    backgroundAlt: paletteColorSchema,
+    surface: paletteColorSchema,
+    surfaceAlt: paletteColorSchema,
+    text: paletteColorSchema,
+    muted: paletteColorSchema,
+    positive: paletteColorSchema,
+    negative: paletteColorSchema,
+    accent: paletteColorSchema,
+    accentAlt: paletteColorSchema,
+    border: paletteColorSchema,
+  }),
+  motifs: z.array(trimmedText).min(1).max(20),
+  scenes: z.array(trimmedText).min(3).max(12),
+  artDirection: trimmedText,
+  defaultChartColor: paletteColorSchema,
+  frozenStyle: frozenStyleSchema,
+});
+
+export type MarketInstrumentProfile = z.infer<
+  typeof marketInstrumentProfileSchema
+>;
+
+const enabledMarketAnalysisSchema = z.strictObject({
+  enabled: z.literal(true),
+  comparisonProvider: marketComparisonProviderSchema,
+  instruments: z.array(marketInstrumentSchema),
+  brandInstruments: z.array(
+    z.strictObject({
+      brandKey: stableKeySchema,
+      instrumentKey: stableKeySchema,
+    }),
+  ),
+  compositions: referencePathSchema,
+  approvedImageOptionKeys: z.array(stableKeySchema).min(1),
+  defaultImageOptionKey: stableKeySchema,
+  enabledPeriods: z.array(marketPeriodSchema).min(1),
+  enabledScales: z.array(marketScaleSchema).min(1),
+  featuredComparisonSymbols: z
+    .array(z.string().regex(/^[A-Z0-9]{2,20}$/u))
+    .min(1)
+    .max(6),
+  defaultComparisonSymbol: z.string().regex(/^[A-Z0-9]{2,20}$/u),
+  defaults: z.strictObject({
+    period: marketPeriodSchema,
+    scale: marketScaleSchema,
+    outputFormat: marketOutputFormatSchema,
+  }),
+});
+
+const marketAnalysisSchema = z.discriminatedUnion("enabled", [
+  z.strictObject({ enabled: z.literal(false) }),
+  enabledMarketAnalysisSchema,
+]);
+
 function reportDuplicateKeys(
   ctx: z.RefinementCtx,
   section: string,
@@ -471,6 +692,7 @@ const customerTemplateShapeSchema = z.strictObject({
   acquisition: acquisitionSchema,
   enrichment: enrichmentSchema,
   editorial: editorialSchema,
+  marketAnalysis: marketAnalysisSchema,
   destinationAccounts: z.array(destinationAccountSchema),
   brandDestinations: z.array(brandDestinationSchema),
   models: modelsSchema,
@@ -535,6 +757,20 @@ export const customerTemplateSchema = customerTemplateShapeSchema.superRefine(
       }
     }
 
+    for (const [index, account] of template.destinationAccounts.entries()) {
+      if (
+        account.platform === "telegram" &&
+        account.enabled &&
+        !account.metadata.channel
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["destinationAccounts", index, "metadata", "channel"],
+          message: "ENABLED_TELEGRAM_DESTINATION_REQUIRES_CHANNEL",
+        });
+      }
+    }
+
     for (const brandKey of Object.keys(
       template.reviewedKnowledge?.brandChat ?? {},
     )) {
@@ -578,10 +814,194 @@ export const customerTemplateSchema = customerTemplateShapeSchema.superRefine(
     }
 
     reportEditorialIssues(ctx, template, brandKeys);
+    reportMarketAnalysisIssues(ctx, template, brandKeys);
   },
 );
 
 export type CustomerTemplate = z.infer<typeof customerTemplateSchema>;
+
+function reportMarketAnalysisIssues(
+  ctx: z.RefinementCtx,
+  template: z.infer<typeof customerTemplateShapeSchema>,
+  brandKeys: ReadonlySet<string>,
+) {
+  const market = template.marketAnalysis;
+  if (!market.enabled) return;
+  const instrumentKeys = new Set<string>();
+  const enabledInstrumentKeys = new Set<string>();
+
+  for (const [instrumentIndex, instrument] of market.instruments.entries()) {
+    if (instrumentKeys.has(instrument.key)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["marketAnalysis", "instruments", instrumentIndex, "key"],
+        message: "DUPLICATE_MARKET_INSTRUMENT",
+      });
+    }
+    instrumentKeys.add(instrument.key);
+    if (instrument.enabled) enabledInstrumentKeys.add(instrument.key);
+
+    for (const [
+      mappingIndex,
+      mapping,
+    ] of instrument.providerMappings.entries()) {
+      if (mapping.fallback !== mappingIndex > 0) {
+        ctx.addIssue({
+          code: "custom",
+          path: [
+            "marketAnalysis",
+            "instruments",
+            instrumentIndex,
+            "providerMappings",
+            mappingIndex,
+            "fallback",
+          ],
+          message: "MARKET_PROVIDER_FALLBACK_ORDER_INVALID",
+        });
+      }
+    }
+  }
+
+  if (market.enabled && enabledInstrumentKeys.size === 0) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["marketAnalysis", "instruments"],
+      message: "MARKET_ANALYSIS_REQUIRES_ENABLED_INSTRUMENT",
+    });
+  }
+
+  const mapped = new Set<string>();
+
+  for (const [index, mapping] of market.brandInstruments.entries()) {
+    if (!brandKeys.has(mapping.brandKey)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["marketAnalysis", "brandInstruments", index, "brandKey"],
+        message: "UNKNOWN_MARKET_ANALYSIS_BRAND",
+      });
+    }
+    if (!instrumentKeys.has(mapping.instrumentKey)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["marketAnalysis", "brandInstruments", index, "instrumentKey"],
+        message: "UNKNOWN_MARKET_INSTRUMENT",
+      });
+    }
+
+    const pair = `${mapping.brandKey}\u0000${mapping.instrumentKey}`;
+    if (mapped.has(pair)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["marketAnalysis", "brandInstruments", index],
+        message: "DUPLICATE_MARKET_BRAND_INSTRUMENT",
+      });
+    }
+    mapped.add(pair);
+  }
+
+  const imageOptions = new Map(
+    template.editorial.drafting.image.models.map((option) => [
+      option.key,
+      option,
+    ]),
+  );
+
+  reportDuplicateValues(
+    ctx,
+    market.approvedImageOptionKeys.map((value, index) => ({
+      path: ["marketAnalysis", "approvedImageOptionKeys", index],
+      value,
+    })),
+    "DUPLICATE_MARKET_IMAGE_OPTION",
+  );
+
+  for (const [index, optionKey] of market.approvedImageOptionKeys.entries()) {
+    const option = imageOptions.get(optionKey);
+    const capability = Object.hasOwn(IMAGE_OPTION_CAPABILITIES, optionKey)
+      ? IMAGE_OPTION_CAPABILITIES[optionKey as ImageOptionCapabilityKey]
+      : undefined;
+
+    if (!option?.enabled) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["marketAnalysis", "approvedImageOptionKeys", index],
+        message: "MARKET_IMAGE_OPTION_NOT_ENABLED",
+      });
+    }
+
+    if (
+      capability === undefined ||
+      capability.maxOrderedReferences < 2 ||
+      capability.maxTotalReferenceBytes < capability.reference.maxBytes * 2 ||
+      !capability.reference.mimeTypes.includes("image/png")
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["marketAnalysis", "approvedImageOptionKeys", index],
+        message: "MARKET_IMAGE_OPTION_TWO_REFERENCES_UNSUPPORTED",
+      });
+    }
+  }
+
+  if (!market.approvedImageOptionKeys.includes(market.defaultImageOptionKey)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["marketAnalysis", "defaultImageOptionKey"],
+      message: "MARKET_DEFAULT_IMAGE_OPTION_NOT_APPROVED",
+    });
+  }
+
+  reportDuplicateValues(
+    ctx,
+    market.enabledPeriods.map((value, index) => ({
+      path: ["marketAnalysis", "enabledPeriods", index],
+      value,
+    })),
+    "DUPLICATE_MARKET_PERIOD",
+  );
+  reportDuplicateValues(
+    ctx,
+    market.enabledScales.map((value, index) => ({
+      path: ["marketAnalysis", "enabledScales", index],
+      value,
+    })),
+    "DUPLICATE_MARKET_SCALE",
+  );
+
+  reportDuplicateValues(
+    ctx,
+    market.featuredComparisonSymbols.map((value, index) => ({
+      path: ["marketAnalysis", "featuredComparisonSymbols", index],
+      value,
+    })),
+    "DUPLICATE_MARKET_COMPARISON_SYMBOL",
+  );
+
+  if (
+    !market.featuredComparisonSymbols.includes(market.defaultComparisonSymbol)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["marketAnalysis", "defaultComparisonSymbol"],
+      message: "MARKET_DEFAULT_COMPARISON_NOT_FEATURED",
+    });
+  }
+
+  if (!market.enabledPeriods.includes(market.defaults.period)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["marketAnalysis", "defaults", "period"],
+      message: "MARKET_DEFAULT_PERIOD_NOT_ENABLED",
+    });
+  }
+  if (!market.enabledScales.includes(market.defaults.scale)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["marketAnalysis", "defaults", "scale"],
+      message: "MARKET_DEFAULT_SCALE_NOT_ENABLED",
+    });
+  }
+}
 
 function reportEditorialIssues(
   ctx: z.RefinementCtx,

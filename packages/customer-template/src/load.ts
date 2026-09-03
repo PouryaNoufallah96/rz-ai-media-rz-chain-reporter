@@ -12,6 +12,8 @@ import {
   CUSTOMER_TEMPLATE_SCHEMA_VERSION,
   type CustomerTemplate,
   customerTemplateSchema,
+  marketCompositionCatalogSchema,
+  marketInstrumentProfileSchema,
   type ReviewedKnowledgeFaqRow,
   type ReviewedKnowledgeLocale,
   reviewedKnowledgeFaqSchema,
@@ -30,6 +32,9 @@ const CUSTOMER_TEMPLATE_ERROR_CODES = [
   "REFERENCE_ESCAPES_ROOT",
   "IMAGE_PROFILE_INVALID",
   "BRAND_LOGO_INVALID",
+  "MARKET_COMPOSITION_INVALID",
+  "MARKET_INSTRUMENT_PROFILE_INVALID",
+  "MARKET_RASTER_INVALID",
   "REVIEWED_KNOWLEDGE_INVALID",
   "UNDECLARED_FILE",
 ] as const;
@@ -344,6 +349,16 @@ function readDeclaredReferences(
   customerDir: string,
   template: CustomerTemplate,
 ): AdmittedReference[] {
+  const market = template.marketAnalysis;
+  const compositionCatalog = market.enabled
+    ? parseSidecar(
+        market.compositions,
+        readReference(customerDir, market.compositions),
+        marketCompositionCatalogSchema,
+        "MARKET_COMPOSITION_INVALID",
+        "Market composition catalog",
+      )
+    : null;
   const declared = [
     ...reviewedKnowledgeReferences(template),
     ...template.mediaBrands.flatMap((brand) => [
@@ -363,6 +378,37 @@ function readDeclaredReferences(
           ]
         : []),
     ]),
+    ...(market.enabled
+      ? [
+          {
+            kind: "market-composition" as const,
+            path: market.compositions,
+          },
+          ...market.instruments.flatMap((instrument) => [
+            {
+              kind: "market-instrument-profile" as const,
+              path: instrument.visualProfile,
+            },
+            {
+              kind: "market-raster" as const,
+              path: instrument.selectorIcon.path,
+              metadata: instrument.selectorIcon,
+            },
+            {
+              kind: "market-raster" as const,
+              path: instrument.footerLockup.path,
+              metadata: instrument.footerLockup,
+            },
+          ]),
+          ...(compositionCatalog?.families.flatMap((family) =>
+            family.variants.map((variant) => ({
+              kind: "market-raster" as const,
+              path: variant.sample.path,
+              metadata: variant.sample,
+            })),
+          ) ?? []),
+        ]
+      : []),
   ];
 
   return declared
@@ -373,7 +419,37 @@ function readDeclaredReferences(
       if (reference.kind === "image-profile") {
         assertImageProfile(reference.path, bytes);
       } else if (reference.kind === "brand-logo") {
-        assertBrandLogo(reference.path, bytes, reference.metadata);
+        assertStaticRaster(
+          reference.path,
+          bytes,
+          reference.metadata,
+          "BRAND_LOGO_INVALID",
+          "Brand logo",
+        );
+      } else if (reference.kind === "market-raster") {
+        assertStaticRaster(
+          reference.path,
+          bytes,
+          reference.metadata,
+          "MARKET_RASTER_INVALID",
+          "Market raster",
+        );
+      } else if (reference.kind === "market-composition") {
+        parseSidecar(
+          reference.path,
+          bytes,
+          marketCompositionCatalogSchema,
+          "MARKET_COMPOSITION_INVALID",
+          "Market composition catalog",
+        );
+      } else if (reference.kind === "market-instrument-profile") {
+        parseSidecar(
+          reference.path,
+          bytes,
+          marketInstrumentProfileSchema,
+          "MARKET_INSTRUMENT_PROFILE_INVALID",
+          "Market instrument profile",
+        );
       }
 
       return {
@@ -410,10 +486,18 @@ function readReference(customerDir: string, path: string) {
   return readFileSync(/* turbopackIgnore: true */ realReferencePath);
 }
 
-function assertBrandLogo(
+function assertStaticRaster(
   path: string,
   bytes: Buffer,
-  metadata: NonNullable<CustomerTemplate["mediaBrands"][number]["brandLogo"]>,
+  metadata: {
+    byteLength: number;
+    mimeType: "image/png";
+    pixelHeight: number;
+    pixelWidth: number;
+    sha256: string;
+  },
+  code: "BRAND_LOGO_INVALID" | "MARKET_RASTER_INVALID",
+  label: string,
 ) {
   const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   const isPng =
@@ -423,27 +507,59 @@ function assertBrandLogo(
 
   if (!isPng) {
     throw new CustomerTemplateError(
-      "BRAND_LOGO_INVALID",
-      `Brand logo "${path}" does not decode as ${metadata.mimeType}`,
+      code,
+      `${label} "${path}" does not decode as ${metadata.mimeType}`,
     );
   }
 
   const actual = {
+    byteLength: bytes.length,
     pixelWidth: bytes.readUInt32BE(16),
     pixelHeight: bytes.readUInt32BE(20),
     sha256: createHash("sha256").update(bytes).digest("hex"),
   };
 
   if (
+    actual.byteLength !== metadata.byteLength ||
     actual.pixelWidth !== metadata.pixelWidth ||
     actual.pixelHeight !== metadata.pixelHeight ||
     actual.sha256 !== metadata.sha256
   ) {
     throw new CustomerTemplateError(
-      "BRAND_LOGO_INVALID",
-      `Brand logo "${path}" does not match its declared dimensions and checksum`,
+      code,
+      `${label} "${path}" does not match its declared bytes, dimensions, and checksum`,
     );
   }
+}
+
+function parseSidecar<T>(
+  path: string,
+  bytes: Buffer,
+  schema: z.ZodType<T>,
+  code: "MARKET_COMPOSITION_INVALID" | "MARKET_INSTRUMENT_PROFILE_INVALID",
+  label: string,
+) {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(bytes.toString("utf8"));
+  } catch (error) {
+    throw new CustomerTemplateError(
+      code,
+      `${label} "${path}" is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  const validated = schema.safeParse(parsed);
+
+  if (!validated.success) {
+    throw new CustomerTemplateError(
+      code,
+      `${label} "${path}" is invalid:\n${z.prettifyError(validated.error)}`,
+    );
+  }
+
+  return validated.data;
 }
 
 function assertImageProfile(path: string, bytes: Buffer) {

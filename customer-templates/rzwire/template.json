@@ -1,12 +1,12 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 12,
   "customer": {
-    "key": "crypto",
-    "productName": "RZ ChainReporter",
+    "key": "rzwire",
+    "productName": "RZWire",
     "timeZone": "Asia/Tehran"
   },
   "workspace": {
-    "name": "RZ ChainReporter"
+    "name": "RZWire"
   },
   "models": {
     "tasks": {
@@ -169,6 +169,14 @@
       "assistant-synthesis": {
         "backend": "remote",
         "model": "openai/gpt-4o-mini"
+      },
+      "market-art-director-brief": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini",
+        "fallback": {
+          "backend": "remote",
+          "model": "google/gemini-2.5-flash"
+        }
       }
     }
   },
@@ -193,8 +201,7 @@
     ],
     "platforms": [
       "telegram",
-      "x",
-      "instagram"
+      "x"
     ],
     "topicAliases": [
       {
@@ -220,10 +227,13 @@
     ],
     "defaults": {
       "brands": [
-        "rz-prime",
-        "coin-hall",
-        "chain-reporter",
-        "meta-coin-guard"
+        "mgc-coin",
+        "ranking-platform",
+        "oasis-coin",
+        "jewelry-coin",
+        "industrial-token",
+        "real-estate-token",
+        "trip-token"
       ],
       "models": [
         "gpt",
@@ -232,8 +242,8 @@
         "deepseek"
       ],
       "platforms": [
-        "telegram",
-        "x"
+        "x",
+        "telegram"
       ],
       "windowHours": 24,
       "enrichment": true
@@ -305,28 +315,6 @@
               "max": 5
             },
             "emojiGraphemeCap": 3
-          },
-          {
-            "platform": "instagram",
-            "variants": [
-              {
-                "key": "story",
-                "instruction": "Turn the verified development into a strong narrative arc with a clear closing takeaway."
-              },
-              {
-                "key": "conversation",
-                "instruction": "Use a direct hook and invite a focused response grounded in the verified facts."
-              }
-            ],
-            "assembledCharacters": {
-              "min": 600,
-              "max": 1200
-            },
-            "hashtags": {
-              "min": 4,
-              "max": 6
-            },
-            "emojiGraphemeCap": 8
           }
         ]
       },
@@ -357,9 +345,9 @@
       }
     },
     "semantic": {
-      "maxCandidates": 350,
+      "maxCandidates": 250,
       "maxTopics": 10,
-      "maxAnchorsPerBrand": 8,
+      "maxAnchorsPerBrand": 20,
       "maxChars": 500,
       "dedupThreshold": 0.92,
       "brandWeight": 0.15,
@@ -655,613 +643,304 @@
       }
     }
   },
-  "mediaBrands": [
-    {
-      "key": "rz-prime",
-      "name": "RZ Prime",
-      "brandBible": "brand-bibles/rz-prime.md",
-      "imageProfile": "image-profiles/rz-prime.json",
-      "brandLogo": {
-        "path": "brand-logos/rz-prime.png",
-        "mimeType": "image/png",
-        "pixelWidth": 1774,
-        "pixelHeight": 887,
-        "sha256": "800c6773b57c5ad1590c1e0d05b9c6bbfec6fc9194a371596cd1b863896032cb"
+  "marketAnalysis": {
+    "enabled": true,
+    "comparisonProvider": "binance",
+    "instruments": [
+      {
+        "key": "mgc",
+        "name": "MGC Coin",
+        "symbol": "MGC",
+        "enabled": true,
+        "providerMappings": [
+          {
+            "kind": "coinmarketcap_public_kline",
+            "provider": "coinmarketcap_public",
+            "platform": "bsc",
+            "address": "0xbb73BB2505AC4643d5C0a99c2A1F34B3DfD09D11",
+            "fallback": false
+          }
+        ],
+        "visualProfile": "market-analysis/instruments/mgc.json",
+        "selectorIcon": {
+          "path": "market-analysis/icons/mgc.png",
+          "mimeType": "image/png",
+          "byteLength": 498979,
+          "pixelWidth": 640,
+          "pixelHeight": 640,
+          "sha256": "2b637ce01a15693c8161f0ad85ffdd99dcae69275eb85c929af0714303f13761"
+        },
+        "footerLockup": {
+          "path": "market-analysis/lockups/mgc.png",
+          "mimeType": "image/png",
+          "byteLength": 35374,
+          "pixelWidth": 2987,
+          "pixelHeight": 480,
+          "sha256": "94bb1c6abd16d338a6f1f59903b88c78300cf91d7545b9ae2f78ed5dd2586ba1"
+        }
       },
-      "editorial": {
-        "mediaFitThreshold": 0,
-        "strongTerms": [
+      {
+        "key": "oasis",
+        "name": "Oasis Coin",
+        "symbol": "OASIS",
+        "enabled": true,
+        "providerMappings": [
           {
-            "term": "bnb chain",
-            "weight": 25
-          },
-          {
-            "term": "binance smart chain",
-            "weight": 20
-          },
-          {
-            "term": "presale",
-            "weight": 22
-          },
-          {
-            "term": "pre-sale",
-            "weight": 22
-          },
-          {
-            "term": "non-custodial",
-            "weight": 22
-          },
-          {
-            "term": "no kyc",
-            "weight": 20
-          },
-          {
-            "term": "token launch",
-            "weight": 20
-          },
-          {
-            "term": "token sale",
-            "weight": 20
-          },
-          {
-            "term": "reservation",
-            "weight": 20
-          },
-          {
-            "term": "token reservation",
-            "weight": 22
-          },
-          {
-            "term": "private sale",
-            "weight": 16
-          },
-          {
-            "term": "public sale",
-            "weight": 16
-          },
-          {
-            "term": "bep20",
-            "weight": 16
-          },
-          {
-            "term": "bep-20",
-            "weight": 16
-          },
-          {
-            "term": "token access",
-            "weight": 18
-          },
-          {
-            "term": "token distribution",
-            "weight": 18
-          },
-          {
-            "term": "launchpad",
-            "weight": 18
-          },
-          {
-            "term": "ido",
-            "weight": 18
-          },
-          {
-            "term": "decentralized access",
-            "weight": 15
-          },
-          {
-            "term": "ico",
-            "weight": 15
-          },
-          {
-            "term": "ieo",
-            "weight": 15
-          },
-          {
-            "term": "allocation",
-            "weight": 15
-          },
-          {
-            "term": "tokenomics",
-            "weight": 14
-          },
-          {
-            "term": "pancakeswap",
-            "weight": 14
-          },
-          {
-            "term": "bnb",
-            "weight": 15
-          },
-          {
-            "term": "bsc",
-            "weight": 15
-          },
-          {
-            "term": "seed round",
-            "weight": 12
-          },
-          {
-            "term": "smart contract",
-            "weight": 12
-          },
-          {
-            "term": "on-chain",
-            "weight": 12
-          },
-          {
-            "term": "onchain",
-            "weight": 12
-          },
-          {
-            "term": "vesting",
-            "weight": 12
-          },
-          {
-            "term": "liquidity pool",
-            "weight": 10
-          },
-          {
-            "term": "kyc",
-            "weight": 10
-          },
-          {
-            "term": "staking",
-            "weight": 8
-          },
-          {
-            "term": "defi",
-            "weight": 8
-          },
-          {
-            "term": "wallet",
-            "weight": 8
-          },
-          {
-            "term": "fair launch",
-            "weight": 20
-          },
-          {
-            "term": "token generation event",
-            "weight": 20
-          },
-          {
-            "term": "tge",
-            "weight": 20
-          },
-          {
-            "term": "whitelist",
-            "weight": 18
-          },
-          {
-            "term": "soft cap",
-            "weight": 14
-          },
-          {
-            "term": "hard cap",
-            "weight": 14
-          },
-          {
-            "term": "raise",
-            "weight": 12
-          },
-          {
-            "term": "fundraise",
-            "weight": 14
-          },
-          {
-            "term": "early access",
-            "weight": 16
-          },
-          {
-            "term": "rz prime",
-            "weight": 25
-          },
-          {
-            "term": "presales",
-            "weight": 20
-          },
-          {
-            "term": "self-custody",
-            "weight": 14
-          },
-          {
-            "term": "wallet-based",
-            "weight": 14
-          },
-          {
-            "term": "custody",
-            "weight": 12
-          },
-          {
-            "term": "stablecoin",
-            "weight": 12
-          },
-          {
-            "term": "tokenization",
-            "weight": 12
-          },
-          {
-            "term": "rwa",
-            "weight": 12
-          },
-          {
-            "term": "rzusd",
-            "weight": 18
-          },
-          {
-            "term": "audit",
-            "weight": 10
-          },
-          {
-            "term": "audited",
-            "weight": 10
-          },
-          {
-            "term": "regulation",
-            "weight": 10
-          },
-          {
-            "term": "dapp",
-            "weight": 10
-          },
-          {
-            "term": "bridge",
-            "weight": 8
+            "kind": "coinmarketcap_public_kline",
+            "provider": "coinmarketcap_public",
+            "platform": "bsc",
+            "address": "0x1a4D41219C547f3A0EE36cf3d9E68F80699cF283",
+            "fallback": false
           }
         ],
-        "weakTerms": [
+        "visualProfile": "market-analysis/instruments/oasis.json",
+        "selectorIcon": {
+          "path": "market-analysis/icons/oasis.png",
+          "mimeType": "image/png",
+          "byteLength": 131806,
+          "pixelWidth": 572,
+          "pixelHeight": 572,
+          "sha256": "f197c3215b201f19dcf805b02a8bea50cd6d0512f8a0142c8b217a1c4cd80f1c"
+        },
+        "footerLockup": {
+          "path": "market-analysis/lockups/oasis.png",
+          "mimeType": "image/png",
+          "byteLength": 43619,
+          "pixelWidth": 2533,
+          "pixelHeight": 933,
+          "sha256": "177111b25b6f6cc6a1e6daa4c3b25ed7984e521efc258c6c6662e1cdbbd4ee00"
+        }
+      },
+      {
+        "key": "jewelry",
+        "name": "Jewelry Coin",
+        "symbol": "JEWELRY",
+        "enabled": true,
+        "providerMappings": [
           {
-            "term": "luxury",
-            "weight": -10
-          },
-          {
-            "term": "lifestyle",
-            "weight": -10
-          },
-          {
-            "term": "gaming",
-            "weight": -8
-          },
-          {
-            "term": "watch",
-            "weight": -8
-          },
-          {
-            "term": "car",
-            "weight": -8
-          },
-          {
-            "term": "exploit",
-            "weight": -5
-          },
-          {
-            "term": "hack",
-            "weight": -5
-          },
-          {
-            "term": "rug pull",
-            "weight": -5
-          },
-          {
-            "term": "auction",
-            "weight": -8
-          },
-          {
-            "term": "jewelry",
-            "weight": -8
-          },
-          {
-            "term": "real estate",
-            "weight": -6
+            "kind": "coinmarketcap_public_kline",
+            "provider": "coinmarketcap_public",
+            "platform": "bsc",
+            "address": "0xf04FaB6Dda66261eaBfD65e92A6b81dDaF6a950a",
+            "fallback": false
           }
         ],
-        "aliases": [
+        "visualProfile": "market-analysis/instruments/jewelry.json",
+        "selectorIcon": {
+          "path": "market-analysis/icons/jewelry.png",
+          "mimeType": "image/png",
+          "byteLength": 358714,
+          "pixelWidth": 640,
+          "pixelHeight": 640,
+          "sha256": "27232dafc19fd3020db264069757a9deafc4fb8e848a0c96f6ecb83f368f8c5a"
+        },
+        "footerLockup": {
+          "path": "market-analysis/lockups/jewelry.png",
+          "mimeType": "image/png",
+          "byteLength": 30323,
+          "pixelWidth": 2667,
+          "pixelHeight": 640,
+          "sha256": "8afaf8f49c3141e97d29a3726b50cc629a6c5fd352b72e3376b6dcbbc72417cd"
+        }
+      },
+      {
+        "key": "industrial",
+        "name": "Industrial Token",
+        "symbol": "INDUSTRIAL",
+        "enabled": true,
+        "providerMappings": [
           {
-            "canonical": "non-custodial",
-            "surfaces": [
-              "noncustodial",
-              "non custodial"
-            ]
-          },
-          {
-            "canonical": "self-custody",
-            "surfaces": [
-              "self custody"
-            ]
-          },
-          {
-            "canonical": "wallet-based",
-            "surfaces": [
-              "wallet based"
-            ]
-          },
-          {
-            "canonical": "rzusd",
-            "surfaces": [
-              "rz usd",
-              "rz-usd"
-            ]
-          },
-          {
-            "canonical": "rwa",
-            "surfaces": [
-              "real world asset",
-              "real-world asset",
-              "real world assets"
-            ]
+            "kind": "coinmarketcap_public_kline",
+            "provider": "coinmarketcap_public",
+            "platform": "bsc",
+            "address": "0x9e06e1203bdc3747ee3ab5fa9488619bcf2a2666",
+            "fallback": false
           }
         ],
-        "phrases": [
+        "visualProfile": "market-analysis/instruments/industrial.json",
+        "selectorIcon": {
+          "path": "market-analysis/icons/industrial.png",
+          "mimeType": "image/png",
+          "byteLength": 327276,
+          "pixelWidth": 640,
+          "pixelHeight": 640,
+          "sha256": "e8b5e6b22369e873369a6f4e75a2fab6efe8797a268006d3e06d06988869be49"
+        },
+        "footerLockup": {
+          "path": "market-analysis/lockups/industrial.png",
+          "mimeType": "image/png",
+          "byteLength": 135812,
+          "pixelWidth": 1713,
+          "pixelHeight": 402,
+          "sha256": "93202c8c9fe0854d4c158f532dd10b16cc44de832f9bf0dc3ab1636915489c05"
+        }
+      },
+      {
+        "key": "real-estate",
+        "name": "Real Estate Token",
+        "symbol": "REALESTATE",
+        "enabled": true,
+        "providerMappings": [
           {
-            "phrase": "wallet-based access",
-            "weight": 14
-          },
-          {
-            "phrase": "smart contract audit",
-            "weight": 12
+            "kind": "coinmarketcap_public_kline",
+            "provider": "coinmarketcap_public",
+            "platform": "bsc",
+            "address": "0x32477cf0e324f9a9cb49e8803fa4de9f80f8d0d4",
+            "fallback": false
           }
         ],
-        "preferredSourceKeys": [
-          "beincrypto-rss",
-          "crypto-news-rss",
-          "cryptopotato-rss",
-          "newsbtc-rss",
-          "u-today-rss"
+        "visualProfile": "market-analysis/instruments/real-estate.json",
+        "selectorIcon": {
+          "path": "market-analysis/icons/real-estate.png",
+          "mimeType": "image/png",
+          "byteLength": 86158,
+          "pixelWidth": 418,
+          "pixelHeight": 640,
+          "sha256": "ad1a3cf1bb55f6be4e525adfb950e5ee1d05dbc1228cac9aa2590b3579715b9d"
+        },
+        "footerLockup": {
+          "path": "market-analysis/lockups/real-estate.png",
+          "mimeType": "image/png",
+          "byteLength": 19821,
+          "pixelWidth": 1493,
+          "pixelHeight": 469,
+          "sha256": "4d2a38d2cc87224a72886289b6089f428e248fb5793a4ef758186f012881f6ed"
+        }
+      },
+      {
+        "key": "trip",
+        "name": "Trip Token",
+        "symbol": "TRIP",
+        "enabled": true,
+        "providerMappings": [
+          {
+            "kind": "coinmarketcap_public_kline",
+            "provider": "coinmarketcap_public",
+            "platform": "bsc",
+            "address": "0xc9bfb93d75645c4681bb63794abf1acad44725e7",
+            "fallback": false
+          }
         ],
-        "semanticAnchors": [
-          "token reservation and presale",
-          "BNB Chain",
-          "self-custody and non-custodial wallets",
-          "wallet-based access without KYC",
-          "stablecoin and RZUSD",
-          "smart contract audit",
-          "tokenization and RWA",
-          "launchpad and IDO"
-        ],
-        "promoEnabled": true,
-        "canonicalHashtags": {
-          "en": "#RZPrime",
-          "fa": "#آر_زد_پرایم"
+        "visualProfile": "market-analysis/instruments/trip.json",
+        "selectorIcon": {
+          "path": "market-analysis/icons/trip.png",
+          "mimeType": "image/png",
+          "byteLength": 210915,
+          "pixelWidth": 2400,
+          "pixelHeight": 2400,
+          "sha256": "9ce624f14438c8ce0878cc5a302a2ce344330570d08cf5015c571f4f477f3e05"
+        },
+        "footerLockup": {
+          "path": "market-analysis/lockups/trip.png",
+          "mimeType": "image/png",
+          "byteLength": 17283,
+          "pixelWidth": 960,
+          "pixelHeight": 533,
+          "sha256": "e725e19c97b190286fe2780155d7b5cb1ba72708248fc1fb6ab8f440c5d8c7f4"
         }
       }
+    ],
+    "brandInstruments": [
+      {
+        "brandKey": "mgc-coin",
+        "instrumentKey": "mgc"
+      },
+      {
+        "brandKey": "oasis-coin",
+        "instrumentKey": "oasis"
+      },
+      {
+        "brandKey": "jewelry-coin",
+        "instrumentKey": "jewelry"
+      },
+      {
+        "brandKey": "industrial-token",
+        "instrumentKey": "industrial"
+      },
+      {
+        "brandKey": "real-estate-token",
+        "instrumentKey": "real-estate"
+      },
+      {
+        "brandKey": "trip-token",
+        "instrumentKey": "trip"
+      }
+    ],
+    "compositions": "market-analysis/compositions.json",
+    "approvedImageOptionKeys": [
+      "gpt-image",
+      "gemini-flash-image",
+      "gemini-pro-image"
+    ],
+    "defaultImageOptionKey": "gpt-image",
+    "enabledPeriods": [
+      "24h",
+      "7d",
+      "30d",
+      "90d",
+      "1y"
+    ],
+    "enabledScales": [
+      "relative",
+      "absolute"
+    ],
+    "defaults": {
+      "period": "30d",
+      "scale": "relative",
+      "outputFormat": "portrait"
     },
+    "featuredComparisonSymbols": [
+      "BTC",
+      "ETH",
+      "XRP",
+      "BNB"
+    ],
+    "defaultComparisonSymbol": "XRP"
+  },
+  "mediaBrands": [
     {
-      "key": "coin-hall",
-      "name": "Coin Hall",
-      "brandBible": "brand-bibles/coin-hall.md",
-      "imageProfile": "image-profiles/coin-hall.json",
+      "key": "mgc-coin",
+      "name": "MGC Coin",
+      "brandBible": "brand-bibles/mgc-coin.md",
+      "imageProfile": "image-profiles/mgc-coin.json",
       "brandLogo": {
-        "path": "brand-logos/coin-hall.png",
+        "path": "brand-logos/mgc-coin-logo.png",
         "mimeType": "image/png",
-        "pixelWidth": 1289,
-        "pixelHeight": 1221,
-        "sha256": "3f33daa59b47d15decb34694372da63ca5232de902c88f3609efd2262d9ea9ef"
+        "byteLength": 498979,
+        "pixelWidth": 640,
+        "pixelHeight": 640,
+        "sha256": "2b637ce01a15693c8161f0ad85ffdd99dcae69275eb85c929af0714303f13761"
       },
       "editorial": {
         "mediaFitThreshold": 0,
         "strongTerms": [
           {
-            "term": "prediction market",
-            "weight": 25
+            "term": "meta games coin",
+            "weight": 32
           },
           {
-            "term": "prediction",
-            "weight": 25
+            "term": "metagamescoin",
+            "weight": 32
           },
           {
-            "term": "forecast",
+            "term": "mgc",
+            "weight": 28
+          },
+          {
+            "term": "gaming utility token",
+            "weight": 26
+          },
+          {
+            "term": "gaming rewards",
+            "weight": 24
+          },
+          {
+            "term": "player rewards",
+            "weight": 24
+          },
+          {
+            "term": "tournament rewards",
             "weight": 22
-          },
-          {
-            "term": "price target",
-            "weight": 22
-          },
-          {
-            "term": "oracle",
-            "weight": 20
-          },
-          {
-            "term": "polymarket",
-            "weight": 22
-          },
-          {
-            "term": "predict",
-            "weight": 22
-          },
-          {
-            "term": "price prediction",
-            "weight": 22
-          },
-          {
-            "term": "value prediction",
-            "weight": 22
-          },
-          {
-            "term": "settlement",
-            "weight": 18
-          },
-          {
-            "term": "chainlink",
-            "weight": 18
-          },
-          {
-            "term": "pyth",
-            "weight": 18
-          },
-          {
-            "term": "price feed",
-            "weight": 18
-          },
-          {
-            "term": "analyst",
-            "weight": 15
-          },
-          {
-            "term": "betting odds",
-            "weight": 18
-          },
-          {
-            "term": "odds",
-            "weight": 22
-          },
-          {
-            "term": "probability",
-            "weight": 16
-          },
-          {
-            "term": "bull market",
-            "weight": 22
-          },
-          {
-            "term": "options expiry",
-            "weight": 22
-          },
-          {
-            "term": "token launch",
-            "weight": 22
-          },
-          {
-            "term": "rally",
-            "weight": 18
-          },
-          {
-            "term": "surge",
-            "weight": 18
-          },
-          {
-            "term": "halving",
-            "weight": 20
-          },
-          {
-            "term": "dappradar",
-            "weight": 20
-          },
-          {
-            "term": "unlock",
-            "weight": 18
-          },
-          {
-            "term": "listing",
-            "weight": 18
-          },
-          {
-            "term": "mint",
-            "weight": 18
-          },
-          {
-            "term": "dapp",
-            "weight": 18
-          },
-          {
-            "term": "market cap",
-            "weight": 16
-          },
-          {
-            "term": "all-time high",
-            "weight": 18
-          },
-          {
-            "term": "ath",
-            "weight": 16
-          },
-          {
-            "term": "breakout",
-            "weight": 16
-          },
-          {
-            "term": "tvl",
-            "weight": 16
-          },
-          {
-            "term": "total value locked",
-            "weight": 16
-          },
-          {
-            "term": "auction",
-            "weight": 22
-          },
-          {
-            "term": "record sale",
-            "weight": 22
-          },
-          {
-            "term": "rolex",
-            "weight": 20
-          },
-          {
-            "term": "collectible",
-            "weight": 20
-          },
-          {
-            "term": "nft marketplace",
-            "weight": 18
-          },
-          {
-            "term": "nft",
-            "weight": 18
-          },
-          {
-            "term": "rare",
-            "weight": 18
-          },
-          {
-            "term": "ferrari",
-            "weight": 22
-          },
-          {
-            "term": "tokenized vehicle",
-            "weight": 22
-          },
-          {
-            "term": "porsche",
-            "weight": 20
-          },
-          {
-            "term": "lamborghini",
-            "weight": 20
-          },
-          {
-            "term": "luxury travel",
-            "weight": 22
-          },
-          {
-            "term": "vip",
-            "weight": 20
-          },
-          {
-            "term": "travel",
-            "weight": 18
-          },
-          {
-            "term": "yacht",
-            "weight": 18
-          },
-          {
-            "term": "resort",
-            "weight": 16
-          },
-          {
-            "term": "tokenized property",
-            "weight": 25
-          },
-          {
-            "term": "tokenized real estate",
-            "weight": 25
-          },
-          {
-            "term": "rwa",
-            "weight": 22
-          },
-          {
-            "term": "real-world asset",
-            "weight": 22
-          },
-          {
-            "term": "real estate",
-            "weight": 22
-          },
-          {
-            "term": "fractional ownership",
-            "weight": 20
           },
           {
             "term": "play-to-earn",
@@ -1276,762 +955,860 @@
             "weight": 20
           },
           {
-            "term": "gaming",
-            "weight": 18
+            "term": "gaming economy",
+            "weight": 22
+          },
+          {
+            "term": "game economy",
+            "weight": 22
+          },
+          {
+            "term": "blockchain gaming",
+            "weight": 22
           },
           {
             "term": "web3 gaming",
             "weight": 22
           },
           {
-            "term": "blockchain game",
+            "term": "gaming community",
+            "weight": 18
+          },
+          {
+            "term": "creator rewards",
+            "weight": 18
+          },
+          {
+            "term": "player achievement",
+            "weight": 18
+          },
+          {
+            "term": "digital ownership",
+            "weight": 16
+          },
+          {
+            "term": "bnb smart chain",
+            "weight": 16
+          },
+          {
+            "term": "bep-20",
+            "weight": 16
+          },
+          {
+            "term": "bep20",
+            "weight": 16
+          },
+          {
+            "term": "ranking.game",
+            "weight": 24
+          },
+          {
+            "term": "ranking game",
+            "weight": 22
+          },
+          {
+            "term": "tournament",
+            "weight": 14
+          },
+          {
+            "term": "esports",
+            "weight": 14
+          }
+        ],
+        "weakTerms": [
+          {
+            "term": "bitcoin etf",
+            "weight": -10
+          },
+          {
+            "term": "macro",
+            "weight": -8
+          },
+          {
+            "term": "federal reserve",
+            "weight": -10
+          },
+          {
+            "term": "unrelated hack",
+            "weight": -8
+          },
+          {
+            "term": "luxury watch",
+            "weight": -8
+          }
+        ],
+        "aliases": [
+          {
+            "canonical": "mgc coin",
+            "surfaces": [
+              "mgc",
+              "meta games coin",
+              "metagamescoin",
+              "metagamesc",
+              "metagamescoin_io"
+            ]
+          }
+        ],
+        "phrases": [],
+        "preferredSourceKeys": [
+          "beincrypto-rss",
+          "coindesk-rss",
+          "cointelegraph-rss",
+          "decrypt-rss",
+          "the-block-rss"
+        ],
+        "semanticAnchors": [
+          "gaming utility token",
+          "play to earn",
+          "player rewards",
+          "game economy",
+          "gaming community",
+          "BNB Smart Chain",
+          "BEP-20",
+          "tournament reward",
+          "gaming achievement",
+          "creator rewards",
+          "blockchain gaming",
+          "digital ownership",
+          "Meta Games Coin",
+          "MGC"
+        ],
+        "promoEnabled": true,
+        "canonicalHashtags": {
+          "en": "#MetaGamesCoin",
+          "fa": "#متا_گیمز_کوین"
+        }
+      }
+    },
+    {
+      "key": "ranking-platform",
+      "name": "Ranking Platform",
+      "brandBible": "brand-bibles/ranking-platform.md",
+      "imageProfile": "image-profiles/ranking-platform.json",
+      "brandLogo": {
+        "path": "brand-logos/ranking-platform-logo.png",
+        "mimeType": "image/png",
+        "byteLength": 34724,
+        "pixelWidth": 252,
+        "pixelHeight": 88,
+        "sha256": "c09e6d5858d5a26524f54e692344fa31c67cd77a8293a4003b9d796d1dc3fa22"
+      },
+      "editorial": {
+        "mediaFitThreshold": 0,
+        "strongTerms": [
+          {
+            "term": "ranking.game",
+            "weight": 32
+          },
+          {
+            "term": "ranking game",
+            "weight": 30
+          },
+          {
+            "term": "competitive gaming",
+            "weight": 28
+          },
+          {
+            "term": "player ranking",
+            "weight": 28
+          },
+          {
+            "term": "leaderboard",
+            "weight": 26
+          },
+          {
+            "term": "pvp",
+            "weight": 24
+          },
+          {
+            "term": "pvp match",
+            "weight": 26
+          },
+          {
+            "term": "tournament",
+            "weight": 24
+          },
+          {
+            "term": "esports",
+            "weight": 22
+          },
+          {
+            "term": "gaming team",
+            "weight": 22
+          },
+          {
+            "term": "team competition",
+            "weight": 22
+          },
+          {
+            "term": "match result",
+            "weight": 20
+          },
+          {
+            "term": "player profile",
+            "weight": 20
+          },
+          {
+            "term": "tournament organizer",
+            "weight": 20
+          },
+          {
+            "term": "referee",
+            "weight": 18
+          },
+          {
+            "term": "gaming venue",
+            "weight": 20
+          },
+          {
+            "term": "gaming center",
+            "weight": 20
+          },
+          {
+            "term": "sports club",
+            "weight": 18
+          },
+          {
+            "term": "digital game",
+            "weight": 16
+          },
+          {
+            "term": "physical game",
+            "weight": 16
+          },
+          {
+            "term": "gaming community",
+            "weight": 18
+          },
+          {
+            "term": "league",
+            "weight": 14
+          },
+          {
+            "term": "competition",
+            "weight": 14
+          },
+          {
+            "term": "rankings",
             "weight": 20
           }
         ],
         "weakTerms": [
           {
-            "term": "sanctions",
+            "term": "token price",
+            "weight": -16
+          },
+          {
+            "term": "price prediction",
             "weight": -12
           },
           {
-            "term": "rug pull",
+            "term": "bitcoin etf",
             "weight": -12
           },
           {
-            "term": "exploit",
+            "term": "defi exploit",
             "weight": -10
           },
           {
-            "term": "phishing",
-            "weight": -10
-          },
-          {
-            "term": "malware",
-            "weight": -10
-          },
-          {
-            "term": "compliance",
-            "weight": -8
-          },
-          {
-            "term": "kyc",
-            "weight": -8
-          },
-          {
-            "term": "hack",
-            "weight": -10
-          },
-          {
-            "term": "breach",
-            "weight": -10
-          },
-          {
-            "term": "lawsuit",
-            "weight": -6
-          },
-          {
-            "term": "indicted",
-            "weight": -8
-          },
-          {
-            "term": "ponzi",
-            "weight": -10
-          },
-          {
-            "term": "drainer",
+            "term": "presale",
             "weight": -10
           }
         ],
         "aliases": [
           {
-            "canonical": "forecast",
+            "canonical": "ranking platform",
             "surfaces": [
-              "forecasts",
-              "forecasted",
-              "forecasting"
-            ]
-          },
-          {
-            "canonical": "predict",
-            "surfaces": [
-              "predicts",
-              "predicted",
-              "predicting"
-            ]
-          },
-          {
-            "canonical": "analyst",
-            "surfaces": [
-              "analysts",
-              "analysis",
-              "analyses"
-            ]
-          },
-          {
-            "canonical": "rally",
-            "surfaces": [
-              "rallies",
-              "rallied",
-              "rallying"
-            ]
-          },
-          {
-            "canonical": "surge",
-            "surfaces": [
-              "surges",
-              "surged",
-              "surging"
-            ]
-          },
-          {
-            "canonical": "settlement",
-            "surfaces": [
-              "settles",
-              "settled",
-              "settling"
+              "ranking.game",
+              "ranking game",
+              "rankingdotgame"
             ]
           }
         ],
         "phrases": [],
         "preferredSourceKeys": [
-          "decrypt-rss",
-          "cointelegraph-rss",
-          "coindesk-rss",
           "beincrypto-rss",
+          "cointelegraph-rss",
+          "decrypt-rss",
           "the-block-rss"
         ],
         "semanticAnchors": [
-          "prediction market",
-          "luxury prize",
-          "oracle-confirmed outcome",
-          "blockchain entertainment",
-          "NFT auction",
-          "Sotheby's",
-          "Rolex",
-          "Ferrari"
+          "competitive gaming",
+          "esports tournament",
+          "player ranking",
+          "leaderboard",
+          "PvP match",
+          "gaming team",
+          "tournament organizer",
+          "match result",
+          "gaming venue",
+          "sports club",
+          "gaming profile",
+          "community competition",
+          "digital games",
+          "physical games"
         ],
         "promoEnabled": true,
         "canonicalHashtags": {
-          "en": "#CoinHall",
-          "fa": "#کوین_هال"
+          "en": "#RankingGame",
+          "fa": "#رنکینگ_گیم"
         }
       }
     },
     {
-      "key": "chain-reporter",
-      "name": "ChainReporter",
-      "imageProfile": "image-profiles/chain-reporter.json",
+      "key": "oasis-coin",
+      "name": "Oasis Coin",
+      "brandBible": "brand-bibles/oasis-coin.md",
+      "imageProfile": "image-profiles/oasis-coin.json",
       "brandLogo": {
-        "path": "brand-logos/chain-reporter.png",
+        "path": "brand-logos/oasis-coin-logo.png",
         "mimeType": "image/png",
-        "pixelWidth": 1261,
-        "pixelHeight": 1247,
-        "sha256": "4d4585b18fb73d3d0ffc7d2e0218e2b935a4a871b93109b6a1373b182298773b"
+        "byteLength": 131806,
+        "pixelWidth": 572,
+        "pixelHeight": 572,
+        "sha256": "f197c3215b201f19dcf805b02a8bea50cd6d0512f8a0142c8b217a1c4cd80f1c"
       },
       "editorial": {
         "mediaFitThreshold": 0,
         "strongTerms": [
           {
-            "term": "bitcoin etf",
+            "term": "rzoasis",
             "weight": 32
           },
           {
-            "term": "etf approval",
+            "term": "rzoasis galaxy",
+            "weight": 32
+          },
+          {
+            "term": "oasis token",
             "weight": 30
           },
           {
-            "term": "bitcoin",
+            "term": "oasis coin",
+            "weight": 30
+          },
+          {
+            "term": "metaverse",
+            "weight": 26
+          },
+          {
+            "term": "metaverse gaming",
             "weight": 28
           },
           {
-            "term": "spot etf",
-            "weight": 28
-          },
-          {
-            "term": "spot bitcoin",
-            "weight": 25
-          },
-          {
-            "term": "ethereum",
+            "term": "virtual world",
             "weight": 24
           },
           {
-            "term": "sec",
-            "weight": 24
-          },
-          {
-            "term": "trump",
+            "term": "virtual land",
             "weight": 22
           },
           {
-            "term": "blackrock",
+            "term": "web3 game",
             "weight": 22
           },
           {
-            "term": "halving",
-            "weight": 22
-          },
-          {
-            "term": "btc",
-            "weight": 22
-          },
-          {
-            "term": "eth",
+            "term": "blockchain game",
             "weight": 20
           },
           {
-            "term": "regulation",
+            "term": "digital identity",
             "weight": 20
           },
           {
-            "term": "institutional",
+            "term": "game asset",
             "weight": 20
           },
           {
-            "term": "cftc",
-            "weight": 18
-          },
-          {
-            "term": "fidelity",
-            "weight": 18
-          },
-          {
-            "term": "bankruptcy",
-            "weight": 18
-          },
-          {
-            "term": "indicted",
-            "weight": 18
-          },
-          {
-            "term": "grayscale",
+            "term": "digital asset",
             "weight": 16
           },
           {
-            "term": "regulated",
-            "weight": 16
+            "term": "world building",
+            "weight": 22
           },
           {
-            "term": "liquidation",
+            "term": "metaverse marketplace",
+            "weight": 20
+          },
+          {
+            "term": "gaming utility",
             "weight": 18
           },
           {
-            "term": "mica",
+            "term": "energy system",
+            "weight": 18
+          },
+          {
+            "term": "rank progression",
             "weight": 16
           },
           {
-            "term": "binance",
+            "term": "future utility",
+            "weight": 18
+          },
+          {
+            "term": "bnb smart chain",
             "weight": 16
           },
           {
-            "term": "lawsuit",
+            "term": "bep-20",
             "weight": 16
           },
           {
-            "term": "xrp",
+            "term": "bep20",
+            "weight": 16
+          },
+          {
+            "term": "virtual economy",
+            "weight": 18
+          },
+          {
+            "term": "planet",
+            "weight": 12
+          },
+          {
+            "term": "galaxy",
             "weight": 14
+          }
+        ],
+        "weakTerms": [
+          {
+            "term": "utility is live",
+            "weight": -12
           },
           {
-            "term": "ripple",
-            "weight": 14
+            "term": "guaranteed return",
+            "weight": -20
           },
           {
-            "term": "solana",
-            "weight": 14
-          },
-          {
-            "term": "whale",
-            "weight": 14
-          },
-          {
-            "term": "stablecoin",
-            "weight": 15
-          },
-          {
-            "term": "layoff",
-            "weight": 15
-          },
-          {
-            "term": "coinbase",
-            "weight": 15
-          },
-          {
-            "term": "federal reserve",
-            "weight": 15
-          },
-          {
-            "term": "fed",
-            "weight": 15
+            "term": "bitcoin etf",
+            "weight": -10
           },
           {
             "term": "macro",
-            "weight": 14
+            "weight": -8
           },
           {
-            "term": "inflation",
-            "weight": 14
-          },
-          {
-            "term": "altseason",
-            "weight": 12
-          },
-          {
-            "term": "altcoin",
-            "weight": 12
-          },
-          {
-            "term": "usdt",
-            "weight": 12
-          },
-          {
-            "term": "usdc",
-            "weight": 12
-          },
-          {
-            "term": "policy",
-            "weight": 12
-          },
-          {
-            "term": "treasury",
-            "weight": 12
-          },
-          {
-            "term": "defi",
-            "weight": 10
-          },
-          {
-            "term": "spot ethereum etf",
-            "weight": 28
-          },
-          {
-            "term": "etf inflows",
-            "weight": 22
-          },
-          {
-            "term": "etf outflows",
-            "weight": 22
-          },
-          {
-            "term": "ibit",
-            "weight": 22
-          },
-          {
-            "term": "institutional adoption",
-            "weight": 20
-          },
-          {
-            "term": "microstrategy",
-            "weight": 18
-          },
-          {
-            "term": "goldman sachs",
-            "weight": 18
-          },
-          {
-            "term": "jpmorgan",
-            "weight": 18
-          },
-          {
-            "term": "sec approval",
-            "weight": 24
-          },
-          {
-            "term": "crypto regulation",
-            "weight": 20
-          },
-          {
-            "term": "stablecoin bill",
-            "weight": 20
-          },
-          {
-            "term": "rate cut",
-            "weight": 16
-          },
-          {
-            "term": "rate hike",
-            "weight": 16
-          },
-          {
-            "term": "fomc",
-            "weight": 16
-          },
-          {
-            "term": "market crash",
-            "weight": 18
-          },
-          {
-            "term": "all-time high",
-            "weight": 18
-          },
-          {
-            "term": "bitcoin reserve",
-            "weight": 20
-          },
-          {
-            "term": "strategic reserve",
-            "weight": 20
-          },
-          {
-            "term": "cbdc",
-            "weight": 16
-          },
-          {
-            "term": "digital dollar",
-            "weight": 16
+            "term": "luxury auction",
+            "weight": -8
           }
         ],
-        "weakTerms": [
+        "aliases": [
           {
-            "term": "presale",
-            "weight": -3
-          },
-          {
-            "term": "token reservation",
-            "weight": -5
-          },
-          {
-            "term": "gaming culture",
-            "weight": -5
-          },
-          {
-            "term": "play-to-earn",
-            "weight": -5
-          },
-          {
-            "term": "nft art",
-            "weight": -4
-          },
-          {
-            "term": "metaverse land",
-            "weight": -5
-          },
-          {
-            "term": "watch auction",
-            "weight": -6
-          },
-          {
-            "term": "jewelry",
-            "weight": -6
-          },
-          {
-            "term": "yacht",
-            "weight": -5
-          },
-          {
-            "term": "rug pull",
-            "weight": -3
+            "canonical": "oasis coin",
+            "surfaces": [
+              "oasis token",
+              "rzoasis",
+              "rz oasis galaxy",
+              "oasis_rz",
+              "rzoasis_channel"
+            ]
           }
         ],
-        "aliases": [],
         "phrases": [],
         "preferredSourceKeys": [
-          "coindesk-rss",
-          "cointelegraph-rss",
-          "the-block-rss",
           "blockworks-rss",
-          "bitcoin-magazine-rss"
+          "cointelegraph-rss",
+          "decrypt-rss",
+          "the-block-rss"
         ],
         "semanticAnchors": [
-          "Bitcoin ETF approval",
-          "Ethereum SEC regulation",
-          "institutional crypto investment",
-          "BlackRock Bitcoin fund",
-          "stablecoin",
-          "Federal Reserve rate decision",
-          "crypto regulation policy",
-          "altcoin market"
+          "metaverse gaming",
+          "virtual world",
+          "virtual land",
+          "digital identity",
+          "game asset",
+          "metaverse marketplace",
+          "world building",
+          "web3 game",
+          "game energy system",
+          "rank progression",
+          "future utility",
+          "BNB Smart Chain",
+          "BEP-20",
+          "OASIS token",
+          "RZOASIS Galaxy"
         ],
         "promoEnabled": true,
         "canonicalHashtags": {
-          "en": "#ChainReporter",
-          "fa": "#چین_ریپورتر"
+          "en": "#RZOasis",
+          "fa": "#آر_زد_اوسیس"
         }
       }
     },
     {
-      "key": "meta-coin-guard",
-      "name": "Meta Coin Guard",
-      "brandBible": "brand-bibles/meta-coin-guard.md",
-      "imageProfile": "image-profiles/meta-coin-guard.json",
+      "key": "jewelry-coin",
+      "name": "Jewelry Coin",
+      "brandBible": "brand-bibles/jewelry-coin.md",
+      "imageProfile": "image-profiles/jewelry-coin.json",
       "brandLogo": {
-        "path": "brand-logos/meta-coin-guard.png",
+        "path": "brand-logos/jewelry-coin-logo.png",
         "mimeType": "image/png",
-        "pixelWidth": 1280,
-        "pixelHeight": 1229,
-        "sha256": "a4da9de3f7738100e7917a0008694607bb529541218cf8b65175cc9eba50d3f1"
+        "byteLength": 358714,
+        "pixelWidth": 640,
+        "pixelHeight": 640,
+        "sha256": "27232dafc19fd3020db264069757a9deafc4fb8e848a0c96f6ecb83f368f8c5a"
       },
       "editorial": {
         "mediaFitThreshold": 0,
         "strongTerms": [
           {
-            "term": "exploit",
+            "term": "jewelry token",
             "weight": 32
           },
           {
-            "term": "exploited",
-            "weight": 32
-          },
-          {
-            "term": "hack",
+            "term": "jewelry coin",
             "weight": 30
           },
           {
-            "term": "hacked",
+            "term": "jewellery game",
             "weight": 30
           },
           {
-            "term": "wallet drainer",
+            "term": "digital jewelry",
             "weight": 28
           },
           {
-            "term": "rug pull",
-            "weight": 28
+            "term": "virtual jewelry",
+            "weight": 26
           },
           {
-            "term": "flash loan attack",
-            "weight": 28
+            "term": "jewelry design",
+            "weight": 26
           },
           {
-            "term": "defi attack",
-            "weight": 28
-          },
-          {
-            "term": "breach",
-            "weight": 25
-          },
-          {
-            "term": "oracle manipulation",
-            "weight": 25
-          },
-          {
-            "term": "exit scam",
+            "term": "gem extraction",
             "weight": 24
           },
           {
-            "term": "phishing",
+            "term": "gem mining",
+            "weight": 22
+          },
+          {
+            "term": "gemstone",
+            "weight": 20
+          },
+          {
+            "term": "nft minting",
+            "weight": 22
+          },
+          {
+            "term": "nft marketplace",
+            "weight": 22
+          },
+          {
+            "term": "digital collectible",
+            "weight": 20
+          },
+          {
+            "term": "creator marketplace",
+            "weight": 20
+          },
+          {
+            "term": "physical jewelry",
+            "weight": 22
+          },
+          {
+            "term": "digital-to-physical",
             "weight": 24
           },
           {
-            "term": "vulnerability",
-            "weight": 25
+            "term": "augmented reality",
+            "weight": 20
           },
           {
-            "term": "scam",
+            "term": "ar try-on",
             "weight": 22
           },
           {
-            "term": "stolen",
-            "weight": 22
-          },
-          {
-            "term": "malware",
-            "weight": 22
-          },
-          {
-            "term": "withdrawal halt",
-            "weight": 22
-          },
-          {
-            "term": "funds frozen",
-            "weight": 22
-          },
-          {
-            "term": "insolvency",
-            "weight": 20
-          },
-          {
-            "term": "insolvent",
-            "weight": 20
-          },
-          {
-            "term": "theft",
-            "weight": 20
-          },
-          {
-            "term": "ofac",
-            "weight": 20
-          },
-          {
-            "term": "ponzi",
-            "weight": 20
-          },
-          {
-            "term": "audit",
-            "weight": 22
-          },
-          {
-            "term": "sanctions",
-            "weight": 20
-          },
-          {
-            "term": "aml",
+            "term": "luxury craft",
             "weight": 18
           },
           {
-            "term": "seed phrase",
+            "term": "jeweler",
             "weight": 18
           },
           {
-            "term": "non-custodial",
-            "weight": 18
-          },
-          {
-            "term": "frozen",
-            "weight": 18
-          },
-          {
-            "term": "wallet monitoring",
-            "weight": 18
-          },
-          {
-            "term": "flash loan",
-            "weight": 20
-          },
-          {
-            "term": "attack",
-            "weight": 18
-          },
-          {
-            "term": "private key",
-            "weight": 16
-          },
-          {
-            "term": "social engineering",
-            "weight": 16
-          },
-          {
-            "term": "cold wallet",
+            "term": "merchant",
             "weight": 14
           },
           {
-            "term": "hardware wallet",
+            "term": "bep-20",
+            "weight": 16
+          },
+          {
+            "term": "bep20",
+            "weight": 16
+          },
+          {
+            "term": "binance smart chain",
+            "weight": 16
+          },
+          {
+            "term": "nft",
             "weight": 14
           },
           {
-            "term": "security",
+            "term": "marketplace",
+            "weight": 14
+          },
+          {
+            "term": "crafting",
             "weight": 18
-          },
-          {
-            "term": "blacklisted",
-            "weight": 15
-          },
-          {
-            "term": "drainer",
-            "weight": 26
-          },
-          {
-            "term": "reentrancy",
-            "weight": 24
-          },
-          {
-            "term": "bridge exploit",
-            "weight": 26
-          },
-          {
-            "term": "bridge hack",
-            "weight": 26
-          },
-          {
-            "term": "address poisoning",
-            "weight": 22
-          },
-          {
-            "term": "sim swap",
-            "weight": 22
-          },
-          {
-            "term": "zachxbt",
-            "weight": 20
-          },
-          {
-            "term": "peckshield",
-            "weight": 20
-          },
-          {
-            "term": "certik",
-            "weight": 18
-          },
-          {
-            "term": "exploiter",
-            "weight": 22
-          },
-          {
-            "term": "stolen funds",
-            "weight": 24
-          },
-          {
-            "term": "loss of funds",
-            "weight": 20
-          },
-          {
-            "term": "security audit",
-            "weight": 20
           }
         ],
         "weakTerms": [
           {
-            "term": "luxury",
+            "term": "bitcoin etf",
             "weight": -12
           },
           {
-            "term": "lifestyle",
-            "weight": -12
-          },
-          {
-            "term": "lambo",
-            "weight": -15
-          },
-          {
-            "term": "token hype",
+            "term": "macro",
             "weight": -10
           },
           {
-            "term": "gaming",
-            "weight": -8
+            "term": "defi exploit",
+            "weight": -10
+          },
+          {
+            "term": "price prediction",
+            "weight": -10
           },
           {
             "term": "presale",
-            "weight": -5
-          },
-          {
-            "term": "auction",
-            "weight": -12
-          },
-          {
-            "term": "jewelry",
-            "weight": -12
-          },
-          {
-            "term": "watch",
-            "weight": -10
-          },
-          {
-            "term": "prediction market",
             "weight": -8
           }
         ],
-        "aliases": [],
+        "aliases": [
+          {
+            "canonical": "jewelry coin",
+            "surfaces": [
+              "jewellery coin",
+              "jewelry token",
+              "jewellery token",
+              "jewelry game",
+              "jewellery game",
+              "jewellery.game",
+              "jewelry_token"
+            ]
+          }
+        ],
         "phrases": [],
         "preferredSourceKeys": [
-          "the-block-rss",
-          "blockworks-rss",
-          "the-defiant-rss",
-          "coindesk-rss"
+          "beincrypto-rss",
+          "coindesk-rss",
+          "cointelegraph-rss",
+          "decrypt-rss"
         ],
         "semanticAnchors": [
-          "crypto security",
-          "DeFi exploit",
-          "protocol hack",
-          "wallet drainer",
-          "rug pull",
-          "smart contract vulnerability",
-          "phishing attack",
-          "flash loan attack"
+          "digital jewelry",
+          "virtual jewelry",
+          "gem mining",
+          "gem extraction",
+          "jewelry design",
+          "NFT minting",
+          "NFT marketplace",
+          "digital collectible",
+          "physical jewelry",
+          "augmented reality try on",
+          "luxury craft",
+          "creator marketplace",
+          "BEP-20 utility token",
+          "Jewelry Token"
         ],
         "promoEnabled": true,
         "canonicalHashtags": {
-          "en": "#MetaCoinGuard",
-          "fa": "#متا_کوین_گارد"
+          "en": "#JewelryToken",
+          "fa": "#جولری_توکن"
+        }
+      }
+    },
+    {
+      "key": "industrial-token",
+      "name": "Industrial Token",
+      "brandBible": "brand-bibles/industrial-token.md",
+      "imageProfile": "image-profiles/industrial-token.json",
+      "brandLogo": {
+        "path": "brand-logos/industrial-coin-logo.png",
+        "mimeType": "image/png",
+        "byteLength": 327276,
+        "pixelWidth": 640,
+        "pixelHeight": 640,
+        "sha256": "e8b5e6b22369e873369a6f4e75a2fab6efe8797a268006d3e06d06988869be49"
+      },
+      "editorial": {
+        "mediaFitThreshold": 0,
+        "strongTerms": [],
+        "weakTerms": [],
+        "aliases": [
+          {
+            "canonical": "industrial token",
+            "surfaces": [
+              "industrial.game",
+              "industrial game",
+              "industrial ecosystem",
+              "industrial_token",
+              "industrial"
+            ]
+          }
+        ],
+        "phrases": [],
+        "preferredSourceKeys": [
+          "chainalysis-blog-rss",
+          "coindesk-rss",
+          "cointelegraph-rss",
+          "dl-news-rss",
+          "the-block-rss"
+        ],
+        "semanticAnchors": [
+          "industrial blockchain",
+          "industry 4.0",
+          "industrial automation",
+          "smart factory",
+          "digital twin",
+          "supply chain traceability",
+          "industrial logistics",
+          "manufacturing technology",
+          "industrial iot",
+          "clean energy manufacturing",
+          "sustainable industry",
+          "robotics",
+          "gamified industrial marketing",
+          "industrial simulation",
+          "BEP-20",
+          "BNB Smart Chain",
+          "Industrial Token"
+        ],
+        "promoEnabled": true,
+        "canonicalHashtags": {
+          "en": "#IndustrialToken",
+          "fa": "#IndustrialToken"
+        }
+      }
+    },
+    {
+      "key": "real-estate-token",
+      "name": "Real Estate Token",
+      "brandBible": "brand-bibles/real-estate-token.md",
+      "imageProfile": "image-profiles/real-estate-token.json",
+      "brandLogo": {
+        "path": "brand-logos/real-estate-footer-logo.png",
+        "mimeType": "image/png",
+        "byteLength": 37688,
+        "pixelWidth": 2400,
+        "pixelHeight": 754,
+        "sha256": "dfe83a427335ad043a19cf95efa68efacca86c867da13b263b2db32991a7e866"
+      },
+      "editorial": {
+        "mediaFitThreshold": 0,
+        "strongTerms": [],
+        "weakTerms": [],
+        "aliases": [
+          {
+            "canonical": "real estate token",
+            "surfaces": [
+              "realestate token",
+              "realestate",
+              "real-estate.game",
+              "property tokenization",
+              "digital real estate",
+              "real_estate_token"
+            ]
+          }
+        ],
+        "phrases": [],
+        "preferredSourceKeys": [
+          "chainalysis-blog-rss",
+          "coindesk-rss",
+          "cointelegraph-rss",
+          "dl-news-rss",
+          "the-block-rss"
+        ],
+        "semanticAnchors": [
+          "real estate tokenization",
+          "tokenized property",
+          "fractional property ownership",
+          "digital real estate",
+          "property blockchain",
+          "on-chain title",
+          "property provenance",
+          "real estate crowdfunding",
+          "proptech",
+          "smart property contract",
+          "sustainable real estate",
+          "Real Estate Token",
+          "RealEstate token",
+          "REALESTATE"
+        ],
+        "promoEnabled": true,
+        "canonicalHashtags": {
+          "en": "#RealEstateToken",
+          "fa": "#RealEstateToken"
+        }
+      }
+    },
+    {
+      "key": "trip-token",
+      "name": "Trip Token",
+      "brandBible": "brand-bibles/trip-token.md",
+      "imageProfile": "image-profiles/trip-token.json",
+      "brandLogo": {
+        "path": "brand-logos/trip-footer-logo.png",
+        "mimeType": "image/png",
+        "byteLength": 44593,
+        "pixelWidth": 2697,
+        "pixelHeight": 1241,
+        "sha256": "f260dacfd68968f09f74337ed22bf60865d08edde56c8b6da98de0fec34f0746"
+      },
+      "editorial": {
+        "mediaFitThreshold": 0,
+        "strongTerms": [],
+        "weakTerms": [],
+        "aliases": [
+          {
+            "canonical": "trip token",
+            "surfaces": [
+              "trip.game",
+              "trip travel token",
+              "trip_token1",
+              "travel blockchain",
+              "tourism token",
+              "connected travel"
+            ]
+          }
+        ],
+        "phrases": [],
+        "preferredSourceKeys": [
+          "beincrypto-rss",
+          "coindesk-rss",
+          "cointelegraph-rss",
+          "decrypt-rss",
+          "the-block-rss"
+        ],
+        "semanticAnchors": [
+          "travel blockchain",
+          "tourism blockchain",
+          "travel technology",
+          "tourism technology",
+          "digital travel identity",
+          "travel loyalty",
+          "tourism rewards",
+          "connected journey",
+          "travel records",
+          "ticket transparency",
+          "hotel technology",
+          "smart tourism",
+          "responsible tourism",
+          "travel insurance technology",
+          "Trip Token",
+          "BEP-20",
+          "BNB Smart Chain"
+        ],
+        "promoEnabled": true,
+        "canonicalHashtags": {
+          "en": "#TripToken",
+          "fa": "#TripToken"
         }
       }
     }
@@ -2429,82 +2206,100 @@
   },
   "destinationAccounts": [
     {
-      "key": "chainreporter-telegram",
+      "key": "rzwire-telegram",
       "platform": "telegram",
       "enabled": true,
       "metadata": {
-        "label": "ChainReporter Telegram",
-        "channel": "@rzchainreportertest"
+        "label": "RZWire Telegram",
+        "channel": "@rzwiretest"
       }
     },
     {
-      "key": "chainreporter-x",
+      "key": "rzwire-x",
       "platform": "x",
       "enabled": true,
       "metadata": {
-        "label": "ChainReporter X"
+        "label": "RZWire X"
       }
     }
   ],
   "brandDestinations": [
     {
-      "brandKey": "rz-prime",
-      "destinationKey": "chainreporter-telegram"
+      "brandKey": "mgc-coin",
+      "destinationKey": "rzwire-telegram"
     },
     {
-      "brandKey": "rz-prime",
-      "destinationKey": "chainreporter-x"
+      "brandKey": "mgc-coin",
+      "destinationKey": "rzwire-x"
     },
     {
-      "brandKey": "coin-hall",
-      "destinationKey": "chainreporter-telegram"
+      "brandKey": "ranking-platform",
+      "destinationKey": "rzwire-telegram"
     },
     {
-      "brandKey": "coin-hall",
-      "destinationKey": "chainreporter-x"
+      "brandKey": "ranking-platform",
+      "destinationKey": "rzwire-x"
     },
     {
-      "brandKey": "chain-reporter",
-      "destinationKey": "chainreporter-telegram"
+      "brandKey": "oasis-coin",
+      "destinationKey": "rzwire-telegram"
     },
     {
-      "brandKey": "chain-reporter",
-      "destinationKey": "chainreporter-x"
+      "brandKey": "oasis-coin",
+      "destinationKey": "rzwire-x"
     },
     {
-      "brandKey": "meta-coin-guard",
-      "destinationKey": "chainreporter-telegram"
+      "brandKey": "jewelry-coin",
+      "destinationKey": "rzwire-telegram"
     },
     {
-      "brandKey": "meta-coin-guard",
-      "destinationKey": "chainreporter-x"
+      "brandKey": "jewelry-coin",
+      "destinationKey": "rzwire-x"
+    },
+    {
+      "brandKey": "industrial-token",
+      "destinationKey": "rzwire-telegram"
+    },
+    {
+      "brandKey": "industrial-token",
+      "destinationKey": "rzwire-x"
+    },
+    {
+      "brandKey": "real-estate-token",
+      "destinationKey": "rzwire-telegram"
+    },
+    {
+      "brandKey": "real-estate-token",
+      "destinationKey": "rzwire-x"
+    },
+    {
+      "brandKey": "trip-token",
+      "destinationKey": "rzwire-telegram"
+    },
+    {
+      "brandKey": "trip-token",
+      "destinationKey": "rzwire-x"
     }
   ],
   "reviewedKnowledge": {
     "faq": {
-      "en": "reviewed-knowledge/en/faq.json",
-      "fa": "reviewed-knowledge/fa/faq.json"
+      "en": "reviewed-knowledge/en/faq.json"
     },
     "workspaceOverview": {
-      "en": "reviewed-knowledge/en/workspace-overview.md",
-      "fa": "reviewed-knowledge/fa/workspace-overview.md"
+      "en": "reviewed-knowledge/en/workspace-overview.md"
     },
     "brandChat": {
-      "rz-prime": {
-        "en": "reviewed-knowledge/en/brands/rz-prime.md",
-        "fa": "reviewed-knowledge/fa/brands/rz-prime.md"
+      "mgc-coin": {
+        "en": "reviewed-knowledge/en/brands/mgc-coin.md"
       },
-      "coin-hall": {
-        "en": "reviewed-knowledge/en/brands/coin-hall.md",
-        "fa": "reviewed-knowledge/fa/brands/coin-hall.md"
+      "ranking-platform": {
+        "en": "reviewed-knowledge/en/brands/ranking-platform.md"
       },
-      "chain-reporter": {
-        "en": "reviewed-knowledge/en/brands/chain-reporter.md",
-        "fa": "reviewed-knowledge/fa/brands/chain-reporter.md"
+      "oasis-coin": {
+        "en": "reviewed-knowledge/en/brands/oasis-coin.md"
       },
-      "meta-coin-guard": {
-        "en": "reviewed-knowledge/en/brands/meta-coin-guard.md",
-        "fa": "reviewed-knowledge/fa/brands/meta-coin-guard.md"
+      "jewelry-coin": {
+        "en": "reviewed-knowledge/en/brands/jewelry-coin.md"
       }
     }
   }

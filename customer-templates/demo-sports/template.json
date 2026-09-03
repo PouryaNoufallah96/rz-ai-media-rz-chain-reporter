@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 12,
   "customer": {
     "key": "demo-sports",
     "productName": "Demo Sports Desk",
@@ -32,26 +32,90 @@
       },
       "enrichment-brief": {
         "backend": "remote",
+        "model": "openai/gpt-4.1-nano",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4.1-mini"
+        }
+      },
+      "editorial-selection:gpt": {
+        "backend": "remote",
         "model": "openai/gpt-4o-mini",
         "fallback": {
           "backend": "remote",
           "model": "openai/gpt-4.1-nano"
         }
       },
-      "editorial-selection:standard": {
+      "promo-ideas:gpt": {
         "backend": "remote",
         "model": "openai/gpt-4o-mini"
       },
-      "promo-ideas:standard": {
-        "backend": "remote",
-        "model": "openai/gpt-4o-mini"
-      },
-      "copy-generation:standard": {
+      "copy-generation:gpt": {
         "backend": "remote",
         "model": "openai/gpt-4o-mini",
         "fallback": {
           "backend": "remote",
           "model": "openai/gpt-4.1-mini"
+        }
+      },
+      "editorial-selection:gemini": {
+        "backend": "remote",
+        "model": "google/gemini-2.5-flash",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        }
+      },
+      "promo-ideas:gemini": {
+        "backend": "remote",
+        "model": "google/gemini-2.5-flash"
+      },
+      "copy-generation:gemini": {
+        "backend": "remote",
+        "model": "google/gemini-2.5-flash",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        }
+      },
+      "editorial-selection:claude": {
+        "backend": "remote",
+        "model": "anthropic/claude-sonnet-4.5",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        }
+      },
+      "promo-ideas:claude": {
+        "backend": "remote",
+        "model": "anthropic/claude-sonnet-4.5"
+      },
+      "copy-generation:claude": {
+        "backend": "remote",
+        "model": "anthropic/claude-sonnet-4.5",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        }
+      },
+      "editorial-selection:deepseek": {
+        "backend": "remote",
+        "model": "deepseek/deepseek-v4-flash",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        }
+      },
+      "promo-ideas:deepseek": {
+        "backend": "remote",
+        "model": "deepseek/deepseek-v4-flash"
+      },
+      "copy-generation:deepseek": {
+        "backend": "remote",
+        "model": "deepseek/deepseek-v4-flash",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
         }
       },
       "image-template-selection": {
@@ -70,12 +134,36 @@
           "model": "google/gemini-2.5-flash"
         }
       },
-      "image-generation:standard-image": {
+      "image-generation:gpt-image": {
         "backend": "remote",
         "model": "openai/gpt-5.4-image-2",
         "fallback": {
           "backend": "remote",
           "model": "google/gemini-3.1-flash-image"
+        }
+      },
+      "image-generation:gemini-flash-image": {
+        "backend": "remote",
+        "model": "google/gemini-3.1-flash-image",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-5.4-image-2"
+        }
+      },
+      "image-generation:gemini-pro-image": {
+        "backend": "remote",
+        "model": "google/gemini-3-pro-image",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-5.4-image-2"
+        }
+      },
+      "image-generation:recraft-v4-pro": {
+        "backend": "remote",
+        "model": "recraft/recraft-v4-pro",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-5.4-image-2"
         }
       },
       "assistant-synthesis": {
@@ -87,8 +175,20 @@
   "editorial": {
     "models": [
       {
-        "key": "standard",
-        "name": "Standard"
+        "key": "gpt",
+        "name": "GPT"
+      },
+      {
+        "key": "gemini",
+        "name": "Gemini"
+      },
+      {
+        "key": "claude",
+        "name": "Claude"
+      },
+      {
+        "key": "deepseek",
+        "name": "DeepSeek"
       }
     ],
     "platforms": [
@@ -103,7 +203,10 @@
         "transfer-desk"
       ],
       "models": [
-        "standard"
+        "gpt",
+        "gemini",
+        "claude",
+        "deepseek"
       ],
       "platforms": [
         "telegram"
@@ -120,12 +223,12 @@
     "selectionCap": 20,
     "importReuseMinutes": 30,
     "fanOut": {
-      "maxUnits": 6,
-      "unitConcurrency": 2
+      "maxUnits": 16,
+      "unitConcurrency": 4
     },
     "promo": {
-      "ideaCount": 3,
-      "promptMaxChars": 800
+      "ideaCount": 4,
+      "promptMaxChars": 1200
     },
     "drafting": {
       "copy": {
@@ -211,12 +314,27 @@
       "image": {
         "models": [
           {
-            "key": "standard-image",
-            "name": "Standard Image",
+            "key": "gpt-image",
+            "name": "GPT-5.4 Image 2",
             "enabled": true
+          },
+          {
+            "key": "gemini-flash-image",
+            "name": "Gemini 3.1 Flash Image",
+            "enabled": true
+          },
+          {
+            "key": "gemini-pro-image",
+            "name": "Gemini 3 Pro Image",
+            "enabled": true
+          },
+          {
+            "key": "recraft-v4-pro",
+            "name": "Recraft V4 Pro",
+            "enabled": false
           }
         ],
-        "defaultModelKey": "standard-image"
+        "defaultModelKey": "gpt-image"
       }
     },
     "semantic": {
@@ -350,6 +468,9 @@
       }
     }
   },
+  "marketAnalysis": {
+    "enabled": false
+  },
   "mediaBrands": [
     {
       "key": "match-day",
@@ -358,6 +479,7 @@
       "brandLogo": {
         "path": "brand-logos/match-day.png",
         "mimeType": "image/png",
+        "byteLength": 11558,
         "pixelWidth": 400,
         "pixelHeight": 400,
         "sha256": "2a5c0ce22fc143282f65c701dcb51c8aa7eea22e24cc5f4521a4ca9cd366634f"
@@ -717,12 +839,12 @@
     "maxItemsPerSource": 15,
     "telegram": {
       "orderingMode": "views",
-      "topN": 10
+      "topN": 20
     }
   },
   "enrichment": {
     "enabled": true,
-    "maxItemsPerImport": 50,
+    "maxItemsPerImport": 8,
     "freshnessHours": 24
   },
   "destinationAccounts": [

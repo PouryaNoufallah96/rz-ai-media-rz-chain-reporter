@@ -1,0 +1,275 @@
+{
+  "families": {
+    "duotone": {
+      "name": "MONOCHROME ECLIPSE EDITORIAL",
+      "skeleton": "A black-and-white or blue-black photographic subject such as a moon, observatory, empty road, monolith, gateway, city, or engineered object fills the frame. One thin lunar-silver orbit, eclipse arc, or low-saturation steel-blue wash interacts with the subject while large black regions remain untouched.",
+      "textPolicy": "One short headline only.",
+      "defaultAxes": {
+        "stage": "cosmic_photo",
+        "composition": "full_bleed_photo",
+        "energy": "quiet_vision",
+        "accent": "lunar_silver"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "small white editorial type in a quiet sky, road, or architectural region",
+      "headlineUppercase": false
+    },
+    "big_number": {
+      "name": "ORBITAL DATA POSTER",
+      "skeleton": "A black or graphite field holds one oversized source-verified value beneath a thin silver eclipse arc. One compact dark module may carry a restrained emerald trace or comparison marker, but the value remains the single dominant element.",
+      "textPolicy": "One verified value plus one short contextual headline.",
+      "defaultAxes": {
+        "stage": "graphite_data",
+        "composition": "number_orbit",
+        "energy": "measured_momentum",
+        "accent": "emerald_data"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "the verified value dominates, with a small white context line above it"
+    },
+    "hero_object": {
+      "name": "ECLIPSE HERO OBJECT",
+      "skeleton": "One premium black-and-silver object such as an eclipse medallion, sealed energy core, monolith fragment, planetary key, or orbital instrument sits on matte obsidian. A razor-thin white rim and one soft reflected arc define the form; there are no duplicate tokens.",
+      "textPolicy": "One restrained headline and at most one source-supported value.",
+      "defaultAxes": {
+        "stage": "obsidian_studio",
+        "composition": "centered_hero",
+        "energy": "milestone",
+        "accent": "eclipse_white"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "small white type above or beside the object with generous negative space"
+    },
+    "concept_photo": {
+      "name": "COSMIC CIVILIZATION CAMPAIGN",
+      "skeleton": "A single cinematic future-facing scene such as a silent city under a huge moon, an empty road toward a planetary gate, an unfinished world fragment, or monumental orbital architecture fills the frame. No identifiable face appears, and the image reads as conceptual long-term vision rather than a live product screenshot.",
+      "textPolicy": "One declarative headline, ideally 5 words or fewer.",
+      "defaultAxes": {
+        "stage": "deep_space",
+        "composition": "horizon_campaign",
+        "energy": "quiet_vision",
+        "accent": "deep_space_blue"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "small widely tracked white type aligned to the horizon or lower negative space",
+      "headlineUppercase": false
+    },
+    "flat_explainer": {
+      "name": "ORBITAL SYSTEM EXPLAINER",
+      "skeleton": "Three to five monochrome planetary modules, eclipse nodes, world fragments, or phase cards connect along one precise silver orbital path. Each module is large and distinct; future modules remain incomplete, dim, or outlined to preserve honest development status.",
+      "textPolicy": "One headline plus at most three short phase or mechanism chips.",
+      "defaultAxes": {
+        "stage": "diagram_void",
+        "composition": "orbital_diagram",
+        "energy": "architectural_calm",
+        "accent": "lunar_silver"
+      },
+      "dataBudget": 3,
+      "headlineTreatment": "a clean white title band above or beside the orbital diagram"
+    },
+    "type_led": {
+      "name": "BLACK-FIELD STATEMENT",
+      "skeleton": "Typography is the principal design on absolute black or a barely visible graphite gradient. One small white rounded icon tile, eclipse line, or silver object anchors the statement. The composition is spacious, calm, and official, never a dense press release.",
+      "textPolicy": "One concise headline plus at most one short supporting sentence.",
+      "defaultAxes": {
+        "stage": "statement_black",
+        "composition": "left_statement",
+        "energy": "official_calm",
+        "accent": "eclipse_white"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "medium-large white type in a disciplined left-aligned block with wide line spacing"
+    },
+    "art_drop": {
+      "name": "COSMIC ART DROP",
+      "skeleton": "A standalone zero-copy artwork explores one eclipse, energy core, city fragment, cosmic threshold, orbit, dark planet, or star map in a rotating monochrome fine-art treatment such as silver-gelatin photography, graphite drawing, black paper relief, or lunar etching.",
+      "textPolicy": "Zero in-image text; all context lives in the social copy.",
+      "defaultAxes": {
+        "stage": "cosmic_texture",
+        "composition": "centered_hero",
+        "energy": "quiet_vision",
+        "accent": "lunar_silver"
+      },
+      "dataBudget": 0
+    },
+    "stat_card": {
+      "name": "VERIFIED DATA CARD",
+      "skeleton": "A graphite field holds two to four large rounded dark modules inside one continuous silver outline. Modules present only source-verified market values, token facts, or allocation figures. One eclipse arc or small 3D object anchors the frame; there is no copied exchange interface or tiny terminal clutter.",
+      "textPolicy": "One headline plus 2-4 source-supported values.",
+      "defaultAxes": {
+        "stage": "graphite_data",
+        "composition": "card_grid",
+        "energy": "architectural_calm",
+        "accent": "lunar_silver"
+      },
+      "dataBudget": 4,
+      "headlineTreatment": "a clean white title above the modules with generous separation"
+    },
+    "roadmap_card": {
+      "name": "PHASED ROADMAP CARDS",
+      "skeleton": "Two to four staggered rounded obsidian cards descend through a black field and connect with one thin silver or restrained emerald path. Each card uses one abstract construction icon and one short source-supported phase label; future stages remain visibly incomplete.",
+      "textPolicy": "One headline plus 2-4 short source-supported phase labels; no invented dates or completion percentages.",
+      "defaultAxes": {
+        "stage": "graphite_data",
+        "composition": "card_grid",
+        "energy": "architectural_calm",
+        "accent": "lunar_silver"
+      },
+      "dataBudget": 4,
+      "headlineTreatment": "a clean white title above the staggered phase cards with broad black spacing"
+    },
+    "lockup": {
+      "name": "CONNECTED WORLDS LOCKUP",
+      "skeleton": "Two abstract eclipse medallions, planets, gateways, or world modules sit apart on a black stage and connect through one thin silver orbit, narrow light bridge, or aligned aperture. The forms contain no invented marks and never imply an integration that the source does not confirm.",
+      "textPolicy": "One headline plus up to two short entity or world labels when source-supported.",
+      "defaultAxes": {
+        "stage": "obsidian_studio",
+        "composition": "dual_orbit",
+        "energy": "milestone",
+        "accent": "champagne_light"
+      },
+      "dataBudget": 2,
+      "headlineTreatment": "small white title above the paired forms with short labels beneath if needed",
+      "dataValueMaxLength": 12
+    }
+  },
+  "axes": {
+    "stage": {
+      "statement_black": "The stage is absolute black fading almost imperceptibly to graphite, with no decorative texture behind the copy zone.",
+      "obsidian_studio": "The stage is a matte-obsidian studio with controlled silver reflections and a seamless black horizon.",
+      "graphite_data": "The stage is midnight graphite with quiet dark modules, a continuous silver outline, and no exchange-like clutter.",
+      "cosmic_photo": "The stage is a realistic monochrome moon, road, observatory, city, gateway, or engineered environment under sparse cosmic light.",
+      "deep_space": "The stage is a deep ink-navy star field or planetary horizon with one monumental architectural subject and extensive darkness.",
+      "diagram_void": "The stage is a clean black diagram field with thin silver orbital geometry and large, distinct system modules.",
+      "cosmic_texture": "The stage is a tactile monochrome cosmic material world such as lunar dust, graphite, black paper, or silver-gelatin grain."
+    },
+    "composition": {
+      "centered_hero": "Center one object or eclipse form with commanding symmetry and a broad untouched black perimeter.",
+      "left_statement": "Reserve the left or upper-left region for a disciplined statement block and place one small icon or silver detail nearby.",
+      "full_bleed_photo": "Use a full-bleed cinematic photograph with a naturally quiet sky, road, or architectural zone for the headline.",
+      "horizon_campaign": "Build the scene around one low horizon or vanishing point, placing the monumental cosmic subject above it and copy below or beside it.",
+      "number_orbit": "Let one verified value dominate the upper or central frame while one silver eclipse arc and compact module establish context.",
+      "orbital_diagram": "Arrange three to five modules along one precise orbit or phased path with clear separation and visible unfinished states.",
+      "card_grid": "Arrange two to four oversized dark cards inside one continuous silver frame beneath a clean title block.",
+      "dual_orbit": "Balance two distinct forms on opposite sides of one silver orbital connector, leaving the center clean and purposeful."
+    },
+    "energy": {
+      "official_calm": "The mood is sober, transparent, and composed, using restrained hierarchy and almost no decorative motion.",
+      "quiet_vision": "The mood is visionary but patient, emphasizing distance, scale, and long-horizon building rather than urgency.",
+      "architectural_calm": "The mood is precise and system-led, with ordered geometry, quiet modules, and measured technical confidence.",
+      "measured_momentum": "The mood acknowledges verified movement through one controlled directional trace without predicting future performance.",
+      "milestone": "The mood marks a meaningful chapter with focused light and formal symmetry, never speculative celebration.",
+      "tension": "The mood is high-contrast and cautious, using broken orbit lines or dimmed modules for risk, correction, or delay stories."
+    },
+    "accent": {
+      "lunar_silver": "Lunar silver and soft white define the orbit, rim light, or key geometry against black and graphite.",
+      "eclipse_white": "A razor-thin soft-white eclipse rim is the only bright accent on the absolute-black stage.",
+      "deep_space_blue": "A low-saturation steel-blue or blue-violet atmospheric wash adds cosmic depth while the composition remains overwhelmingly monochrome.",
+      "emerald_data": "Emerald appears only on source-verified positive figures or traces; everything else remains black, graphite, silver, and white.",
+      "champagne_light": "One restrained warm-white or pale champagne glint marks a milestone or connection without turning the palette gold or luxurious."
+    }
+  },
+  "frozenStyle": {
+    "format": "premium vertical 4:5 editorial poster for OASIS and the long-term RZOASIS Galaxy vision, with safe square cropping and enough negative space to remain calm at mobile size",
+    "palette": "absolute black (#000000), ink navy (#0D0E18), midnight graphite (#191A25), structural graphite (#222531), orbit gray (#4E4F5B), lunar silver (#A3A5A7), and soft white (#F4F3F0); verified positive market data alone may use emerald (#20C98B), while restrained steel-blue or blue-violet atmosphere may appear only as low-saturation cosmic depth",
+    "materials": "matte obsidian, charcoal paper, brushed black metal, smoked glass used sparingly, polished silver rims, lunar regolith, fine stardust, dark satin interface panels, and precise white orbit lines; every surface feels quiet, tactile, and premium",
+    "rendering": "cinematic monochrome realism with disciplined exposure, deep blacks, finely controlled silver highlights, sparse practical light, credible scale, and one focal idea; the result feels architectural, editorial, and long-horizon rather than colorful science-fiction spectacle",
+    "backgroundVocab": "absolute-black and graphite gradients, sparse star fields, silent lunar or planetary horizons, dark future cities, empty reflective roads, monumental gates, orbital diagrams, black studio fields, and disciplined data panels with large regions of uninterrupted negative space",
+    "headlineZone": "reserve 32-55 percent of the frame as an uncluttered black, graphite, or sky region for a short white headline; supporting copy is exceptional and never becomes a paragraph",
+    "never": "rainbow galaxies, saturated cyan cyberpunk, generic neon city clutter, busy spaceship battles, multiple competing planets, festive token piles, coin rain, speculative rockets, guaranteed profit language, invented prices or timelines, unsupported live-utility claims, finished metaverse scenes presented as current, copied exchange interfaces, visible contract addresses, tiny dashboards, long paragraphs, more than 4 copy elements, public-figure likenesses, invented brand marks, malformed architecture, or watermarks"
+  },
+  "restrictions": {
+    "antiRepetition": "Do not repeat the same family twice in a row. Across any 6 posts, use at least one typography-led statement, one cosmic photographic scene, one diagram or data composition, and one tactile hero object. Do not reuse the same planet angle, eclipse position, orbit shape, monolith, terminal screen, or token treatment within 5 posts. art_drop art_style must not repeat within 6 posts. big_number and stat_card each appear at most twice in 6 posts. Alternate absolute-black fields, deep-space environments, graphite data stages, and sparse lunar-light compositions.",
+    "moodAccentDefault": "lunar_silver",
+    "moodAccentRestricted": {
+      "emerald_data": {
+        "families": [
+          "big_number",
+          "stat_card"
+        ]
+      },
+      "champagne_light": {
+        "families": [
+          "hero_object",
+          "concept_photo",
+          "lockup"
+        ]
+      }
+    },
+    "bannedSubjectTerms": [
+      "guaranteed return",
+      "guaranteed profit",
+      "passive income",
+      "risk-free",
+      "unhackable",
+      "moonshot",
+      "to the moon",
+      "100x",
+      "get rich",
+      "price prediction",
+      "guaranteed launch",
+      "finished metaverse",
+      "live metaverse",
+      "active marketplace",
+      "live marketplace",
+      "completed galaxy",
+      "fully built world",
+      "current land system",
+      "instant governance",
+      "wallet address",
+      "contract address",
+      "qr code",
+      "buy button",
+      "exchange screen",
+      "copied interface",
+      "coin pile",
+      "coin rain",
+      "token shower",
+      "rocket launch",
+      "rainbow galaxy",
+      "saturated cyberpunk",
+      "glowing humanoid robot",
+      "public figure",
+      "celebrity likeness",
+      "fake logo",
+      "invented logo"
+    ]
+  },
+  "textPolicy": {
+    "rules": "1. Headline: 7 words or fewer, usually sentence case, direct, restrained, and transparent. Avoid urgency,\n   hype punctuation, \"moon,\" \"next 100x,\" guaranteed growth, or scarcity-as-profit language.\n2. Text budget: duotone and concept_photo use headline only; big_number uses one verified value plus a\n   short context line; hero_object uses headline plus at most one value; flat_explainer allows at most\n   three short chips; type_led allows headline plus one short sentence; art_drop uses zero copy;\n   stat_card allows 2-4 verified values; roadmap_card allows 2-4 short source-supported phase labels;\n   lockup allows two short source-supported labels.\n3. Every visible number, price, percentage, supply figure, allocation, date, phase number, and comparison\n   must appear in the supplied article. Never use remembered live-market data.\n4. Describe unbuilt capabilities with \"planned,\" \"intended,\" \"designed to,\" \"future,\" or equivalent\n   visual incompleteness. Never present the full galaxy, marketplace, land, gaming systems, governance,\n   identity, or connected worlds as currently active without a newer official source.\n5. Do not promise returns, price appreciation, passive income, guaranteed demand, risk-free security,\n   completed audits, listings, launches, or deadlines. The existence of a published audit report is not\n   proof that every component is secure.\n6. Do not place a contract address, wallet address, QR code, purchase button, exchange logo, or third-party\n   market interface in generated artwork. Use abstract data modules and add official assets separately.\n7. Never invent the official eclipse emblem or wordmark. Leave the protected bottom-left corner as a\n   seamless continuation of the artwork for the real logo added after generation.",
+    "headlineMaxWords": 7,
+    "headlineUppercase": false,
+    "legibilityLine": "All visible words use a clean geometric sans-serif with generous tracking and precise hierarchy; numerals are large, white, and mobile-feed legible.",
+    "dataElementTemplate": "a restrained dark data module displaying \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " with the short descriptor \"{label}\"",
+    "noTextMode": "art_drop",
+    "noTextLine": "No text, no letters, no numbers anywhere in the image."
+  },
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.096,
+    "insetShortSideRatio": 0.045
+  },
+  "fallbackBrief": {
+    "selection": {
+      "family": "concept_photo",
+      "axes": {
+        "stage": "deep_space",
+        "composition": "horizon_campaign",
+        "energy": "quiet_vision",
+        "accent": "deep_space_blue"
+      }
+    },
+    "brief": {
+      "headline": "A galaxy built in phases",
+      "subjectScene": "A single unfinished dark planet rises above a quiet ink-navy horizon while three distant world fragments remain dim and incomplete along one thin silver orbital path.",
+      "dataElements": []
+    }
+  },
+  "briefExamples": "Worked examples (guidance only; never copy them verbatim):\n\nA. Transparent development update\n{\"family\":\"type_led\",\"headline\":\"Building the next layer\",\"data_elements\":[],\"stage\":\"statement_black\",\"composition\":\"left_statement\",\"energy\":\"official_calm\",\"accent\":\"eclipse_white\",\"art_style\":\"\",\"subject_scene\":\"An absolute-black field holds one small white rounded announcement tile and a razor-thin eclipse arc, preserving a broad calm region for the update.\"}\n\nB. Verified article containing $0.9339 and 9.11%\n{\"family\":\"big_number\",\"headline\":\"One month of measured movement\",\"data_elements\":[{\"value\":\"$0.9339\",\"label\":\"OASIS\"}],\"stage\":\"graphite_data\",\"composition\":\"number_orbit\",\"energy\":\"measured_momentum\",\"accent\":\"emerald_data\",\"art_style\":\"\",\"subject_scene\":\"One large white value dominates a graphite field beneath a thin silver eclipse arc while a compact dark module carries a restrained emerald historical trace.\"}\n\nC. Long-horizon galaxy vision\n{\"family\":\"concept_photo\",\"headline\":\"Built for a longer horizon\",\"data_elements\":[],\"stage\":\"deep_space\",\"composition\":\"horizon_campaign\",\"energy\":\"quiet_vision\",\"accent\":\"deep_space_blue\",\"art_style\":\"\",\"subject_scene\":\"A silent reflective road runs through a dark future city toward one distant white gateway while an oversized moon hangs above the skyline and most windows remain unlit.\"}\n\nD. Phased roadmap\n{\"family\":\"flat_explainer\",\"headline\":\"The galaxy grows in phases\",\"data_elements\":[{\"value\":\"FOUNDATION\",\"label\":\"\"},{\"value\":\"PROTOTYPE\",\"label\":\"\"},{\"value\":\"WORLDS\",\"label\":\"\"}],\"stage\":\"diagram_void\",\"composition\":\"orbital_diagram\",\"energy\":\"architectural_calm\",\"accent\":\"lunar_silver\",\"art_style\":\"\",\"subject_scene\":\"Three large planetary modules follow one silver orbital path; the first is solid, the second is partly assembled, and the third remains a faint outlined world fragment.\"}\n\nE. Token foundation\n{\"family\":\"hero_object\",\"headline\":\"One unit for future worlds\",\"data_elements\":[],\"stage\":\"obsidian_studio\",\"composition\":\"centered_hero\",\"energy\":\"milestone\",\"accent\":\"eclipse_white\",\"art_style\":\"\",\"subject_scene\":\"One black-and-silver eclipse medallion floats above matte obsidian, defined by a razor-thin white rim and one soft reflected orbit with no duplicate objects.\"}\n\nF. Verified comparison article\n{\"family\":\"stat_card\",\"headline\":\"A measured market comparison\",\"data_elements\":[{\"value\":\"+9.11%\",\"label\":\"OASIS\"},{\"value\":\"-2.40%\",\"label\":\"BENCHMARK\"}],\"stage\":\"graphite_data\",\"composition\":\"card_grid\",\"energy\":\"measured_momentum\",\"accent\":\"emerald_data\",\"art_style\":\"\",\"subject_scene\":\"Two oversized dark comparison modules sit inside one continuous silver frame on graphite, with a single emerald historical trace beside the positive source value and no terminal clutter.\"}\n\nG. Zero-copy identity artwork\n{\"family\":\"art_drop\",\"headline\":\"COSMIC IDENTITY\",\"data_elements\":[],\"stage\":\"cosmic_texture\",\"composition\":\"centered_hero\",\"energy\":\"quiet_vision\",\"accent\":\"lunar_silver\",\"art_style\":\"silver-gelatin eclipse photography with tactile lunar grain\",\"subject_scene\":\"A near-black eclipse hangs above a fractured lunar plain while one fine silver orbit passes through floating dust and an unfinished monolith emerges at the horizon.\"}\n\nH. Source-supported staged roadmap\n{\"family\":\"roadmap_card\",\"headline\":\"A system built in stages\",\"data_elements\":[{\"value\":\"FOUNDATION\",\"label\":\"\"},{\"value\":\"INFRASTRUCTURE\",\"label\":\"\"},{\"value\":\"FUTURE WORLDS\",\"label\":\"\"}],\"stage\":\"graphite_data\",\"composition\":\"card_grid\",\"energy\":\"architectural_calm\",\"accent\":\"lunar_silver\",\"art_style\":\"\",\"subject_scene\":\"Three staggered obsidian cards descend through black space, each holding one abstract construction icon and one short phase label while a thin connector stops before the visibly incomplete future stage.\"}"
+}

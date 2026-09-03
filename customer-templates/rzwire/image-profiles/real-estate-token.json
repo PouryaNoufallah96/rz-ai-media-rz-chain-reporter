@@ -1,0 +1,411 @@
+{
+  "families": {
+    "duotone": {
+      "name": "DUOTONE EDITORIAL",
+      "skeleton": "A black-and-white photographic or photo-real subject -- an object, building, or scene, never a generated face -- fills the frame, with ONE accent-color geometric treatment overlaid as a color-split background, duotone wash, or large sweeping rings or diagonal panels that interact with the subject.",
+      "textPolicy": "Headline only, art_only layout.",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "full_bleed_photo",
+        "energy": "newsroom_neutral",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "set in a clean overlay bar across the lower third, or a left-aligned editorial block"
+    },
+    "big_number": {
+      "name": "BIG NUMBER POSTER",
+      "skeleton": "A dark or single-color field holds ONE giant figure rendered in the accent color, dominating at least 30% of the frame height, with a short supporting line beneath it; abstract geometric or logo-derived shapes decorate the corners, and optionally one floating 3D token or object anchors a corner.",
+      "textPolicy": "One giant value (1-7 characters) plus one short supporting line (<=6 words). The value dominates the frame.",
+      "defaultAxes": {
+        "stage": "studio_dark",
+        "composition": "centered_hero",
+        "energy": "celebratory",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "the giant numeral dominates the frame; the headline is set small above or below it"
+    },
+    "hero_object": {
+      "name": "HERO OBJECT 3D",
+      "skeleton": "One premium 3D object -- a coin medallion, glass device, vault, rocket, or sculptural logo -- sits on a clean stage, rendered in glossy glass or metal materials with controlled studio reflections.",
+      "textPolicy": "Headline plus at most one short label or value near the object.",
+      "defaultAxes": {
+        "stage": "gradient_sweep",
+        "composition": "centered_hero",
+        "energy": "celebratory",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "set in a clean zone above or beside the object, modest scale"
+    },
+    "concept_photo": {
+      "name": "CONCEPT PHOTO / CAMPAIGN",
+      "skeleton": "A single striking photo-real scene -- a landmark, sky, or symbolic object in the world, never an identifiable generated face -- fills the frame with generous negative space, evoking political-ad or brand-campaign energy.",
+      "textPolicy": "Headline only, short and declarative (5 words or fewer ideal).",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "full_bleed_photo",
+        "energy": "newsroom_neutral",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "set small in the negative space as a minimal declarative tagline",
+      "headlineUppercase": false
+    },
+    "flat_explainer": {
+      "name": "FLAT EXPLAINER",
+      "skeleton": "A flat-vector or isometric illustration in a limited 2-3 color palette renders one diagrammatic concept -- stacked layers, connected nodes, or a simple machine -- with clean shapes and a friendly but precise tone.",
+      "textPolicy": "Headline plus at most 2 short labels (1-3 words each) inside the illustration; diagram content is otherwise abstract.",
+      "defaultAxes": {
+        "stage": "flat_field",
+        "composition": "isometric",
+        "energy": "newsroom_neutral",
+        "accent": "story_color"
+      },
+      "dataBudget": 2,
+      "headlineTreatment": "set in a clean horizontal band above the illustration"
+    },
+    "type_led": {
+      "name": "TYPE-LED MINIMAL",
+      "skeleton": "Typography is the design. Pick one sub-variant and describe it explicitly in the subject: brutalist dark (huge white sans on black plus one 3D chrome detail), gallery-light (a chrome or silver object on off-white with small type), editorial serif (elegant serif over a single macro-photo texture), or retro-mono (line art with spaced capitals).",
+      "textPolicy": "Headline (may render very large) plus at most one sub-element (a kicker word or small badge).",
+      "defaultAxes": {
+        "stage": "studio_dark",
+        "composition": "left_type_block",
+        "energy": "newsroom_neutral",
+        "accent": "free"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "may render very large, filling much of the frame"
+    },
+    "art_drop": {
+      "name": "ART DROP",
+      "skeleton": "Standalone artwork in a deliberately rotating style -- painterly illustration, dramatic black-and-white portrait-of-an-object, chalk or craft texture, cosmic gradient, woodcut, or similar -- with one crypto motif (a coin, chain link, or Bitcoin glyph) embedded naturally in the art.",
+      "textPolicy": "Zero in-image text. The headline and price live in the social copy, not the image.",
+      "defaultAxes": {
+        "stage": "texture_macro",
+        "composition": "full_bleed_photo",
+        "energy": "playful",
+        "accent": "free"
+      },
+      "dataBudget": 0
+    },
+    "meme": {
+      "name": "MEME / PLAYFUL",
+      "skeleton": "Whatever the joke needs -- a photoreal parody product shot, an absurdist photo composite, or candy-colored cartoon imagery -- staying at a premium craft bar while landing the visual joke in a single beat. Never use real brand marks or logos.",
+      "textPolicy": "At most one short text element if the joke requires it.",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "centered_hero",
+        "energy": "playful",
+        "accent": "free"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "a single short caption-style element, if used at all"
+    },
+    "stat_card": {
+      "name": "STAT CARD",
+      "skeleton": "A clean card-grid layout holds a title block plus 2-4 rounded stat tiles, each carrying one icon, one value and one micro-label, anchored by one hero visual element (a 3D object or illustration) in a corner.",
+      "textPolicy": "Headline plus at most 4 tiles, each a value plus a 1-2 word label. This is the text-heaviest mode -- a hard ceiling.",
+      "defaultAxes": {
+        "stage": "studio_light",
+        "composition": "card_grid",
+        "energy": "newsroom_neutral",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 4,
+      "headlineTreatment": "a bold title block spans the top of the grid"
+    },
+    "lockup": {
+      "name": "PARTNERSHIP LOCKUP",
+      "skeleton": "Two emblem medallions or badges, each carrying an abstract glyph standing in for a real logo, are joined by a connector device -- a bridge, an X-shaped crossing, or a light spark -- on a clean stage; alternatively, one cinematic backdrop carries both entity names typeset in an acquisition-style layout.",
+      "textPolicy": "Headline plus the two entity names as short labels (<=8 characters each) -- the one place proper nouns appear in-image.",
+      "defaultAxes": {
+        "stage": "gradient_sweep",
+        "composition": "centered_hero",
+        "energy": "celebratory",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 2,
+      "headlineTreatment": "set above the medallions, with the entity names as two short labels beneath or beside them",
+      "dataValueMaxLength": 8
+    },
+    "property_progression": {
+      "name": "PROPERTY PROGRESSION",
+      "skeleton": "A sequence of three credible property scales or development stages moves across a pearl architectural field, guided by one restrained champagne-gold rising form. The progression communicates development or access without implying price appreciation or guaranteed value.",
+      "textPolicy": "One headline and at most one source-verified value.",
+      "defaultAxes": {
+        "stage": "pearl_architecture",
+        "composition": "progression_steps",
+        "energy": "measured_progress",
+        "accent": "teal_gold"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "large teal title in a broad upper pearl field"
+    },
+    "digital_economy_room": {
+      "name": "DIGITAL PROPERTY ECONOMY ROOM",
+      "skeleton": "A diverse group of generic property professionals studies one physical city model paired with restrained digital infrastructure in a premium presentation room. The architecture remains primary; abstract analytics support the scene without fake dashboards or deal language.",
+      "textPolicy": "One editorial headline only.",
+      "defaultAxes": {
+        "stage": "presentation_suite",
+        "composition": "model_table",
+        "energy": "institutional_clarity",
+        "accent": "teal_gold"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "clean white or deep-teal title in a quiet architectural panel"
+    },
+    "title_verification": {
+      "name": "TITLE VERIFICATION",
+      "skeleton": "One real contemporary residence anchors the frame while a transparent layered record structure aligns precisely with the building. A small abstract verification junction may appear, but no fake deed text, legal seal, ownership certificate, or guaranteed title claim.",
+      "textPolicy": "One transparency headline; no legal-status labels.",
+      "defaultAxes": {
+        "stage": "residential_blue_hour",
+        "composition": "record_overlay",
+        "energy": "institutional_trust",
+        "accent": "cyan_gold"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "short white title in an uncluttered sky or dark-stone side field"
+    },
+    "architectural_twin": {
+      "name": "PHYSICAL / DIGITAL TWIN",
+      "skeleton": "A single contemporary building transitions with exact perspective from warm physical architecture into a luminous cyan architectural twin. The dividing plane is crisp and elegant; both halves describe the same structure with no fantasy additions or metaverse clutter.",
+      "textPolicy": "One concise future-facing headline only.",
+      "defaultAxes": {
+        "stage": "twin_horizon",
+        "composition": "precise_bisection",
+        "energy": "future_clarity",
+        "accent": "cyan_gold"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "large title placed outside the building silhouette"
+    },
+    "global_property_network": {
+      "name": "GLOBAL PROPERTY NETWORK",
+      "skeleton": "Several credible property districts occupy distinct geographic arcs around one restrained network sphere or map contour. Thin teal and gold paths connect places without inventing listings, availability, ownership, prices, partners, or transaction volumes.",
+      "textPolicy": "One global-access headline; factual locations only when supplied.",
+      "defaultAxes": {
+        "stage": "deep_teal_world",
+        "composition": "network_arc",
+        "energy": "measured_progress",
+        "accent": "teal_gold"
+      },
+      "dataBudget": 2,
+      "headlineTreatment": "large pearl-white title in the quiet upper-left field"
+    },
+    "access_still_life": {
+      "name": "ACCESSIBLE PROPERTY STILL LIFE",
+      "skeleton": "A refined pearl-white still life pairs one familiar everyday object with a precise modular home model at an approachable scale. Champagne details and soft teal shadows create warmth; avoid keys, cash, coin piles, miniature people, or slogans promising ownership or returns.",
+      "textPolicy": "One human, accessible headline only.",
+      "defaultAxes": {
+        "stage": "pearl_studio",
+        "composition": "object_dialogue",
+        "energy": "human_access",
+        "accent": "teal_gold"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "large teal type in the upper pearl field"
+    },
+    "verified_transaction": {
+      "name": "VERIFIED PROPERTY TRANSACTION",
+      "skeleton": "A premium phone, abstract property record, and one restrained verification object form a clean diagonal product composition. Screens contain only abstract geometry; never show fake deed text, wallet balances, buy buttons, signatures, legal seals, or guaranteed completion.",
+      "textPolicy": "One concise verification headline; one source-supported step word if needed.",
+      "defaultAxes": {
+        "stage": "pearl_studio",
+        "composition": "product_diagonal",
+        "energy": "institutional_clarity",
+        "accent": "cyan_gold"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "bold teal title above the product group"
+    },
+    "property_record_stack": {
+      "name": "DECENTRALIZED RECORD STACK",
+      "skeleton": "A luminous architectural model rises above several transparent chronological record layers on a dark-teal stone plinth. The layers are visibly ordered and connected, with no readable legal copy, fake certificate, blockchain cliché, or unsupported security guarantee.",
+      "textPolicy": "One records or transparency headline plus at most three short source-backed stages.",
+      "defaultAxes": {
+        "stage": "teal_record_room",
+        "composition": "vertical_stack",
+        "energy": "institutional_trust",
+        "accent": "cyan_gold"
+      },
+      "dataBudget": 3,
+      "headlineTreatment": "large pearl-white title beside the vertical stack"
+    },
+    "participation_table": {
+      "name": "COLLECTIVE PROPERTY TABLE",
+      "skeleton": "Diverse generic adults collaborate around one large physical development model, each placing a distinct architectural module into the shared plan. The view emphasizes collective participation and design, never a sale closing, investment pitch, handshake, or guaranteed ownership.",
+      "textPolicy": "One community headline only.",
+      "defaultAxes": {
+        "stage": "presentation_suite",
+        "composition": "overhead_table",
+        "energy": "human_access",
+        "accent": "teal_gold"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "large clean title in an empty table edge or wall field"
+    },
+    "sustainable_property_city": {
+      "name": "SUSTAINABLE PROPERTY CITY",
+      "skeleton": "A believable coastal or urban district at sunrise combines contemporary housing, transit, green space, and solar infrastructure. Subtle teal network paths follow real streets; gold sunlight supplies drama without inventing environmental metrics or project availability.",
+      "textPolicy": "One sustainability or infrastructure headline; one verified value only if supplied.",
+      "defaultAxes": {
+        "stage": "sunrise_district",
+        "composition": "city_horizon",
+        "energy": "future_clarity",
+        "accent": "green_gold"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "large deep-teal title in a clean sky band"
+    }
+  },
+  "axes": {
+    "stage": {
+      "studio_dark": "The setting is a dark or single-color studio field, evenly lit and uncluttered.",
+      "studio_light": "The setting is a bright, clean studio field in soft off-white or pale neutral tones.",
+      "gradient_sweep": "The setting is a smooth soft-gradient sweep, like a seamless studio backdrop curving from floor to wall.",
+      "photo_real": "The setting is a photo-real environment -- a real-world object, building, or scene rendered with documentary realism.",
+      "flat_field": "The setting is a flat, evenly-lit field of color suited to vector or isometric illustration.",
+      "texture_macro": "The setting is an extreme close-up texture world -- paper, paint, woodgrain, or other tactile material filling the frame.",
+      "pearl_architecture": "A luminous pearl architectural field uses pale limestone, fine shadows, and restrained champagne details.",
+      "presentation_suite": "A credible premium property presentation room centers one physical model and natural professional collaboration.",
+      "residential_blue_hour": "One believable contemporary residence is photographed at blue hour with warm interior light and a quiet sky.",
+      "twin_horizon": "A single architectural scene moves from warm physical reality into a precise cyan digital counterpart on the same horizon.",
+      "deep_teal_world": "A deep-teal geographic or spatial field holds credible property districts and restrained global connection paths.",
+      "pearl_studio": "A clean pearl-white studio uses soft teal shadows, champagne metal, and one disciplined product or model group.",
+      "teal_record_room": "A dark-teal stone environment supports ordered transparent record layers and one luminous architectural model.",
+      "sunrise_district": "A believable urban or coastal property district sits in warm sunrise light with green infrastructure and clear atmosphere."
+    },
+    "composition": {
+      "centered_hero": "The composition centers a single hero subject in the frame, symmetrical and commanding.",
+      "left_type_block": "The composition reserves the left portion of the frame for a stacked block of typography, with supporting imagery on the right.",
+      "full_bleed_photo": "The composition is a full-bleed photographic frame, the subject filling the entire image with no visible borders.",
+      "split_panel": "The composition divides the frame into two panels -- left/right or top/bottom -- contrasting two halves of the story.",
+      "isometric": "The composition is a three-quarter isometric view, giving an ordered, diagrammatic perspective.",
+      "card_grid": "The composition arranges the frame as a grid of cards or tiles around a title block.",
+      "progression_steps": "Arrange three architectural scales or stages in a clear progression while preserving a broad upper headline field.",
+      "model_table": "Center one physical city or property model with people and restrained digital structure forming a natural ring around it.",
+      "record_overlay": "Anchor the frame with one real building and align ordered transparent record layers precisely to its geometry.",
+      "precise_bisection": "Divide one building into exact physical and digital halves without changing perspective or architectural form.",
+      "network_arc": "Arrange several property districts along a restrained geographic arc joined by thin teal and gold paths.",
+      "object_dialogue": "Pair one familiar object and one precise property model with generous pearl space and clear scale contrast.",
+      "product_diagonal": "Build a clean diagonal relationship among one phone, one abstract record, and one verification object.",
+      "vertical_stack": "Stack ordered record layers beneath one architectural model, leaving one side clear for the headline.",
+      "overhead_table": "Use a natural overhead or high three-quarter view of people assembling one shared development model.",
+      "city_horizon": "Place the district across a low horizon and reserve a broad clean sky for concise editorial copy."
+    },
+    "energy": {
+      "newsroom_neutral": "The lighting and mood are calm, controlled and editorial -- a neutral newsroom register.",
+      "celebratory": "The lighting is bright and triumphant, with a sense of milestone and momentum.",
+      "tension": "The lighting is high-contrast and charged, with fractured or unstable elements conveying tension.",
+      "playful": "The lighting and mood are light, warm and playful.",
+      "measured_progress": "The mood communicates careful progress and wider access without implying appreciation or financial returns.",
+      "institutional_clarity": "The mood is professional, ordered, and credible, with architecture and process more important than technology effects.",
+      "institutional_trust": "The mood communicates transparency through alignment, chronology, and restraint rather than seals or guarantees.",
+      "future_clarity": "The mood is future-facing but architecturally exact, avoiding fantasy skylines and metaverse excess.",
+      "human_access": "The mood is warm, approachable, and participatory without becoming casual, promotional, or investment-led."
+    },
+    "accent": {
+      "workspace_signal": "The dominant accent treatment follows the locked Real Estate Token palette and visual identity.",
+      "story_color": "The dominant accent color is justified by the story itself -- green for a green protocol's hack, gold for a gold-backed token, blue for an ocean-themed chain -- and the reason is named in the brief.",
+      "free": "The dominant accent color is chosen freely to suit this mode's rotating style, not tied to the brand accent.",
+      "teal_gold": "Architectural teal defines the structure while champagne gold provides one warm material or directional accent.",
+      "cyan_gold": "Verification cyan describes digital or record structure while champagne gold anchors the physical property world.",
+      "green_gold": "Restrained landscape green supports the locked teal-and-gold identity only for sustainability and infrastructure stories."
+    }
+  },
+  "frozenStyle": {
+    "format": "premium portrait 4:5 Real Estate Token editorial, composed for safe square cropping with one strong factual property story",
+    "palette": "deep property teal (#052F31), architectural teal (#0B6668), verification cyan (#17AEB2), champagne gold (#DFBD69), warm sunrise gold (#F2D58A), pearl white (#FFFDF7), and controlled charcoal (#132C2D)",
+    "materials": "architectural glass, pale limestone, brushed champagne metal, dark teal stone, precise scale models, transparent title layers, natural timber, and restrained luminous network paths",
+    "rendering": "premium architectural photography or physically plausible photoreal 3D with credible buildings, natural materials, deep teal atmosphere, warm gold light, restrained digital infrastructure, generous negative space, and institutional editorial clarity",
+    "backgroundVocab": "contemporary residences, sustainable urban districts, property presentation suites, architectural model rooms, title-verification scenes, coastal developments, and quiet pearl or teal editorial fields",
+    "headlineZone": "reserve a broad uncluttered pearl, sky, teal, or dark-stone region for one concise headline and keep the bottom-left corner open for the official lockup",
+    "never": "generic crypto neon, floating coin swarms, copied property listings, fake deeds, fake interfaces, impossible buildings, distorted architecture, public figures, price predictions, investment promises, logo inventions, ornate key clichés, or dense tiny type"
+  },
+  "restrictions": {
+    "antiRepetition": "Do not repeat the same family twice in a row or the same approved direction within 6 posts. Across every 6 posts use at least one people-centered family, one architecture-led family, and one record, product, or still-life family. Alternate pearl-light, architectural-photo, and deep-teal stages. Avoid repeating a house angle, digital divide, record stack, phone pose, city model, hands, network sphere, or coastal skyline within 5 posts. big_number and stat_card appear at most once each in 6 posts. Preserve one credible property idea and a protected bottom-left logo zone.",
+    "moodAccentDefault": "workspace_signal",
+    "moodAccentRestricted": {
+      "free": {
+        "families": [
+          "type_led",
+          "art_drop",
+          "meme"
+        ]
+      }
+    },
+    "bannedSubjectTerms": [
+      "art deco",
+      "candlestick chart",
+      "chandelier",
+      "coin pile",
+      "contract address",
+      "exchange listing",
+      "frosted glass",
+      "gatsby",
+      "glassmorphism",
+      "gold veining",
+      "guaranteed appreciation",
+      "guaranteed returns",
+      "guaranteed yield",
+      "gunmetal",
+      "investment guarantee",
+      "legal title certificate",
+      "looks like",
+      "price chart",
+      "property for sale",
+      "real estate logo",
+      "real estate token logo",
+      "real logo",
+      "real person",
+      "real-estate.game",
+      "realestate coin",
+      "trading dashboard",
+      "verified partner",
+      "wallet screenshot",
+      "watermark",
+      "wireframe cube"
+    ]
+  },
+  "textPolicy": {
+    "rules": "1. Headline: seven words or fewer, clear, concrete, and factual. Prefer property, access, ownership records, community, design, and infrastructure over investment language.\n2. All figures, dates, phases, percentages, prices, yields, property counts, partner names, and milestones must appear in the supplied approved source.\n3. Frame roadmap and whitepaper capabilities as proposed or planned unless current evidence proves they are live.\n4. Do not promise ownership rights, legal title, investment returns, passive income, appreciation, savings, security, compliance, or environmental impact.\n5. Do not put a contract address, QR code, buy button, market chart, exchange logo, wallet, fake deed text, or third-party dashboard in generated artwork.\n6. Never invent the Real Estate Token emblem or wordmark. The official lockup is added after generation; leave its bottom-left safe area seamless.",
+    "headlineMaxWords": 7,
+    "headlineUppercase": false,
+    "legibilityLine": "All text is large, crisp and clearly legible.",
+    "dataElementTemplate": "a clean tile or label displaying \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " with the micro-label \"{label}\"",
+    "noTextMode": "art_drop",
+    "noTextLine": "No text, no letters, no numbers anywhere in the image."
+  },
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.096,
+    "insetShortSideRatio": 0.045
+  },
+  "fallbackBrief": {
+    "selection": {
+      "family": "architectural_twin",
+      "axes": {
+        "stage": "twin_horizon",
+        "composition": "precise_bisection",
+        "energy": "future_clarity",
+        "accent": "cyan_gold"
+      }
+    },
+    "brief": {
+      "headline": "Property, Clearly Connected",
+      "subjectScene": "A premium contemporary residence at blue hour transitions into an exact cyan architectural digital twin while a broad quiet teal field remains for editorial copy. No coin, dashboard, price, key, deed text, or invented brand mark appears.",
+      "dataElements": []
+    }
+  },
+  "briefExamples": "Worked examples (guidance only; never copy headlines or scenes verbatim):\n\nA. Property progression\n{\"family\":\"property_progression\",\"headline\":\"A More Accessible Property Journey\",\"data_elements\":[],\"stage\":\"pearl_architecture\",\"composition\":\"progression_steps\",\"energy\":\"measured_progress\",\"accent\":\"teal_gold\",\"subject_scene\":\"Three credible property scales progress across a pale limestone field while one restrained champagne-gold architectural form guides the eye upward without suggesting price appreciation.\"}\n\nB. Transparent records\n{\"family\":\"property_record_stack\",\"headline\":\"Records Designed For Clarity\",\"data_elements\":[],\"stage\":\"teal_record_room\",\"composition\":\"vertical_stack\",\"energy\":\"institutional_trust\",\"accent\":\"cyan_gold\",\"subject_scene\":\"A luminous contemporary building model rises above ordered transparent chronological layers on a dark-teal stone plinth while a broad side field remains clear for the title.\"}\n\nC. Physical and digital property\n{\"family\":\"architectural_twin\",\"headline\":\"One Property. Two Connected Realities.\",\"data_elements\":[],\"stage\":\"twin_horizon\",\"composition\":\"precise_bisection\",\"energy\":\"future_clarity\",\"accent\":\"cyan_gold\",\"subject_scene\":\"One contemporary residence transitions at exact perspective from warm physical materials into its precise luminous cyan architectural twin, with both halves sharing the same structure and horizon.\"}\n\nD. Collective participation\n{\"family\":\"participation_table\",\"headline\":\"Built Through Shared Participation\",\"data_elements\":[],\"stage\":\"presentation_suite\",\"composition\":\"overhead_table\",\"energy\":\"human_access\",\"accent\":\"teal_gold\",\"subject_scene\":\"Diverse generic adults place distinct architectural modules into one shared sustainable development model inside a bright premium presentation suite, with no handshake or sales imagery.\"}\n\nE. Verified transaction concept\n{\"family\":\"verified_transaction\",\"headline\":\"A Clearer Transaction Path\",\"data_elements\":[],\"stage\":\"pearl_studio\",\"composition\":\"product_diagonal\",\"energy\":\"institutional_clarity\",\"accent\":\"cyan_gold\",\"subject_scene\":\"A premium phone with abstract geometry, one layered property record, and a restrained verification object form a clean diagonal composition without readable legal text, wallet balances, or buy controls.\"}\n\nF. Sustainable district\n{\"family\":\"sustainable_property_city\",\"headline\":\"Infrastructure For A Longer Horizon\",\"data_elements\":[],\"stage\":\"sunrise_district\",\"composition\":\"city_horizon\",\"energy\":\"future_clarity\",\"accent\":\"green_gold\",\"subject_scene\":\"A credible coastal district at sunrise combines contemporary housing, transit, solar roofs, and green space while subtle teal paths follow real streets beneath a broad quiet sky.\"}"
+}

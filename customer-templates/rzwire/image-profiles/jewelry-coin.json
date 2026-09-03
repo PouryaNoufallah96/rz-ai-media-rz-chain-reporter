@@ -1,0 +1,266 @@
+{
+  "families": {
+    "hero_object": {
+      "name": "PRECIOUS OBJECT HERO",
+      "skeleton": "One original ring, pendant, earring, bracelet, faceted gem, pearl, or jewelry-design object sits on a frosted acrylic or satin plinth. The silhouette is large, plausible, and tactile, with platinum highlights and one controlled violet gemstone accent.",
+      "textPolicy": "One short headline and at most one source-supported fact.",
+      "defaultAxes": {
+        "stage": "pearl_studio",
+        "composition": "centered_plinth",
+        "energy": "soft_luxury",
+        "accent": "crystal_violet"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "ink-amethyst headline in a quiet upper or side region, never over the jewelry",
+      "headlineUppercase": false
+    },
+    "lockup": {
+      "name": "DIGITAL / PHYSICAL PAIR",
+      "skeleton": "Two clearly distinct but related forms share a bright field: a luminous digital wireframe or gem model and a crafted jewelry counterpart, or two source-supported comparison objects. One glass-violet path or rounded frame connects them without claiming a live integration.",
+      "textPolicy": "One headline plus at most two short source-supported labels.",
+      "defaultAxes": {
+        "stage": "lavender_gradient",
+        "composition": "split_transformation",
+        "energy": "creator_confidence",
+        "accent": "glass_violet"
+      },
+      "dataBudget": 2,
+      "headlineTreatment": "one concise ink-amethyst title above or beside the paired forms",
+      "dataValueMaxLength": 18
+    },
+    "concept_photo": {
+      "name": "CREATOR LIFESTYLE CAMPAIGN",
+      "skeleton": "A photoreal adult creator, collector, or wearer appears in a bright studio or soft daylight setting, interacting naturally with a jewelry sketch, gemstone, tool, tablet, or one correctly scaled piece. No identifiable public figure or fake app interface appears.",
+      "textPolicy": "One concise campaign headline only.",
+      "defaultAxes": {
+        "stage": "lifestyle_photo",
+        "composition": "portrait_editorial",
+        "energy": "creator_confidence",
+        "accent": "blush_crystal"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "large ink-amethyst or white type in a naturally quiet background region",
+      "headlineUppercase": false
+    },
+    "flat_explainer": {
+      "name": "JEWELRY JOURNEY EXPLAINER",
+      "skeleton": "Three or four large crystal, gemstone, jewelry, or frosted-glass modules connect along one clear path. Each stage is visually distinct and source-supported; proposed features remain outlined, translucent, or explicitly future-facing.",
+      "textPolicy": "One headline plus at most four short stage labels.",
+      "defaultAxes": {
+        "stage": "glass_diagram",
+        "composition": "process_path",
+        "energy": "clear_explainer",
+        "accent": "crystal_violet"
+      },
+      "dataBudget": 4,
+      "headlineTreatment": "clean ink-amethyst title above or beside the process path"
+    },
+    "stat_card": {
+      "name": "GLASS UTILITY CARDS",
+      "skeleton": "Two to four large translucent capsules or frosted cards present source-verified token facts, proposed utility labels, or roadmap phases around one premium jewelry or crystal object. The layout is spacious and never resembles an exchange dashboard.",
+      "textPolicy": "One headline plus 2-4 source-supported values or short labels.",
+      "defaultAxes": {
+        "stage": "glass_diagram",
+        "composition": "card_grid",
+        "energy": "clear_explainer",
+        "accent": "glass_violet"
+      },
+      "dataBudget": 4,
+      "headlineTreatment": "bold ink-amethyst title with large readable glass capsules beneath"
+    },
+    "big_number": {
+      "name": "GEMSTONE NUMBER POSTER",
+      "skeleton": "One source-verified value dominates a pearl-to-lavender field as if cut from a gemstone. A single faceted crystal, chrome arc, or frosted plinth supports it; no third-party chart or copied market interface is shown.",
+      "textPolicy": "One verified value plus one short context line.",
+      "defaultAxes": {
+        "stage": "lavender_gradient",
+        "composition": "number_showcase",
+        "energy": "milestone",
+        "accent": "crystal_violet"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "the verified value is the largest element, with a short ink-amethyst descriptor"
+    },
+    "type_led": {
+      "name": "CRYSTAL CAPSULE STATEMENT",
+      "skeleton": "Typography leads on a pearl-white or lavender field. One phrase sits inside a translucent rounded capsule while one small gemstone, chrome jewelry silhouette, or glass wave anchors the composition. The page remains bright and uncluttered.",
+      "textPolicy": "One concise headline plus at most one short supporting sentence.",
+      "defaultAxes": {
+        "stage": "lavender_gradient",
+        "composition": "left_capsule",
+        "energy": "soft_luxury",
+        "accent": "blush_crystal"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "bold ink-amethyst geometric type with one lavender capsule emphasis"
+    },
+    "duotone": {
+      "name": "SOFT-LUXURY PORTRAIT",
+      "skeleton": "A tasteful photoreal close-up of an adult wearer, anonymous hand, ear, wrist, or neckline shows one correctly scaled jewelry piece under soft daylight. A restrained lavender wash or rounded glass copy panel occupies the quiet side of the frame.",
+      "textPolicy": "One short headline only.",
+      "defaultAxes": {
+        "stage": "lifestyle_photo",
+        "composition": "portrait_editorial",
+        "energy": "soft_luxury",
+        "accent": "blush_crystal"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "one large high-contrast statement in the clean editorial panel",
+      "headlineUppercase": false
+    },
+    "art_drop": {
+      "name": "CRYSTAL ART DROP",
+      "skeleton": "A standalone zero-copy artwork explores one faceted crystal, pearl, platinum ribbon, jewelry silhouette, glass capsule, or satin fold in a rotating luminous fine-art treatment such as macro refraction, translucent sculpture, or pearl-chrome still life.",
+      "textPolicy": "Zero in-image text; all context lives in social copy.",
+      "defaultAxes": {
+        "stage": "crystal_art",
+        "composition": "centered_plinth",
+        "energy": "soft_luxury",
+        "accent": "orchid_gem"
+      },
+      "dataBudget": 0
+    }
+  },
+  "axes": {
+    "stage": {
+      "pearl_studio": "A high-key pearl-white studio uses a barely visible lavender floor, soft contact shadows, and frosted acrylic display surfaces.",
+      "lavender_gradient": "A smooth pearl-white to pale-lavender gradient carries gentle blush light without banding or rainbow color.",
+      "satin_macro": "White or pale-lavender satin creates large clean folds with realistic fiber texture and controlled platinum reflections.",
+      "lifestyle_photo": "A bright modern studio, fitting room, creator desk, or soft daylight portrait setting feels authentic and premium.",
+      "glass_diagram": "A clean frosted-white information field uses translucent capsules, thin lavender paths, and large distinct modules.",
+      "crystal_art": "A luminous macro world of crystal, pearl, chrome, and satin supports a single abstract precious-form artwork."
+    },
+    "composition": {
+      "centered_plinth": "Center one precious object on a frosted plinth with generous pearl-white breathing room.",
+      "split_transformation": "Balance a digital form and a physical counterpart across two clean halves linked by one restrained transformation path.",
+      "portrait_editorial": "Place the adult subject or jewelry close-up on one side and reserve the opposite side for a simple editorial statement.",
+      "process_path": "Arrange three or four large stages along one clear horizontal, vertical, or gently curved path.",
+      "card_grid": "Arrange two to four oversized glass capsules or cards around one small jewelry or crystal anchor.",
+      "number_showcase": "Let one verified value dominate while one gemstone-cut object or chrome arc establishes depth.",
+      "left_capsule": "Build a disciplined left or upper-left headline block with one translucent capsule emphasis and one object balancing the opposite side."
+    },
+    "energy": {
+      "soft_luxury": "The mood is polished, light, tactile, and calm, with restrained sparkle and no ostentatious wealth cues.",
+      "creator_confidence": "The mood is optimistic and participatory, emphasizing design agency and craft rather than investment.",
+      "clear_explainer": "The mood is simple, instructive, and spacious, with obvious hierarchy and no tiny labels.",
+      "milestone": "The mood marks a verified fact or chapter through elevated scale and crystalline focus without forecasting performance.",
+      "playful_precision": "The mood uses floating glass and faceted forms with controlled movement while keeping the layout disciplined."
+    },
+    "accent": {
+      "crystal_violet": "Glass violet and electric violet define one main crystal, capsule, or path while pearl white remains dominant.",
+      "blush_crystal": "Blush pink-lilac light softens the scene around one jewelry object or portrait without becoming candy-colored.",
+      "platinum_chrome": "Cool platinum and pale blue-silver define polished metal edges and reflective jewelry surfaces.",
+      "glass_violet": "A translucent lavender-violet glass treatment connects modules or paired objects with soft refraction.",
+      "orchid_gem": "Orchid appears only inside one faceted gemstone or art object, never as a full-frame saturated wash.",
+      "verified_green": "A restrained emerald highlight appears only beside source-verified positive historical data."
+    }
+  },
+  "frozenStyle": {
+    "format": "premium portrait 4:5 social editorial for Jewelry Token, composed for safe square cropping with a bright, breathable layout and one immediate idea",
+    "palette": "pearl white (#FAFAFF), frosted lavender (#ECECFE), soft lavender (#D2C0FD), blush crystal (#EEC7FC), glass violet (#9979FF), electric violet (#552EEB), ink amethyst (#1A094F), platinum chrome (#C3CEE4), and controlled orchid (#C36ED6); verified positive data alone may use a restrained emerald-green accent",
+    "materials": "clear crystal, faceted lilac gemstones, polished platinum, translucent glass capsules, pearl surfaces, white satin, frosted acrylic, and softly reflective chrome",
+    "rendering": "bright luxury product photography or refined photoreal 3D with physically plausible refraction, jewelry-scale proportions, soft shadows, realistic skin, crisp silhouettes, and clean modern editorial typography",
+    "backgroundVocab": "pearl-white studio, pale lavender gradient, white satin, frosted display case, bright creator workspace, soft daylight portrait, or clean glass-diagram field",
+    "headlineZone": "reserve one broad quiet region for a concise headline; use rounded glass capsules as emphasis devices rather than enclosing every line; leave the bottom-left corner clear for the real logo",
+    "never": "never use dark cyberpunk ateliers, generic gold-coin piles, crowded floating token discs, copied market or wallet screens, illegible dashboards, fake jewelry-brand marks, impossible gem settings, plastic-looking skin, public figures, rainbow gradients, or unsupported utility"
+  },
+  "restrictions": {
+    "antiRepetition": "Do not repeat the same family twice in a row. Across any 6 posts, use at least one precious object hero, one creator or wearer photograph, one diagram or verified information design, and one digital-to-physical composition. Do not reuse the same ring, gemstone cut, satin fold, glass capsule arrangement, hand pose, portrait crop, or plinth within 5 posts. art_drop art_style must not repeat within 6 posts. big_number and stat_card each appear at most twice in 6 posts. Alternate pearl-white, lavender-gradient, satin, lifestyle, and frosted-glass stages.",
+    "moodAccentDefault": "crystal_violet",
+    "moodAccentRestricted": {
+      "orchid_gem": {
+        "families": [
+          "hero_object",
+          "concept_photo",
+          "lockup",
+          "art_drop"
+        ]
+      },
+      "verified_green": {
+        "families": [
+          "big_number",
+          "stat_card"
+        ]
+      }
+    },
+    "bannedSubjectTerms": [
+      "guaranteed return",
+      "guaranteed profit",
+      "passive income",
+      "risk-free",
+      "unhackable",
+      "moonshot",
+      "to the moon",
+      "100x",
+      "get rich",
+      "price prediction",
+      "guaranteed rewards",
+      "guaranteed authentication",
+      "guaranteed production",
+      "instant physical jewelry",
+      "live marketplace",
+      "active marketplace",
+      "finished game",
+      "live game platform",
+      "operational ar app",
+      "live ar try-on",
+      "active dao",
+      "live governance",
+      "active staking",
+      "confirmed partner",
+      "official jewelry partner",
+      "exchange listing",
+      "wallet screenshot",
+      "market chart",
+      "candlestick chart",
+      "trading dashboard",
+      "coin pile",
+      "gold coin",
+      "floating token swarm",
+      "public figure",
+      "celebrity likeness",
+      "fake jewelry logo",
+      "invented logo",
+      "third-party logo",
+      "crypto rocket",
+      "generic cyberpunk"
+    ]
+  },
+  "textPolicy": {
+    "rules": "1. Headline: 7 words or fewer, sentence case, imaginative but factual. Emphasize creation, ownership, craft, participation, and the bridge between digital design and possible physical form.\n2. Text budget: hero_object, concept_photo, duotone, and lockup use one headline; big_number uses one verified value plus context; flat_explainer allows four stage labels; type_led allows headline plus one sentence; stat_card allows 2-4 source-supported facts or labels; art_drop uses zero copy.\n3. Every visible price, percentage, supply figure, date, phase number, rate, comparison, and milestone must appear in the supplied article. Never use remembered market data.\n4. Use \"planned,\" \"intended,\" \"proposed,\" \"designed to,\" \"potential,\" or equivalent visual incompleteness for unconfirmed platform functions. Do not show a polished live app or operational production pipeline as current fact.\n5. Do not promise investment returns, price appreciation, passive income, guaranteed rewards, authentication, liquidity, security, compliance, production, delivery, or marketplace activity.\n6. Do not place a contract address, wallet address, QR code, buy button, exchange logo, market chart, or third-party interface in generated artwork. Add official assets separately.\n7. Never invent the Jewelry Token interlocking-gem emblem or wordmark. Leave the protected bottom-left corner as a seamless continuation of the artwork for the real logo added after generation.",
+    "headlineMaxWords": 7,
+    "headlineUppercase": false,
+    "legibilityLine": "All visible words use a clean geometric sans-serif in ink amethyst or white, with generous spacing, strong hierarchy, and no tiny interface text.",
+    "dataElementTemplate": "a clear glass capsule displaying \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " with the short descriptor \"{label}\"",
+    "noTextMode": "art_drop",
+    "noTextLine": "No text, no letters, no numbers anywhere in the image."
+  },
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.096,
+    "insetShortSideRatio": 0.045
+  },
+  "fallbackBrief": {
+    "selection": {
+      "family": "hero_object",
+      "axes": {
+        "stage": "pearl_studio",
+        "composition": "centered_plinth",
+        "energy": "soft_luxury",
+        "accent": "crystal_violet"
+      }
+    },
+    "brief": {
+      "headline": "Ideas become objects",
+      "subjectScene": "One original platinum ring with a faceted lilac gemstone rests on a frosted acrylic plinth against a pearl-white to lavender gradient, with no token disc or invented mark.",
+      "dataElements": []
+    }
+  },
+  "briefExamples": "Worked examples (guidance only; never copy them verbatim):\n\nA. Precious object campaign\n{\"family\":\"hero_object\",\"headline\":\"Your idea, set in light\",\"data_elements\":[],\"stage\":\"pearl_studio\",\"composition\":\"centered_plinth\",\"energy\":\"soft_luxury\",\"accent\":\"orchid_gem\",\"art_style\":\"\",\"subject_scene\":\"One original platinum ring with a faceted orchid-lilac gemstone sits on a frosted acrylic plinth under soft daylight, surrounded by broad pearl-white space.\"}\n\nB. Digital to physical possibility\n{\"family\":\"lockup\",\"headline\":\"From pixels to precious\",\"data_elements\":[],\"stage\":\"lavender_gradient\",\"composition\":\"split_transformation\",\"energy\":\"creator_confidence\",\"accent\":\"glass_violet\",\"art_style\":\"\",\"subject_scene\":\"A luminous wireframe pendant and a plausible crafted platinum pendant face each other across a pale lavender field, joined by one incomplete translucent path that communicates potential physical production.\"}\n\nC. Creator lifestyle\n{\"family\":\"concept_photo\",\"headline\":\"Design what you want to wear\",\"data_elements\":[],\"stage\":\"lifestyle_photo\",\"composition\":\"portrait_editorial\",\"energy\":\"creator_confidence\",\"accent\":\"blush_crystal\",\"art_style\":\"\",\"subject_scene\":\"An adult jewelry creator in a bright studio sketches a pendant beside real tools, gemstones, and white satin while a quiet lavender panel holds the headline.\"}\n\nD. Source-supported journey\n{\"family\":\"flat_explainer\",\"headline\":\"One creative journey\",\"data_elements\":[{\"value\":\"EXTRACT\",\"label\":\"\"},{\"value\":\"DESIGN\",\"label\":\"\"},{\"value\":\"MINT\",\"label\":\"\"},{\"value\":\"TRADE\",\"label\":\"\"}],\"stage\":\"glass_diagram\",\"composition\":\"process_path\",\"energy\":\"clear_explainer\",\"accent\":\"crystal_violet\",\"art_style\":\"\",\"subject_scene\":\"Four large modules progress from a faceted virtual gem to a jewelry wireframe, a clear framed design, and a curated marketplace tile; later stages remain translucent to signal planned functionality.\"}\n\nE. Canonical fixed supply article\n{\"family\":\"big_number\",\"headline\":\"Fixed total supply\",\"data_elements\":[{\"value\":\"100,000,000\",\"label\":\"JEWELRY\"}],\"stage\":\"lavender_gradient\",\"composition\":\"number_showcase\",\"energy\":\"milestone\",\"accent\":\"crystal_violet\",\"art_style\":\"\",\"subject_scene\":\"The verified supply figure is cut into a large crystal-like typographic form above one frosted plinth on a pearl-to-lavender field, with no chart or extra financial data.\"}\n\nF. Zero-copy identity artwork\n{\"family\":\"art_drop\",\"headline\":\"CRYSTAL IDENTITY\",\"data_elements\":[],\"stage\":\"crystal_art\",\"composition\":\"centered_plinth\",\"energy\":\"soft_luxury\",\"accent\":\"orchid_gem\",\"art_style\":\"macro crystal refraction with pearl-chrome sculpture and white satin\",\"subject_scene\":\"One abstract platinum ribbon bends through a faceted lilac crystal above a white satin fold, rendered as a luminous gallery still life.\"}"
+}

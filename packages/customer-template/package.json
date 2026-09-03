@@ -11,9 +11,10 @@
     "./stable-key": "./src/stable-key.ts"
   },
   "scripts": {
-    "check": "biome check .",
+    "check": "biome check . && pnpm validate",
     "check-types": "tsc --noEmit",
-    "fix": "biome check --write ."
+    "fix": "biome check --write .",
+    "validate": "tsx src/validate-cli.ts"
   },
   "dependencies": {
     "@rz-chain-reporter/contracts": "workspace:*",
@@ -22,6 +23,7 @@
   "devDependencies": {
     "@rz-chain-reporter/config": "workspace:*",
     "@types/node": "catalog:",
+    "tsx": "4.23.12",
     "typescript": "catalog:"
   }
 }

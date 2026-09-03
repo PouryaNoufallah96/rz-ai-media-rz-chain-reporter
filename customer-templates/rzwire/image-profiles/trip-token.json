@@ -1,0 +1,412 @@
+{
+  "families": {
+    "duotone": {
+      "name": "DUOTONE EDITORIAL",
+      "skeleton": "A black-and-white photographic or photo-real subject -- an object, building, or scene, never a generated face -- fills the frame, with ONE accent-color geometric treatment overlaid as a color-split background, duotone wash, or large sweeping rings or diagonal panels that interact with the subject.",
+      "textPolicy": "Headline only, art_only layout.",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "full_bleed_photo",
+        "energy": "newsroom_neutral",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "set in a clean overlay bar across the lower third, or a left-aligned editorial block"
+    },
+    "big_number": {
+      "name": "BIG NUMBER POSTER",
+      "skeleton": "A dark or single-color field holds ONE giant figure rendered in the accent color, dominating at least 30% of the frame height, with a short supporting line beneath it; abstract geometric or logo-derived shapes decorate the corners, and optionally one floating 3D token or object anchors a corner.",
+      "textPolicy": "One giant value (1-7 characters) plus one short supporting line (<=6 words). The value dominates the frame.",
+      "defaultAxes": {
+        "stage": "studio_dark",
+        "composition": "centered_hero",
+        "energy": "celebratory",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "the giant numeral dominates the frame; the headline is set small above or below it"
+    },
+    "hero_object": {
+      "name": "HERO OBJECT 3D",
+      "skeleton": "One premium 3D object -- a coin medallion, glass device, vault, rocket, or sculptural logo -- sits on a clean stage, rendered in glossy glass or metal materials with controlled studio reflections.",
+      "textPolicy": "Headline plus at most one short label or value near the object.",
+      "defaultAxes": {
+        "stage": "gradient_sweep",
+        "composition": "centered_hero",
+        "energy": "celebratory",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "set in a clean zone above or beside the object, modest scale"
+    },
+    "concept_photo": {
+      "name": "CONCEPT PHOTO / CAMPAIGN",
+      "skeleton": "A single striking photo-real scene -- a landmark, sky, or symbolic object in the world, never an identifiable generated face -- fills the frame with generous negative space, evoking political-ad or brand-campaign energy.",
+      "textPolicy": "Headline only, short and declarative (5 words or fewer ideal).",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "full_bleed_photo",
+        "energy": "newsroom_neutral",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "set small in the negative space as a minimal declarative tagline",
+      "headlineUppercase": false
+    },
+    "flat_explainer": {
+      "name": "FLAT EXPLAINER",
+      "skeleton": "A flat-vector or isometric illustration in a limited 2-3 color palette renders one diagrammatic concept -- stacked layers, connected nodes, or a simple machine -- with clean shapes and a friendly but precise tone.",
+      "textPolicy": "Headline plus at most 2 short labels (1-3 words each) inside the illustration; diagram content is otherwise abstract.",
+      "defaultAxes": {
+        "stage": "flat_field",
+        "composition": "isometric",
+        "energy": "newsroom_neutral",
+        "accent": "story_color"
+      },
+      "dataBudget": 2,
+      "headlineTreatment": "set in a clean horizontal band above the illustration"
+    },
+    "type_led": {
+      "name": "TYPE-LED MINIMAL",
+      "skeleton": "Typography is the design. Pick one sub-variant and describe it explicitly in the subject: brutalist dark (huge white sans on black plus one 3D chrome detail), gallery-light (a chrome or silver object on off-white with small type), editorial serif (elegant serif over a single macro-photo texture), or retro-mono (line art with spaced capitals).",
+      "textPolicy": "Headline (may render very large) plus at most one sub-element (a kicker word or small badge).",
+      "defaultAxes": {
+        "stage": "studio_dark",
+        "composition": "left_type_block",
+        "energy": "newsroom_neutral",
+        "accent": "free"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "may render very large, filling much of the frame"
+    },
+    "art_drop": {
+      "name": "ART DROP",
+      "skeleton": "Standalone artwork in a deliberately rotating style -- painterly illustration, dramatic black-and-white portrait-of-an-object, chalk or craft texture, cosmic gradient, woodcut, or similar -- with one crypto motif (a coin, chain link, or Bitcoin glyph) embedded naturally in the art.",
+      "textPolicy": "Zero in-image text. The headline and price live in the social copy, not the image.",
+      "defaultAxes": {
+        "stage": "texture_macro",
+        "composition": "full_bleed_photo",
+        "energy": "playful",
+        "accent": "free"
+      },
+      "dataBudget": 0
+    },
+    "meme": {
+      "name": "MEME / PLAYFUL",
+      "skeleton": "Whatever the joke needs -- a photoreal parody product shot, an absurdist photo composite, or candy-colored cartoon imagery -- staying at a premium craft bar while landing the visual joke in a single beat. Never use real brand marks or logos.",
+      "textPolicy": "At most one short text element if the joke requires it.",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "centered_hero",
+        "energy": "playful",
+        "accent": "free"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "a single short caption-style element, if used at all"
+    },
+    "stat_card": {
+      "name": "STAT CARD",
+      "skeleton": "A clean card-grid layout holds a title block plus 2-4 rounded stat tiles, each carrying one icon, one value and one micro-label, anchored by one hero visual element (a 3D object or illustration) in a corner.",
+      "textPolicy": "Headline plus at most 4 tiles, each a value plus a 1-2 word label. This is the text-heaviest mode -- a hard ceiling.",
+      "defaultAxes": {
+        "stage": "studio_light",
+        "composition": "card_grid",
+        "energy": "newsroom_neutral",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 4,
+      "headlineTreatment": "a bold title block spans the top of the grid"
+    },
+    "lockup": {
+      "name": "PARTNERSHIP LOCKUP",
+      "skeleton": "Two emblem medallions or badges, each carrying an abstract glyph standing in for a real logo, are joined by a connector device -- a bridge, an X-shaped crossing, or a light spark -- on a clean stage; alternatively, one cinematic backdrop carries both entity names typeset in an acquisition-style layout.",
+      "textPolicy": "Headline plus the two entity names as short labels (<=8 characters each) -- the one place proper nouns appear in-image.",
+      "defaultAxes": {
+        "stage": "gradient_sweep",
+        "composition": "centered_hero",
+        "energy": "celebratory",
+        "accent": "workspace_signal"
+      },
+      "dataBudget": 2,
+      "headlineTreatment": "set above the medallions, with the entity names as two short labels beneath or beside them",
+      "dataValueMaxLength": 8
+    },
+    "smart_journey_terminal": {
+      "name": "SMART JOURNEY TERMINAL",
+      "skeleton": "A premium airport terminal centers one traveler using a restrained translucent journey layer. Architecture and human movement remain credible; abstract guidance supports the journey without becoming a fake booking interface.",
+      "textPolicy": "One concise source-supported headline; at most one short factual support line.",
+      "defaultAxes": {
+        "stage": "terminal_light",
+        "composition": "traveler_asymmetry",
+        "energy": "seamless_confidence",
+        "accent": "aqua_navy"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "clear premium sans-serif type in a naturally quiet architectural, sky, or tonal field"
+    },
+    "destination_discovery": {
+      "name": "DESTINATION DISCOVERY",
+      "skeleton": "One cinematic destination landscape provides a strong horizon, authentic local atmosphere, and a clear editorial sky field. Travel discovery is communicated through place, light, and scale rather than floating icons or postcard collage.",
+      "textPolicy": "One concise source-supported headline; at most one short factual support line.",
+      "defaultAxes": {
+        "stage": "destination_sunrise",
+        "composition": "destination_horizon",
+        "energy": "open_discovery",
+        "accent": "sky_sunrise"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "clear premium sans-serif type in a naturally quiet architectural, sky, or tonal field"
+    },
+    "travel_planning_table": {
+      "name": "TRAVEL PLANNING TABLE",
+      "skeleton": "A small diverse group plans one believable journey around a physical map or destination model. Phones and documents remain secondary and unreadable; collaboration and route clarity drive the composition.",
+      "textPolicy": "One concise source-supported headline; at most one short factual support line.",
+      "defaultAxes": {
+        "stage": "planning_studio",
+        "composition": "overhead_route_table",
+        "energy": "human_clarity",
+        "accent": "aqua_navy"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "clear premium sans-serif type in a naturally quiet architectural, sky, or tonal field"
+    },
+    "transparent_journey_records": {
+      "name": "TRANSPARENT JOURNEY RECORDS",
+      "skeleton": "A passport-like travel object, ticket form, or luggage tag aligns with ordered translucent record layers. No personal data, QR code, wallet, booking number, guarantee badge, or fake certification is readable.",
+      "textPolicy": "One concise source-supported headline; at most one short factual support line.",
+      "defaultAxes": {
+        "stage": "pearl_product_studio",
+        "composition": "record_diagonal",
+        "energy": "institutional_clarity",
+        "accent": "aqua_silver"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "clear premium sans-serif type in a naturally quiet architectural, sky, or tonal field"
+    },
+    "global_tourism_network": {
+      "name": "GLOBAL TOURISM NETWORK",
+      "skeleton": "Several credible destinations occupy distinct arcs of one world-scale composition, joined by thin restrained travel paths. Never invent destinations, partners, passenger totals, availability, or route coverage.",
+      "textPolicy": "One concise source-supported headline; at most one short factual support line.",
+      "defaultAxes": {
+        "stage": "deep_ocean_world",
+        "composition": "network_arc",
+        "energy": "connected_momentum",
+        "accent": "aqua_navy"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "clear premium sans-serif type in a naturally quiet architectural, sky, or tonal field"
+    },
+    "accommodation_discovery": {
+      "name": "ACCOMMODATION DISCOVERY",
+      "skeleton": "One credible hotel, resort, or local stay is photographed as the hero with natural hospitality details and generous copy space. No star rating, price, availability, review count, partner badge, or booking control is invented.",
+      "textPolicy": "One concise source-supported headline; at most one short factual support line.",
+      "defaultAxes": {
+        "stage": "hospitality_blue_hour",
+        "composition": "property_editorial",
+        "energy": "open_discovery",
+        "accent": "sky_sunrise"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "clear premium sans-serif type in a naturally quiet architectural, sky, or tonal field"
+    },
+    "seamless_mobility_journey": {
+      "name": "SEAMLESS MOBILITY JOURNEY",
+      "skeleton": "A coherent travel sequence connects airport, rail, road, and destination through one elegant directional path. Each transport mode remains physically plausible; avoid logos, tickets, schedules, and impossible connections.",
+      "textPolicy": "One concise source-supported headline; at most one short factual support line.",
+      "defaultAxes": {
+        "stage": "mobility_landscape",
+        "composition": "journey_path",
+        "energy": "connected_momentum",
+        "accent": "aqua_navy"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "clear premium sans-serif type in a naturally quiet architectural, sky, or tonal field"
+    },
+    "culture_nature_journey": {
+      "name": "CULTURE AND NATURE JOURNEY",
+      "skeleton": "A respectful documentary travel scene centers one authentic cultural or natural experience. The composition avoids stereotypes, sacred misuse, tourist spectacle, flags, landmarks collages, and invented local claims.",
+      "textPolicy": "One concise source-supported headline; at most one short factual support line.",
+      "defaultAxes": {
+        "stage": "documentary_daylight",
+        "composition": "human_environment",
+        "energy": "human_warmth",
+        "accent": "sky_sunrise"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "clear premium sans-serif type in a naturally quiet architectural, sky, or tonal field"
+    },
+    "integrated_travel_ecosystem": {
+      "name": "INTEGRATED TRAVEL ECOSYSTEM",
+      "skeleton": "One elegant journey hub connects a small number of real travel moments around a central route. The scene communicates coordination through spatial relationships, never through a dense app dashboard or floating service-icon cloud.",
+      "textPolicy": "One concise source-supported headline; at most one short factual support line.",
+      "defaultAxes": {
+        "stage": "deep_ocean_world",
+        "composition": "ecosystem_orbit",
+        "energy": "seamless_confidence",
+        "accent": "aqua_silver"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "clear premium sans-serif type in a naturally quiet architectural, sky, or tonal field"
+    },
+    "traveler_support_documentary": {
+      "name": "TRAVELER SUPPORT DOCUMENTARY",
+      "skeleton": "A natural traveler-support moment unfolds in an airport, station, hotel, or destination setting. Human attention and environmental storytelling lead; no crisis dramatization, insurance payout, refund promise, or guaranteed assistance.",
+      "textPolicy": "One concise source-supported headline; at most one short factual support line.",
+      "defaultAxes": {
+        "stage": "documentary_daylight",
+        "composition": "documentary_offset",
+        "energy": "human_warmth",
+        "accent": "aqua_navy"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "clear premium sans-serif type in a naturally quiet architectural, sky, or tonal field"
+    }
+  },
+  "axes": {
+    "stage": {
+      "studio_dark": "The setting is a dark or single-color studio field, evenly lit and uncluttered.",
+      "studio_light": "The setting is a bright, clean studio field in soft off-white or pale neutral tones.",
+      "gradient_sweep": "The setting is a smooth soft-gradient sweep, like a seamless studio backdrop curving from floor to wall.",
+      "photo_real": "The setting is a photo-real environment -- a real-world object, building, or scene rendered with documentary realism.",
+      "flat_field": "The setting is a flat, evenly-lit field of color suited to vector or isometric illustration.",
+      "texture_macro": "The setting is an extreme close-up texture world -- paper, paint, woodgrain, or other tactile material filling the frame.",
+      "terminal_light": "Credible premium terminal architecture with daylight, travel silver, aqua guidance, and natural human movement.",
+      "destination_sunrise": "One authentic destination in atmospheric sunrise or golden-hour light with a broad open horizon.",
+      "planning_studio": "A bright calm planning space with one physical route, tactile maps, and believable collaboration.",
+      "pearl_product_studio": "A pearl-white travel product studio with soft aqua shadow, silver detail, and one ordered object group.",
+      "deep_ocean_world": "A deep navy and ocean-blue spatial field for restrained global connections and integrated journey structure.",
+      "hospitality_blue_hour": "One credible accommodation environment at blue hour with warm human-scale hospitality light.",
+      "mobility_landscape": "A believable transport landscape connects modes across real distance without impossible infrastructure.",
+      "documentary_daylight": "Natural documentary daylight preserves authentic people, place, texture, and cultural respect."
+    },
+    "composition": {
+      "centered_hero": "The composition centers a single hero subject in the frame, symmetrical and commanding.",
+      "left_type_block": "The composition reserves the left portion of the frame for a stacked block of typography, with supporting imagery on the right.",
+      "full_bleed_photo": "The composition is a full-bleed photographic frame, the subject filling the entire image with no visible borders.",
+      "split_panel": "The composition divides the frame into two panels -- left/right or top/bottom -- contrasting two halves of the story.",
+      "isometric": "The composition is a three-quarter isometric view, giving an ordered, diagrammatic perspective.",
+      "card_grid": "The composition arranges the frame as a grid of cards or tiles around a title block.",
+      "traveler_asymmetry": "Place one traveler off-center within strong terminal architecture and preserve a broad quiet copy field.",
+      "destination_horizon": "Build the image around one decisive horizon with the destination below and clean atmosphere above.",
+      "overhead_route_table": "Use a natural high three-quarter view of people planning around one readable physical route.",
+      "record_diagonal": "Align one travel object and ordered translucent layers along a clean diagonal with no readable private data.",
+      "network_arc": "Arrange a few credible destinations along one restrained global arc with thin travel paths.",
+      "property_editorial": "Treat one hospitality property as the hero and reserve architecture or sky for concise copy.",
+      "journey_path": "Connect transport modes through one continuous directional path while maintaining credible physical distance.",
+      "human_environment": "Frame people as part of an authentic place, with environment and culture carrying equal visual weight.",
+      "ecosystem_orbit": "Arrange a small number of travel moments around one central route without becoming an icon cloud.",
+      "documentary_offset": "Offset one natural support interaction against a broad environmental field for calm editorial hierarchy."
+    },
+    "energy": {
+      "newsroom_neutral": "The lighting and mood are calm, controlled and editorial -- a neutral newsroom register.",
+      "celebratory": "The lighting is bright and triumphant, with a sense of milestone and momentum.",
+      "tension": "The lighting is high-contrast and charged, with fractured or unstable elements conveying tension.",
+      "playful": "The lighting and mood are light, warm and playful.",
+      "seamless_confidence": "Calm, capable motion suggests coordination without claiming guaranteed ease or delivery.",
+      "open_discovery": "Expansive curiosity and sense of place lead without becoming luxury advertising or fantasy tourism.",
+      "human_clarity": "Warm collaborative attention makes a complex journey understandable and approachable.",
+      "institutional_clarity": "Order and alignment communicate transparency without seals, guarantees, or technical theater.",
+      "connected_momentum": "Directional movement links real places and modes without speed claims or spectacle.",
+      "human_warmth": "Documentary empathy and genuine interaction remain natural, respectful, and unscripted."
+    },
+    "accent": {
+      "workspace_signal": "The dominant accent treatment follows the locked Trip Token palette and visual identity.",
+      "story_color": "The dominant accent color is justified by the story itself -- green for a green protocol's hack, gold for a gold-backed token, blue for an ocean-themed chain -- and the reason is named in the brief.",
+      "free": "The dominant accent color is chosen freely to suit this mode's rotating style, not tied to the brand accent.",
+      "aqua_navy": "Clear aqua supplies one route, reflection, or structural accent against deep journey navy.",
+      "aqua_silver": "Aqua transparency and travel silver define records or product structure on pearl white.",
+      "sky_sunrise": "Sky cyan supports authentic destination atmosphere while sunrise gold appears only as natural light."
+    }
+  },
+  "frozenStyle": {
+    "format": "premium portrait 4:5 Trip Token travel editorial, composed for safe square cropping with one credible journey story",
+    "palette": "deep journey navy (#042B46), ocean blue (#075B7A), travel teal (#0B8FA7), clear aqua (#24C4D8), sky cyan (#75DAE8), pearl white (#F5FCFD), travel silver (#B9D7DF), and restrained sunrise gold (#EAB86C)",
+    "materials": "architectural glass, brushed travel silver, woven luggage textiles, natural destination materials, translucent record layers, pearl ceramic, water reflections, and restrained light paths",
+    "rendering": "premium travel photography or physically plausible photoreal 3D with credible destinations, natural travelers, clean aqua-and-navy hierarchy, cinematic atmospheric depth, generous negative space, and documentary respect",
+    "backgroundVocab": "airport terminals, destination horizons, travel planning tables, hospitality settings, multimodal journeys, cultural and natural environments, and refined pearl product studios",
+    "headlineZone": "reserve broad uncluttered sky, glass, pearl, or deep-ocean space for one concise headline and keep bottom-left open for the official lockup",
+    "never": "generic crypto neon, floating token swarms, copied booking screens, fake tickets, fake passports, airline or hotel logos, landmark collage, impossible aircraft, distorted people, public figures, price promises, reward promises, invented brand marks, or dense tiny text"
+  },
+  "restrictions": {
+    "antiRepetition": "Do not repeat the same family twice in a row or the same approved direction within 6 posts. Across every 6 posts use at least one people-centered scene, one destination or hospitality scene, and one record, planning, or ecosystem scene. Alternate pearl-light, photographic, and deep-ocean stages. Avoid repeating the same airport pose, aircraft, suitcase, world arc, phone, hotel angle, beach, map, or translucent panel within 5 posts. Preserve one clear travel story and a naturally open bottom-left area for the official lockup.",
+    "moodAccentDefault": "workspace_signal",
+    "moodAccentRestricted": {
+      "free": {
+        "families": [
+          "type_led",
+          "art_drop",
+          "meme"
+        ]
+      }
+    },
+    "bannedSubjectTerms": [
+      "airline logo",
+      "art deco",
+      "booking dashboard",
+      "candlestick chart",
+      "chandelier",
+      "coin pile",
+      "contract address",
+      "frosted glass",
+      "gatsby",
+      "glassmorphism",
+      "gold veining",
+      "guaranteed returns",
+      "guaranteed rewards",
+      "gunmetal",
+      "hotel logo",
+      "instant refund",
+      "insurance payout",
+      "investment guarantee",
+      "looks like",
+      "passport number",
+      "price chart",
+      "real logo",
+      "real person",
+      "trip coin",
+      "trip logo",
+      "trip token logo",
+      "trip.game",
+      "wallet screenshot",
+      "watermark",
+      "wireframe cube"
+    ]
+  },
+  "textPolicy": {
+    "rules": "1. Headline: seven words or fewer, concrete, factual, and travel-led.\n2. Every figure, date, price, percentage, route, destination, partner, availability claim, and milestone must come from the supplied approved source.\n3. Frame whitepaper capabilities as proposed or planned unless current evidence confirms delivery.\n4. Do not promise investment returns, earnings, rewards, savings, instant refunds, insurance payouts, guaranteed safety, or frictionless service.\n5. Do not include a market chart, token price, sale price, contract, QR code, booking code, wallet, buy button, exchange logo, airline logo, hotel brand, passport data, or fake interface.\n6. Never invent the Trip emblem or wordmark. Leave the bottom-left safe area seamless for the deterministic official lockup.",
+    "headlineMaxWords": 7,
+    "headlineUppercase": false,
+    "legibilityLine": "All text is large, crisp and clearly legible.",
+    "dataElementTemplate": "a clean tile or label displaying \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " with the micro-label \"{label}\"",
+    "noTextMode": "art_drop",
+    "noTextLine": "No text, no letters, no numbers anywhere in the image."
+  },
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.096,
+    "insetShortSideRatio": 0.045
+  },
+  "fallbackBrief": {
+    "selection": {
+      "family": "smart_journey_terminal",
+      "axes": {
+        "stage": "terminal_light",
+        "composition": "traveler_asymmetry",
+        "energy": "seamless_confidence",
+        "accent": "aqua_navy"
+      }
+    },
+    "brief": {
+      "headline": "A More Connected Journey",
+      "subjectScene": "A premium contemporary terminal centers one generic traveler moving through warm natural light while a restrained translucent route follows the architecture. No logo, coin, ticket, booking screen, price, wallet, chart, or invented service claim appears.",
+      "dataElements": []
+    }
+  },
+  "briefExamples": "Worked examples (guidance only; never copy verbatim):\n\nA. Connected terminal\n{\"family\":\"smart_journey_terminal\",\"headline\":\"A More Connected Journey\",\"data_elements\":[],\"stage\":\"terminal_light\",\"composition\":\"traveler_asymmetry\",\"energy\":\"seamless_confidence\",\"accent\":\"aqua_navy\",\"subject_scene\":\"One traveler moves through a premium daylight terminal while a restrained aqua route follows the real architecture and a broad glass field remains clear for the title.\"}\n\nB. Transparent records\n{\"family\":\"transparent_journey_records\",\"headline\":\"Journey Records, Clearly Aligned\",\"data_elements\":[],\"stage\":\"pearl_product_studio\",\"composition\":\"record_diagonal\",\"energy\":\"institutional_clarity\",\"accent\":\"aqua_silver\",\"subject_scene\":\"One anonymous travel tag aligns with three ordered translucent journey layers on pearl ceramic without names, codes, wallet data, or booking controls.\"}\n\nC. Destination discovery\n{\"family\":\"destination_discovery\",\"headline\":\"See The Journey Differently\",\"data_elements\":[],\"stage\":\"destination_sunrise\",\"composition\":\"destination_horizon\",\"energy\":\"open_discovery\",\"accent\":\"sky_sunrise\",\"subject_scene\":\"An authentic coastal destination at sunrise opens into a broad atmospheric horizon with natural local detail and no landmark collage or invented travel claim.\"}\n\nD. Integrated mobility\n{\"family\":\"seamless_mobility_journey\",\"headline\":\"One Journey, Better Connected\",\"data_elements\":[],\"stage\":\"mobility_landscape\",\"composition\":\"journey_path\",\"energy\":\"connected_momentum\",\"accent\":\"aqua_navy\",\"subject_scene\":\"A credible route moves from rail platform to airport architecture and onward to one destination through a single restrained directional path.\"}"
+}

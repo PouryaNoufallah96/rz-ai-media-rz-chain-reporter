@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="240" viewBox="0 0 1000 240" role="img" aria-labelledby="title">
+  <title id="title">Jewelry Token</title>
+  <g fill="none" stroke="#2E1F5B" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 120 72 66h74l54 54-54 54H72Z"/>
+    <path d="m132 120 54-54h74l54 54-54 54h-74Z"/>
+  </g>
+  <text x="352" y="143" fill="#2E1F5B" font-family="Arial, Helvetica, sans-serif" font-size="66" font-weight="800" letter-spacing="-1" textLength="600" lengthAdjust="spacingAndGlyphs">JEWELRY TOKEN</text>
+</svg>

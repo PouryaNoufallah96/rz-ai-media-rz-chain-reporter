@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 176" role="img" aria-labelledby="title desc">
+  <title id="title">Real Estate Token footer lockup</title>
+  <desc id="desc">The Real Estate ribbon mark with the REAL ESTATE wordmark.</desc>
+  <g fill="#006c6e">
+    <path d="M16 56v57c0 8 4 12 11 16l77 36c5 2 8 0 8-6v-49c0-8-3-12-10-15L66 78 23 59c-4-2-7-3-7-3Z"/>
+    <path d="M16 50c0-5 2-7 7-9L104 3c5-2 8 0 8 6v50c0 7-3 11-9 14L66 90 23 71c-5-2-7-5-7-9V50Z"/>
+    <text x="143" y="75" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="64" font-weight="900" letter-spacing="-2">REAL</text>
+    <text x="143" y="144" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="64" font-weight="900" letter-spacing="-2">ESTATE</text>
+  </g>
+</svg>

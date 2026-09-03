@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "theme": {
+    "background": "#050606",
+    "backgroundAlt": "#262000",
+    "surface": "#111315",
+    "surfaceAlt": "#1c1d1e",
+    "text": "#fffdf5",
+    "muted": "#aaa797",
+    "positive": "#1fd083",
+    "negative": "#ef5350",
+    "accent": "#f0c419",
+    "accentAlt": "#b88a16",
+    "border": "#64551c"
+  },
+  "motifs": [
+    "signal-yellow horizon",
+    "restrained gold light",
+    "black editorial field",
+    "precise market grid"
+  ],
+  "scenes": [
+    "A monumental black-metal metaverse skyline seen from a low angle, with a controlled signal-yellow sunrise breaking across the horizon, subtle gaming-arena architecture, fine volumetric haze, and generous dark editorial space.",
+    "An obsidian digital arena with layered architectural fins and a restrained gold energy core in the distance, cinematic side light, deep graphite atmosphere, and calm negative space.",
+    "A vast black orbital landscape crossed by precise gold signal paths and one luminous amber horizon, premium science-fiction scale, no literal coin, no text, and no chart-like graphics."
+  ],
+  "artDirection": "Premium black-and-signal-yellow MGC market editorial with monumental gaming and metaverse architecture, restrained gold, confident hierarchy, cinematic depth, and generous negative space.",
+  "defaultChartColor": "#d9b91d",
+  "frozenStyle": {
+    "format": "market editorial poster with a protected factual chart and centered footer rail",
+    "palette": "obsidian and graphite fields with controlled signal yellow and restrained metallic gold",
+    "materials": "black metal, smoked glass, precise luminous signal paths, and matte architectural planes",
+    "rendering": "cinematic premium science-fiction editorial with legible hierarchy and restrained volumetric depth",
+    "backgroundVocab": "monumental gaming architecture, orbital landscapes, dark arenas, and one controlled luminous horizon",
+    "headlineZone": "reserve a calm high-contrast area in the upper third for the approved Story",
+    "never": "never invent chart facts, tickers, logos, domains, slogans, coins, or sample text; never disturb the protected chart or footer rail"
+  }
+}

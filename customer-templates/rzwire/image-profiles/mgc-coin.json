@@ -1,0 +1,300 @@
+{
+  "families": {
+    "split_photo": {
+      "name": "SPLIT PHOTO CAMPAIGN",
+      "skeleton": "A bold yellow, black, or white copy panel occupies about 40 percent of the frame while a high-quality lifestyle, workplace, city, or gaming photograph occupies the other 60 percent. A large rounded corner or overlapping squircle softly joins both halves. The photograph may contain generic adults, but no identifiable public figure.",
+      "textPolicy": "One bold headline plus at most one very short supporting line.",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "split_left_copy",
+        "energy": "bold_confident",
+        "accent": "yellow_black"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "a large left-aligned title block with one phrase highlighted in signal yellow"
+    },
+    "team_documentary": {
+      "name": "TEAM DOCUMENTARY",
+      "skeleton": "A candid black-and-white photograph shows three to five generic adult game creators, community organizers, or competitors collaborating in a believable studio, meeting, or review session. One large rounded signal-yellow panel carries the headline, while one chair, wall module, notebook, or presentation accent may remain selectively yellow. Gestures feel natural; never stage a handshake or corporate pose.",
+      "textPolicy": "One bold headline only; abstract presentation graphics contain no readable copy.",
+      "defaultAxes": {
+        "stage": "mono_photo",
+        "composition": "split_left_copy",
+        "energy": "bold_confident",
+        "accent": "yellow_black"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "heavy black type inside one large rounded signal-yellow panel"
+    },
+    "mono_lifestyle": {
+      "name": "MONO LIFESTYLE EDITORIAL",
+      "skeleton": "A documentary-style black-and-white photograph of a generic gamer, creator, trader, meeting, or device fills the frame. Signal-yellow clothing, panels, thin looping lines, or one abstract reward medallion provide the only color accents. The subject feels natural and candid, never like an identifiable celebrity or corporate headshot.",
+      "textPolicy": "Headline only, or headline plus one compact supporting line.",
+      "defaultAxes": {
+        "stage": "mono_photo",
+        "composition": "full_bleed_photo",
+        "energy": "editorial_calm",
+        "accent": "yellow_black"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "a bold white-and-yellow block in an uncluttered side or lower-third zone"
+    },
+    "community_mosaic": {
+      "name": "COMMUNITY PORTRAIT MOSAIC",
+      "skeleton": "A clean white field holds an asymmetric wall of large rounded-square cells containing five to eight candid monochrome portraits of diverse generic adult gamers and creators. Alternate portrait cells with solid signal-yellow, solid black, and thin black-outline cells; one yellow cell may hold a simple controller silhouette. Every face is unique, natural, and credible, with no public figures or duplicated identities.",
+      "textPolicy": "One large community headline; no names, captions, or profile statistics.",
+      "defaultAxes": {
+        "stage": "white_field",
+        "composition": "modular_grid",
+        "energy": "editorial_calm",
+        "accent": "yellow_black"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "large black type above or beside the mosaic with one word in signal yellow"
+    },
+    "modular_grid": {
+      "name": "MODULAR SQUIRCLE GRID",
+      "skeleton": "A clean white or signal-yellow field carries an asymmetric grid of rounded-square cells. Some cells are solid yellow or black, some are thin outlined loops, and at most three hold a cropped city, gaming, or product image. One cell contains an abstract interlocking emblem shape, not an invented brand mark.",
+      "textPolicy": "One large headline; no small explanatory copy.",
+      "defaultAxes": {
+        "stage": "white_field",
+        "composition": "modular_grid",
+        "energy": "editorial_calm",
+        "accent": "yellow_black"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "large mixed-case black type placed beside or above the module grid"
+    },
+    "token_hero": {
+      "name": "TOKEN / REWARD HERO",
+      "skeleton": "One premium abstract gold-and-black participation medallion, reward core, or trophy object dominates a minimal stage. It may float, stack, or interact with one pedestal, device, or progress path. Use two or three cropped foreground medallions only as depth accents; do not create a shower of coins and do not engrave fake text.",
+      "textPolicy": "One short headline plus at most one factual value or micro-line.",
+      "defaultAxes": {
+        "stage": "black_field",
+        "composition": "centered_hero",
+        "energy": "bold_confident",
+        "accent": "yellow_black"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "a large clean title above or to the left of the object"
+    },
+    "playable_product": {
+      "name": "PLAYABLE UTILITY PRODUCT",
+      "skeleton": "A photorealistic macro product scene centers one unbranded black controller, handheld device, headset, or gaming peripheral on tactile charcoal material. One abstract gold-and-black participation module physically docks into, unlocks, powers, or connects with the device, communicating practical gaming utility. Hardware geometry is realistic and restrained; no fake interface copy, coin pile, or financial symbolism.",
+      "textPolicy": "One short utility headline only.",
+      "defaultAxes": {
+        "stage": "black_field",
+        "composition": "split_left_copy",
+        "energy": "bold_confident",
+        "accent": "yellow_black"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "large white type in a clean upper-left zone with one final word in signal yellow"
+    },
+    "gaming_scene": {
+      "name": "GAMING ACTION SCENE",
+      "skeleton": "A realistic controller, gaming setup, generic player, trophy, leaderboard, or tournament stage becomes the main visual. Signal yellow controls the focal light and interface accents; restrained violet may support playful 3D environments. The scene communicates active play, competition, access, or progression rather than passive wealth.",
+      "textPolicy": "One energetic headline and optionally one short question or action line.",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "full_bleed_photo",
+        "energy": "playful_gaming",
+        "accent": "yellow_violet"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "large white and yellow type anchored in a dark clean region"
+    },
+    "arena_achievement": {
+      "name": "ARENA ACHIEVEMENT",
+      "skeleton": "A cinematic photoreal tournament arena uses monumental matte-black podium rings, tiered stages, or leaderboard architecture edged by precise signal-yellow light. One generic adult competitor is shown from behind approaching or climbing the structure with an unbranded controller. The achievement is earned and aspirational, never a wealth promise; sponsor boards and third-party team marks are absent.",
+      "textPolicy": "One short achievement or competition headline.",
+      "defaultAxes": {
+        "stage": "photo_real",
+        "composition": "centered_hero",
+        "energy": "high_momentum",
+        "accent": "yellow_black"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "large white-and-yellow type anchored in clean upper-left darkness"
+    },
+    "step_explainer": {
+      "name": "STEP-BY-STEP EXPLAINER",
+      "skeleton": "Three to five large rounded modules form one unmistakable directional sequence using arrows, a path, or a circular progression. Each module contains one simple 3D or flat object; the diagram uses white space, yellow, black, and restrained violet. The process must describe only facts explicitly supported by the source.",
+      "textPolicy": "One headline plus at most 3 short step words supplied as data elements.",
+      "defaultAxes": {
+        "stage": "white_field",
+        "composition": "top_headline",
+        "energy": "playful_gaming",
+        "accent": "yellow_violet"
+      },
+      "dataBudget": 3,
+      "headlineTreatment": "a large title in a rounded yellow header or clean white upper band"
+    },
+    "data_compare": {
+      "name": "VERIFIED DATA COMPARISON",
+      "skeleton": "A true-black portrait data poster contains two or three large rounded comparison modules, clean line charts or bars, and one dominant takeaway. Red and green may be used only to encode source-confirmed negative and positive values. Every visible number must be copied from the supplied article; never infer or estimate figures.",
+      "textPolicy": "One headline plus 2-4 source-verified values and short descriptors.",
+      "defaultAxes": {
+        "stage": "dark_data",
+        "composition": "data_card",
+        "energy": "high_momentum",
+        "accent": "data_signal"
+      },
+      "dataBudget": 4,
+      "headlineTreatment": "a heavy white headline above the chart modules"
+    },
+    "announcement": {
+      "name": "MINIMAL ANNOUNCEMENT",
+      "skeleton": "A black field with a very subtle warm-yellow edge glow holds one small signal-yellow rounded icon tile and a disciplined left-aligned headline zone. The result feels like an official statement card: minimal, sober, spacious, and free of decorative token or market imagery.",
+      "textPolicy": "One concise headline and at most one short supporting statement.",
+      "defaultAxes": {
+        "stage": "black_field",
+        "composition": "left_type_block",
+        "energy": "editorial_calm",
+        "accent": "yellow_black"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "a medium-large white title beside a small yellow icon tile"
+    },
+    "concept_metaphor": {
+      "name": "EDITORIAL CONCEPT METAPHOR",
+      "skeleton": "One clear visual metaphor such as an iceberg, forked road, launch path, mountain, transforming pedestal, or ascending arrow is rendered as a premium photo composite or clean soft-3D scene. Yellow, black, and white carry the full idea, with violet used only if a gaming environment genuinely requires it.",
+      "textPolicy": "One provocative headline, optionally phrased as a question.",
+      "defaultAxes": {
+        "stage": "soft_3d",
+        "composition": "top_headline",
+        "energy": "bold_confident",
+        "accent": "yellow_black"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "a large clean title occupying the upper third or one side"
+    },
+    "destination_poster": {
+      "name": "GLOBAL DESTINATION POSTER",
+      "skeleton": "A recognizable city silhouette, venue, or landmark is photographed in high-contrast black and white and cropped into a tall rounded rectangle. A large signal-yellow field fills the remaining space with editorial event or community energy. Never fabricate event dates, locations, partnerships, or sponsorship marks.",
+      "textPolicy": "One destination or event headline; factual date/location only if present in source.",
+      "defaultAxes": {
+        "stage": "mono_photo",
+        "composition": "split_right_copy",
+        "energy": "bold_confident",
+        "accent": "yellow_black"
+      },
+      "dataBudget": 2,
+      "headlineTreatment": "bold black type on the yellow field with a small factual sub-line if supplied"
+    }
+  },
+  "axes": {
+    "stage": {
+      "black_field": "The setting is a true-black or charcoal field with subtle warm-yellow falloff and generous negative space.",
+      "white_field": "The setting is a clean white or soft off-white field with crisp black type zones and yellow modular forms.",
+      "yellow_field": "The setting is a full signal-yellow field, flat and confident, with black type and minimal white relief.",
+      "photo_real": "The setting is believable editorial photography: a real gaming, workplace, lifestyle, city, or event environment with controlled brand treatment.",
+      "mono_photo": "The setting is high-contrast black-and-white photography with signal yellow introduced only through graphic overlays or one selected object.",
+      "soft_3d": "The setting is a clean soft-3D illustration stage in white, yellow, and restrained violet with tactile rounded forms.",
+      "dark_data": "The setting is a true-black data field with faint grid structure and no decorative finance scenery."
+    },
+    "composition": {
+      "split_left_copy": "Reserve the left 38-45 percent for a large copy block and let the main image fill the right side, joined by one rounded transition.",
+      "split_right_copy": "Reserve one side for a tall rounded photograph and use the other side as a broad, uncluttered yellow copy field.",
+      "centered_hero": "Center one dominant reward, gaming, or trophy object, with cropped secondary objects only at the outer edges for depth.",
+      "top_headline": "Reserve the upper 30-40 percent as a strong headline band and place the visual system clearly beneath it.",
+      "modular_grid": "Arrange an asymmetric grid of rounded-square modules, mixing filled, outlined, and image-bearing cells with ample white space.",
+      "full_bleed_photo": "Use one full-bleed photograph with a naturally quiet region for bold overlay type and a few deliberate yellow accents.",
+      "left_type_block": "Build a spacious left-aligned editorial type block with a small icon tile and minimal supporting imagery.",
+      "data_card": "Stack two or three oversized rounded chart or comparison modules beneath a clear headline, with strict alignment and large values."
+    },
+    "energy": {
+      "bold_confident": "The mood is decisive and campaign-like, using hard scale contrast, assertive type, and a single clear focal point.",
+      "playful_gaming": "The mood is energetic and inviting, with rounded 3D props, game-world color, and a sense of active participation.",
+      "editorial_calm": "The mood is restrained, informative, and composed, with generous space and minimal visual noise.",
+      "high_momentum": "The mood is fast and directional, using ascending paths or decisive comparisons without implying guaranteed financial returns."
+    },
+    "accent": {
+      "mgc_yellow": "Signal yellow is the dominant field or object color, supported only by black and white.",
+      "yellow_black": "Signal yellow and true black create the primary contrast; white is used for breathing room and legibility.",
+      "yellow_violet": "Signal yellow remains dominant while restrained violet supports gaming depth and reward-world atmosphere.",
+      "data_signal": "Signal yellow anchors the brand; red and green appear only beside verified negative and positive source data."
+    }
+  },
+  "frozenStyle": {
+    "format": "premium MGC social campaign artwork composed for a vertical 4:5 master and a safe square 1:1 crop, with the same bold clarity as the supplied landscape and portrait references",
+    "palette": "signal yellow (#FFD400) is the unmistakable primary color, paired with true black, charcoal, and clean white; violet may appear only as a restrained gaming-world secondary, while red and green are reserved exclusively for verified source data",
+    "materials": "matte color fields, black-and-white editorial photography, glossy gold and black medallions, lightly polished 3D gaming props, thin outline squircles, and crisp paper-like graphic panels; never generic blue crypto glass",
+    "rendering": "campaign-grade art direction with one immediate idea, bold asymmetric hierarchy, controlled photorealism or clean soft 3D, realistic hands and devices, and deliberate cropped foreground objects that add depth without clutter",
+    "backgroundVocab": "true-black, clean-white, or full signal-yellow fields; monochrome lifestyle and city photography; modular rounded-square grids; soft violet gaming atmospheres; every image uses one dominant field and no more than one secondary accent system",
+    "headlineZone": "reserve a large clean zone occupying roughly 35-55 percent of the frame for a short bold headline, often with one key phrase switched between black, white, and signal yellow",
+    "never": "investment promises, guaranteed earnings, invented prices or percentages, unsupported adoption or performance claims, candlestick-chart decoration without source data, Bitcoin-style circuitry on every coin, generic neon cyberpunk, blue glass finance UI, busy coin rain, public-figure or celebrity likenesses, malformed controllers or hands, tiny paragraphs, more than 4 text elements, invented logos, or watermarks"
+  },
+  "restrictions": {
+    "antiRepetition": "Do not repeat the same family twice in a row. Across any 6 posts, use at least one photographic family and one graphic or 3D family. Do not repeat the same central prop, person archetype, landmark, or metaphor within 5 posts. data_compare appears at most once in 6 posts; announcement appears at most twice in 6 posts. Alternate light and dark stages.",
+    "moodAccentDefault": "yellow_black",
+    "moodAccentRestricted": {
+      "yellow_violet": {
+        "families": [
+          "gaming_scene",
+          "step_explainer",
+          "token_hero"
+        ]
+      },
+      "data_signal": {
+        "families": [
+          "data_compare"
+        ]
+      }
+    },
+    "bannedSubjectTerms": [
+      "investment guarantee",
+      "guaranteed return",
+      "guaranteed profit",
+      "passive income",
+      "risk-free",
+      "get rich",
+      "moonshot",
+      "to the moon",
+      "fake logo",
+      "invented logo",
+      "public figure",
+      "celebrity likeness",
+      "elon musk",
+      "donald trump",
+      "glowing humanoid robot",
+      "blue glass cube",
+      "generic crypto collage"
+    ]
+  },
+  "textPolicy": {
+    "rules": "1. Headline: 7 words or fewer, written like a confident campaign line. Use title case or selective uppercase;\n   never capitalize every word mechanically. Highlight no more than one key phrase in signal yellow.\n2. Text budget: most families use headline only. split_photo, mono_lifestyle, token_hero, gaming_scene,\n   announcement, and destination_poster may add one short supporting line. team_documentary,\n   community_mosaic, playable_product, and arena_achievement use headline only. step_explainer allows at\n   most 3 step words. data_compare allows at most 4 verified values with short descriptors.\n3. Claims must come from the supplied article or approved MGC knowledge. Never invent prices, percentages,\n   dates, adoption claims, partnerships, listings, token mechanics, rankings, returns, or event details.\n   Never imply guaranteed profit, passive income, or that buying alone produces rewards.\n4. Use participation language: play, contribute, compete, create, progress, use, connect, and unlock. Use\n   \"earn\" only where the supplied source explicitly describes a real participation-based reward mechanic.\n5. Generic adult gamers, creators, teams, and community members are allowed in photographic families. Never\n   depict or imitate a public figure, celebrity, founder, or named person. Do not add third-party trademarks.\n6. Do not ask the image model to invent the official emblem. Use abstract reward medallions and leave the\n   protected bottom-left corner clear for the real logo applied after generation.",
+    "headlineMaxWords": 7,
+    "headlineUppercase": false,
+    "legibilityLine": "All typography uses a heavy geometric sans-serif, with strong hierarchy, generous spacing, and clean edges that remain readable at mobile-feed size.",
+    "dataElementTemplate": "a bold, clean data module displaying \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " with the short descriptor \"{label}\""
+  },
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.096,
+    "insetShortSideRatio": 0.045
+  },
+  "fallbackBrief": {
+    "selection": {
+      "family": "modular_grid",
+      "axes": {
+        "stage": "white_field",
+        "composition": "modular_grid",
+        "energy": "editorial_calm",
+        "accent": "yellow_black"
+      }
+    },
+    "brief": {
+      "headline": "Play Builds Progress",
+      "subjectScene": "A clean asymmetric grid of rounded-square modules links a game controller, a profile badge, a contribution marker, and a reward checkpoint across a white field with bold signal-yellow blocks and thin black outlines.",
+      "dataElements": []
+    }
+  },
+  "briefExamples": "Worked examples (guidance only; never copy them verbatim):\n\nA. Community update\n{\"family\":\"split_photo\",\"headline\":\"Built Together, Played Forward\",\"data_elements\":[],\"stage\":\"photo_real\",\"composition\":\"split_left_copy\",\"energy\":\"bold_confident\",\"accent\":\"yellow_black\",\"subject_scene\":\"A candid generic gaming team reviews a tournament screen in a bright modern workspace, occupying the right half, while a large signal-yellow rounded panel creates a clean campaign zone on the left.\"}\n\nB. Participation explainer\n{\"family\":\"step_explainer\",\"headline\":\"From Play To Progress\",\"data_elements\":[{\"value\":\"PLAY\",\"label\":\"\"},{\"value\":\"CONTRIBUTE\",\"label\":\"\"},{\"value\":\"PROGRESS\",\"label\":\"\"}],\"stage\":\"white_field\",\"composition\":\"top_headline\",\"energy\":\"playful_gaming\",\"accent\":\"yellow_violet\",\"subject_scene\":\"Three large circular modules connect from a realistic controller to a community contribution tile and then to a glowing achievement trophy, using yellow arrows and restrained violet depth on a clean white stage.\"}\n\nC. Gaming utility\n{\"family\":\"gaming_scene\",\"headline\":\"Every Match Moves You Forward\",\"data_elements\":[],\"stage\":\"photo_real\",\"composition\":\"full_bleed_photo\",\"energy\":\"playful_gaming\",\"accent\":\"yellow_black\",\"subject_scene\":\"A close-up controller rests in a believable gaming setup while its central achievement surface glows signal yellow; headphones and a competition screen recede naturally into the dark background.\"}\n\nD. Official statement\n{\"family\":\"announcement\",\"headline\":\"An Important Community Update\",\"data_elements\":[],\"stage\":\"black_field\",\"composition\":\"left_type_block\",\"energy\":\"editorial_calm\",\"accent\":\"yellow_black\",\"subject_scene\":\"A restrained true-black field with a subtle warm-yellow edge glow and one small rounded yellow announcement icon tile, leaving broad clean space for the statement.\"}\n\nE. Global event story\n{\"family\":\"destination_poster\",\"headline\":\"The Community Meets In Paris\",\"data_elements\":[{\"value\":\"PARIS\",\"label\":\"\"}],\"stage\":\"mono_photo\",\"composition\":\"split_right_copy\",\"energy\":\"bold_confident\",\"accent\":\"mgc_yellow\",\"subject_scene\":\"A dramatic black-and-white low-angle photograph of the Eiffel Tower is cropped inside a tall rounded panel on the right, while a broad signal-yellow campaign field fills the left.\"}\n\nF. Verified comparison article containing the figures 12% and 8%\n{\"family\":\"data_compare\",\"headline\":\"Participation Outpaced The Market\",\"data_elements\":[{\"value\":\"+12%\",\"label\":\"PARTICIPATION\"},{\"value\":\"-8%\",\"label\":\"MARKET\"}],\"stage\":\"dark_data\",\"composition\":\"data_card\",\"energy\":\"high_momentum\",\"accent\":\"data_signal\",\"subject_scene\":\"Two oversized rounded comparison modules sit on a true-black field, one carrying a clean ascending green line and the other a restrained descending red line, with signal-yellow alignment marks and no decorative coins.\"}"
+}

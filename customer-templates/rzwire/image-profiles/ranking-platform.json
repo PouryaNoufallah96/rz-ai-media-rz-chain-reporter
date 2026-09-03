@@ -1,0 +1,386 @@
+{
+  "families": {
+    "player_spotlight": {
+      "name": "PLAYER SPOTLIGHT",
+      "skeleton": "A high-quality photograph of one generic adult player or a pair of teammates dominates the frame. Their candid expression conveys focus, surprise, rivalry, or celebration. The person is cut cleanly against aubergine or a believable gaming environment, with one bright clothing or lighting accent and two or three small sticker motifs.",
+      "textPolicy": "One large headline, with at most two words highlighted in one or two sticker pills.",
+      "defaultAxes": {
+        "stage": "people_photo",
+        "composition": "split_statement",
+        "energy": "playful_competitive",
+        "accent": "full_spectrum"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "a large staggered type block beside the person, with one tilted outlined color pill"
+    },
+    "platform_in_action": {
+      "name": "PLATFORM IN ACTION",
+      "skeleton": "A believable player uses a phone, monitor, tablet, or laptop in a real gaming, home, club, or work setting. The screen shows a dark abstract competitive interface with one profile, a rounded tournament bracket, controller icons, and an achievement marker; never use line graphs, bar charts, price charts, currency, balances, or token-like geometry. If an official interface reference is supplied, preserve its structure rather than inventing features.",
+      "textPolicy": "One direct product headline and no readable interface microcopy.",
+      "defaultAxes": {
+        "stage": "product_photo",
+        "composition": "lower_statement",
+        "energy": "confident_product",
+        "accent": "neon_photo"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "a bold lower-third or side headline with one hot-pink pill and thick white outline"
+    },
+    "profile_hero": {
+      "name": "COMPETITIVE PROFILE HERO",
+      "skeleton": "One oversized rounded dark profile card is the hero on a pink, mint, orange, or warm-white field. It contains a circular generic avatar, a neutral handle block, and only three or four abstract markers for games, teams, match history, or placement. White line paths and one controller sticker connect the card to the surrounding campaign field.",
+      "textPolicy": "One short profile or progress headline; no names, ranks, scores, or follower counts.",
+      "defaultAxes": {
+        "stage": "bright_graphic",
+        "composition": "centered_card",
+        "energy": "confident_product",
+        "accent": "pink_mint"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "a large two-line headline above the card with one phrase reversed inside aubergine"
+    },
+    "achievement_moment": {
+      "name": "ACHIEVEMENT MOMENT",
+      "skeleton": "A candid generic competitor raises a trophy, holds a medal, high-fives a teammate, or celebrates beneath real-looking venue lights. Magenta, violet, mint, and orange light create event energy while a simple outlined lower-third anchors the campaign message.",
+      "textPolicy": "One recognition headline only; never state or imply a guaranteed reward.",
+      "defaultAxes": {
+        "stage": "arena_photo",
+        "composition": "lower_statement",
+        "energy": "celebratory",
+        "accent": "neon_photo"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "large white lower-third type with one key word inside an aubergine, pink, or orange pill"
+    },
+    "versus_match": {
+      "name": "VERSUS MATCH",
+      "skeleton": "Two generic competitors, teams, game devices, chess sides, cue-sport setups, or physical sports objects face one another across a clear central divide. Pink and mint identify the two sides while orange marks the meeting point, bracket junction, or result path.",
+      "textPolicy": "One challenge headline; no invented player names, scores, odds, or match results.",
+      "defaultAxes": {
+        "stage": "competition_photo",
+        "composition": "versus_split",
+        "energy": "high_tension",
+        "accent": "pink_mint"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "a compact top headline with one versus or action word inside an orange sticker pill"
+    },
+    "game_culture": {
+      "name": "GAMING CULTURE EDITORIAL",
+      "skeleton": "One strong documentary image of an arena, LAN gathering, arcade, controller, gaming setup, VR session, local club, or physical game fills the frame. A dark aubergine wash protects readability, while one date, category, or topic chip and one bold headline turn the image into a branded gaming-media poster.",
+      "textPolicy": "One headline plus one source-supported date or topic chip; no copied game key art.",
+      "defaultAxes": {
+        "stage": "documentary_photo",
+        "composition": "top_story",
+        "energy": "editorial_energy",
+        "accent": "neon_photo"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "a top or lower-left editorial block with one outlined mint, pink, or orange fact chip"
+    },
+    "editorial_window": {
+      "name": "EDITORIAL PHOTO WINDOW",
+      "skeleton": "A flat hot-pink, mint, orange, aubergine, or warm-white field contains one large organic rounded photo window inspired by linked-node cross geometry. A single gaming or culture photograph sits inside the window. Thin white loops, small controller marks, and a low-contrast repeating node pattern provide rhythm without clutter.",
+      "textPolicy": "One bold headline and at most one short supporting sentence.",
+      "defaultAxes": {
+        "stage": "bright_graphic",
+        "composition": "window_split",
+        "energy": "editorial_energy",
+        "accent": "full_spectrum"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "a large left-aligned headline with one emphasized word in an outlined sticker pill"
+    },
+    "fact_poster": {
+      "name": "VERIFIED FACT POSTER",
+      "skeleton": "A full-bleed documentary or archival-style scene is paired with one oversized rounded date or value chip, one factual headline, and a short supporting line. The photograph may be tinted aubergine or framed by a mint or orange field. Every visible number must be copied exactly from the supplied article.",
+      "textPolicy": "One headline, one supporting sentence, and 1-3 source-verified values.",
+      "defaultAxes": {
+        "stage": "documentary_photo",
+        "composition": "fact_stack",
+        "energy": "editorial_energy",
+        "accent": "full_spectrum"
+      },
+      "dataBudget": 3,
+      "headlineTreatment": "an oversized rounded date or value chip above a compact left-aligned fact headline"
+    },
+    "feature_explainer": {
+      "name": "FEATURE EXPLAINER",
+      "skeleton": "A clean flat field presents three or four large modules connected by simple white paths. Modules may represent a match, submitted result, profile, team, bracket, venue, or ranking position using simple icons and abstract cards. The flow reads immediately without relying on paragraphs or tiny interface detail.",
+      "textPolicy": "One headline plus up to four one- or two-word step chips.",
+      "defaultAxes": {
+        "stage": "aubergine_graphic",
+        "composition": "connected_modules",
+        "energy": "clear_explainer",
+        "accent": "full_spectrum"
+      },
+      "dataBudget": 4,
+      "headlineTreatment": "a large top-left headline followed by oversized colored modules with minimal step words"
+    },
+    "role_wheel": {
+      "name": "COMMUNITY ROLE WHEEL",
+      "skeleton": "A circular or orbiting system of six to eight oversized pink, mint, and orange role segments surrounds one calm aubergine center. Simple human, team, bracket, whistle, community, and venue symbols suggest the ecosystem. The composition feels like a world of participation, not a financial pie chart.",
+      "textPolicy": "One question or ecosystem headline plus at most six single-word role chips.",
+      "defaultAxes": {
+        "stage": "aubergine_graphic",
+        "composition": "radial_system",
+        "energy": "clear_explainer",
+        "accent": "full_spectrum"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "a large question on the left or top, with a short center statement inside the wheel"
+    },
+    "ranking_ladder": {
+      "name": "RANKING LADDER ILLUSTRATION",
+      "skeleton": "A playful flat illustration builds an ascending ladder, bracket, calendar, or tier system from thick orange and mint rails on deep aubergine. Small diverse generic competitors and simple symbols for digital games, board games, cue sports, and physical sports populate different levels without forming a fake leaderboard.",
+      "textPolicy": "One progress headline only; optional non-numeric level words if supported by the source.",
+      "defaultAxes": {
+        "stage": "aubergine_graphic",
+        "composition": "vertical_progression",
+        "energy": "playful_competitive",
+        "accent": "mint_orange"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "a short white headline at the top or left, separate from the illustrated ladder"
+    },
+    "ranking_calendar": {
+      "name": "RANKING CALENDAR",
+      "skeleton": "A loose grid of five to seven thick white-outlined cards sits on aubergine. A few cards hold a mint score marker, pink controller, orange trophy, match symbol, or simple progress arrow; the remaining cards stay intentionally empty for visual rhythm. The result resembles a playful weekly competition board rather than a dashboard.",
+      "textPolicy": "One weekly or progress headline; no dates or rankings unless supplied by the article.",
+      "defaultAxes": {
+        "stage": "aubergine_graphic",
+        "composition": "card_grid",
+        "energy": "playful_competitive",
+        "accent": "full_spectrum"
+      },
+      "dataBudget": 2,
+      "headlineTreatment": "a large top headline with alternating white, mint, and pink words above the loose card grid"
+    },
+    "tournament_deck": {
+      "name": "TOURNAMENT CARD DECK",
+      "skeleton": "Three to five large rounded event cards overlap at slight angles on a deep aubergine field. Pink, mint, orange, and aubergine frames carry generic digital or physical competition photography. Cards contain no dates, game names, fees, prize pools, or organizer marks unless those details are explicitly present in the supplied article.",
+      "textPolicy": "One invitation headline; source-supported tournament details may appear as up to three short chips.",
+      "defaultAxes": {
+        "stage": "aubergine_graphic",
+        "composition": "tilted_deck",
+        "energy": "playful_competitive",
+        "accent": "full_spectrum"
+      },
+      "dataBudget": 3,
+      "headlineTreatment": "a centered or top headline with the action word reversed inside a large hot-pink pill"
+    },
+    "game_grid": {
+      "name": "ANY GAME GRID",
+      "skeleton": "A clean two-by-two grid shows four distinct, believable categories of play such as a controller, chessboard, football, billiards table, table tennis setup, or archery target. One luminous white keyline unifies the cells while subtle mint and orange light keeps the grid connected to the Ranking palette.",
+      "textPolicy": "One inclusive gaming headline; no game titles or category list unless sourced.",
+      "defaultAxes": {
+        "stage": "photo_grid",
+        "composition": "quadrant_grid",
+        "energy": "clear_explainer",
+        "accent": "mint_orange"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "one large centered or lower-third headline crossing the grid with strong white type"
+    },
+    "venue_story": {
+      "name": "REAL-WORLD VENUE STORY",
+      "skeleton": "A real club, gaming center, sports venue, community event, or organizer workspace appears inside one tall rounded photographic window on a bright orange, mint, or pink field. Two overlapping statement pills connect the physical setting to competition, community, or organization without inventing a partnership.",
+      "textPolicy": "One headline plus one short impact line; no partnership or sponsorship claim unless sourced.",
+      "defaultAxes": {
+        "stage": "venue_photo",
+        "composition": "window_stack",
+        "energy": "confident_product",
+        "accent": "orange_field"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "two overlapping pink and aubergine statement pills beneath or beside the photo window"
+    },
+    "sticker_still_life": {
+      "name": "STICKER STILL LIFE",
+      "skeleton": "One controller, headset, trophy, gaming chair, handheld device, sports object, match card, or abstract achievement tile is isolated as a crisp photographic cutout or clean soft-3D object. A large rounded white outline frames it on one solid brand-color field, with two tiny node or controller stickers providing scale and movement.",
+      "textPolicy": "One trend, question, or feature headline only.",
+      "defaultAxes": {
+        "stage": "bright_graphic",
+        "composition": "centered_object",
+        "energy": "editorial_energy",
+        "accent": "orange_field"
+      },
+      "dataBudget": 0,
+      "headlineTreatment": "two stacked outlined color pills above the object or one large left-aligned title"
+    },
+    "announcement": {
+      "name": "MINIMAL PLATFORM ANNOUNCEMENT",
+      "skeleton": "A spacious aubergine, warm-white, mint, or orange field contains one oversized linked-node line pattern, a single small abstract status tile, and a disciplined headline zone. There is no decorative game artwork, product mockup, token imagery, or unnecessary data.",
+      "textPolicy": "One concise headline and at most one short supporting sentence.",
+      "defaultAxes": {
+        "stage": "aubergine_graphic",
+        "composition": "left_statement",
+        "energy": "editorial_calm",
+        "accent": "full_spectrum"
+      },
+      "dataBudget": 1,
+      "headlineTreatment": "a large left-aligned headline with one highlighted phrase and broad negative space"
+    }
+  },
+  "axes": {
+    "stage": {
+      "aubergine_graphic": "The stage is a solid deep-aubergine field with faint oversized linked-node linework and generous negative space.",
+      "bright_graphic": "The stage is one flat hot-pink, mint, orange, or warm-white field with crisp white keylines and no gradient clutter.",
+      "people_photo": "The stage uses a candid people-led gaming or community photograph, cleanly cut out or naturally lit, with a controlled brand-color field.",
+      "product_photo": "The stage is a believable device or interface setting lit with restrained violet, mint, pink, and orange practical light.",
+      "arena_photo": "The stage is a real-looking competition venue with atmospheric violet and magenta light, readable subjects, and controlled confetti or crowd detail.",
+      "competition_photo": "The stage is a believable digital or physical match environment organized around two opposing sides and a clear central boundary.",
+      "documentary_photo": "The stage is a strong documentary, archive-style, gaming-culture, or event photograph with an aubergine readability wash.",
+      "photo_grid": "The stage is a clean grid of distinct photographic play categories unified by one bright outline and consistent lighting.",
+      "venue_photo": "The stage combines a real-world venue or organizer photograph with a dominant flat Ranking color field."
+    },
+    "composition": {
+      "split_statement": "Reserve 38-46 percent for a staggered headline block and let the person or subject occupy the opposite side with a deliberate crop.",
+      "lower_statement": "Let the image fill most of the frame and build a bold lower-third statement from one or two large outlined pills.",
+      "centered_card": "Center one oversized profile or platform card, leaving a clean headline band above and a few small sticker accents around it.",
+      "versus_split": "Divide the frame into two clear opposing sides that meet at one bright central line, node, table, or bracket junction.",
+      "top_story": "Reserve the upper 30-38 percent for a source-led headline and chip while the documentary image carries the lower field.",
+      "window_split": "Place one large organic rounded photo window on one side and a bold headline block on the other, connected by a thin looping line.",
+      "fact_stack": "Stack an oversized value chip, one factual headline, and one short support line over a quiet region of the image.",
+      "connected_modules": "Arrange three or four oversized modules along one obvious path with thick spacing and no tiny interface detail.",
+      "radial_system": "Build a circular ecosystem of large colored segments around one calm central message with a separate headline zone.",
+      "vertical_progression": "Use a tall ascending ladder, bracket, or tier path as the central illustration, keeping the headline outside the path.",
+      "card_grid": "Arrange a loose, slightly tilted card grid with intentional empty cards and one strong headline above it.",
+      "tilted_deck": "Overlap three to five large rounded cards at varied angles while preserving a clear headline band and readable silhouettes.",
+      "quadrant_grid": "Use four equally strong photographic cells with one continuous frame and a headline crossing the center or lower third.",
+      "window_stack": "Frame one tall real-world photograph in a rounded window and overlap two short statement pills across its lower edge.",
+      "centered_object": "Center one oversized object inside a single white-outlined organic frame, with a compact headline above or to one side.",
+      "left_statement": "Build a spacious left-aligned headline block with one small status tile and a faint node pattern occupying the far background."
+    },
+    "energy": {
+      "playful_competitive": "The mood is bright, social, and competitive, using tilted stickers, lively expressions, and bold scale without childish cartoon excess.",
+      "confident_product": "The mood is useful and aspirational, showing the platform or object clearly in a believable context with controlled campaign polish.",
+      "celebratory": "The mood captures an earned moment of recognition with human energy, directional light, and restrained event effects.",
+      "high_tension": "The mood is focused and rivalrous, using opposing color sides and compressed distance without violence or aggression.",
+      "editorial_energy": "The mood is curious and gaming-native, balancing one striking visual with a strong factual or cultural hook.",
+      "clear_explainer": "The mood is informative and approachable, with an immediate visual sequence, large modules, and almost no decorative noise.",
+      "editorial_calm": "The mood is official, trustworthy, and spacious, using disciplined hierarchy and minimal supporting decoration."
+    },
+    "accent": {
+      "full_spectrum": "Use aubergine as the anchor with hot pink, mint, orange, and white distributed as large pills, stickers, and keylines; avoid rainbow gradients.",
+      "pink_mint": "Hot pink and mint form the primary two-sided contrast on aubergine or white, with orange limited to one small action accent.",
+      "mint_orange": "Fresh mint and bright orange carry the modules or progression path, supported by aubergine type and white outlines.",
+      "orange_field": "Bright orange is the dominant field, with aubergine type, white keylines, and one mint or hot-pink secondary accent.",
+      "mint_field": "Fresh mint is the dominant field, with aubergine type, white keylines, and one orange or hot-pink secondary accent.",
+      "neon_photo": "The photograph carries restrained violet and magenta atmosphere with mint and orange practical highlights; graphics remain crisp and flat."
+    }
+  },
+  "frozenStyle": {
+    "format": "high-impact Ranking social campaign artwork that remains clear as a vertical 4:5 or portrait post, a safe square crop, or a wide 16:9 card; every composition communicates one gaming-native idea within one second",
+    "palette": "deep aubergine (#20113D) is the anchor, with hot pink (#FF4F91), fresh mint (#55E6A3), bright orange (#FF8A48), and clean white; use one dominant field plus two supporting brand colors, reserving green and red data semantics for verified source facts",
+    "materials": "flat saturated color fields, photographic cutouts, dark product-interface surfaces, thick white keylines, rounded sticker pills, soft rounded rectangles, organic cross-shaped photo windows, thin looping connector lines, lightly grainy paper texture, and occasional clean 3D gaming props",
+    "rendering": "youthful campaign design with crisp cutouts, confident scale contrast, believable diverse adult players, clean editorial photography, restrained neon lighting, and deliberately imperfect tilted cards or stickers; polished and playful rather than cyberpunk or corporate",
+    "backgroundVocab": "solid aubergine, hot-pink, mint, orange, or warm-white fields; full-bleed tournament, gaming, club, workplace, or archival photography with an aubergine color wash; subtle oversized linked-node line patterns may repeat at low contrast behind the content",
+    "headlineZone": "reserve 30-48 percent of the frame for a short headline, using oversized white or aubergine type and no more than two highlighted words inside outlined pink, mint, orange, or aubergine sticker pills",
+    "never": "financial-trading visuals, speculative coin art, Bitcoin symbols, candlestick charts, wallet screens, cash rain, guaranteed reward language, invented ranking values, fake tournament details, unsupported blockchain claims, generic blue neon crypto scenery, dark metallic esports crests, cluttered dashboards, more than 5 visible copy elements, long paragraphs, tiny interface copy, copied third-party game characters or logos, public-figure likenesses, invented brand marks, malformed hands or hardware, or watermarks"
+  },
+  "restrictions": {
+    "antiRepetition": "Do not repeat the same family twice in a row. Across any 6 posts, use at least one people-led photo, one product or interface scene, one flat graphic or illustrated layout, and one gaming-culture editorial. Do not reuse the same prop, game category, portrait archetype, photo-window shape, field color, or pill arrangement within 4 posts. Alternate dark aubergine stages with bright pink, mint, orange, or documentary-photo stages. fact_poster and feature_explainer each appear at most twice in 6 posts.",
+    "moodAccentDefault": "full_spectrum",
+    "moodAccentRestricted": {
+      "mint_field": {
+        "families": [
+          "fact_poster",
+          "feature_explainer",
+          "game_grid",
+          "editorial_window"
+        ]
+      },
+      "orange_field": {
+        "families": [
+          "fact_poster",
+          "feature_explainer",
+          "game_grid",
+          "editorial_window"
+        ]
+      },
+      "neon_photo": {
+        "families": [
+          "player_spotlight",
+          "platform_in_action",
+          "achievement_moment",
+          "game_culture"
+        ]
+      }
+    },
+    "bannedSubjectTerms": [
+      "investment guarantee",
+      "guaranteed return",
+      "guaranteed profit",
+      "passive income",
+      "risk-free",
+      "get rich",
+      "moonshot",
+      "to the moon",
+      "cash pile",
+      "cash rain",
+      "bitcoin symbol",
+      "crypto coin",
+      "coin pile",
+      "trading chart",
+      "candlestick chart",
+      "line chart",
+      "bar chart",
+      "price chart",
+      "ethereum diamond",
+      "token symbol",
+      "wallet balance",
+      "wallet address",
+      "exchange screen",
+      "fake ranking",
+      "fake score",
+      "invented interface",
+      "fake logo",
+      "invented logo",
+      "third-party logo",
+      "game logo",
+      "public figure",
+      "celebrity likeness",
+      "professional player likeness",
+      "glowing humanoid robot",
+      "generic cyberpunk",
+      "blue glass cube",
+      "metal esports crest"
+    ]
+  },
+  "textPolicy": {
+    "rules": "1. Headline: 7 words or fewer, usually uppercase, with a challenging, energetic, gaming-native rhythm.\n   Highlight at most two short words or phrases in rounded sticker pills. Do not turn every word into a pill.\n2. Text budget: most families use headline only. editorial_window, fact_poster, venue_story, game_culture,\n   and announcement may add one short supporting sentence. feature_explainer allows at most four one- or\n   two-word step chips. role_wheel allows at most six single-word roles. Long paragraphs are never allowed.\n3. All claims must come from the supplied article or approved Ranking knowledge. Never invent scores,\n   ranks, records, dates, counts, player names, tournament terms, game availability, partnerships,\n   blockchain implementation, reward amounts, or MGC mechanics.\n4. Use product language first: play, challenge, submit, record, rank, climb, join, organize, compete,\n   connect, and build your profile. Use \"earn\" only when a current source explicitly confirms eligible\n   participation-based MGC rewards. Never promise profit, passive income, guaranteed prizes, or automatic wins.\n5. Generic diverse adult players, teams, organizers, fans, and venue staff are allowed. Never depict or\n   imitate a public figure, celebrity, professional player, founder, or named person. Avoid children unless\n   the user supplies an approved image and the article specifically requires an age-appropriate youth context.\n6. Do not ask the image model to invent the official Ranking symbol or wordmark. The repeating linked-node\n   geometry may appear only as an abstract line pattern or sticker motif. Leave the protected bottom-left\n   corner visually continuous and empty for the real logo applied after generation.\n7. Product screens must remain abstract unless an official interface reference is supplied. Never create\n   plausible-looking buttons, balances, rankings, or user data that could be mistaken for current product truth.",
+    "headlineMaxWords": 7,
+    "headlineUppercase": true,
+    "legibilityLine": "All visible words use a heavy rounded condensed display face for headlines and a clean geometric sans-serif for supporting copy, with thick white keylines, generous spacing, and mobile-feed legibility.",
+    "dataElementTemplate": "an outlined sticker chip displaying \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " with the short descriptor \"{label}\""
+  },
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.096,
+    "insetShortSideRatio": 0.045
+  },
+  "fallbackBrief": {
+    "selection": {
+      "family": "ranking_ladder",
+      "axes": {
+        "stage": "aubergine_graphic",
+        "composition": "vertical_progression",
+        "energy": "playful_competitive",
+        "accent": "mint_orange"
+      }
+    },
+    "brief": {
+      "headline": "MAKE EVERY GAME COUNT",
+      "subjectScene": "A playful ascending competition ladder built from thick mint and orange rails connects a controller, chess piece, football, cue ball, profile card, and trophy marker against a spacious deep-aubergine field.",
+      "dataElements": []
+    }
+  },
+  "briefExamples": "Worked examples (guidance only; never copy them verbatim):\n\nA. Product introduction\n{\"family\":\"platform_in_action\",\"headline\":\"YOUR GAME DESERVES A RECORD\",\"data_elements\":[],\"stage\":\"product_photo\",\"composition\":\"lower_statement\",\"energy\":\"confident_product\",\"accent\":\"neon_photo\",\"subject_scene\":\"A generic adult player seen from behind uses a wide monitor in a believable home gaming setup lit violet and mint; the screen holds one dark competitive profile card and a few abstract progress rows while the lower third remains visually quiet.\"}\n\nB. PvP challenge\n{\"family\":\"versus_match\",\"headline\":\"READY FOR THE NEXT RIVAL?\",\"data_elements\":[],\"stage\":\"competition_photo\",\"composition\":\"versus_split\",\"energy\":\"high_tension\",\"accent\":\"pink_mint\",\"subject_scene\":\"Two generic adult competitors lean toward opposite sides of a real table-gaming setup, separated by one bright orange central junction while pink and mint edge light distinguishes the two sides.\"}\n\nC. Ranking explainer\n{\"family\":\"feature_explainer\",\"headline\":\"PLAY. SUBMIT. CLIMB.\",\"data_elements\":[{\"value\":\"PLAY\",\"label\":\"\"},{\"value\":\"SUBMIT\",\"label\":\"\"},{\"value\":\"CLIMB\",\"label\":\"\"}],\"stage\":\"aubergine_graphic\",\"composition\":\"connected_modules\",\"energy\":\"clear_explainer\",\"accent\":\"full_spectrum\",\"subject_scene\":\"Three oversized modules connect a generic match tile to a confirmed-result card and then to a higher position on a game-specific ladder using a single white path across deep aubergine.\"}\n\nD. Tournament discovery\n{\"family\":\"tournament_deck\",\"headline\":\"FIND YOUR NEXT TOURNAMENT\",\"data_elements\":[],\"stage\":\"aubergine_graphic\",\"composition\":\"tilted_deck\",\"energy\":\"playful_competitive\",\"accent\":\"full_spectrum\",\"subject_scene\":\"Four large tilted event cards overlap across a deep-aubergine field, framed in hot pink, mint, orange, and white and filled with generic scenes from a digital match, billiards table, football pitch, and chessboard.\"}\n\nE. Gaming history article containing the year 1972\n{\"family\":\"fact_poster\",\"headline\":\"THE MATCH THAT STARTED AN ERA\",\"data_elements\":[{\"value\":\"1972\",\"label\":\"ARCADE MILESTONE\"}],\"stage\":\"documentary_photo\",\"composition\":\"fact_stack\",\"energy\":\"editorial_energy\",\"accent\":\"mint_field\",\"subject_scene\":\"A moody archive-style row of early arcade cabinets fills the frame under a subtle aubergine wash, leaving a quiet upper-left region for one large mint date chip and a compact historical statement.\"}\n\nF. Physical and digital games\n{\"family\":\"game_grid\",\"headline\":\"ANY GAME. ONE COMPETITIVE RECORD.\",\"data_elements\":[],\"stage\":\"photo_grid\",\"composition\":\"quadrant_grid\",\"energy\":\"clear_explainer\",\"accent\":\"mint_orange\",\"subject_scene\":\"A clean two-by-two grid combines a controller, chessboard, football, and billiards table, unified by one luminous white frame with subtle mint and orange edge light.\"}\n\nG. Official update\n{\"family\":\"announcement\",\"headline\":\"A PLATFORM UPDATE\",\"data_elements\":[],\"stage\":\"aubergine_graphic\",\"composition\":\"left_statement\",\"energy\":\"editorial_calm\",\"accent\":\"full_spectrum\",\"subject_scene\":\"A spacious deep-aubergine field carries faint oversized linked-node linework and one small mint status tile, preserving broad uninterrupted space for the announcement.\"}"
+}

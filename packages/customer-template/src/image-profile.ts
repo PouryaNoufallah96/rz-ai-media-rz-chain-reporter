@@ -47,21 +47,23 @@ const fallbackBriefSchema = z.strictObject({
   }),
 });
 
+export const frozenStyleSchema = z.strictObject({
+  format: prose,
+  palette: prose,
+  materials: prose,
+  rendering: prose,
+  backgroundVocab: prose,
+  headlineZone: prose,
+  never: prose,
+});
+
 export const imageProfileSchema = z
   .strictObject({
     families: z.record(profileKeySchema, familySchema),
     // An axis value may carry no injected description; the empty string is the
     // authored way to say "this value adds nothing to the scene".
     axes: z.record(profileKeySchema, z.record(profileKeySchema, z.string())),
-    frozenStyle: z.strictObject({
-      format: prose,
-      palette: prose,
-      materials: prose,
-      rendering: prose,
-      backgroundVocab: prose,
-      headlineZone: prose,
-      never: prose,
-    }),
+    frozenStyle: frozenStyleSchema,
     restrictions: z.strictObject({
       antiRepetition: prose,
       moodAccentDefault: profileKeySchema,
