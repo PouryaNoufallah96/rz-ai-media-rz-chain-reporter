@@ -3,6 +3,7 @@ export type ReconcileMode = "apply" | "check";
 export type ReconcileEntity =
   | "workspace"
   | "media_brand"
+  | "market_instrument"
   | "source"
   | "destination_account"
   | "media_brand_destination_account";

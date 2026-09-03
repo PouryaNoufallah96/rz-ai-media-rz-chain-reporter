@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { errorCodeSchema } from "./error";
 import { invocationKeySchema } from "./operation";
+import { platformSchema } from "./platform";
 import { contentLocaleSchema } from "./source";
 
 export const COPY_PROMPT_VERSION = "copy-prompt-v2";
@@ -11,26 +12,75 @@ export const CARD_ORIGIN_KINDS = [
   "editorial_selection",
   "telegram_filter_result",
   "promo_idea",
+  "market_analysis_handoff",
 ] as const;
 
 export type CardOriginKind = (typeof CARD_ORIGIN_KINDS)[number];
 
+const editorialSelectionOriginSchema = z.strictObject({
+  kind: z.literal(CARD_ORIGIN_KINDS[0]),
+  editorialSelectionId: z.uuid(),
+});
+const telegramFilterResultOriginSchema = z.strictObject({
+  kind: z.literal(CARD_ORIGIN_KINDS[1]),
+  telegramFilterResultId: z.uuid(),
+});
+const promoIdeaOriginSchema = z.strictObject({
+  kind: z.literal(CARD_ORIGIN_KINDS[2]),
+  promoIdeaId: z.uuid(),
+});
+const marketAnalysisHandoffOriginSchema = z.strictObject({
+  kind: z.literal(CARD_ORIGIN_KINDS[3]),
+  marketAnalysisHandoffId: z.uuid(),
+});
+
+export const runCardOriginReferenceSchema = z.discriminatedUnion("kind", [
+  editorialSelectionOriginSchema,
+  telegramFilterResultOriginSchema,
+  promoIdeaOriginSchema,
+]);
+
+export type RunCardOriginReference = z.infer<
+  typeof runCardOriginReferenceSchema
+>;
+
 export const cardOriginReferenceSchema = z.discriminatedUnion("kind", [
-  z.strictObject({
-    kind: z.literal(CARD_ORIGIN_KINDS[0]),
-    editorialSelectionId: z.uuid(),
-  }),
-  z.strictObject({
-    kind: z.literal(CARD_ORIGIN_KINDS[1]),
-    telegramFilterResultId: z.uuid(),
-  }),
-  z.strictObject({
-    kind: z.literal(CARD_ORIGIN_KINDS[2]),
-    promoIdeaId: z.uuid(),
-  }),
+  editorialSelectionOriginSchema,
+  telegramFilterResultOriginSchema,
+  promoIdeaOriginSchema,
+  marketAnalysisHandoffOriginSchema,
 ]);
 
 export type CardOriginReference = z.infer<typeof cardOriginReferenceSchema>;
+
+export const prepareMarketPlatformInputSchema = z.strictObject({
+  analysisId: z.uuid(),
+  platform: platformSchema,
+  modelOptionKey: z
+    .string()
+    .trim()
+    .min(1, { error: "MODEL_REQUIRED" })
+    .optional(),
+  idempotencyKey: z.uuid({ error: "IDEMPOTENCY_KEY_REQUIRED" }),
+});
+
+export const prepareMarketPlatformResultSchema = z.strictObject({
+  status: z.enum(["created", "replayed", "reconciled"]),
+  draftId: z.uuid(),
+  platform: platformSchema,
+  lanePosition: z.null(),
+  generationLifecycle: z
+    .enum([
+      "queued",
+      "running",
+      "settling",
+      "succeeded",
+      "failed",
+      "cancelled",
+      "unknown",
+    ])
+    .nullable(),
+});
 
 export const PERSISTED_DRAFT_REVISION_COMMAND_KINDS = [
   "apply_copy_variant",

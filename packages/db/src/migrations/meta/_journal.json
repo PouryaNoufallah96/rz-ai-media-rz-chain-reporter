@@ -246,6 +246,62 @@
       "when": 1788191717767,
       "tag": "0034_tearful_satana",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1788220498664,
+      "tag": "0035_far_silver_samurai",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1788220554315,
+      "tag": "0036_strong_fat_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1788220925496,
+      "tag": "0037_repair_market_analysis_trigger_functions",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1788229781000,
+      "tag": "0038_repair_market_chart_checkpoint",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1788235941799,
+      "tag": "0039_ordinary_nehzno",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1788256168342,
+      "tag": "0040_salty_starbolt",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1788311624836,
+      "tag": "0041_needy_mac_gargan",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1788339333883,
+      "tag": "0042_market_media_publishable",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -55,5 +56,10 @@ export const outboxEvent = pgTable(
     index("ix_outbox_event_next_attempt_at_undispatched")
       .on(t.nextAttemptAt)
       .where(sql`${t.dispatchedAt} is null and ${t.exhaustedAt} is null`),
+    uniqueIndex("uq_outbox_event_market_generation_live_wake")
+      .on(t.workspaceId, t.operationId, t.eventType)
+      .where(
+        sql`${t.dispatchedAt} is null and ${t.exhaustedAt} is null and ${t.eventType} = 'operation/market-generation.requested'`,
+      ),
   ],
 );

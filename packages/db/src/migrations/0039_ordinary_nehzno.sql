@@ -1,0 +1,11 @@
+ALTER TABLE "platform_draft" DROP CONSTRAINT "ck_platform_draft_lane_position_positive";--> statement-breakpoint
+ALTER TABLE "platform_draft" DROP CONSTRAINT "ck_platform_draft_exactly_one_origin";--> statement-breakpoint
+DROP INDEX "ix_platform_draft_active_workspace_media_brand_platform";--> statement-breakpoint
+ALTER TABLE "platform_draft" ALTER COLUMN "lane_position" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "platform_draft" ADD COLUMN "market_analysis_handoff_id" uuid;--> statement-breakpoint
+ALTER TABLE "platform_draft" ADD CONSTRAINT "fk_platform_draft_market_analysis_handoff_id" FOREIGN KEY ("market_analysis_handoff_id") REFERENCES "public"."market_analysis_handoff"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "uq_platform_draft_active_market_analysis_handoff_route" ON "platform_draft" USING btree ("workspace_id","market_analysis_handoff_id","media_brand_id","platform") WHERE "platform_draft"."deleted_at" is null and "platform_draft"."market_analysis_handoff_id" is not null;--> statement-breakpoint
+CREATE INDEX "ix_platform_draft_workspace_market_analysis_handoff_id" ON "platform_draft" USING btree ("workspace_id","market_analysis_handoff_id");--> statement-breakpoint
+CREATE INDEX "ix_platform_draft_active_workspace_media_brand_platform" ON "platform_draft" USING btree ("workspace_id","media_brand_id","platform","lane_position","id") WHERE "platform_draft"."deleted_at" is null and "platform_draft"."market_analysis_handoff_id" is null;--> statement-breakpoint
+ALTER TABLE "platform_draft" ADD CONSTRAINT "ck_platform_draft_lane_position_applicability" CHECK (("platform_draft"."market_analysis_handoff_id" is null and "platform_draft"."lane_position" > 0) or ("platform_draft"."market_analysis_handoff_id" is not null and "platform_draft"."lane_position" is null));--> statement-breakpoint
+ALTER TABLE "platform_draft" ADD CONSTRAINT "ck_platform_draft_exactly_one_origin" CHECK (num_nonnulls("platform_draft"."editorial_selection_id", "platform_draft"."telegram_filter_result_id", "platform_draft"."promo_idea_id", "platform_draft"."market_analysis_handoff_id") = 1);

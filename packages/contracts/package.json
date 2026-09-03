@@ -25,6 +25,7 @@
     "fix": "biome check --write ."
   },
   "dependencies": {
+    "@rz-chain-reporter/i18n": "workspace:*",
     "inngest": "catalog:",
     "zod": "catalog:"
   },

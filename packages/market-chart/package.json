@@ -1,0 +1,26 @@
+{
+  "name": "@rz-chain-reporter/market-chart",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "check": "biome check .",
+    "check-types": "tsc --noEmit",
+    "fix": "biome check --write ."
+  },
+  "dependencies": {
+    "@rz-chain-reporter/contracts": "workspace:*",
+    "@rz-chain-reporter/i18n": "workspace:*"
+  },
+  "devDependencies": {
+    "@rz-chain-reporter/config": "workspace:*",
+    "@types/node": "catalog:",
+    "tsx": "4.23.12",
+    "typescript": "catalog:"
+  }
+}

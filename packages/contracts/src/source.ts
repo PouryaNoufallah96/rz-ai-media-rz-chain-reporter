@@ -1,8 +1,9 @@
+import { LOCALES, type Locale } from "@rz-chain-reporter/i18n";
 import { z } from "zod";
 
-export const CONTENT_LOCALES = ["en", "fa"] as const;
+export const CONTENT_LOCALES = LOCALES;
 
-export type ContentLocale = (typeof CONTENT_LOCALES)[number];
+export type ContentLocale = Locale;
 
 export const contentLocaleSchema = z.enum(CONTENT_LOCALES);
 

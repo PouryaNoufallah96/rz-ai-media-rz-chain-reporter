@@ -15,6 +15,7 @@ import { copyVariant } from "../schema/copy-variant";
 import { draftRevision } from "../schema/draft-revision";
 import { draftRevisionCommandReceipt } from "../schema/draft-revision-command-receipt";
 import { imageGeneration } from "../schema/image-generation";
+import { marketAnalysisHandoff } from "../schema/market-analysis";
 import { mediaAsset } from "../schema/media-asset";
 import { operation } from "../schema/operation";
 import { platformDraft } from "../schema/platform-draft";
@@ -24,6 +25,7 @@ import {
   retainSelectedMedia,
   scheduleDetachedMediaCleanup,
 } from "./media-asset";
+import { lockPublishableMedia } from "./publishable-media";
 
 const RECEIPT_IDENTITY_CONSTRAINT =
   "uq_draft_revision_command_receipt_identity";
@@ -746,7 +748,7 @@ async function readRevisionSource(
               where prior_generation.workspace_id = ${copyGeneration.workspaceId}
                 and prior_generation.platform_draft_id = ${copyGeneration.platformDraftId}
                 and prior_generation.requested_content_locale = ${copyGeneration.requestedContentLocale}
-                and prior_operation.lifecycle = 'succeeded'
+                and prior_operation.lifecycle in ('succeeded', 'failed', 'cancelled', 'unknown')
                 and prior_operation.command_type in (
                   'copy-generation:route',
                   'copy-generation:regenerate',
@@ -973,11 +975,19 @@ async function resolveDesiredRevision(
           hashtag.toLocaleLowerCase() !== canonicalHashtag.toLocaleLowerCase(),
       ),
     ];
+    const initialMarketFinal = active
+      ? null
+      : await readMarketHandoffFinal(
+          executor,
+          workspaceId,
+          input.platformDraftId,
+        );
     const desired = {
       ...content,
       hashtags,
       originatingCopyVariantId: source.originatingCopyVariantId,
-      selectedFinalMediaAssetId: active?.selectedFinalMediaAssetId ?? null,
+      selectedFinalMediaAssetId:
+        active?.selectedFinalMediaAssetId ?? initialMarketFinal,
     };
     return {
       status: "resolved",
@@ -985,6 +995,30 @@ async function resolveDesiredRevision(
     };
   }
   return { status: "not_found" };
+}
+
+async function readMarketHandoffFinal(
+  executor: Transaction,
+  workspaceId: string,
+  platformDraftId: string,
+) {
+  const [row] = await executor
+    .select({ finalMediaAssetId: marketAnalysisHandoff.finalMediaAssetId })
+    .from(platformDraft)
+    .innerJoin(
+      marketAnalysisHandoff,
+      and(
+        inWorkspace(marketAnalysisHandoff, workspaceId),
+        eq(marketAnalysisHandoff.id, platformDraft.marketAnalysisHandoffId),
+      ),
+    )
+    .where(
+      and(
+        inWorkspace(platformDraft, workspaceId),
+        eq(platformDraft.id, platformDraftId),
+      ),
+    );
+  return row?.finalMediaAssetId ?? null;
 }
 
 function carryContent(
@@ -1016,60 +1050,26 @@ async function checkSelectedMedia(
   platformDraftId: string,
   finalMediaAssetId: string,
 ): Promise<"matched" | "media_invalid"> {
-  const [asset] = await executor
-    .select({
-      id: mediaAsset.id,
-      kind: mediaAsset.kind,
-      cleanupAfter: mediaAsset.cleanupAfter,
-      version: mediaAsset.version,
-    })
-    .from(mediaAsset)
-    .where(
-      and(
-        inWorkspace(mediaAsset, workspaceId),
-        eq(mediaAsset.id, finalMediaAssetId),
-        eq(mediaAsset.lifecycle, "verified"),
-        isNull(mediaAsset.objectRemovedAt),
-      ),
-    )
-    .for("update");
-  if (!asset || (asset.kind !== "image" && asset.kind !== "image_final")) {
-    return "media_invalid";
+  const asset = await lockPublishableMedia(
+    executor,
+    workspaceId,
+    platformDraftId,
+    finalMediaAssetId,
+  );
+  if (!asset) return "media_invalid";
+  if (asset.kind === "image" && asset.cleanupAfter) {
+    await executor
+      .update(mediaAsset)
+      .set({ cleanupAfter: null, version: asset.version + 1 })
+      .where(
+        and(
+          inWorkspace(mediaAsset, workspaceId),
+          eq(mediaAsset.id, asset.id),
+          eq(mediaAsset.version, asset.version),
+        ),
+      );
   }
-  if (asset.kind === "image") {
-    if (asset.cleanupAfter) {
-      await executor
-        .update(mediaAsset)
-        .set({ cleanupAfter: null, version: asset.version + 1 })
-        .where(
-          and(
-            inWorkspace(mediaAsset, workspaceId),
-            eq(mediaAsset.id, asset.id),
-            eq(mediaAsset.version, asset.version),
-          ),
-        );
-    }
-    return "matched";
-  }
-
-  const [source] = await executor
-    .select({ id: imageGeneration.operationId })
-    .from(imageGeneration)
-    .innerJoin(
-      draftRevision,
-      and(
-        inWorkspace(draftRevision, workspaceId),
-        eq(draftRevision.id, imageGeneration.draftRevisionId),
-        eq(draftRevision.platformDraftId, platformDraftId),
-      ),
-    )
-    .where(
-      and(
-        inWorkspace(imageGeneration, workspaceId),
-        eq(imageGeneration.finalMediaAssetId, finalMediaAssetId),
-      ),
-    );
-  return source ? "matched" : "media_invalid";
+  return "matched";
 }
 
 async function insertRevision(

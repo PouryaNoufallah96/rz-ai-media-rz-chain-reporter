@@ -5,6 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import type { Executor, Transaction } from "../executor";
 import { inWorkspace } from "../filters";
 import { destinationAccount } from "../schema/destination-account";
+import { marketInstrument } from "../schema/market-analysis";
 import { mediaBrand } from "../schema/media-brand";
 import { mediaBrandDestinationAccount } from "../schema/media-brand-destination-account";
 import { source } from "../schema/source";
@@ -82,6 +83,14 @@ export async function reconcileCustomerTemplate(
         template.sources,
         run,
       );
+      const instruments = await reconcileMarketInstruments(
+        tx,
+        workspaceId,
+        template.marketAnalysis.enabled
+          ? template.marketAnalysis.instruments
+          : [],
+        run,
+      );
       const destinations = await reconcileDestinationAccounts(
         tx,
         workspaceId,
@@ -102,6 +111,7 @@ export async function reconcileCustomerTemplate(
           : entry("workspace", customerTemplateKey, "added"),
         ...brands.entries,
         ...sources.entries,
+        ...instruments.entries,
         ...destinations.entries,
         ...mappings.entries,
       ];
@@ -261,6 +271,11 @@ function unprovisionedReport(
       ...template.sources.map((configured) =>
         entry("source", configured.key, "added"),
       ),
+      ...(template.marketAnalysis.enabled
+        ? template.marketAnalysis.instruments.map((instrument) =>
+            entry("market_instrument", instrument.key, "added"),
+          )
+        : []),
       ...template.destinationAccounts.map((account) =>
         entry("destination_account", account.key, "added"),
       ),
@@ -532,6 +547,120 @@ async function reconcileSources(
   return { entries, idByKey };
 }
 
+export async function reconcileMarketInstruments(
+  tx: Transaction,
+  workspaceId: string,
+  instruments: Extract<
+    CustomerTemplate["marketAnalysis"],
+    { enabled: true }
+  >["instruments"],
+  run: ReconcileRun,
+): Promise<EntityResult> {
+  const existing = await tx
+    .select({
+      id: marketInstrument.id,
+      key: marketInstrument.key,
+      name: marketInstrument.name,
+      symbol: marketInstrument.symbol,
+      enabled: marketInstrument.enabled,
+      providerMappings: marketInstrument.providerMappings,
+      deletedAt: marketInstrument.deletedAt,
+    })
+    .from(marketInstrument)
+    .where(inWorkspace(marketInstrument, workspaceId));
+
+  const byKey = new Map(existing.map((row) => [row.key, row]));
+  const entries: ReconcileEntry[] = [];
+  const idByKey = new Map<string, string>();
+
+  for (const instrument of instruments) {
+    const values = {
+      name: instrument.name,
+      symbol: instrument.symbol,
+      enabled: instrument.enabled,
+      providerMappings: instrument.providerMappings,
+    };
+    const current = byKey.get(instrument.key);
+
+    if (!current) {
+      if (run.mode === "apply") {
+        const [created] = await tx
+          .insert(marketInstrument)
+          .values({ workspaceId, key: instrument.key, ...values })
+          .returning({ id: marketInstrument.id });
+        if (!created)
+          throw new Error("market instrument insert returned no row");
+        idByKey.set(instrument.key, created.id);
+      }
+      entries.push(entry("market_instrument", instrument.key, "added"));
+      continue;
+    }
+
+    idByKey.set(instrument.key, current.id);
+    const fields: string[] = [];
+    if (current.name !== instrument.name) fields.push("name");
+    if (current.symbol !== instrument.symbol) fields.push("symbol");
+    if (current.enabled !== instrument.enabled) fields.push("enabled");
+    if (
+      canonicalMetadata(current.providerMappings) !==
+      canonicalMetadata(instrument.providerMappings)
+    ) {
+      fields.push("provider_mappings");
+    }
+
+    if (current.deletedAt !== null) {
+      if (run.mode === "apply") {
+        await tx
+          .update(marketInstrument)
+          .set({ ...values, deletedAt: null })
+          .where(eq(marketInstrument.id, current.id));
+      }
+      entries.push(
+        entry("market_instrument", instrument.key, "restored", fields),
+      );
+      continue;
+    }
+
+    if (fields.length === 0) {
+      entries.push(entry("market_instrument", instrument.key, "unchanged"));
+      continue;
+    }
+
+    if (run.mode === "apply") {
+      await tx
+        .update(marketInstrument)
+        .set(values)
+        .where(eq(marketInstrument.id, current.id));
+    }
+    entries.push(
+      entry(
+        "market_instrument",
+        instrument.key,
+        current.enabled && !instrument.enabled ? "disabled" : "updated",
+        fields,
+      ),
+    );
+  }
+
+  const templateKeys = new Set(instruments.map((instrument) => instrument.key));
+  for (const row of existing) {
+    if (templateKeys.has(row.key)) continue;
+    if (row.deletedAt !== null) {
+      entries.push(entry("market_instrument", row.key, "unchanged"));
+      continue;
+    }
+    if (run.mode === "apply") {
+      await tx
+        .update(marketInstrument)
+        .set({ deletedAt: run.at, enabled: false })
+        .where(eq(marketInstrument.id, row.id));
+    }
+    entries.push(entry("market_instrument", row.key, "retired"));
+  }
+
+  return { entries, idByKey };
+}
+
 async function reconcileDestinationAccounts(
   tx: Transaction,
   workspaceId: string,
@@ -771,15 +900,20 @@ async function reconcileBrandDestinations(
   return { entries };
 }
 
-// jsonb normalizes object key order; compare as sorted pairs, not serialized text.
 function canonicalMetadata(value: unknown) {
-  if (typeof value !== "object" || value === null) {
-    return "";
-  }
+  return (
+    JSON.stringify(value, (_key, field) => {
+      if (typeof field !== "object" || field === null || Array.isArray(field)) {
+        return field;
+      }
 
-  return Object.entries(value)
-    .filter(([, field]) => field !== undefined)
-    .sort(([left], [right]) => (left < right ? -1 : 1))
-    .map(([key, field]) => `${key}=${JSON.stringify(field)}`)
-    .join(" ");
+      return Object.fromEntries(
+        Object.entries(field)
+          .filter(([, nested]) => nested !== undefined)
+          .sort(([left], [right]) =>
+            left < right ? -1 : left > right ? 1 : 0,
+          ),
+      );
+    }) ?? ""
+  );
 }

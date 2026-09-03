@@ -1,6 +1,6 @@
 import {
   type AttemptOutcome,
-  type CardOriginReference,
+  type RunCardOriginReference as CardOriginReference,
   type ContentLocale,
   type DispatchState,
   DURABLE_EVENT_SCHEMA_VERSION,

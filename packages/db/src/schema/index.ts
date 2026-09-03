@@ -25,6 +25,8 @@ export * from "./filter-result";
 export * from "./image-brief";
 export * from "./image-generation";
 export * from "./image-variety-memory";
+export * from "./market-analysis";
+export * from "./market-snapshot";
 export * from "./media-asset";
 export * from "./media-brand";
 export * from "./media-brand-destination-account";

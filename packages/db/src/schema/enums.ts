@@ -14,6 +14,15 @@ import {
   FILTERING_REASONS,
   IMAGE_SOURCE_PROJECTION_KINDS,
   ITEM_ELIGIBILITIES,
+  MARKET_ANALYSIS_STATUSES,
+  MARKET_GENERATION_BRIEF_SOURCES,
+  MARKET_OUTPUT_FORMATS,
+  MARKET_PERIODS,
+  MARKET_PROVIDERS,
+  MARKET_SCALES,
+  MARKET_SERIES_ROLES,
+  MARKET_SNAPSHOT_SERIES_OUTCOMES,
+  MARKET_SNAPSHOT_STATUSES,
   MEDIA_ASSET_LIFECYCLES,
   MEDIA_DERIVATION_PURPOSES,
   MODEL_BACKENDS,
@@ -210,4 +219,40 @@ export const imageSourceProjectionKind = pgEnum(
 export const mediaDerivationPurpose = pgEnum(
   "media_derivation_purpose",
   MEDIA_DERIVATION_PURPOSES,
+);
+
+export const marketAnalysisStatus = pgEnum(
+  "market_analysis_status",
+  MARKET_ANALYSIS_STATUSES,
+);
+
+export const marketSnapshotStatus = pgEnum(
+  "market_snapshot_status",
+  MARKET_SNAPSHOT_STATUSES,
+);
+
+export const marketSnapshotSeriesOutcome = pgEnum(
+  "market_snapshot_series_outcome",
+  MARKET_SNAPSHOT_SERIES_OUTCOMES,
+);
+
+export const marketGenerationBriefSource = pgEnum(
+  "market_generation_brief_source",
+  MARKET_GENERATION_BRIEF_SOURCES,
+);
+
+export const marketProvider = pgEnum("market_provider", MARKET_PROVIDERS);
+
+export const marketPeriod = pgEnum("market_period", MARKET_PERIODS);
+
+export const marketScale = pgEnum("market_scale", MARKET_SCALES);
+
+export const marketOutputFormat = pgEnum(
+  "market_output_format",
+  MARKET_OUTPUT_FORMATS,
+);
+
+export const marketSeriesRole = pgEnum(
+  "market_series_role",
+  MARKET_SERIES_ROLES,
 );

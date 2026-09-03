@@ -1,14 +1,24 @@
 import { randomUUID } from "node:crypto";
 import type {
   CardOriginReference,
+  ContentLocale,
   Platform,
+} from "@rz-chain-reporter/contracts";
+import {
+  MARKET_GENERATION_FINAL_MEDIA_KIND,
+  runCardOriginReferenceSchema,
 } from "@rz-chain-reporter/contracts";
 import { validateMigrationEnv } from "@rz-chain-reporter/env/migration";
 import dotenv from "dotenv";
+import { sql } from "drizzle-orm";
 import pg from "pg";
 
+import type { Transaction } from "../executor";
 import { createDb } from "../index";
 import {
+  findCopyExecutionContext,
+  loadBoundCopyGenerationSourceInput,
+  prepareCopyGenerationSource,
   type StartCopyOperationInput,
   settleCopyGeneration,
   startCopyOperation,
@@ -19,8 +29,12 @@ import {
   readDraftRevisionCommandContext,
   readDraftRevisionReceiptInFreshTransaction,
 } from "../repositories/draft-revision";
-import { findServableFinalMedia } from "../repositories/image-generation";
+import { prepareMarketPlatform } from "../repositories/market-analysis-handoff";
 import { routePlatformDraft } from "../repositories/platform-draft";
+import {
+  canReadOwnedMarketMedia,
+  findServableMedia,
+} from "../repositories/servable-media";
 
 dotenv.config({ path: "../../.env.migration" });
 
@@ -45,6 +59,7 @@ const filterResultId = randomUUID();
 const invalidFilterResultId = randomUUID();
 const promoIdeaId = randomUUID();
 const observed: string[] = [];
+const marketRollback = new Error("EXPECTED_PLATFORM_DRAFT_MARKET_ROLLBACK");
 
 await client.connect();
 
@@ -69,6 +84,8 @@ try {
   );
   assertStatus(promo.status, "created", "promo origin");
   observed.push("all-three-origins");
+
+  await proveMarketOrigin();
 
   const replay = await route(selectionOrigin, "x", "editorial");
   assertStatus(replay.status, "replayed", "ordinary replay");
@@ -337,7 +354,7 @@ async function durableRouteCounts() {
 
 function copyInput(
   platformDraftId: string,
-  mode: StartCopyOperationInput["mode"],
+  mode: Exclude<StartCopyOperationInput["mode"], "recover_incomplete">,
   idempotencyKey: string,
   requestHash: string,
 ): StartCopyOperationInput {
@@ -680,7 +697,7 @@ async function proveDraftRevisionReplay(input: {
   ) {
     throw new Error("revision image was not selected");
   }
-  const servableImage = await findServableFinalMedia(
+  const servableImage = await findServableMedia(
     database.db,
     workspaceId,
     selectedMediaAssetId,
@@ -689,7 +706,7 @@ async function proveDraftRevisionReplay(input: {
     throw new Error("verified adopted operator image is not servable");
   }
   if (
-    (await findServableFinalMedia(
+    (await findServableMedia(
       database.db,
       otherWorkspaceId,
       selectedMediaAssetId,
@@ -737,11 +754,7 @@ async function proveDraftRevisionReplay(input: {
         mediaCase.objectRemovedAt,
       ],
     );
-    const servable = await findServableFinalMedia(
-      database.db,
-      workspaceId,
-      mediaId,
-    );
+    const servable = await findServableMedia(database.db, workspaceId, mediaId);
     if ((servable !== null) !== mediaCase.servable) {
       throw new Error(`operator image serving mishandled ${mediaCase.label}`);
     }
@@ -1012,7 +1025,7 @@ async function proveVisibleCopyVariantSources(input: {
   activeRevisionVersion: number;
   currentVariantId: string;
   currentContent: {
-    contentLocale: "en" | "fa";
+    contentLocale: ContentLocale;
     headline: string;
     body: string;
     hashtags: string[];
@@ -1211,7 +1224,7 @@ async function settleGenerationWithVariant(
   operationId: string,
   suffix: string,
   selectedContent: {
-    contentLocale: "en" | "fa";
+    contentLocale: ContentLocale;
     headline: string;
     body: string;
     hashtags: string[];
@@ -1341,7 +1354,7 @@ async function revisionSubmitInput(
   active: { id: string; version: number } | null,
 ): Promise<ExecuteDraftRevisionCommandInput> {
   const variant = await client.query<{
-    contentLocale: "en" | "fa";
+    contentLocale: ContentLocale;
     headline: string;
     body: string;
     hashtags: string[];
@@ -1373,7 +1386,7 @@ async function seedSucceededVariant(
   platformDraftId: string,
   suffix: string,
   content?: {
-    contentLocale: "en" | "fa";
+    contentLocale: ContentLocale;
     headline: string;
     body: string;
     hashtags: string[];
@@ -1522,6 +1535,597 @@ async function assertFreshRaceCounts(draftId: string) {
   ) {
     throw new Error(`fresh-key counts drifted: ${JSON.stringify(row)}`);
   }
+}
+
+async function proveMarketOrigin() {
+  try {
+    await database.db.transaction(async (tx) => {
+      const ids = {
+        analysis: randomUUID(),
+        analysisOperation: randomUUID(),
+        chartAsset: randomUUID(),
+        chartOperation: randomUUID(),
+        chartRender: randomUUID(),
+        finalAsset: randomUUID(),
+        handoff: randomUUID(),
+        instrument: randomUUID(),
+        snapshot: randomUUID(),
+        snapshotOperation: randomUUID(),
+      };
+      await insertMarketFixture(tx, ids);
+
+      const origin = {
+        kind: "market_analysis_handoff" as const,
+        marketAnalysisHandoffId: ids.handoff,
+      };
+      if (runCardOriginReferenceSchema.safeParse(origin).success) {
+        throw new Error("editorial three-origin guard accepted market origin");
+      }
+      const created = await prepareMarketPlatform(tx, workspaceId, {
+        actorId: actor,
+        analysisId: ids.analysis,
+        platform: "x",
+        modelOptionKey: "probe-model",
+        idempotencyKey: "market-route",
+        requestHash: "market-route-hash",
+        requestId: null,
+        variantKeys: ["first", "second", "third"],
+        customerTemplateFingerprint: "current-policy-template",
+        brandPolicyFingerprint: "current-policy-brand",
+        instrumentProfileFingerprint: "historical-profile",
+        referenceSampleChecksum: "historical-sample",
+        footerLockupChecksum: "historical-lockup",
+        promptVersion: "probe-prompt",
+        configurationVersion: "probe-configuration",
+      });
+      assertStatus(created.status, "created", "market route");
+      if (!("draft" in created) || created.draft.lanePosition !== null) {
+        throw new Error("market route allocated a lane position");
+      }
+      const replayed = await prepareMarketPlatform(tx, workspaceId, {
+        actorId: actor,
+        analysisId: ids.analysis,
+        platform: "x",
+        modelOptionKey: "probe-model",
+        idempotencyKey: "market-route",
+        requestHash: "market-route-hash",
+        requestId: null,
+        variantKeys: ["first", "second", "third"],
+        customerTemplateFingerprint: "current-policy-template",
+        brandPolicyFingerprint: "current-policy-brand",
+        instrumentProfileFingerprint: "historical-profile",
+        referenceSampleChecksum: "historical-sample",
+        footerLockupChecksum: "historical-lockup",
+        promptVersion: "probe-prompt",
+        configurationVersion: "probe-configuration",
+      });
+      assertStatus(replayed.status, "replayed", "market route replay");
+      if (!("draft" in replayed) || replayed.draft.id !== created.draft.id) {
+        throw new Error("market route replay lost its authoritative draft");
+      }
+
+      const operationResult = await tx.execute<{ operationId: string }>(sql`
+        select generation.operation_id as "operationId"
+          from copy_generation generation
+         where generation.workspace_id = ${workspaceId}::uuid
+           and generation.platform_draft_id = ${created.draft.id}::uuid
+      `);
+      const operationId = operationResult.rows[0]?.operationId;
+      if (!operationId) throw new Error("market route has no copy generation");
+
+      const source = await prepareCopyGenerationSource(
+        tx,
+        workspaceId,
+        operationId,
+        2_000,
+      );
+      if (source.status !== "bound" || source.kind !== "market") {
+        throw new Error(`market copy source settled as ${source.status}`);
+      }
+      const bound = await loadBoundCopyGenerationSourceInput(
+        tx,
+        workspaceId,
+        operationId,
+      );
+      if (
+        bound?.kind !== "market" ||
+        bound.handoffId !== ids.handoff ||
+        bound.headline !== "Market headline"
+      ) {
+        throw new Error("market copy source did not bind immutable handoff");
+      }
+      const execution = await findCopyExecutionContext(
+        tx,
+        workspaceId,
+        operationId,
+      );
+      if (
+        execution?.executionScope.kind !== "market_analysis" ||
+        execution.executionScope.marketAnalysisId !== ids.analysis
+      ) {
+        throw new Error("market copy execution scope was not discriminated");
+      }
+
+      const projection = await tx.execute<{
+        exactCount: number;
+        laneCount: number;
+        savedCount: number;
+      }>(sql`
+        select
+          count(*) filter (where draft.id = ${created.draft.id}::uuid)::int as "exactCount",
+          count(*) filter (
+            where draft.id = ${created.draft.id}::uuid
+              and draft.market_analysis_handoff_id is null
+          )::int as "laneCount",
+          count(*) filter (
+            where draft.id = ${created.draft.id}::uuid
+              and handoff.market_analysis_id = ${ids.analysis}::uuid
+          )::int as "savedCount"
+        from platform_draft draft
+        left join market_analysis_handoff handoff
+          on handoff.workspace_id = draft.workspace_id
+          and handoff.id = draft.market_analysis_handoff_id
+        where draft.workspace_id = ${workspaceId}::uuid
+      `);
+      const projected = projection.rows[0];
+      if (
+        projected?.exactCount !== 1 ||
+        projected.savedCount !== 1 ||
+        projected.laneCount !== 0
+      ) {
+        throw new Error(
+          `market query projection drifted: ${JSON.stringify(projected)}`,
+        );
+      }
+
+      const constraints = await tx.execute<{
+        definition: string;
+        name: string;
+      }>(
+        sql`
+          select conname as name, pg_get_constraintdef(oid) as definition
+            from pg_constraint
+           where conrelid = 'platform_draft'::regclass
+             and conname in (
+               'ck_platform_draft_exactly_one_origin',
+               'ck_platform_draft_lane_position_applicability'
+             )
+           order by conname
+        `,
+      );
+      const constraintText = constraints.rows
+        .map((row) => `${row.name}:${row.definition}`)
+        .join("\n");
+      if (
+        !constraintText.includes("market_analysis_handoff_id") ||
+        !constraintText.includes("lane_position")
+      ) {
+        throw new Error("fourth-origin constraints are not installed");
+      }
+
+      const chartMedia = await findServableMedia(
+        tx,
+        workspaceId,
+        ids.chartAsset,
+      );
+      const finalMedia = await findServableMedia(
+        tx,
+        workspaceId,
+        ids.finalAsset,
+      );
+      if (!chartMedia || !finalMedia) {
+        throw new Error("market media is not servable");
+      }
+      const ownedChart = await canReadOwnedMarketMedia(
+        tx,
+        workspaceId,
+        actor,
+        ids.chartAsset,
+      );
+      if (
+        ownedChart?.role !== "chart" ||
+        !(await canReadOwnedMarketMedia(
+          tx,
+          workspaceId,
+          actor,
+          ids.finalAsset,
+        )) ||
+        (await canReadOwnedMarketMedia(
+          tx,
+          workspaceId,
+          "not-the-owner",
+          ids.finalAsset,
+        ))
+      ) {
+        throw new Error("market media ownership authorization drifted");
+      }
+
+      const variantId = await settleMarketCopyVariant(tx, operationId);
+      await proveMarketCopyRetryPreconditions(tx, {
+        analysisId: ids.analysis,
+        platformDraftId: created.draft.id,
+      });
+      const revision = await executeDraftRevisionCommand(tx, workspaceId, {
+        actorId: actor,
+        platformDraftId: created.draft.id,
+        commandKind: "submit_content",
+        source: {
+          kind: "copy_variant",
+          id: variantId,
+          contentLocale: "en",
+        },
+        content: {
+          contentLocale: "en",
+          headline: "Market caption headline",
+          body: "Market caption body",
+          hashtags: ["#market"],
+        },
+        idempotencyKey: "market-first-revision",
+        requestHash: "market-first-revision-hash",
+        expectedActive: { id: null, version: 0 },
+      });
+      if (
+        revision.status !== "appended" ||
+        revision.revision.selectedFinalMediaAssetId !== ids.finalAsset
+      ) {
+        throw new Error("market first revision did not seed handoff final");
+      }
+
+      observed.push(
+        "fourth-origin-xor-null-lane-authority-current-policy-replay",
+        "market-in-progress-handoff-copy-bind-execution-scope-first-revision-final",
+        "market-copy-recovery-version-scope-replay-inflight-pinned-complete",
+        "market-exact-saved-visible-lane-excluded",
+        "market-final-owner-servable-nonowner-hidden",
+        "editorial-route-market-rejected",
+      );
+      throw marketRollback;
+    });
+  } catch (error) {
+    if (error !== marketRollback) throw error;
+  }
+}
+
+async function proveMarketCopyRetryPreconditions(
+  tx: Transaction,
+  input: { analysisId: string; platformDraftId: string },
+) {
+  const versionResult = await tx.execute<{ version: number }>(sql`
+    select version
+      from market_analysis
+     where workspace_id = ${workspaceId}::uuid
+       and id = ${input.analysisId}::uuid
+  `);
+  const version = versionResult.rows[0]?.version;
+  if (!version) throw new Error("market retry fixture has no analysis version");
+
+  const baseRetryInput = copyInput(
+    input.platformDraftId,
+    "retry_failed",
+    "market-caption-retry",
+    "market-caption-retry-hash",
+  );
+  if (baseRetryInput.mode !== "retry_failed") {
+    throw new Error("market caption retry fixture mode drifted");
+  }
+  const {
+    mode: _retryMode,
+    requestedContentLocale: _requestedContentLocale,
+    ...recoveryBase
+  } = baseRetryInput;
+  const retryInput: StartCopyOperationInput = {
+    ...recoveryBase,
+    copyPolicy: {
+      ...recoveryBase.copyPolicy,
+      platforms: recoveryBase.copyPolicy.platforms.map((platform) => ({
+        ...platform,
+        variantKeys: ["first", "second", "third"],
+      })),
+    },
+    marketAnalysis: {
+      expectedVersion: version,
+      id: input.analysisId,
+    },
+    mode: "recover_incomplete",
+  };
+  assertStatus(
+    (
+      await startCopyOperation(tx, workspaceId, {
+        ...retryInput,
+        idempotencyKey: "market-caption-retry-stale",
+        marketAnalysis: {
+          expectedVersion: version + 1,
+          id: input.analysisId,
+        },
+        requestHash: "market-caption-retry-stale-hash",
+      })
+    ).status,
+    "version_conflict",
+    "market caption retry stale version",
+  );
+  assertStatus(
+    (
+      await startCopyOperation(tx, workspaceId, {
+        ...retryInput,
+        idempotencyKey: "market-caption-retry-wrong-analysis",
+        marketAnalysis: {
+          expectedVersion: version,
+          id: randomUUID(),
+        },
+        requestHash: "market-caption-retry-wrong-analysis-hash",
+      })
+    ).status,
+    "not_found",
+    "market caption retry wrong analysis",
+  );
+
+  const created = await startCopyOperation(tx, workspaceId, retryInput);
+  assertStatus(created.status, "created", "market caption retry");
+  assertStatus(
+    (await startCopyOperation(tx, workspaceId, retryInput)).status,
+    "replayed",
+    "market caption retry replay",
+  );
+  assertStatus(
+    (
+      await startCopyOperation(tx, workspaceId, {
+        ...retryInput,
+        idempotencyKey: "market-caption-retry-second",
+        requestHash: "market-caption-retry-second-hash",
+      })
+    ).status,
+    "operation_in_progress",
+    "market caption retry in-flight guard",
+  );
+  if (!("operationId" in created)) {
+    throw new Error("market caption recovery has no operation");
+  }
+  await settleMarketCaptionRecovery(tx, created.operationId);
+  const recoveredGeneration = await tx.execute<{
+    modelOptionKey: string;
+    requestedContentLocale: string;
+  }>(sql`
+    select model_option_key as "modelOptionKey",
+           requested_content_locale as "requestedContentLocale"
+      from copy_generation
+     where workspace_id = ${workspaceId}::uuid
+       and operation_id = ${created.operationId}::uuid
+  `);
+  if (
+    recoveredGeneration.rows[0]?.modelOptionKey !== "probe-model" ||
+    recoveredGeneration.rows[0]?.requestedContentLocale !== "en"
+  ) {
+    throw new Error("market recovery did not pin persisted model and locale");
+  }
+  assertStatus(
+    (
+      await startCopyOperation(tx, workspaceId, {
+        ...retryInput,
+        idempotencyKey: "market-caption-retry-complete",
+        requestHash: "market-caption-retry-complete-hash",
+      })
+    ).status,
+    "already_complete",
+    "market caption retry complete guard",
+  );
+}
+
+async function settleMarketCaptionRecovery(
+  tx: Transaction,
+  operationId: string,
+) {
+  const unitResult = await tx.execute<{ id: string; variantKey: string }>(sql`
+    select id, variant_key as "variantKey"
+      from copy_generation_unit
+     where workspace_id = ${workspaceId}::uuid
+       and copy_generation_id = ${operationId}::uuid
+  `);
+  if (unitResult.rows.length !== 2) {
+    throw new Error("market recovery did not create both missing units");
+  }
+  for (const [index, unit] of unitResult.rows.entries()) {
+    const attemptId = randomUUID();
+    await tx.execute(sql`
+      insert into operation_attempt
+        (id, workspace_id, operation_id, attempt_number, outcome)
+      values (${attemptId}::uuid, ${workspaceId}::uuid, ${operationId}::uuid, ${index + 1}, 'succeeded')
+    `);
+    await tx.execute(sql`
+      update copy_generation_unit
+         set status = 'succeeded', operation_attempt_id = ${attemptId}::uuid
+       where workspace_id = ${workspaceId}::uuid and id = ${unit.id}::uuid
+    `);
+    await tx.execute(sql`
+      insert into copy_variant
+        (id, workspace_id, copy_generation_unit_id, content_locale, headline, body, hashtags)
+      values
+        (${randomUUID()}::uuid, ${workspaceId}::uuid, ${unit.id}::uuid, 'en',
+         ${`Recovered ${unit.variantKey}`}, 'Recovered market caption', array['#market']::text[])
+    `);
+  }
+  const settled = await settleCopyGeneration(tx, workspaceId, operationId);
+  if (settled?.lifecycle !== "succeeded") {
+    throw new Error("market caption recovery did not settle");
+  }
+}
+
+async function insertMarketFixture(
+  tx: Transaction,
+  ids: {
+    analysis: string;
+    analysisOperation: string;
+    chartAsset: string;
+    chartOperation: string;
+    chartRender: string;
+    finalAsset: string;
+    handoff: string;
+    instrument: string;
+    snapshot: string;
+    snapshotOperation: string;
+  },
+) {
+  const normalizedRequest = {
+    period: "7d",
+    scale: "relative",
+    series: [
+      {
+        descriptorIdentity: "controlled:probe-market",
+        role: "primary",
+        displayName: "Probe Market",
+        symbol: "PMK",
+        controlledInstrumentId: ids.instrument,
+        providerMappings: [
+          {
+            kind: "coinmarketcap_coin",
+            provider: "coinmarketcap",
+            coinId: 1,
+            fallback: false,
+          },
+        ],
+      },
+    ],
+  };
+  await tx.execute(sql`
+    insert into operation
+      (id, workspace_id, actor, command_type, idempotency_key, request_hash, lifecycle, attempt_seq, version)
+    values
+      (${ids.analysisOperation}::uuid, ${workspaceId}::uuid, ${actor}, 'market-analysis:create', 'market-create', 'market-create-hash', 'succeeded', 0, 1),
+      (${ids.snapshotOperation}::uuid, ${workspaceId}::uuid, ${actor}, 'market-verification:probe', 'market-snapshot', 'market-snapshot-hash', 'succeeded', 0, 1),
+      (${ids.chartOperation}::uuid, ${workspaceId}::uuid, ${actor}, 'market-chart-render:probe', 'market-chart', 'market-chart-hash', 'succeeded', 0, 1)
+  `);
+  await tx.execute(sql`
+    insert into market_instrument
+      (id, workspace_id, key, name, symbol, enabled, provider_mappings)
+    values
+      (${ids.instrument}::uuid, ${workspaceId}::uuid, 'probe-market', 'Probe Market', 'PMK', true, ${JSON.stringify(normalizedRequest.series[0]?.providerMappings)}::jsonb)
+  `);
+  await tx.execute(sql`
+    insert into media_asset
+      (id, workspace_id, kind, object_key, mime_type, declared_bytes, actual_bytes, checksum, width, height, lifecycle, verified_at)
+    values
+      (${ids.chartAsset}::uuid, ${workspaceId}::uuid, 'market_chart_render', ${`${workspaceId}/platform-draft-probe/${ids.chartAsset}`}, 'image/png', 100, 100, 'market-chart-checksum', 1080, 1350, 'verified', now()),
+      (${ids.finalAsset}::uuid, ${workspaceId}::uuid, ${MARKET_GENERATION_FINAL_MEDIA_KIND}, ${`${workspaceId}/platform-draft-probe/${ids.finalAsset}`}, 'image/png', 100, 100, 'market-final-checksum', 1080, 1350, 'verified', now())
+  `);
+  await tx.execute(sql`
+    insert into market_analysis
+      (id, workspace_id, operation_id, media_brand_id, visual_owner_instrument_id, content_locale,
+       normalized_request, request_fingerprint, chart_approval_fingerprint, chart_approved_at,
+       chart_approved_by, template_fingerprint, catalog_fingerprint, instrument_profile_fingerprint,
+       story_headline, story_supporting_text, story_approval_fingerprint, story_approved_at,
+       story_approved_by, design_family_key, design_variant_key, image_option_key,
+       design_approval_fingerprint, design_approved_at, design_approved_by,
+       current_final_media_asset_id, final_approval_fingerprint,
+       final_approved_at, final_approved_by)
+    values
+      (${ids.analysis}::uuid, ${workspaceId}::uuid, ${ids.analysisOperation}::uuid, ${brandId}::uuid,
+       ${ids.instrument}::uuid, 'en', ${JSON.stringify(normalizedRequest)}::jsonb, 'market-request-fingerprint',
+       'market-chart-fingerprint', now(), ${actor}, 'historical-template', 'historical-catalog',
+       'historical-profile', 'Market headline', 'Verified supporting text', 'market-story-fingerprint',
+       now(), ${actor}, 'growth', 'growth-a', 'probe-option', 'market-design-fingerprint', now(),
+       ${actor}, ${ids.finalAsset}::uuid, 'market-final-fingerprint', now(), ${actor})
+  `);
+  await tx.execute(sql`
+    insert into market_snapshot
+      (id, workspace_id, market_analysis_id, operation_id, verification_intent_id,
+       verification_intent_version, normalized_request, request_fingerprint, template_fingerprint,
+       period, scale, fetch_completed_at, status, warnings)
+    values
+      (${ids.snapshot}::uuid, ${workspaceId}::uuid, ${ids.analysis}::uuid, ${ids.snapshotOperation}::uuid,
+       ${ids.snapshotOperation}::uuid, 1, ${JSON.stringify(normalizedRequest)}::jsonb,
+       'market-request-fingerprint', 'historical-template', '7d', 'relative', now(), 'verified', '[]'::jsonb)
+  `);
+  await tx.execute(sql`
+    insert into market_chart_render
+      (id, workspace_id, market_analysis_id, operation_id, expected_chart_fingerprint, render_contract_version)
+    values
+      (${ids.chartRender}::uuid, ${workspaceId}::uuid, ${ids.analysis}::uuid, ${ids.chartOperation}::uuid,
+       'market-chart-fingerprint', 'probe-v1')
+  `);
+  await tx.execute(sql`
+    update market_analysis
+       set current_snapshot_id = ${ids.snapshot}::uuid,
+           current_chart_render_id = ${ids.chartRender}::uuid
+     where id = ${ids.analysis}::uuid
+  `);
+  await tx.execute(sql`
+    update market_chart_render
+       set media_asset_id = ${ids.chartAsset}::uuid, verified_at = now()
+     where id = ${ids.chartRender}::uuid
+  `);
+  await tx.execute(sql`
+    insert into market_analysis_handoff
+      (id, workspace_id, market_analysis_id, approved_final_fingerprint, market_snapshot_id,
+       media_brand_id, visual_owner_instrument_id, design_family_key, design_variant_key,
+       content_locale, story_headline, story_supporting_text, verified_facts, template_fingerprint,
+       catalog_fingerprint, instrument_profile_fingerprint, brand_policy_fingerprint,
+       reference_sample_checksum, footer_lockup_checksum, image_option_key, market_chart_render_id,
+       chart_media_asset_id, chart_media_checksum, final_media_asset_id, final_media_checksum,
+       chart_approval_fingerprint, story_approval_fingerprint, design_approval_fingerprint)
+    values
+      (${ids.handoff}::uuid, ${workspaceId}::uuid, ${ids.analysis}::uuid, 'market-final-fingerprint',
+       ${ids.snapshot}::uuid, ${brandId}::uuid, ${ids.instrument}::uuid, 'growth', 'growth-a', 'en',
+       'Market headline', 'Verified supporting text', ${JSON.stringify({ symbols: ["PMK"], period: "7d", scale: "relative" })}::jsonb,
+       'historical-template', 'historical-catalog', 'historical-profile', 'historical-brand-policy',
+       'historical-sample', 'historical-lockup', 'probe-option', ${ids.chartRender}::uuid,
+       ${ids.chartAsset}::uuid, 'market-chart-checksum', ${ids.finalAsset}::uuid,
+       'market-final-checksum', 'market-chart-fingerprint', 'market-story-fingerprint',
+       'market-design-fingerprint')
+  `);
+}
+
+async function settleMarketCopyVariant(tx: Transaction, operationId: string) {
+  const unitResult = await tx.execute<{ id: string }>(sql`
+    select id
+      from copy_generation_unit
+     where workspace_id = ${workspaceId}::uuid
+       and copy_generation_id = ${operationId}::uuid
+     order by created_at, id
+     limit 1
+  `);
+  const unitId = unitResult.rows[0]?.id;
+  if (!unitId) throw new Error("market generation has no copy unit");
+  const missingUnitResult = await tx.execute<{ id: string }>(sql`
+    select id
+      from copy_generation_unit
+     where workspace_id = ${workspaceId}::uuid
+       and copy_generation_id = ${operationId}::uuid
+       and id <> ${unitId}::uuid
+     order by created_at, id
+  `);
+  if (missingUnitResult.rows.length !== 2) {
+    throw new Error("market generation does not have two missing copy units");
+  }
+  const attemptId = randomUUID();
+  const variantId = randomUUID();
+  await tx.execute(sql`
+    insert into operation_attempt
+      (id, workspace_id, operation_id, attempt_number, outcome)
+    values (${attemptId}::uuid, ${workspaceId}::uuid, ${operationId}::uuid, 1, 'succeeded')
+  `);
+  await tx.execute(sql`
+    update copy_generation_unit
+       set status = 'succeeded', operation_attempt_id = ${attemptId}::uuid
+     where workspace_id = ${workspaceId}::uuid and id = ${unitId}::uuid
+  `);
+  await tx.execute(sql`
+    update copy_generation_unit
+       set status = 'cancelled'
+     where workspace_id = ${workspaceId}::uuid
+       and copy_generation_id = ${operationId}::uuid
+       and id <> ${unitId}::uuid
+  `);
+  await tx.execute(sql`
+    insert into copy_variant
+      (id, workspace_id, copy_generation_unit_id, content_locale, headline, body, hashtags)
+    values
+      (${variantId}::uuid, ${workspaceId}::uuid, ${unitId}::uuid, 'en',
+       'Market caption headline', 'Market caption body', array['#market']::text[])
+  `);
+  const settled = await settleCopyGeneration(tx, workspaceId, operationId);
+  if (settled?.lifecycle !== "succeeded") {
+    throw new Error("market copy generation did not settle");
+  }
+  return variantId;
 }
 
 async function proveXor() {

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { type Platform, platformSchema } from "./platform";
-import { telegramOrderingModeSchema } from "./source";
+import { type ContentLocale, telegramOrderingModeSchema } from "./source";
 
 export const ANALYSIS_RUN_KINDS = ["news", "promo"] as const;
 
@@ -289,8 +289,13 @@ export const PLATFORM_COPY_HARD_MAX: Record<Platform, number> = {
 
 export const INLINE_HASHTAG_TOKEN = /(?:^|\s)#[^\s#]+/gu;
 
+export const TELEGRAM_READ_MORE_LABEL: Record<ContentLocale, string> = {
+  en: "Read full story",
+  fa: "مطالعه کامل خبر",
+};
+
 export function assemblePublishPayload(input: {
-  contentLocale: "en" | "fa";
+  contentLocale: ContentLocale;
   draft: {
     body: string;
     hashtags: readonly string[];
@@ -327,9 +332,7 @@ export function assemblePublishPayload(input: {
   } | null = null;
 
   if (input.platform === "telegram" && input.source) {
-    const label =
-      input.contentLocale === "fa" ? "مطالعه کامل خبر" : "Read full story";
-    const linkText = label;
+    const linkText = TELEGRAM_READ_MORE_LABEL[input.contentLocale];
     text = `${text}\n\n${linkText}`;
     telegramLink = {
       length: linkText.length,

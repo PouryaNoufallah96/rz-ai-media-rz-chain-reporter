@@ -1,0 +1,1 @@
+ALTER TABLE "market_generation" ADD COLUMN "operator_direction" text;

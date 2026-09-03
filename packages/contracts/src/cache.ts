@@ -12,6 +12,7 @@ export const WORKSPACE_CACHE_ENTITIES = [
   "editorial",
   "drafts",
   "publishing",
+  "market-analysis",
 ] as const;
 
 export type WorkspaceCacheEntity = (typeof WORKSPACE_CACHE_ENTITIES)[number];

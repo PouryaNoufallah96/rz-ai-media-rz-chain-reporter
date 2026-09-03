@@ -36,20 +36,29 @@ export function ownedDraftExists(
     left join analysis_model_unit owned_promo_unit
       on owned_promo_unit.id = owned_promo.analysis_model_unit_id
       and owned_promo_unit.workspace_id = owned_draft.workspace_id
-    inner join analysis_run owned_origin_run
+    left join analysis_run owned_origin_run
       on owned_origin_run.id = coalesce(
         owned_selection_unit.analysis_run_id,
         owned_telegram.analysis_run_id,
         owned_promo_unit.analysis_run_id
       )
       and owned_origin_run.workspace_id = owned_draft.workspace_id
-    inner join operation owned_origin_operation
+    left join operation owned_origin_operation
       on owned_origin_operation.id = owned_origin_run.operation_id
       and owned_origin_operation.workspace_id = owned_draft.workspace_id
-      and owned_origin_operation.actor = ${actorId}
+    left join market_analysis_handoff owned_handoff
+      on owned_handoff.id = owned_draft.market_analysis_handoff_id
+      and owned_handoff.workspace_id = owned_draft.workspace_id
+    left join market_analysis owned_market_analysis
+      on owned_market_analysis.id = owned_handoff.market_analysis_id
+      and owned_market_analysis.workspace_id = owned_draft.workspace_id
+    left join operation owned_market_operation
+      on owned_market_operation.id = owned_market_analysis.operation_id
+      and owned_market_operation.workspace_id = owned_draft.workspace_id
     where owned_draft.id = ${draftId}
       and owned_draft.workspace_id = ${workspaceId}::uuid
       and owned_draft.deleted_at is null
+      and coalesce(owned_origin_operation.actor, owned_market_operation.actor) = ${actorId}
   )`;
 }
 

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."market_provider" ADD VALUE 'coinmarketcap_public' BEFORE 'binance';

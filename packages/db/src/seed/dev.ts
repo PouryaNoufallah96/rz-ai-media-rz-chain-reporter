@@ -25,8 +25,6 @@ import { promoIdea } from "../schema/promo-idea";
 import { workspace } from "../schema/workspace";
 import { DEV_DRAFT_REVISION_ID, DEV_PLATFORM_DRAFT_ID } from "./dev-draft";
 
-const DEV_TEMPLATE_KEY = "crypto";
-const DEV_DRAFT_BRAND_KEY = "chain-reporter";
 const DEV_ANALYSIS_OPERATION_ID = "019b76da-a800-7000-8000-000000000004";
 const DEV_ANALYSIS_RUN_ID = "019b76da-a800-7000-8000-000000000005";
 const DEV_ANALYSIS_MODEL_UNIT_ID = "019b76da-a800-7000-8000-000000000006";
@@ -50,7 +48,14 @@ const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url));
 const database = createDb(migrationEnv.MIGRATION_DATABASE_URL);
 
 try {
-  const loaded = loadCustomerTemplate(repositoryRoot, DEV_TEMPLATE_KEY);
+  const templateKey = migrationEnv.CUSTOMER_TEMPLATE_KEY;
+  const loaded = loadCustomerTemplate(repositoryRoot, templateKey);
+  const draftBrandKey = loaded.template.editorial.defaults.brands[0];
+
+  if (!draftBrandKey) {
+    throw new Error("dev seed requires a default media brand");
+  }
+
   const report = await reconcileCustomerTemplate(database.db, loaded, "apply");
 
   console.log(formatReconcileReport(report));
@@ -65,8 +70,8 @@ try {
     .innerJoin(workspace, eq(workspace.id, mediaBrand.workspaceId))
     .where(
       and(
-        eq(workspace.customerTemplateKey, DEV_TEMPLATE_KEY),
-        eq(mediaBrand.key, DEV_DRAFT_BRAND_KEY),
+        eq(workspace.customerTemplateKey, templateKey),
+        eq(mediaBrand.key, draftBrandKey),
         notDeleted(mediaBrand),
       ),
     );

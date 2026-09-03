@@ -24,6 +24,7 @@ import { filterResult } from "./schema/filter-result";
 import { imageBrief } from "./schema/image-brief";
 import { imageGeneration } from "./schema/image-generation";
 import { imageVarietyMemory } from "./schema/image-variety-memory";
+import { marketAnalysisHandoff } from "./schema/market-analysis";
 import { mediaAsset } from "./schema/media-asset";
 import { mediaBrand } from "./schema/media-brand";
 import { mediaBrandDestinationAccount } from "./schema/media-brand-destination-account";
@@ -252,6 +253,10 @@ export const platformDraftRelations = relations(
     promoIdea: one(promoIdea, {
       fields: [platformDraft.promoIdeaId],
       references: [promoIdea.id],
+    }),
+    marketAnalysisHandoff: one(marketAnalysisHandoff, {
+      fields: [platformDraft.marketAnalysisHandoffId],
+      references: [marketAnalysisHandoff.id],
     }),
     copyGenerations: many(copyGeneration),
     revisions: many(draftRevision, { relationName: "draftHistory" }),

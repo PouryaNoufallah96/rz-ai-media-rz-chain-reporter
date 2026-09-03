@@ -4,6 +4,11 @@ import {
   ANALYSIS_RUN_COMMAND_PREFIX,
   COPY_VARIANT_TRANSLATION_COMMAND_TYPE,
   GENERATION_PROBE_COMMAND_PREFIX,
+  MARKET_ANALYSIS_HANDOFF_COMMAND_PREFIX,
+  MARKET_CATALOG_REFRESH_COMMAND_PREFIX,
+  MARKET_CHART_RENDER_COMMAND_PREFIX,
+  MARKET_GENERATION_COMMAND_PREFIX,
+  MARKET_VERIFICATION_COMMAND_PREFIX,
   MEDIA_UPLOAD_CONFIRMED_EVENT_NAME,
   PRESENTATION_TRANSLATION_COMMAND_TYPE,
   SCHEDULED_EFFECT_PROBE_COMMAND_PREFIX,
@@ -155,6 +160,11 @@ export const OPERATION_COMMAND_KINDS = [
   "analysis-run",
   "presentation-translation",
   "copy-variant-translation",
+  "market-verification",
+  "market-catalog-refresh",
+  "market-chart-render",
+  "market-generation",
+  "market-analysis-handoff",
   "other",
 ] as const;
 
@@ -183,6 +193,21 @@ export function operationCommandKind(
   }
   if (commandType === MEDIA_UPLOAD_CONFIRMED_EVENT_NAME) {
     return "media-verification";
+  }
+  if (commandType.startsWith(MARKET_VERIFICATION_COMMAND_PREFIX)) {
+    return "market-verification";
+  }
+  if (commandType.startsWith(MARKET_CATALOG_REFRESH_COMMAND_PREFIX)) {
+    return "market-catalog-refresh";
+  }
+  if (commandType.startsWith(MARKET_CHART_RENDER_COMMAND_PREFIX)) {
+    return "market-chart-render";
+  }
+  if (commandType.startsWith(MARKET_GENERATION_COMMAND_PREFIX)) {
+    return "market-generation";
+  }
+  if (commandType.startsWith(MARKET_ANALYSIS_HANDOFF_COMMAND_PREFIX)) {
+    return "market-analysis-handoff";
   }
   return "other";
 }

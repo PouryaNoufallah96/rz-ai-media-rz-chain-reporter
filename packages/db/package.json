@@ -25,6 +25,7 @@
     "probe:presentation-localization": "tsx src/probes/editorial-presentation-localization.ts",
     "probe:presentation-translation": "tsx src/probes/editorial-presentation-localization-request.ts",
     "probe:copy-variant-localization": "tsx src/probes/copy-variant-localization.ts",
+    "probe:market-catalog-bootstrap": "tsx src/probes/market-catalog-bootstrap.ts",
     "template:reconcile": "tsx src/reconcile/cli.ts",
     "probe:platform-draft": "tsx src/probes/platform-draft.ts",
     "fix": "biome check --write ."

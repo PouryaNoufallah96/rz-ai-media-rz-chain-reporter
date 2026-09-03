@@ -24,7 +24,13 @@ import { inWorkspace } from "../filters";
 import { approval } from "../schema/approval";
 import { draftRevision } from "../schema/draft-revision";
 import { imageGeneration } from "../schema/image-generation";
+import {
+  marketAnalysis,
+  marketAnalysisHandoff,
+  marketGeneration,
+} from "../schema/market-analysis";
 import { mediaAsset } from "../schema/media-asset";
+import { mediaDerivation } from "../schema/media-derivation";
 import { operation } from "../schema/operation";
 import { outboxEvent } from "../schema/outbox-event";
 import { publication } from "../schema/publication";
@@ -432,6 +438,104 @@ function selectedFinalMediaAttached(
   );
 }
 
+function marketAnalysisMediaHeld(
+  tx: Transaction,
+  workspaceId: string,
+  mediaAssetId: string,
+) {
+  return or(
+    exists(
+      tx
+        .select({ id: marketAnalysis.id })
+        .from(marketAnalysis)
+        .where(
+          and(
+            inWorkspace(marketAnalysis, workspaceId),
+            or(
+              eq(marketAnalysis.currentChartMediaAssetId, mediaAssetId),
+              eq(marketAnalysis.currentFinalMediaAssetId, mediaAssetId),
+            ),
+          ),
+        ),
+    ),
+    exists(
+      tx
+        .select({ id: marketAnalysisHandoff.id })
+        .from(marketAnalysisHandoff)
+        .where(
+          and(
+            inWorkspace(marketAnalysisHandoff, workspaceId),
+            or(
+              eq(marketAnalysisHandoff.chartMediaAssetId, mediaAssetId),
+              eq(marketAnalysisHandoff.finalMediaAssetId, mediaAssetId),
+            ),
+          ),
+        ),
+    ),
+    exists(
+      tx
+        .select({ id: marketGeneration.id })
+        .from(marketGeneration)
+        .innerJoin(
+          marketAnalysis,
+          and(
+            eq(marketAnalysis.workspaceId, marketGeneration.workspaceId),
+            eq(marketAnalysis.currentGenerationId, marketGeneration.id),
+          ),
+        )
+        .where(
+          and(
+            inWorkspace(marketGeneration, workspaceId),
+            eq(marketGeneration.providerOriginalMediaAssetId, mediaAssetId),
+            isNull(marketGeneration.finalMediaAssetId),
+          ),
+        ),
+    ),
+    exists(
+      tx
+        .select({ id: mediaDerivation.id })
+        .from(mediaDerivation)
+        .innerJoin(
+          marketAnalysis,
+          and(
+            eq(marketAnalysis.workspaceId, mediaDerivation.workspaceId),
+            eq(
+              marketAnalysis.currentFinalMediaAssetId,
+              mediaDerivation.derivedMediaAssetId,
+            ),
+          ),
+        )
+        .where(
+          and(
+            inWorkspace(mediaDerivation, workspaceId),
+            eq(mediaDerivation.sourceMediaAssetId, mediaAssetId),
+          ),
+        ),
+    ),
+    exists(
+      tx
+        .select({ id: mediaDerivation.id })
+        .from(mediaDerivation)
+        .innerJoin(
+          marketAnalysisHandoff,
+          and(
+            eq(marketAnalysisHandoff.workspaceId, mediaDerivation.workspaceId),
+            eq(
+              marketAnalysisHandoff.finalMediaAssetId,
+              mediaDerivation.derivedMediaAssetId,
+            ),
+          ),
+        )
+        .where(
+          and(
+            inWorkspace(mediaDerivation, workspaceId),
+            eq(mediaDerivation.sourceMediaAssetId, mediaAssetId),
+          ),
+        ),
+    ),
+  );
+}
+
 export async function retainSelectedMedia(
   tx: Transaction,
   workspaceId: string,
@@ -518,6 +622,17 @@ export async function scheduleDetachedMediaCleanup(
     )
     .limit(1);
   if (attachment) return asset;
+  const [marketHold] = await tx
+    .select({ id: mediaAsset.id })
+    .from(mediaAsset)
+    .where(
+      and(
+        eq(mediaAsset.id, mediaAssetId),
+        marketAnalysisMediaHeld(tx, workspaceId, mediaAssetId),
+      ),
+    )
+    .limit(1);
+  if (marketHold) return asset;
   const [scheduled] = await tx
     .update(mediaAsset)
     .set({
@@ -589,6 +704,18 @@ export async function claimMediaCleanup(
       )
       .limit(1);
     if (attachment) return { status: "attached" };
+
+    const [marketHold] = await tx
+      .select({ id: mediaAsset.id })
+      .from(mediaAsset)
+      .where(
+        and(
+          eq(mediaAsset.id, current.id),
+          marketAnalysisMediaHeld(tx, workspaceId, current.id),
+        ),
+      )
+      .limit(1);
+    if (marketHold) return { status: "attached" };
 
     if (
       current.version !== input.version ||

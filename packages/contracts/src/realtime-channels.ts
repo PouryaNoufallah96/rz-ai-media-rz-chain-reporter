@@ -7,10 +7,13 @@ import {
   editorialChangedRealtimeMessageSchema,
   getDraftsRealtimeChannelName,
   getEditorialRealtimeChannelName,
+  getMarketAnalysisRealtimeChannelName,
   getOperationsRealtimeChannelName,
   getPublishingRealtimeChannelName,
   getSourcesRealtimeChannelName,
   getUsageRealtimeChannelName,
+  MARKET_ANALYSIS_REALTIME_CHANGED_TOPIC,
+  marketAnalysisChangedRealtimeMessageSchema,
   OPERATIONS_REALTIME_CHANGED_TOPIC,
   OPERATIONS_REALTIME_STATUS_TOPIC,
   operationStatusRealtimeMessageSchema,
@@ -78,6 +81,15 @@ export const draftsRealtimeChannel = realtime.channel({
   topics: {
     [DRAFTS_REALTIME_CHANGED_TOPIC]: {
       schema: draftsChangedRealtimeMessageSchema,
+    },
+  },
+});
+
+export const marketAnalysisRealtimeChannel = realtime.channel({
+  name: getMarketAnalysisRealtimeChannelName,
+  topics: {
+    [MARKET_ANALYSIS_REALTIME_CHANGED_TOPIC]: {
+      schema: marketAnalysisChangedRealtimeMessageSchema,
     },
   },
 });

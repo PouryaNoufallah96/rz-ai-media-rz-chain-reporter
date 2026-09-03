@@ -145,3 +145,25 @@ export const draftsChangedRealtimeMessageSchema = z.strictObject({
 export type DraftsChangedRealtimeMessage = z.infer<
   typeof draftsChangedRealtimeMessageSchema
 >;
+
+export const MARKET_ANALYSIS_REALTIME_TOPICS = ["changed"] as const;
+export const MARKET_ANALYSIS_REALTIME_CHANGED_TOPIC =
+  MARKET_ANALYSIS_REALTIME_TOPICS[0];
+
+export function getMarketAnalysisRealtimeChannelName(
+  workspaceId: string,
+  marketAnalysisId: string,
+) {
+  return `market-analysis:${workspaceId}:${marketAnalysisId}` as const;
+}
+
+export const marketAnalysisChangedRealtimeMessageSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  occurredAt: z.iso.datetime(),
+  marketAnalysisId: z.uuid(),
+  operationId: z.uuid().nullable(),
+});
+
+export type MarketAnalysisChangedRealtimeMessage = z.infer<
+  typeof marketAnalysisChangedRealtimeMessageSchema
+>;

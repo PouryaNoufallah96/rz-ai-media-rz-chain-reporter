@@ -22,6 +22,8 @@ export function validateWorkerEnv(
       CUSTOMER_TEMPLATE_KEY: customerTemplateKey,
       DATABASE_URL: postgresUrl,
       FIRECRAWL_API_KEY: z.string().min(1).optional(),
+      COINGECKO_API_KEY: z.string().min(1).optional(),
+      COINMARKETCAP_API_KEY: z.string().min(1).optional(),
       INNGEST_CONNECT_MAX_WORKER_CONCURRENCY: z.coerce
         .number()
         .int()
@@ -32,6 +34,42 @@ export function validateWorkerEnv(
       INNGEST_SIGNING_KEY: z.string().min(1).optional(),
       OLLAMA_BASE_URL: httpUrl.optional(),
       OPENROUTER_API_KEY: z.string().min(1).optional(),
+      MARKET_BINANCE_ATTRIBUTION_IDENTITY: z.string().trim().min(1).optional(),
+      MARKET_BINANCE_ENABLED: z
+        .enum(["1", "true"])
+        .transform(() => true)
+        .default(false),
+      MARKET_BINANCE_GEO_ALLOWED: z
+        .enum(["1", "true"])
+        .transform(() => true)
+        .default(false),
+      MARKET_COINGECKO_ATTRIBUTION_IDENTITY: z
+        .string()
+        .trim()
+        .min(1)
+        .optional(),
+      MARKET_COINGECKO_ENABLED: z
+        .enum(["1", "true"])
+        .transform(() => true)
+        .default(false),
+      MARKET_COINMARKETCAP_ATTRIBUTION_IDENTITY: z
+        .string()
+        .trim()
+        .min(1)
+        .optional(),
+      MARKET_COINMARKETCAP_ENABLED: z
+        .enum(["1", "true"])
+        .transform(() => true)
+        .default(false),
+      MARKET_COINMARKETCAP_PUBLIC_ATTRIBUTION_IDENTITY: z
+        .string()
+        .trim()
+        .min(1)
+        .optional(),
+      MARKET_COINMARKETCAP_PUBLIC_ENABLED: z
+        .enum(["1", "true"])
+        .transform(() => true)
+        .default(false),
       PUBLISHING_EMERGENCY_PAUSED: z
         .enum(["1", "true"])
         .transform(() => true)

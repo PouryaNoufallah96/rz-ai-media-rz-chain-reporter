@@ -59,6 +59,7 @@ try {
         tags: [
           workspaceCacheTag(report.workspaceId, "installation"),
           workspaceCacheTag(report.workspaceId, "sources"),
+          workspaceCacheTag(report.workspaceId, "market-analysis"),
         ],
       })}`,
     );

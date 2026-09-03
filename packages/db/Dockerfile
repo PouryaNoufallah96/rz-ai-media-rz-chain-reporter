@@ -16,6 +16,7 @@ COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/customer-template/package.json packages/customer-template/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/env/package.json packages/env/package.json
+COPY packages/i18n/package.json packages/i18n/package.json
 RUN --mount=type=cache,target=/pnpm/store pnpm install --frozen-lockfile
 
 COPY packages/cache-invalidation packages/cache-invalidation
@@ -24,6 +25,7 @@ COPY packages/contracts packages/contracts
 COPY packages/customer-template packages/customer-template
 COPY packages/db packages/db
 COPY packages/env packages/env
+COPY packages/i18n packages/i18n
 
 ARG CUSTOMER_TEMPLATE_KEY
 RUN test -n "${CUSTOMER_TEMPLATE_KEY}" \

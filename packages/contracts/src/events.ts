@@ -31,6 +31,14 @@ export const OPERATION_PRESENTATION_TRANSLATION_REQUESTED_EVENT_NAME =
   "operation/presentation-translation.requested";
 export const OPERATION_COPY_VARIANT_TRANSLATION_REQUESTED_EVENT_NAME =
   "operation/copy-variant-translation.requested";
+export const OPERATION_MARKET_VERIFICATION_REQUESTED_EVENT_NAME =
+  "operation/market-verification.requested";
+export const OPERATION_MARKET_CATALOG_REFRESH_REQUESTED_EVENT_NAME =
+  "operation/market-catalog-refresh.requested";
+export const OPERATION_MARKET_CHART_RENDER_REQUESTED_EVENT_NAME =
+  "operation/market-chart-render.requested";
+export const OPERATION_MARKET_GENERATION_REQUESTED_EVENT_NAME =
+  "operation/market-generation.requested";
 
 export const DURABLE_EVENT_NAMES = [
   OPERATION_GENERATION_REQUESTED_EVENT_NAME,
@@ -48,6 +56,10 @@ export const DURABLE_EVENT_NAMES = [
   OPERATION_SOURCE_IMPORT_READY_EVENT_NAME,
   OPERATION_PRESENTATION_TRANSLATION_REQUESTED_EVENT_NAME,
   OPERATION_COPY_VARIANT_TRANSLATION_REQUESTED_EVENT_NAME,
+  OPERATION_MARKET_VERIFICATION_REQUESTED_EVENT_NAME,
+  OPERATION_MARKET_CATALOG_REFRESH_REQUESTED_EVENT_NAME,
+  OPERATION_MARKET_CHART_RENDER_REQUESTED_EVENT_NAME,
+  OPERATION_MARKET_GENERATION_REQUESTED_EVENT_NAME,
 ] as const;
 
 export type DurableEventName = (typeof DURABLE_EVENT_NAMES)[number];
@@ -62,6 +74,12 @@ export const COPY_GENERATION_COMMAND_PREFIX = "copy-generation:";
 export const IMAGE_GENERATION_COMMAND_PREFIX = "image-generation:";
 export const PRESENTATION_TRANSLATION_COMMAND_TYPE = "presentation-translation";
 export const COPY_VARIANT_TRANSLATION_COMMAND_TYPE = "copy-variant-translation";
+export const MARKET_VERIFICATION_COMMAND_PREFIX = "market-verification:";
+export const MARKET_CATALOG_REFRESH_COMMAND_PREFIX = "market-catalog-refresh:";
+export const MARKET_CHART_RENDER_COMMAND_PREFIX = "market-chart-render:";
+export const MARKET_GENERATION_COMMAND_PREFIX = "market-generation:";
+export const MARKET_ANALYSIS_HANDOFF_COMMAND_PREFIX =
+  "market-analysis-handoff:";
 
 export const ASSISTANT_SYNTHESIS_COMMAND_TYPE = "assistant-synthesis";
 
@@ -125,6 +143,29 @@ export const presentationTranslationRequestedPayloadSchema =
 
 export const copyVariantTranslationRequestedPayloadSchema =
   durableEventPayloadSchema.extend({ operationId: z.uuid() });
+
+export const marketVerificationRequestedPayloadSchema =
+  durableEventPayloadSchema.extend({
+    operationId: z.uuid(),
+    marketAnalysisId: z.uuid(),
+  });
+
+export const marketCatalogRefreshRequestedPayloadSchema =
+  durableEventPayloadSchema.extend({ operationId: z.uuid() });
+
+export const marketChartRenderRequestedPayloadSchema =
+  durableEventPayloadSchema.extend({
+    operationId: z.uuid(),
+    marketAnalysisId: z.uuid(),
+    marketChartRenderId: z.uuid(),
+  });
+
+export const marketGenerationRequestedPayloadSchema =
+  durableEventPayloadSchema.extend({
+    operationId: z.uuid(),
+    marketAnalysisId: z.uuid(),
+    marketGenerationId: z.uuid(),
+  });
 
 export const publicationRequestedPayloadSchema =
   durableEventPayloadSchema.extend({

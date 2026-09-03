@@ -17,7 +17,6 @@ import {
   eq,
   gt,
   inArray,
-  isNotNull,
   isNull,
   lte,
   notExists,
@@ -147,6 +146,7 @@ export async function startImageGeneration(
     const [draft] = await tx
       .select({
         activeRevisionId: platformDraft.activeRevisionId,
+        marketAnalysisHandoffId: platformDraft.marketAnalysisHandoffId,
         revisionVersion: platformDraft.revisionVersion,
       })
       .from(platformDraft)
@@ -159,6 +159,7 @@ export async function startImageGeneration(
       )
       .for("update");
     if (!draft) return { status: "not_found" };
+    if (draft.marketAnalysisHandoffId) return { status: "not_found" };
     const serializedReplay = await readOperationIdentity(
       tx,
       workspaceId,
@@ -518,7 +519,8 @@ export async function loadAuthorizedImageSource(
     workspaceId,
     context.originatingCopyVariantId,
   );
-  return source.source ? { context, source: source.source } : null;
+  if (!source.source || source.source.kind === "market") return null;
+  return { context, source: source.source };
 }
 
 export async function loadAuthorizedImageSourceAccess(
@@ -539,7 +541,14 @@ export async function loadAuthorizedImageSourceAccess(
     workspaceId,
     context.originatingCopyVariantId,
   );
-  return { context, ...access };
+  if (access.source?.kind === "market") {
+    return { context, readiness: "not_found" as const, source: null };
+  }
+  return {
+    context,
+    readiness: access.readiness,
+    source: access.source,
+  };
 }
 
 export async function findOldestImageOperationForBrand(
@@ -1670,52 +1679,6 @@ export async function attachBrandedFinal(
     });
     return "attached";
   });
-}
-
-export async function findServableFinalMedia(
-  executor: Executor,
-  workspaceId: string,
-  mediaAssetId: string,
-) {
-  const [row] = await executor
-    .select({
-      actualBytes: mediaAsset.actualBytes,
-      checksum: mediaAsset.checksum,
-      mimeType: mediaAsset.mimeType,
-      objectKey: mediaAsset.objectKey,
-    })
-    .from(mediaAsset)
-    .leftJoin(
-      imageGeneration,
-      and(
-        eq(imageGeneration.finalMediaAssetId, mediaAsset.id),
-        eq(imageGeneration.workspaceId, mediaAsset.workspaceId),
-      ),
-    )
-    .where(
-      and(
-        inWorkspace(mediaAsset, workspaceId),
-        eq(mediaAsset.id, mediaAssetId),
-        or(
-          eq(mediaAsset.kind, "image"),
-          and(
-            eq(mediaAsset.kind, BRANDED_FINAL_MEDIA_KIND),
-            isNotNull(imageGeneration.operationId),
-          ),
-        ),
-        eq(mediaAsset.lifecycle, "verified"),
-        isNull(mediaAsset.objectRemovedAt),
-      ),
-    );
-  if (!row || row.actualBytes === null || row.checksum === null) return null;
-  const mimeType = referenceImageMimeTypeSchema.safeParse(row.mimeType);
-  if (!mimeType.success) return null;
-  return {
-    actualBytes: row.actualBytes,
-    checksum: row.checksum,
-    mimeType: mimeType.data,
-    objectKey: row.objectKey,
-  };
 }
 
 async function scheduleProviderOriginalCleanup(

@@ -15,12 +15,16 @@ import {
   type Transaction,
   withWorkspaceContext,
 } from "../executor";
-import { inWorkspace } from "../filters";
+import { inWorkspace, liveInWorkspace } from "../filters";
 import { analysisModelUnit } from "../schema/analysis-model-unit";
 import { analysisRun } from "../schema/analysis-run";
 import { copyGeneration } from "../schema/copy-generation";
 import { editorialSelection } from "../schema/editorial-selection";
 import { filterResult } from "../schema/filter-result";
+import {
+  marketAnalysis,
+  marketAnalysisHandoff,
+} from "../schema/market-analysis";
 import { mediaBrand } from "../schema/media-brand";
 import { operation } from "../schema/operation";
 import { outboxEvent } from "../schema/outbox-event";
@@ -38,12 +42,13 @@ export const PLATFORM_DRAFT_ROUTE_COMMAND_TYPE = `${COPY_GENERATION_COMMAND_PREF
 
 type OriginAuthority = {
   actorId: string;
-  runId: string;
-  configuration: RunConfiguration;
+  scopeKey: string;
+  configuration: RunConfiguration | null;
   mediaBrandId: string;
   mediaBrandKey: string;
   sourceItemId: string | null;
   templateFingerprint: string;
+  brandPolicyFingerprint: string | null;
 };
 
 type DraftRow = typeof platformDraft.$inferSelect;
@@ -252,143 +257,155 @@ export async function routePlatformDraft(
 ): Promise<RoutePlatformDraftResult> {
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
+    return routePlatformDraftInTransaction(tx, workspaceId, input);
+  });
+}
 
-    const authority = await loadOriginAuthority(tx, workspaceId, input.origin);
-    if (authority.status !== "found") {
-      return { status: authority.status };
-    }
-    if (
-      authority.value.templateFingerprint !== input.customerTemplateFingerprint
-    ) {
-      return { status: "stale_origin" };
-    }
-    if (
-      input.mediaBrandKey !== undefined &&
-      authority.value.mediaBrandKey !== input.mediaBrandKey
-    ) {
-      return { status: "stale_origin" };
-    }
-    const selectedPlatforms = authority.value.configuration.platforms;
-    if (
-      selectedPlatforms !== undefined &&
-      !selectedPlatforms.includes(input.platform)
-    ) {
-      return { status: "platform_not_allowed" };
-    }
+export async function routePlatformDraftInTransaction(
+  tx: Transaction,
+  workspaceId: string,
+  input: RoutePlatformDraftInput,
+): Promise<RoutePlatformDraftResult> {
+  const authority = await loadOriginAuthority(tx, workspaceId, input.origin);
+  if (authority.status !== "found") {
+    return { status: authority.status };
+  }
+  if (authority.value.actorId !== input.actor) {
+    return { status: "not_found" };
+  }
+  const isMarketOrigin = input.origin.kind === "market_analysis_handoff";
+  if (
+    !isMarketOrigin &&
+    authority.value.templateFingerprint !== input.customerTemplateFingerprint
+  ) {
+    return { status: "stale_origin" };
+  }
+  if (
+    !isMarketOrigin &&
+    authority.value.brandPolicyFingerprint !== null &&
+    authority.value.brandPolicyFingerprint !== input.brandPolicyFingerprint
+  ) {
+    return { status: "stale_origin" };
+  }
+  if (
+    input.mediaBrandKey !== undefined &&
+    authority.value.mediaBrandKey !== input.mediaBrandKey
+  ) {
+    return { status: "stale_origin" };
+  }
+  const selectedPlatforms = authority.value.configuration?.platforms;
+  if (
+    selectedPlatforms !== undefined &&
+    !selectedPlatforms.includes(input.platform)
+  ) {
+    return { status: "platform_not_allowed" };
+  }
 
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtext('platform-draft-route'), hashtext(${`${workspaceId}:${authority.value.runId}:${authority.value.mediaBrandId}:${input.platform}`}))`,
-    );
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext('platform-draft-route'), hashtext(${`${workspaceId}:${authority.value.scopeKey}:${authority.value.mediaBrandId}:${input.platform}`}))`,
+  );
 
-    const identity = await readOperationIdentity(tx, workspaceId, {
-      actor: input.actor,
-      commandType: PLATFORM_DRAFT_ROUTE_COMMAND_TYPE,
-      idempotencyKey: input.idempotencyKey,
-    });
-    if (identity) {
-      if (identity.requestHash !== input.requestHash) {
-        return { status: "mismatch" };
-      }
-      const draft = await readActiveRoute(
-        tx,
-        workspaceId,
-        authority.value.mediaBrandId,
-        input.platform,
-        input.origin,
-      );
-      if (!draft) {
-        throw new Error("route operation identity has no active draft");
-      }
-      return routeResult(tx, workspaceId, draft, "replayed");
+  const identity = await readOperationIdentity(tx, workspaceId, {
+    actor: input.actor,
+    commandType: PLATFORM_DRAFT_ROUTE_COMMAND_TYPE,
+    idempotencyKey: input.idempotencyKey,
+  });
+  if (identity) {
+    if (identity.requestHash !== input.requestHash) {
+      return { status: "mismatch" };
     }
-
-    const active = await readActiveRoute(
+    const draft = await readActiveRoute(
       tx,
       workspaceId,
       authority.value.mediaBrandId,
       input.platform,
       input.origin,
     );
-    if (active) {
+    if (!draft) {
+      throw new Error("route operation identity has no active draft");
+    }
+    return routeResult(tx, workspaceId, draft, "replayed");
+  }
+
+  const active = await readActiveRoute(
+    tx,
+    workspaceId,
+    authority.value.mediaBrandId,
+    input.platform,
+    input.origin,
+  );
+  if (active) {
+    const reserved = await reserveOperation(
+      tx,
+      workspaceId,
+      input,
+      "succeeded",
+    );
+    if (reserved.status === "mismatch") return { status: "mismatch" };
+    return routeResult(tx, workspaceId, active, "reconciled");
+  }
+
+  let created: { draft: DraftRow } | undefined;
+  try {
+    created = await tx.transaction(async (savepoint) => {
       const reserved = await reserveOperation(
-        tx,
+        savepoint,
         workspaceId,
         input,
-        "succeeded",
+        "queued",
       );
-      if (reserved.status === "mismatch") return { status: "mismatch" };
-      return routeResult(tx, workspaceId, active, "reconciled");
-    }
-
-    let created: { draft: DraftRow } | undefined;
-    try {
-      created = await tx.transaction(async (savepoint) => {
-        const reserved = await reserveOperation(
-          savepoint,
-          workspaceId,
-          input,
-          "queued",
-        );
-        if (reserved.status !== "created") {
-          throw new IdentityResolution(reserved.status);
-        }
-
-        const lanePosition = await nextLanePosition(
-          savepoint,
-          workspaceId,
-          authority.value.runId,
-          authority.value.mediaBrandId,
-          input.platform,
-        );
-        const [draft] = await savepoint
-          .insert(platformDraft)
-          .values({
-            workspaceId,
-            mediaBrandId: authority.value.mediaBrandId,
-            platform: input.platform,
-            lanePosition,
-            ...originColumns(input.origin),
-          })
-          .returning();
-        if (!draft) throw new Error("platform draft insert returned no row");
-        await insertCopyGeneration(savepoint, workspaceId, {
-          operationId: reserved.operationId,
-          platformDraftId: draft.id,
-          requestedContentLocale: input.requestedContentLocale,
-          modelOptionKey: input.modelOptionKey,
-          variantKeys: input.variantKeys,
-          customerTemplateFingerprint: input.customerTemplateFingerprint,
-          brandPolicyFingerprint: input.brandPolicyFingerprint,
-          promptVersion: input.promptVersion,
-          configurationVersion: input.configurationVersion,
-        });
-        await savepoint.insert(outboxEvent).values({
-          workspaceId,
-          operationId: reserved.operationId,
-          eventType: OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
-          schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
-          payload: {
-            schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
-            workspaceId,
-            operationId: reserved.operationId,
-          },
-        });
-        return { draft };
-      });
-    } catch (error) {
-      if (error instanceof IdentityResolution) {
-        if (error.status === "mismatch") return { status: "mismatch" };
-        const winner = await readActiveRoute(
-          tx,
-          workspaceId,
-          authority.value.mediaBrandId,
-          input.platform,
-          input.origin,
-        );
-        if (!winner) throw error;
-        return routeResult(tx, workspaceId, winner, "replayed");
+      if (reserved.status !== "created") {
+        throw new IdentityResolution(reserved.status);
       }
 
+      const lanePosition =
+        input.origin.kind === "market_analysis_handoff"
+          ? null
+          : await nextLanePosition(
+              savepoint,
+              workspaceId,
+              authority.value.scopeKey,
+              authority.value.mediaBrandId,
+              input.platform,
+            );
+      const [draft] = await savepoint
+        .insert(platformDraft)
+        .values({
+          workspaceId,
+          mediaBrandId: authority.value.mediaBrandId,
+          platform: input.platform,
+          lanePosition,
+          ...originColumns(input.origin),
+        })
+        .returning();
+      if (!draft) throw new Error("platform draft insert returned no row");
+      await insertCopyGeneration(savepoint, workspaceId, {
+        operationId: reserved.operationId,
+        platformDraftId: draft.id,
+        requestedContentLocale: input.requestedContentLocale,
+        modelOptionKey: input.modelOptionKey,
+        variantKeys: input.variantKeys,
+        customerTemplateFingerprint: input.customerTemplateFingerprint,
+        brandPolicyFingerprint: input.brandPolicyFingerprint,
+        promptVersion: input.promptVersion,
+        configurationVersion: input.configurationVersion,
+      });
+      await savepoint.insert(outboxEvent).values({
+        workspaceId,
+        operationId: reserved.operationId,
+        eventType: OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
+        schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+        payload: {
+          schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+          workspaceId,
+          operationId: reserved.operationId,
+        },
+      });
+      return { draft };
+    });
+  } catch (error) {
+    if (error instanceof IdentityResolution) {
+      if (error.status === "mismatch") return { status: "mismatch" };
       const winner = await readActiveRoute(
         tx,
         workspaceId,
@@ -396,25 +413,35 @@ export async function routePlatformDraft(
         input.platform,
         input.origin,
       );
-      if (!winner || classifyDbError(error)?.kind === "retry") throw error;
-
-      const reserved = await reserveOperation(
-        tx,
-        workspaceId,
-        input,
-        "succeeded",
-      );
-      if (reserved.status === "mismatch") return { status: "mismatch" };
-      return routeResult(tx, workspaceId, winner, "reconciled");
+      if (!winner) throw error;
+      return routeResult(tx, workspaceId, winner, "replayed");
     }
 
-    if (!created) throw new Error("platform draft route returned no row");
-    return {
-      status: "created",
-      draft: created.draft,
-      generationLifecycle: "queued",
-    };
-  });
+    const winner = await readActiveRoute(
+      tx,
+      workspaceId,
+      authority.value.mediaBrandId,
+      input.platform,
+      input.origin,
+    );
+    if (!winner || classifyDbError(error)?.kind === "retry") throw error;
+
+    const reserved = await reserveOperation(
+      tx,
+      workspaceId,
+      input,
+      "succeeded",
+    );
+    if (reserved.status === "mismatch") return { status: "mismatch" };
+    return routeResult(tx, workspaceId, winner, "reconciled");
+  }
+
+  if (!created) throw new Error("platform draft route returned no row");
+  return {
+    status: "created",
+    draft: created.draft,
+    generationLifecycle: "queued",
+  };
 }
 
 class IdentityResolution extends Error {
@@ -478,16 +505,62 @@ async function loadOriginAuthority(
   | { status: "found"; value: OriginAuthority }
   | { status: "not_found" | "invalid_disposition" }
 > {
+  if (origin.kind === "market_analysis_handoff") {
+    const [row] = await tx
+      .select({
+        actorId: operation.actor,
+        scopeKey: marketAnalysisHandoff.id,
+        mediaBrandId: marketAnalysisHandoff.mediaBrandId,
+        mediaBrandKey: mediaBrand.key,
+        templateFingerprint: marketAnalysisHandoff.templateFingerprint,
+        brandPolicyFingerprint: marketAnalysisHandoff.brandPolicyFingerprint,
+      })
+      .from(marketAnalysisHandoff)
+      .innerJoin(
+        marketAnalysis,
+        and(
+          inWorkspace(marketAnalysis, workspaceId),
+          eq(marketAnalysis.id, marketAnalysisHandoff.marketAnalysisId),
+        ),
+      )
+      .innerJoin(
+        operation,
+        and(
+          inWorkspace(operation, workspaceId),
+          eq(operation.id, marketAnalysis.operationId),
+        ),
+      )
+      .innerJoin(
+        mediaBrand,
+        and(
+          liveInWorkspace(mediaBrand, workspaceId),
+          eq(mediaBrand.id, marketAnalysisHandoff.mediaBrandId),
+        ),
+      )
+      .where(
+        and(
+          inWorkspace(marketAnalysisHandoff, workspaceId),
+          eq(marketAnalysisHandoff.id, origin.marketAnalysisHandoffId),
+        ),
+      );
+    return row
+      ? {
+          status: "found",
+          value: { ...row, configuration: null, sourceItemId: null },
+        }
+      : { status: "not_found" };
+  }
   if (origin.kind === "editorial_selection") {
     const [row] = await tx
       .select({
         actorId: operation.actor,
-        runId: analysisModelUnit.analysisRunId,
+        scopeKey: analysisModelUnit.analysisRunId,
         configuration: analysisRun.configuration,
         mediaBrandId: analysisModelUnit.mediaBrandId,
         mediaBrandKey: mediaBrand.key,
         sourceItemId: editorialSelection.sourceItemId,
         templateFingerprint: analysisRun.templateFingerprint,
+        brandPolicyFingerprint: sql<string | null>`null`,
       })
       .from(editorialSelection)
       .innerJoin(
@@ -529,11 +602,12 @@ async function loadOriginAuthority(
     const [row] = await tx
       .select({
         actorId: operation.actor,
-        runId: analysisModelUnit.analysisRunId,
+        scopeKey: analysisModelUnit.analysisRunId,
         configuration: analysisRun.configuration,
         mediaBrandId: analysisModelUnit.mediaBrandId,
         mediaBrandKey: mediaBrand.key,
         templateFingerprint: analysisRun.templateFingerprint,
+        brandPolicyFingerprint: sql<string | null>`null`,
       })
       .from(promoIdea)
       .innerJoin(
@@ -575,13 +649,14 @@ async function loadOriginAuthority(
   const [row] = await tx
     .select({
       actorId: operation.actor,
-      runId: filterResult.analysisRunId,
+      scopeKey: filterResult.analysisRunId,
       configuration: analysisRun.configuration,
       mediaBrandId: filterResult.mediaBrandId,
       mediaBrandKey: mediaBrand.key,
       sourceItemId: filterResult.sourceItemId,
       disposition: filterResult.disposition,
       templateFingerprint: analysisRun.templateFingerprint,
+      brandPolicyFingerprint: sql<string | null>`null`,
     })
     .from(filterResult)
     .innerJoin(analysisRun, eq(analysisRun.id, filterResult.analysisRunId))
@@ -620,7 +695,10 @@ function originColumns(origin: CardOriginReference) {
   if (origin.kind === "telegram_filter_result") {
     return { telegramFilterResultId: origin.telegramFilterResultId };
   }
-  return { promoIdeaId: origin.promoIdeaId };
+  if (origin.kind === "promo_idea") {
+    return { promoIdeaId: origin.promoIdeaId };
+  }
+  return { marketAnalysisHandoffId: origin.marketAnalysisHandoffId };
 }
 
 async function readActiveRoute(
@@ -638,7 +716,12 @@ async function readActiveRoute(
             platformDraft.telegramFilterResultId,
             origin.telegramFilterResultId,
           )
-        : eq(platformDraft.promoIdeaId, origin.promoIdeaId);
+        : origin.kind === "promo_idea"
+          ? eq(platformDraft.promoIdeaId, origin.promoIdeaId)
+          : eq(
+              platformDraft.marketAnalysisHandoffId,
+              origin.marketAnalysisHandoffId,
+            );
   const [draft] = await tx
     .select()
     .from(platformDraft)

@@ -224,7 +224,10 @@ function assertClosedContracts() {
   ) {
     throw new Error("draft contract accepted a customer key");
   }
-  if (MEDIA_DERIVATION_PURPOSES.join(",") !== "sharp_brand_logo") {
+  if (
+    MEDIA_DERIVATION_PURPOSES.join(",") !==
+    "sharp_brand_logo,market_analysis_footer_lockup"
+  ) {
     throw new Error("media derivation purpose drifted");
   }
   observed.push("closed-contracts");

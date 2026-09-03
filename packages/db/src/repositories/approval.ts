@@ -1,5 +1,4 @@
-import { and, eq, inArray, isNull, or } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { and, eq, inArray } from "drizzle-orm";
 
 import {
   type Executor,
@@ -11,11 +10,11 @@ import { activityEvent } from "../schema/activity-event";
 import { approval } from "../schema/approval";
 import { draftRevision } from "../schema/draft-revision";
 import { imageGeneration } from "../schema/image-generation";
-import { mediaAsset } from "../schema/media-asset";
 import { operation } from "../schema/operation";
 import { platformDraft } from "../schema/platform-draft";
 import { appendActivityEvent, lockActivityIdentity } from "./activity-event";
 import { ownedDraftExists } from "./draft-origin";
+import { lockPublishableMedia } from "./publishable-media";
 
 type ApprovalRow = typeof approval.$inferSelect;
 
@@ -172,10 +171,10 @@ export async function grantApproval(
     }
     if (
       input.selectedFinalMediaAssetId &&
-      !(await isPublishableSelectedMedia(
+      !(await lockPublishableMedia(
         tx,
         workspaceId,
-        input.draftRevisionId,
+        located.platformDraftId,
         input.selectedFinalMediaAssetId,
       ))
     ) {
@@ -298,56 +297,4 @@ export async function readActionableApproval(
     row.approval.selectedFinalMediaAssetId
     ? row
     : null;
-}
-
-async function isPublishableSelectedMedia(
-  executor: Executor,
-  workspaceId: string,
-  draftRevisionId: string,
-  mediaAssetId: string,
-) {
-  const generatedRevision = alias(draftRevision, "generated_revision");
-  const [row] = await executor
-    .select({ id: mediaAsset.id })
-    .from(mediaAsset)
-    .leftJoin(
-      imageGeneration,
-      and(
-        inWorkspace(imageGeneration, workspaceId),
-        eq(imageGeneration.finalMediaAssetId, mediaAsset.id),
-      ),
-    )
-    .leftJoin(
-      generatedRevision,
-      and(
-        inWorkspace(generatedRevision, workspaceId),
-        eq(generatedRevision.id, imageGeneration.draftRevisionId),
-      ),
-    )
-    .innerJoin(
-      draftRevision,
-      and(
-        inWorkspace(draftRevision, workspaceId),
-        eq(draftRevision.id, draftRevisionId),
-      ),
-    )
-    .where(
-      and(
-        inWorkspace(mediaAsset, workspaceId),
-        eq(mediaAsset.id, mediaAssetId),
-        eq(mediaAsset.lifecycle, "verified"),
-        isNull(mediaAsset.objectRemovedAt),
-        or(
-          eq(mediaAsset.kind, "image"),
-          and(
-            eq(mediaAsset.kind, "image_final"),
-            eq(
-              generatedRevision.platformDraftId,
-              draftRevision.platformDraftId,
-            ),
-          ),
-        ),
-      ),
-    );
-  return row !== undefined;
 }

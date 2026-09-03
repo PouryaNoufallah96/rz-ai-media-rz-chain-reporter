@@ -4,6 +4,7 @@ import type {
   EnrichmentReason,
   ErrorCode,
   InvocationKey,
+  MarketExecutionScopeTarget,
   OperationLifecycle,
   Platform,
   UsageStatus,
@@ -33,6 +34,10 @@ import { copyVariantLocalizationRequest } from "../schema/copy-variant-localizat
 import { draftRevision } from "../schema/draft-revision";
 import { editorialSelection } from "../schema/editorial-selection";
 import { filterResult } from "../schema/filter-result";
+import {
+  marketAnalysis,
+  marketAnalysisHandoff,
+} from "../schema/market-analysis";
 import { mediaBrand } from "../schema/media-brand";
 import { operation } from "../schema/operation";
 import { operationAttempt } from "../schema/operation-attempt";
@@ -63,7 +68,7 @@ import {
 
 export const COPY_PAGE_EXTRACT_POLICY = "extract-v1:page";
 
-type CopySourceKind = "promo" | "rss" | "telegram";
+type CopySourceKind = "market" | "promo" | "rss" | "telegram";
 
 export type CopySourceBindingResult = {
   kind: CopySourceKind;
@@ -126,6 +131,13 @@ export type BoundCopySourceInput =
       description: string;
       promoIdeaId: string;
       title: string;
+    }
+  | {
+      kind: "market";
+      handoffId: string;
+      headline: string;
+      supportingText: string;
+      verifiedFacts: unknown;
     };
 
 export type CreateCopyGenerationInput = {
@@ -176,6 +188,11 @@ type StartCopyOperationBase = {
   requestId: string | null;
 };
 
+type MarketAnalysisCopyGuard = {
+  expectedVersion: number;
+  id: string;
+};
+
 type CopyGenerationVersionIdentity = Pick<
   CreateCopyGenerationInput,
   | "brandPolicyFingerprint"
@@ -199,12 +216,18 @@ export type StartCopyOperationInput = StartCopyOperationBase &
   } & (
     | {
         mode: "regenerate" | "refresh_article";
+        marketAnalysis?: MarketAnalysisCopyGuard;
         requestedContentLocale: ContentLocale;
         modelOptionKey: string;
       }
     | {
         mode: "retry_failed";
+        marketAnalysis?: MarketAnalysisCopyGuard;
         requestedContentLocale: ContentLocale;
+      }
+    | {
+        marketAnalysis: MarketAnalysisCopyGuard;
+        mode: "recover_incomplete";
       }
   );
 
@@ -216,12 +239,14 @@ export type StartCopyOperationResult =
     }
   | {
       status:
+        | "already_complete"
         | "idempotency_mismatch"
         | "not_found"
         | "operation_in_progress"
         | "no_failed_units"
         | "refresh_not_supported"
         | "template_drift"
+        | "version_conflict"
         | "validation_failed";
     };
 
@@ -261,6 +286,8 @@ export async function startCopyOperation(
       .select({
         brandKey: mediaBrand.key,
         id: platformDraft.id,
+        marketAnalysisId: marketAnalysis.id,
+        marketAnalysisVersion: marketAnalysis.version,
         platform: platformDraft.platform,
       })
       .from(platformDraft)
@@ -269,6 +296,20 @@ export async function startCopyOperation(
         and(
           liveInWorkspace(mediaBrand, workspaceId),
           eq(mediaBrand.id, platformDraft.mediaBrandId),
+        ),
+      )
+      .leftJoin(
+        marketAnalysisHandoff,
+        and(
+          inWorkspace(marketAnalysisHandoff, workspaceId),
+          eq(marketAnalysisHandoff.id, platformDraft.marketAnalysisHandoffId),
+        ),
+      )
+      .leftJoin(
+        marketAnalysis,
+        and(
+          inWorkspace(marketAnalysis, workspaceId),
+          eq(marketAnalysis.id, marketAnalysisHandoff.marketAnalysisId),
         ),
       )
       .where(
@@ -280,6 +321,16 @@ export async function startCopyOperation(
         ),
       );
     if (!draft) return { status: "not_found" };
+    if (input.marketAnalysis) {
+      if (draft.marketAnalysisId !== input.marketAnalysis.id) {
+        return { status: "not_found" };
+      }
+      if (
+        draft.marketAnalysisVersion !== input.marketAnalysis.expectedVersion
+      ) {
+        return { status: "version_conflict" };
+      }
+    }
 
     const resolved = resolveCopyCommand(draft, input);
     if (!resolved.ok) return { status: resolved.status };
@@ -319,7 +370,27 @@ export async function startCopyOperation(
       CreateCopyGenerationInput,
       "operationId" | "platformDraftId"
     >;
-    if (input.mode === "retry_failed") {
+    if (input.mode === "recover_incomplete") {
+      const recovery = await recoveryGenerationInput(
+        tx,
+        workspaceId,
+        input.platformDraftId,
+        {
+          brandPolicyFingerprint: resolved.fingerprint,
+          configurationVersion: input.configurationVersion,
+          customerTemplateFingerprint: input.customerTemplateFingerprint,
+          promptVersion: input.promptVersion,
+        },
+        resolved.variantKeys,
+      );
+      if (recovery.status === "complete") {
+        return { status: "already_complete" };
+      }
+      if (recovery.status === "none") {
+        return { status: "validation_failed" };
+      }
+      generationInput = recovery.input;
+    } else if (input.mode === "retry_failed") {
       const retry = await retryGenerationInput(
         tx,
         workspaceId,
@@ -416,13 +487,16 @@ function resolveCopyCommand(
   if (input.mode === "retry_failed") {
     return { ok: true, fingerprint, variantKeys: [] };
   }
-  if (!input.copyPolicy.modelOptionKeys.includes(input.modelOptionKey)) {
-    return { ok: false, status: "validation_failed" };
-  }
   const platformPolicy = input.copyPolicy.platforms.find(
     (entry) => entry.platform === draft.platform,
   );
   if (!platformPolicy) return { ok: false, status: "validation_failed" };
+  if (input.mode === "recover_incomplete") {
+    return { ok: true, fingerprint, variantKeys: platformPolicy.variantKeys };
+  }
+  if (!input.copyPolicy.modelOptionKeys.includes(input.modelOptionKey)) {
+    return { ok: false, status: "validation_failed" };
+  }
   return {
     ok: true,
     fingerprint,
@@ -433,10 +507,165 @@ function resolveCopyCommand(
 function operationIdentity(input: StartCopyOperationInput) {
   return {
     actor: input.actor,
-    commandType: `${COPY_GENERATION_COMMAND_PREFIX}${input.mode}`,
+    commandType: `${COPY_GENERATION_COMMAND_PREFIX}${input.mode === "recover_incomplete" ? "retry_failed" : input.mode}`,
     idempotencyKey: input.idempotencyKey,
     requestHash: input.requestHash,
     requestId: input.requestId,
+  };
+}
+
+async function recoveryGenerationInput(
+  tx: Transaction,
+  workspaceId: string,
+  platformDraftId: string,
+  identity: CopyGenerationVersionIdentity,
+  expectedVariantKeys: readonly string[],
+) {
+  const requiredVariantKeys = [...new Set(expectedVariantKeys)];
+  const [latest] = await tx
+    .select({
+      modelOptionKey: copyGeneration.modelOptionKey,
+      requestedContentLocale: copyGeneration.requestedContentLocale,
+    })
+    .from(copyGeneration)
+    .where(
+      and(
+        inWorkspace(copyGeneration, workspaceId),
+        eq(copyGeneration.platformDraftId, platformDraftId),
+      ),
+    )
+    .orderBy(desc(copyGeneration.createdAt), desc(copyGeneration.operationId))
+    .limit(1);
+  if (
+    !latest ||
+    requiredVariantKeys.length !== 3 ||
+    requiredVariantKeys.length !== expectedVariantKeys.length
+  ) {
+    return { status: "none" as const };
+  }
+
+  const completed = await tx
+    .select({ variantKey: copyGenerationUnit.variantKey })
+    .from(copyVariant)
+    .innerJoin(
+      copyGenerationUnit,
+      and(
+        inWorkspace(copyGenerationUnit, workspaceId),
+        eq(copyGenerationUnit.id, copyVariant.copyGenerationUnitId),
+      ),
+    )
+    .innerJoin(
+      copyGeneration,
+      and(
+        inWorkspace(copyGeneration, workspaceId),
+        eq(copyGeneration.operationId, copyGenerationUnit.copyGenerationId),
+        eq(copyGeneration.platformDraftId, platformDraftId),
+        eq(
+          copyGeneration.requestedContentLocale,
+          latest.requestedContentLocale,
+        ),
+      ),
+    )
+    .innerJoin(
+      operation,
+      and(
+        inWorkspace(operation, workspaceId),
+        eq(operation.id, copyGeneration.operationId),
+        eq(operation.lifecycle, "succeeded"),
+      ),
+    )
+    .where(
+      and(
+        inWorkspace(copyVariant, workspaceId),
+        inArray(copyGenerationUnit.variantKey, requiredVariantKeys),
+        sql`(
+          (
+            ${operation.commandType} in (
+              'copy-generation:route',
+              'copy-generation:regenerate',
+              'copy-generation:refresh_article'
+            )
+            and not exists (
+              select 1
+              from copy_generation newer_generation
+              inner join operation newer_operation
+                on newer_operation.id = newer_generation.operation_id
+                and newer_operation.workspace_id = newer_generation.workspace_id
+              where newer_generation.workspace_id = ${copyGeneration.workspaceId}
+                and newer_generation.platform_draft_id = ${copyGeneration.platformDraftId}
+                and newer_generation.requested_content_locale = ${copyGeneration.requestedContentLocale}
+                and newer_operation.lifecycle = 'succeeded'
+                and newer_operation.command_type in (
+                  'copy-generation:route',
+                  'copy-generation:regenerate',
+                  'copy-generation:refresh_article'
+                )
+                and (newer_generation.created_at, newer_generation.operation_id)
+                  > (${copyGeneration.createdAt}, ${copyGeneration.operationId})
+            )
+          )
+          or (
+            ${operation.commandType} = 'copy-generation:retry_failed'
+            and exists (
+              select 1
+              from copy_generation prior_generation
+              inner join operation prior_operation
+                on prior_operation.id = prior_generation.operation_id
+                and prior_operation.workspace_id = prior_generation.workspace_id
+              where prior_generation.workspace_id = ${copyGeneration.workspaceId}
+                and prior_generation.platform_draft_id = ${copyGeneration.platformDraftId}
+                and prior_generation.requested_content_locale = ${copyGeneration.requestedContentLocale}
+                and prior_operation.lifecycle in ('succeeded', 'failed', 'cancelled', 'unknown')
+                and prior_operation.command_type in (
+                  'copy-generation:route',
+                  'copy-generation:regenerate',
+                  'copy-generation:refresh_article'
+                )
+                and (prior_generation.created_at, prior_generation.operation_id)
+                  < (${copyGeneration.createdAt}, ${copyGeneration.operationId})
+            )
+            and not exists (
+              select 1
+              from copy_generation later_generation
+              inner join operation later_operation
+                on later_operation.id = later_generation.operation_id
+                and later_operation.workspace_id = later_generation.workspace_id
+              where later_generation.workspace_id = ${copyGeneration.workspaceId}
+                and later_generation.platform_draft_id = ${copyGeneration.platformDraftId}
+                and later_generation.requested_content_locale = ${copyGeneration.requestedContentLocale}
+                and later_operation.lifecycle = 'succeeded'
+                and later_operation.command_type in (
+                  'copy-generation:route',
+                  'copy-generation:regenerate',
+                  'copy-generation:refresh_article'
+                )
+                and (later_generation.created_at, later_generation.operation_id)
+                  > (${copyGeneration.createdAt}, ${copyGeneration.operationId})
+            )
+          )
+        )`,
+      ),
+    );
+  const completedKeys = new Set(completed.map((unit) => unit.variantKey));
+  const missingVariantKeys = requiredVariantKeys.filter(
+    (variantKey) => !completedKeys.has(variantKey),
+  );
+  if (missingVariantKeys.length === 0) {
+    return { status: "complete" as const };
+  }
+
+  return {
+    status: "ready" as const,
+    input: {
+      requestedContentLocale: latest.requestedContentLocale,
+      modelOptionKey: latest.modelOptionKey,
+      variantKeys: missingVariantKeys,
+      customerTemplateFingerprint: identity.customerTemplateFingerprint,
+      brandPolicyFingerprint: identity.brandPolicyFingerprint,
+      promptVersion: identity.promptVersion,
+      configurationVersion: identity.configurationVersion,
+      forceArticleRefresh: false,
+    },
   };
 }
 
@@ -482,7 +711,7 @@ async function retryGenerationInput(
       and(
         inWorkspace(copyGenerationUnit, workspaceId),
         eq(copyGenerationUnit.copyGenerationId, latest.operationId),
-        eq(copyGenerationUnit.status, "failed"),
+        inArray(copyGenerationUnit.status, ["failed", "cancelled"]),
       ),
     )
     .orderBy(asc(copyGenerationUnit.createdAt), asc(copyGenerationUnit.id));
@@ -522,8 +751,8 @@ export async function prepareCopyGenerationSource(
     );
     if (!origin) return { status: "not_found" };
 
-    if (origin.kind === "promo") {
-      return boundResult("promo", false, "not_needed", true);
+    if (origin.kind === "promo" || origin.kind === "market") {
+      return boundResult(origin.kind, false, "not_needed", true);
     }
 
     if (generation.sourceItemRevisionId !== null) {
@@ -790,6 +1019,15 @@ export async function loadBoundCopyGenerationSourceInput(
       title: origin.title,
     };
   }
+  if (origin.kind === "market") {
+    return {
+      kind: "market",
+      handoffId: origin.handoffId,
+      headline: origin.headline,
+      supportingText: origin.supportingText,
+      verifiedFacts: origin.verifiedFacts,
+    };
+  }
   if (generation.sourceItemRevisionId !== origin.revisionId) return null;
   if (origin.kind === "telegram") {
     return {
@@ -891,6 +1129,13 @@ type SourceOrigin =
       description: string;
       promoIdeaId: string;
       title: string;
+    }
+  | {
+      kind: "market";
+      handoffId: string;
+      headline: string;
+      supportingText: string;
+      verifiedFacts: unknown;
     };
 
 async function loadCopyOrigin(
@@ -903,6 +1148,7 @@ async function loadCopyOrigin(
       editorialSelectionId: platformDraft.editorialSelectionId,
       telegramFilterResultId: platformDraft.telegramFilterResultId,
       promoIdeaId: platformDraft.promoIdeaId,
+      marketAnalysisHandoffId: platformDraft.marketAnalysisHandoffId,
     })
     .from(platformDraft)
     .where(
@@ -913,6 +1159,24 @@ async function loadCopyOrigin(
       ),
     );
   if (!draft) return null;
+
+  if (draft.marketAnalysisHandoffId !== null) {
+    const [row] = await executor
+      .select({
+        handoffId: marketAnalysisHandoff.id,
+        headline: marketAnalysisHandoff.storyHeadline,
+        supportingText: marketAnalysisHandoff.storySupportingText,
+        verifiedFacts: marketAnalysisHandoff.verifiedFacts,
+      })
+      .from(marketAnalysisHandoff)
+      .where(
+        and(
+          inWorkspace(marketAnalysisHandoff, workspaceId),
+          eq(marketAnalysisHandoff.id, draft.marketAnalysisHandoffId),
+        ),
+      );
+    return row ? { kind: "market", ...row } : null;
+  }
 
   if (draft.promoIdeaId !== null) {
     const [row] = await executor
@@ -1151,6 +1415,7 @@ const NONTERMINAL_UNIT_STATUSES = ["pending", "running"] as const;
 
 export type CopyExecutionContext = {
   analysisRunId: string;
+  executionScope: MarketExecutionScopeTarget;
   brandPolicyFingerprint: string;
   brandKey: string;
   configurationVersion: string;
@@ -1180,7 +1445,8 @@ export async function findCopyExecutionContext(
 ): Promise<(CopyExecutionContext & { units: CopyExecutionUnit[] }) | null> {
   const [row] = await executor
     .select({
-      analysisRunId: sql<string>`coalesce(${filterResult.analysisRunId}, ${analysisRun.id})`,
+      analysisRunId: sql<string>`coalesce(${filterResult.analysisRunId}, ${analysisRun.id}, ${marketAnalysisHandoff.marketAnalysisId})`,
+      marketAnalysisId: marketAnalysisHandoff.marketAnalysisId,
       brandPolicyFingerprint: copyGeneration.brandPolicyFingerprint,
       brandKey: mediaBrand.key,
       configurationVersion: copyGeneration.configurationVersion,
@@ -1211,6 +1477,10 @@ export async function findCopyExecutionContext(
       eq(editorialSelection.id, platformDraft.editorialSelectionId),
     )
     .leftJoin(promoIdea, eq(promoIdea.id, platformDraft.promoIdeaId))
+    .leftJoin(
+      marketAnalysisHandoff,
+      eq(marketAnalysisHandoff.id, platformDraft.marketAnalysisHandoffId),
+    )
     .leftJoin(
       analysisModelUnit,
       or(
@@ -1243,7 +1513,11 @@ export async function findCopyExecutionContext(
     )
     .orderBy(asc(copyGenerationUnit.createdAt), asc(copyGenerationUnit.id));
 
-  return { ...row, units };
+  const executionScope: MarketExecutionScopeTarget = row.marketAnalysisId
+    ? { kind: "market_analysis", marketAnalysisId: row.marketAnalysisId }
+    : { kind: "analysis_run", analysisRunId: row.analysisRunId };
+  const { marketAnalysisId: _marketAnalysisId, ...context } = row;
+  return { ...context, executionScope, units };
 }
 
 export async function claimCopyGeneration(
