@@ -9,7 +9,6 @@
         "search": "جست‌وجو بر پایهٔ عنوان",
         "searchPlaceholder": "جست‌وجوی عنوان تحلیل…",
         "status": "وضعیت",
-        "brand": "تم پست",
         "all": "همه"
       },
       "empty": {
@@ -30,7 +29,7 @@
         "brand": "تم پست",
         "stage": "مرحله",
         "updated": "آخرین تغییر",
-        "action": ""
+        "action": "بازکردن تحلیل"
       },
       "resume": "ادامه",
       "open": "بازکردن",
@@ -52,10 +51,10 @@
     "create": {
       "pageDescription": "بازهٔ بازار را تنظیم کنید، داده‌ها را تأیید کنید و نتیجه را تا نمودار، روایت، طراحی، تولید و انتشار پیش ببرید.",
       "title": "آغاز تحلیل بازار",
-      "primaryTitle": "توکن‌های RZWire",
+      "primaryTitle": "توکن‌های کنترل‌شده",
       "primaryDescription": "یک تا سه توکن انتخاب کنید. دادهٔ قیمت هر توکن از ارائه‌دهندهٔ عمومی تنظیم‌شدهٔ همان توکن دریافت می‌شود.",
       "selectionCount": "{count, number} از {max, number}",
-      "brandingDescription": "وقتی چند توکن RZWire در یک تحلیل هستند، این توکن سبک بصری و پانوشت را تعیین می‌کند.",
+      "brandingDescription": "وقتی چند توکن کنترل‌شده در یک تحلیل هستند، این توکن سبک بصری و پانوشت را تعیین می‌کند.",
       "comparisonTitle": "مقایسه با بازار",
       "comparisonDescription": "تا سه بازار زندهٔ USDT بایننس از آخرین کاتالوگ ذخیره‌شده اضافه کنید. هر تحلیل در مجموع از شش مجموعه پشتیبانی می‌کند.",
       "searchComparisons": "جست‌وجوی بازارهای بایننس",
@@ -106,14 +105,13 @@
         "story": "استوری",
         "landscape": "افقی"
       },
-      "fetchPrices": "دریافت قیمت‌های تأییدشده",
       "fetching": "در حال دریافت قیمت‌ها…",
       "unavailableTitle": "تنظیم بازار در دسترس نیست",
-      "unavailableBody": "این نصب هیچ توکن فعال RZWire با پروفایل بصری تنظیم‌شده ندارد.",
+      "unavailableBody": "این نصب هیچ توکن کنترل‌شدهٔ فعال با پروفایل بصری تنظیم‌شده ندارد.",
       "errors": {
-        "primary": "دست‌کم یک توکن RZWire انتخاب کنید.",
-        "primaryLimit": "بیش از سه توکن RZWire انتخاب نکنید.",
-        "primaryDuplicate": "هر توکن RZWire فقط یک‌بار می‌تواند انتخاب شود.",
+        "primary": "دست‌کم یک توکن کنترل‌شده انتخاب کنید.",
+        "primaryLimit": "بیش از سه توکن کنترل‌شده انتخاب نکنید.",
+        "primaryDuplicate": "هر توکن کنترل‌شده فقط یک‌بار می‌تواند انتخاب شود.",
         "branding": "مشخص کنید هویت بصری از کدام توکن انتخاب‌شده گرفته شود.",
         "comparisonLimit": "بیش از سه مقایسهٔ بازار انتخاب نکنید.",
         "comparisonDuplicate": "هر مقایسهٔ بازار فقط یک‌بار می‌تواند انتخاب شود."
@@ -135,12 +133,12 @@
       "openSteps": "بازکردن مراحل تحلیل",
       "closeSteps": "بستن مراحل",
       "locked": "برای بازشدن {step}، مرحلهٔ پیشین را کامل کنید.",
-      "brand": "توکن‌های انتخاب‌شده",
       "owner": "تم پست",
       "period": "دوره",
       "scale": "مقیاس",
       "status": "وضعیت",
       "loading": "در حال بارگذاری فضای تحلیل",
+      "updating": "در حال بارگذاری مرحلهٔ انتخاب‌شده…",
       "back": "بازگشت",
       "project": "پروژهٔ جاری",
       "closeProject": "بستن پروژهٔ جاری",
@@ -333,7 +331,11 @@
       "notWritten": "هنوز نوشته نشده",
       "status": "وضعیت روایت",
       "statusApproved": "تأییدشده",
-      "statusAwaiting": "در انتظار تأیید"
+      "statusAwaiting": "در انتظار تأیید",
+      "errors": {
+        "headline": "یک تیتر بنویسید.",
+        "supportingText": "متن نمودار را بنویسید."
+      }
     },
     "design": {
       "title": "انتخاب خانوادهٔ قالب",
@@ -428,8 +430,8 @@
       "prepareFailedTitle": "پلتفرم آماده نشد",
       "prepareFailedBody": "پیام زیر را بررسی کنید و آماده‌سازی این پلتفرم را دوباره انجام دهید.",
       "finishFailedTitle": "تحلیل نهایی نشد",
-      "finishFailedBody": "کپشن‌های ناقص یا تغییرات ذخیره‌نشده را برطرف کنید و دوباره تلاش کنید.",
-      "finishBlocked": "پیش از نهایی‌کردن، دست‌کم یک پلتفرم را با هر سه کپشن آماده کنید و تغییرات را ذخیره یا کنار بگذارید.",
+      "finishFailedBody": "تصویر نهایی را دوباره تأیید کنید یا تا پایان عملیات در حال اجرا صبر کنید، سپس دوباره تلاش کنید.",
+      "finishBlocked": "پیش از نهایی‌کردن، تغییرات کپشن را ذخیره یا کنار بگذارید.",
       "finishing": "در حال پایان تحلیل",
       "stay": "ادامهٔ ویرایش",
       "discard": "حذف تغییرات",
@@ -460,7 +462,6 @@
       "readyNo": "هنوز نه"
     },
     "report": {
-      "eyebrow": "گزارش تغییرناپذیر تکمیل‌شده",
       "summary": "پوستر، نمودار، متن و وضعیت انتشار تأییدشده.",
       "completed": "تکمیل",
       "approvedAt": "تأیید در {date}",
@@ -472,7 +473,7 @@
       "posterAlt": "پوستر نهایی تأییدشده برای {symbols} در بازهٔ {period}",
       "chartAlt": "نمودار اصلی تأییدشده برای {symbols} در بازهٔ {period}",
       "marketEvidence": "داده‌های تأییدشدهٔ بازار",
-      "marketWindow": "{status} · {scale}",
+      "marketWindow": "{status} · {scale} · تأیید {verified} · پوشش {window}",
       "factsCaption": "مقادیر تأییدشدهٔ بازار",
       "columns": {
         "series": "سری",
@@ -513,8 +514,6 @@
       "notSaved": "ذخیره‌نشده",
       "destinationReady": "حساب متصل است",
       "destinationUnavailable": "حساب در دسترس نیست",
-      "notPublished": "منتشرنشده",
-      "deliveryUnknown": "نتیجهٔ تحویل نامشخص",
       "openDraft": "بازکردن کپشن",
       "deliveryState": {
         "confirmed": "منتشرشده",
@@ -525,7 +524,39 @@
         "notPublished": "منتشر نشده"
       },
       "dimensions": "ابعاد",
-      "checksum": "چک‌سام",
+      "fileType": "نوع فایل",
+      "attribution": "منبع‌نگاری",
+      "provenance": "اصالت و چک‌سام‌ها",
+      "requestFingerprint": "اثرانگشت درخواست",
+      "snapshotId": "شناسهٔ اسنپ‌شات",
+      "chartFingerprint": "اثرانگشت نمودار",
+      "renderContract": "نسخهٔ قرارداد رندر نمودار",
+      "chartChecksum": "چک‌سام نمودار",
+      "storyFingerprint": "اثرانگشت متن",
+      "designFingerprint": "اثرانگشت چیدمان",
+      "imageOption": "گزینهٔ مدل تصویر",
+      "referenceKey": "کلید نمونه",
+      "referenceChecksum": "چک‌سام نمونه",
+      "lockupKey": "کلید قفل اطلاعاتی",
+      "lockupChecksum": "چک‌سام قفل اطلاعاتی",
+      "posterFingerprint": "اثرانگشت پوستر",
+      "posterChecksum": "چک‌سام پوستر",
+      "operationId": "عملیات تولید",
+      "templateFingerprint": "اثرانگشت قالب",
+      "catalogFingerprint": "اثرانگشت کاتالوگ",
+      "profileFingerprint": "اثرانگشت پروفایل توکن",
+      "approvedChartBy": "تأییدکنندهٔ نمودار",
+      "approvedStoryBy": "تأییدکنندهٔ متن",
+      "approvedDesignBy": "تأییدکنندهٔ چیدمان",
+      "approvedPosterBy": "تأییدکنندهٔ پوستر",
+      "completedBy": "تکمیل‌کننده",
+      "createdAt": "شروع",
+      "briefSource": "منبع خلاصه",
+      "briefSources": {
+        "model": "خلاصهٔ تولیدشده",
+        "deterministic_fallback": "خلاصهٔ قطعی"
+      },
+      "fallbackReason": "دلیل استفاده از خلاصهٔ قطعی",
       "view": "نمایش",
       "download": "دریافت",
       "integrity": {

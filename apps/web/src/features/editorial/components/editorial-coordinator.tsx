@@ -27,7 +27,6 @@ import {
 import { PanelLeftIcon, PlusIcon, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
-  startTransition,
   useEffect,
   useId,
   useRef,
@@ -252,10 +251,7 @@ export function EditorialCoordinator({
                     platform: card.platform,
                   });
                 }
-                void setValues(
-                  { draft: card.id },
-                  { shallow: true, startTransition },
-                );
+                void setValues({ draft: card.id });
               }}
               platformDraftLanes={platformDraftLanes}
               presentation={presentation}
@@ -317,7 +313,7 @@ export function EditorialCoordinator({
         imageModels={imageModels}
         onOpenChange={(open) => {
           if (!open) {
-            void setValues({ draft: null }, { shallow: true, startTransition });
+            void setValues({ draft: null });
           }
         }}
         open={values.draft !== null}

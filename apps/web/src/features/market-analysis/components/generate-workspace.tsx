@@ -52,7 +52,7 @@ import {
 } from "../actions/commands";
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
 import { useAdvanceOnApproval } from "../hooks/use-advance-on-approval";
-import { useMarketActionError } from "../lib/action-error";
+import { useMarketActionError } from "../hooks/use-market-action-error";
 import { findComposition } from "../lib/compositions";
 import { generateMarketAnalysisInputSchema } from "../schemas/commands";
 import type {

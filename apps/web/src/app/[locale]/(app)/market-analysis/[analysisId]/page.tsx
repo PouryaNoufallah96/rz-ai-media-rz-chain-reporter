@@ -8,7 +8,7 @@ export default function MarketAnalysisDetailPage({
 }: PageProps<"/[locale]/market-analysis/[analysisId]">) {
   if (!customerTemplate.marketAnalysis.enabled) notFound();
   return (
-    <main id="main-content">
+    <main id="main-content" tabIndex={-1}>
       <AnalysisScreen
         analysisId={params.then(({ analysisId }) => analysisId)}
         searchParams={searchParams}

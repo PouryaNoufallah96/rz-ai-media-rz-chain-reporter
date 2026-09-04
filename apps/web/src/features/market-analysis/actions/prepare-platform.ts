@@ -1,8 +1,5 @@
 "use server";
 
-import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
-import { updateTag } from "next/cache";
-
 import { withMutationRefresh } from "@/features/shared/with-mutation-refresh";
 import { createRequestContext } from "@/server/rpc/context";
 import { rpcDb } from "@/server/rpc/db";
@@ -12,30 +9,24 @@ import {
 } from "@/server/rpc/routers/market-analysis";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 
-import { updateMarketAnalysisTags } from "../db/cache/tags";
+import {
+  updateMarketCaptionTags,
+  updateMarketPlatformTags,
+} from "../db/cache/tags";
 
 const actionable = { context: createRequestContext } as const;
-
-async function updatePreparePlatformTags() {
-  const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
-  updateMarketAnalysisTags(workspaceId);
-  updateTag(workspaceCacheTag(workspaceId, "drafts"));
-  updateTag(workspaceCacheTag(workspaceId, "publishing"));
-}
-
-async function updateCaptionRetryTags() {
-  const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
-  updateMarketAnalysisTags(workspaceId);
-  updateTag(workspaceCacheTag(workspaceId, "drafts"));
-}
+const refreshMarketPlatform = async () =>
+  updateMarketPlatformTags(await resolveInstallationWorkspaceId(rpcDb()));
+const refreshMarketCaptions = async () =>
+  updateMarketCaptionTags(await resolveInstallationWorkspaceId(rpcDb()));
 
 export const prepareMarketPlatformAction = withMutationRefresh(
   preparePlatform.actionable(actionable),
-  updatePreparePlatformTags,
+  refreshMarketPlatform,
 );
 
 export const retryMarketCaptionsAction = withMutationRefresh(
   retryCaptions.actionable(actionable),
-  updateCaptionRetryTags,
+  refreshMarketCaptions,
   { refreshOnError: true },
 );

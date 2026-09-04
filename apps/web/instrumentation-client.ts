@@ -2,9 +2,11 @@ import * as Sentry from "@sentry/nextjs";
 
 import { scrubErrorEvent, scrubTransactionEvent } from "@/lib/sentry-privacy";
 
-if (typeof globalThis.crypto?.randomUUID !== "function") {
-  globalThis.crypto.randomUUID = () => {
-    const bytes = crypto.getRandomValues(new Uint8Array(16));
+const webCrypto = globalThis.crypto;
+// randomUUID is unavailable on insecure origins (LAN-IP dev).
+if (webCrypto && typeof webCrypto.randomUUID !== "function") {
+  webCrypto.randomUUID = () => {
+    const bytes = webCrypto.getRandomValues(new Uint8Array(16));
     bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
     bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
     const hex = Array.from(bytes, (byte) =>

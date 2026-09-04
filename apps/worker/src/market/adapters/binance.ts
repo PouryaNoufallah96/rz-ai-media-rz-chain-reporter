@@ -66,7 +66,6 @@ export function createBinanceAdapter(
           canonicalIdentity: `binance:${entry.symbol}`,
           displayName: `${entry.baseAsset}/${entry.quoteAsset}`,
           provider: "binance" as const,
-          providerMetadata: { quoteAsset: entry.quoteAsset },
           quoteAsset: entry.quoteAsset,
           symbol: entry.symbol,
           tradingStatus: entry.status,

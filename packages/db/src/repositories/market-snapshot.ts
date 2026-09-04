@@ -1,4 +1,3 @@
-import type { NormalizedMarketRequest } from "@rz-chain-reporter/contracts";
 import { and, eq } from "drizzle-orm";
 
 import type { Executor, Transaction } from "../executor";
@@ -90,5 +89,3 @@ export async function getMarketSnapshotWithSeries(
 
   return { snapshot, series };
 }
-
-export type MarketSnapshotRequest = NormalizedMarketRequest;

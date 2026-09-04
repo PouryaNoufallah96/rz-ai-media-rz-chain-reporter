@@ -1,3 +1,4 @@
+import { MARKET_ANALYSIS_STATUSES } from "@rz-chain-reporter/contracts";
 import {
   createLoader,
   type inferParserType,
@@ -10,7 +11,6 @@ import { z } from "zod";
 
 import { keysetCursorParam } from "@/features/shared/lib/keyset-cursor";
 
-export const MARKET_ANALYSIS_STATUSES = ["in_progress", "completed"] as const;
 export const MARKET_ANALYSIS_VIEWS = ["history"] as const;
 export const MARKET_ANALYSIS_STEPS = [
   "market",
@@ -23,7 +23,6 @@ export const MARKET_ANALYSIS_STEPS = [
 
 export const marketAnalysisSearchParsers = {
   status: parseAsStringLiteral(MARKET_ANALYSIS_STATUSES),
-  brand: parseAsString,
   q: parseAsString,
   cursor: parseAsString,
 };
@@ -57,7 +56,6 @@ export type MarketAnalysisSearchPatch = Partial<
 
 const marketAnalysisHistoryQuerySchema = z.strictObject({
   status: z.enum(MARKET_ANALYSIS_STATUSES).nullable().catch(null),
-  brand: z.uuid().nullable().catch(null),
   q: z.string().trim().min(1).max(120).nullable().catch(null),
   cursor: keysetCursorParam,
 });

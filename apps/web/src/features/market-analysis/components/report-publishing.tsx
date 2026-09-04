@@ -25,7 +25,7 @@ import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 
 import { prepareMarketPlatformAction } from "../actions/prepare-platform";
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
-import { useMarketActionError } from "../lib/action-error";
+import { useMarketActionError } from "../hooks/use-market-action-error";
 import type {
   MarketAnalysisOptionsProjection,
   MarketAnalysisReportLive,
@@ -42,7 +42,6 @@ type Handoff = MarketAnalysisReportLive["handoffs"][number];
 type HandoffDraft = Handoff["drafts"][number];
 
 type ReportSelectedDraft = {
-  analysisRunId: string | null;
   executionScope: MarketExecutionScopeTarget;
   lifecycle: OperationLifecycle;
   card: PlatformDraftExactCard;

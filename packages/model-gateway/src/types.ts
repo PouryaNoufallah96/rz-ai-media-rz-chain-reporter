@@ -104,7 +104,6 @@ export type ImageAdapterInput = {
   deadlineMs: number;
   model: string;
   prompt: string;
-  reference?: ImageReference;
   references?: readonly ImageReference[];
 };
 

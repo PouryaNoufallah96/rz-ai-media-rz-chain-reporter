@@ -94,6 +94,7 @@ function marketMediaFilename(
     input.symbols.join("-"),
     input.period,
     input.format,
+    input.role,
     input.analysisId.slice(0, 8),
   ]
     .map(filenamePart)

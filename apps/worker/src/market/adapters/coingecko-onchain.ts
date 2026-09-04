@@ -45,7 +45,7 @@ const ohlcvSchema = z.object({
     }),
   }),
 });
-export function selectOnchainPool(
+function selectOnchainPool(
   body: z.infer<typeof poolSchema>,
   mapping: Extract<MarketProviderMapping, { kind: "onchain_token" }>,
 ) {

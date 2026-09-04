@@ -72,7 +72,7 @@ function UsageReportSkeleton({ loadingLabel }: { loadingLabel: string }) {
             key={filter}
           >
             <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-8 w-full sm:w-32" />
+            <Skeleton className="h-11 w-full sm:h-8 sm:w-32" />
           </div>
         ))}
         <div className="ms-auto flex flex-wrap items-end gap-2">

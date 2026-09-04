@@ -97,7 +97,6 @@ const ACTIVITY_MARK = {
 } as const satisfies Record<ActivityEventType, StateMarkState>;
 
 type SelectedDraft = {
-  analysisRunId: string | null;
   executionScope: MarketExecutionScopeTarget;
   lifecycle: OperationLifecycle;
   card: PlatformDraftExactCard;

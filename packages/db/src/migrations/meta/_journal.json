@@ -302,6 +302,20 @@
       "when": 1788339333883,
       "tag": "0042_market_media_publishable",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1788460402318,
+      "tag": "0043_repair_market_analysis_foreign_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1788467452560,
+      "tag": "0044_market_generation_footer_lockup_pin",
+      "breakpoints": true
     }
   ]
 }

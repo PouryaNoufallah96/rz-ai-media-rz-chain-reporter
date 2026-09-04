@@ -257,26 +257,6 @@ async function main() {
   assert.equal(metadata.width, 64);
   assert.equal(metadata.height, 64);
 
-  const retry = {
-    epoch: 0,
-    liveWake: false,
-    receipt: null as string | null,
-  };
-  async function concurrentRetry(receipt: string) {
-    await Promise.resolve();
-    if (retry.epoch !== 0 || retry.liveWake) return "conflict" as const;
-    retry.epoch += 1;
-    retry.receipt = receipt;
-    retry.liveWake = true;
-    return "updated" as const;
-  }
-  const concurrent = await Promise.all([
-    concurrentRetry("receipt-a"),
-    concurrentRetry("receipt-b"),
-  ]);
-  assert.deepEqual([...concurrent].sort(), ["conflict", "updated"]);
-  assert.equal(retry.epoch, 1);
-
   const ledger = [
     { stage: "brief", invocationKey: "primary", status: "failed" },
     { stage: "brief", invocationKey: "retry-1", status: "failed" },
@@ -292,20 +272,17 @@ async function main() {
     `${JSON.stringify(
       {
         compositorChecksum: createHash("sha256").update(composed).digest("hex"),
-        concurrentRetry: concurrent,
-        finalizationRetryEpoch: retry.epoch,
         gatewayReferences: ["aesthetic-sample", "exact-chart"],
         ledger,
         policyVersion: MARKET_GENERATION_BRIEF_POLICY_VERSION,
         providerMode: "local-deterministic-stub",
         scenarios: [
-          "rejection-feed-forward-replay",
-          "fallback",
-          "ambiguity-refusal",
-          "superseded-attach",
-          "finalize-retry-from-stored-original",
-          "crash-boundary-re-entry",
-          "concurrent-retry",
+          "gateway-reference-bounds",
+          "slot-availability-and-ambiguity-refusal",
+          "brief-policy-rejection",
+          "deterministic-fallback",
+          "prompt-assembly",
+          "footer-rail-compositor",
         ],
         status: "pass",
       },

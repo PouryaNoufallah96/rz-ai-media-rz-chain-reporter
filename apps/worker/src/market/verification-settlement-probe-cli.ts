@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   MARKET_CHART_OUTPUT_DIMENSIONS,
   MARKET_CHART_RENDER_CONTRACT_VERSION,
+  MARKET_CHART_SPEC_SCHEMA_VERSION,
   MARKET_VERIFICATION_COMMAND_PREFIX,
   type MarketChartRenderInput,
   type MarketChartSpec,
@@ -37,6 +38,7 @@ import { asc, eq, inArray, sql } from "drizzle-orm";
 import { RetryAfterError } from "inngest";
 import { SafeHttpError } from "../fetch/safe-http";
 import {
+  loadMarketVerificationRequest,
   persistMarketVerification,
   settleFetchAttempt,
   settleOwnedMarketVerification,
@@ -86,7 +88,7 @@ const requestFingerprint = `request:${randomUUID()}`;
 const templateFingerprint = `template:${randomUUID()}`;
 const approvedAt = new Date("2026-08-31T00:00:00.000Z");
 const chartSpec = {
-  schemaVersion: 2,
+  schemaVersion: MARKET_CHART_SPEC_SCHEMA_VERSION,
   presetId: "probe",
   background: "#ffffff",
   seriesColors: { "controlled:probe": "#111111" },
@@ -432,6 +434,8 @@ async function executeProbeTransaction() {
       operatorDirection: "ltr",
       referenceSampleKey: "probe-reference",
       referenceSampleChecksum: "reference-checksum",
+      footerLockupKey: "probe-lockup",
+      footerLockupChecksum: "lockup-checksum",
       chartMediaAssetId,
       chartMediaChecksum: "checksum-0",
       outputWidth: 1080,
@@ -597,6 +601,44 @@ async function executeProbeTransaction() {
       acceptedChain,
     );
 
+    const supersededBeforeLoadIntentId = randomUUID();
+    const supersededBeforeLoad = await createVerificationOperation(
+      probeDatabase,
+      actor.id,
+      supersededBeforeLoadIntentId,
+      1,
+    );
+    await probeDatabase
+      .update(marketAnalysis)
+      .set({ verificationIntentId: randomUUID(), verificationIntentVersion: 1 })
+      .where(eq(marketAnalysis.id, analysisId));
+    const supersededBeforeLoadState = await loadMarketVerificationRequest(
+      probeDatabase,
+      workspaceId,
+      analysisId,
+      supersededBeforeLoad.id,
+    );
+    assert.equal(supersededBeforeLoadState.status, "superseded");
+    const supersededBeforeLoadSettled = await settleOwnedMarketVerification(
+      probeDatabase,
+      workspaceId,
+      supersededBeforeLoad.id,
+      commandOwner(supersededBeforeLoad.id),
+      "cancelled",
+    );
+    assert.equal(supersededBeforeLoadSettled?.lifecycle, "cancelled");
+    assert.equal(
+      await probeDatabase.$count(
+        marketSnapshot,
+        eq(marketSnapshot.operationId, supersededBeforeLoad.id),
+      ),
+      0,
+    );
+    assert.deepEqual(
+      downstreamState(await readAnalysis(probeDatabase)),
+      acceptedChain,
+    );
+
     const lateIntentId = randomUUID();
     const late = await createVerificationOperation(
       probeDatabase,
@@ -636,6 +678,17 @@ async function executeProbeTransaction() {
     assert.deepEqual(
       downstreamState(await readAnalysis(probeDatabase)),
       acceptedChain,
+    );
+    assert.equal(
+      (
+        await loadMarketVerificationRequest(
+          probeDatabase,
+          workspaceId,
+          analysisId,
+          winning.id,
+        )
+      ).status,
+      "current",
     );
     const won = await settleInput(
       probeDatabase,
@@ -953,8 +1006,7 @@ async function executeMixedGranularityTransaction() {
     const chartInput: MarketChartRenderInput = {
       renderContractVersion: MARKET_CHART_RENDER_CONTRACT_VERSION,
       contentLocale: "en",
-      outputFormat: "portrait",
-      dimensions: MARKET_CHART_OUTPUT_DIMENSIONS.portrait,
+      dimensions: MARKET_CHART_OUTPUT_DIMENSIONS.landscape,
       snapshot: {
         id: persisted.snapshot.id,
         checksum: createHash("sha256")
@@ -994,7 +1046,7 @@ async function executeMixedGranularityTransaction() {
         }),
       },
       spec: normalizeMarketChartSpec({
-        schemaVersion: 2,
+        schemaVersion: MARKET_CHART_SPEC_SCHEMA_VERSION,
         presetId: "custom",
         background: MARKET_CHART_PRESETS["color-blind-safe"].background,
         seriesColors: Object.fromEntries(
@@ -1380,7 +1432,7 @@ try {
     0,
   );
   console.log(
-    "market verification settlement probe local-db=true fixture-rollback=true initial-unverified-not-current=true failed-refresh-preserves-current=true failed-refresh-evidence=true admission-preserves=true failure-preserves=true cancellation-preserves=true success-atomic=true chart-spec-and-output-format-preserved=true downstream-artifacts-cleared=true detached-media-postcommit=true cleanup-scheduled=3 replay-safe=true stale-lease-safe=true supersession-safe=true late-settlement-safe=true mixed-granularity-window-owns-points=true mixed-granularity-chart-renderable=true rate-limited-series-settled=true rate-limited-snapshot-persisted=true rate-limited-retry-after-bounded=true status=pass",
+    "market verification settlement probe local-db=true fixture-rollback=true initial-unverified-not-current=true failed-refresh-preserves-current=true failed-refresh-evidence=true admission-preserves=true failure-preserves=true cancellation-preserves=true success-atomic=true chart-spec-and-output-format-preserved=true downstream-artifacts-cleared=true detached-media-postcommit=true cleanup-scheduled=3 replay-safe=true stale-lease-safe=true supersession-safe=true supersession-before-load-safe=true late-settlement-safe=true mixed-granularity-window-owns-points=true mixed-granularity-chart-renderable=true rate-limited-series-settled=true rate-limited-snapshot-persisted=true rate-limited-retry-after-bounded=true status=pass",
   );
 } finally {
   await database.close();

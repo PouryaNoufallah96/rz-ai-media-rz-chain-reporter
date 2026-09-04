@@ -9,7 +9,6 @@ import { marketRequestSelectionSchema } from "./create";
 const analysisId = z.uuid();
 const expectedVersion = z.int().positive();
 const idempotencyKey = z.string().trim().min(1).max(200);
-const normalizedText = z.string().trim().min(1);
 const modelOptionKey = z.string().trim().min(1).max(80);
 
 export const MARKET_STORY_HEADLINE_MAX = 80;
@@ -20,11 +19,11 @@ const ownedAnalysisInput = z.strictObject({
   expectedVersion,
 });
 
-export const updateMarketRequestInputSchema =
-  marketRequestSelectionSchema.safeExtend(ownedAnalysisInput.shape);
 export const effectfulAnalysisInputSchema = ownedAnalysisInput.extend({
   idempotencyKey,
 });
+export const updateMarketRequestInputSchema =
+  marketRequestSelectionSchema.safeExtend(effectfulAnalysisInputSchema.shape);
 export const generateMarketAnalysisInputSchema =
   effectfulAnalysisInputSchema.extend({
     operatorDirection: operatorImageDirectionSchema,
@@ -34,10 +33,18 @@ export const approveChartInputSchema = effectfulAnalysisInputSchema.extend({
   chartSpec: marketChartSpecSchema,
 });
 export const approveStoryInputSchema = ownedAnalysisInput.extend({
-  headline: normalizedText.max(MARKET_STORY_HEADLINE_MAX),
-  supportingText: normalizedText.max(MARKET_STORY_TEXT_MAX),
+  headline: z
+    .string()
+    .trim()
+    .min(1, { error: "MARKET_STORY_HEADLINE_REQUIRED" })
+    .max(MARKET_STORY_HEADLINE_MAX),
+  supportingText: z
+    .string()
+    .trim()
+    .min(1, { error: "MARKET_STORY_TEXT_REQUIRED" })
+    .max(MARKET_STORY_TEXT_MAX),
 });
-export const approveDesignInputSchema = effectfulAnalysisInputSchema.extend({
+export const approveDesignInputSchema = ownedAnalysisInput.extend({
   familyKey: z.string().trim().min(1).max(80),
   variantKey: z.string().trim().min(1).max(80),
 });

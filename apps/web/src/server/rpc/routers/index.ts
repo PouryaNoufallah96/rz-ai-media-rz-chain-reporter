@@ -28,7 +28,6 @@ import {
   saveChartDefault as saveMarketChartDefault,
   searchComparisons as searchMarketComparisons,
   updateMarketRequest,
-  verify as verifyMarketAnalysis,
 } from "./market-analysis";
 import { confirm, createIntent } from "./media";
 import { list } from "./operations";
@@ -79,7 +78,6 @@ export const appRouter = {
     saveChartDefault: saveMarketChartDefault,
     searchComparisons: searchMarketComparisons,
     updateMarketRequest,
-    verify: verifyMarketAnalysis,
   },
   operations: { list },
   publishing: {

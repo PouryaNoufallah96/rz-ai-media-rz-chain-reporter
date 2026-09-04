@@ -1,6 +1,6 @@
 import type { InvocationKey, UsageStatus } from "@rz-chain-reporter/contracts";
 
-export type SlotUsage = { invocationKey: InvocationKey; status: UsageStatus };
+type SlotUsage = { invocationKey: InvocationKey; status: UsageStatus };
 
 export function nextInvocationSlot(
   slots: readonly InvocationKey[],

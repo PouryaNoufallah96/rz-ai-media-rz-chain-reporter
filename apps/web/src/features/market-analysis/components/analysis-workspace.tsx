@@ -2,10 +2,10 @@
 
 import { OPERATION_IN_PROGRESS_LIFECYCLES } from "@rz-chain-reporter/contracts";
 import { useTranslations } from "next-intl";
-import { useQueryStates } from "nuqs";
 import { useEffect, useState } from "react";
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
 import {
@@ -62,9 +62,10 @@ export function AnalysisWorkspace({
   const [pendingStep, setPendingStep] = useState<MarketAnalysisStep | null>(
     null,
   );
-  const [values, setValues] = useQueryStates(analysisStepSearchParsers, {
-    history: "push",
-  });
+  const { isPending, setValues, values } = useTransitionUrlState(
+    analysisStepSearchParsers,
+    { history: "push" },
+  );
   const [requestedStep] = useState(() => values.step);
   const reachable = reachableSteps(analysis);
   const completed = completedSteps(analysis);
@@ -114,6 +115,7 @@ export function AnalysisWorkspace({
         }}
         loading={loading}
         onStep={selectStep}
+        pending={isPending}
         reachable={reachable}
         selected={selected}
         sidebar={

@@ -27,7 +27,6 @@ import { CheckIcon, InfoIcon, PaletteIcon, XIcon } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import {
-  type BaseSyntheticEvent,
   type ComponentProps,
   type ComponentType,
   type ReactNode,
@@ -56,20 +55,8 @@ import type {
 import { AnalysisFooter } from "./analysis-footer";
 
 const MARKET_SETUP_FORM_ID = "market-setup-form";
-const MARKET_SETUP_CONTINUE_INTENT = "continue";
 const SETTING_FIELD_CLASS =
   "min-w-0 [&_[data-slot=toggle-group]]:w-full [&_[data-slot=toggle-group-item]]:flex-1";
-
-export function continueAfterFetch(event: BaseSyntheticEvent | undefined) {
-  const submitter =
-    event?.nativeEvent instanceof SubmitEvent
-      ? event.nativeEvent.submitter
-      : null;
-  return (
-    submitter instanceof HTMLButtonElement &&
-    submitter.value === MARKET_SETUP_CONTINUE_INTENT
-  );
-}
 
 type Instrument = MarketAnalysisOptionsProjection["instruments"][number];
 type ResolveError = (code: string | undefined) => string;
@@ -155,7 +142,6 @@ export function MarketSetupForm({
         pending={pending}
         pendingLabel={t("create.fetching")}
         primaryLabel={t("market.fetchAndContinue")}
-        primaryValue={MARKET_SETUP_CONTINUE_INTENT}
       />
     </>
   );
@@ -660,17 +646,6 @@ function WindowSettings({
         }))}
         resolveError={resolveError}
       />
-      <Button
-        className="col-span-full"
-        disabled={pending}
-        type="submit"
-        variant="secondary"
-      >
-        {pending ? (
-          <Spinner data-icon="inline-start" label={t("create.fetching")} />
-        ) : null}
-        {pending ? t("create.fetching") : t("create.fetchPrices")}
-      </Button>
     </div>
   );
 }

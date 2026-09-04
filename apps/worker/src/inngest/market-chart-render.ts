@@ -5,7 +5,7 @@ import {
   MARKET_CHART_RENDER_CONTRACT_VERSION,
   MARKET_CHART_RENDER_MEDIA_KIND,
   type MarketChartRenderInput,
-  persistedMarketChartSpecSchema,
+  marketChartSpecSchema,
 } from "@rz-chain-reporter/contracts";
 import { withWorkspaceContext } from "@rz-chain-reporter/db/executor";
 import { getMarketAnalysis } from "@rz-chain-reporter/db/repositories/market-analysis";
@@ -30,7 +30,7 @@ import { notifyMarketAnalysisChanged } from "../web-cache/market-analysis";
 import type { WorkerInngestClient } from "./client";
 import { durableEvents } from "./events";
 import {
-  compensateMarketChartRender,
+  compensateProviderOriginal,
   prepareMarketChartRender,
   workerStorage,
 } from "./media-storage";
@@ -112,12 +112,7 @@ async function loadRenderInput(
   ) {
     throw new NonRetriableError("market chart snapshot is not renderable");
   }
-  const spec = persistedMarketChartSpecSchema.parse(analysis.currentChartSpec);
-  const market = runtime.template.marketAnalysis;
-  if (!market.enabled) {
-    throw new NonRetriableError("MARKET_ANALYSIS_DISABLED");
-  }
-  const outputFormat = analysis.outputFormat ?? market.defaults.outputFormat;
+  const spec = marketChartSpecSchema.parse(analysis.currentChartSpec);
   const byIdentity = new Map(
     analysis.normalizedRequest.series.map((series) => [
       series.descriptorIdentity,
@@ -182,8 +177,7 @@ async function loadRenderInput(
     input: {
       renderContractVersion: MARKET_CHART_RENDER_CONTRACT_VERSION,
       contentLocale: analysis.contentLocale,
-      outputFormat,
-      dimensions: MARKET_CHART_OUTPUT_DIMENSIONS[outputFormat],
+      dimensions: MARKET_CHART_OUTPUT_DIMENSIONS.landscape,
       snapshot: {
         id: snapshot.snapshot.id,
         checksum: snapshotChecksum,
@@ -260,7 +254,7 @@ async function compensateChartObject(
   operationId: string,
   key: string,
 ) {
-  const result = await compensateMarketChartRender(workerStorage(), key);
+  const result = await compensateProviderOriginal(workerStorage(), key);
   if (result.status === "uncertain") {
     workerLogger.warn("worker.market-chart.cleanup-deferred", {
       operationId,
@@ -626,7 +620,7 @@ export function createMarketChartRenderFunctions(
       triggers: [
         {
           event: "inngest/function.cancelled",
-          expression: `event.data.function_id == '${FUNCTION_ID}'`,
+          if: `event.data.function_id == '${client.id}-${FUNCTION_ID}'`,
         },
       ],
     },

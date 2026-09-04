@@ -236,7 +236,6 @@ export function useCopyVariantRevisionCommands({
     },
     confirmSelection,
     effectsBlocked,
-    isSubmitting,
     removeImage,
     requestSelection,
     resolveError,
@@ -369,7 +368,9 @@ export function CopyVariantSelector({
                   </span>
                 </Button>
                 {candidateMeta ? (
-                  <span className="absolute end-2 top-2">{candidateMeta}</span>
+                  <span className="absolute inset-e-2 top-2">
+                    {candidateMeta}
+                  </span>
                 ) : null}
               </li>
             );

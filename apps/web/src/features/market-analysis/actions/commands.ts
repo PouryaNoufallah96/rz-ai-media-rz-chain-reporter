@@ -1,7 +1,6 @@
 "use server";
 
 import { withMutationRefresh } from "@/features/shared/with-mutation-refresh";
-import { webLogger } from "@/lib/logger";
 import { createRequestContext } from "@/server/rpc/context";
 import { rpcDb } from "@/server/rpc/db";
 import {
@@ -16,7 +15,6 @@ import {
   retryGenerationFinalization,
   saveChartDefault,
   updateMarketRequest,
-  verify,
 } from "@/server/rpc/routers/market-analysis";
 import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 
@@ -26,30 +24,13 @@ const actionable = { context: createRequestContext } as const;
 const refreshMarketAnalysis = async () =>
   updateMarketAnalysisTags(await resolveInstallationWorkspaceId(rpcDb()));
 
-const createMarketAnalysis = create.actionable(actionable);
-
-export async function createMarketAnalysisAction(
-  ...args: Parameters<typeof createMarketAnalysis>
-) {
-  const result = await createMarketAnalysis(...args);
-  if (!result[0]) {
-    try {
-      await refreshMarketAnalysis();
-    } catch {
-      webLogger.error("post_commit_refresh_failed", {
-        outcome: "mutation_committed",
-      });
-    }
-  }
-  return result;
-}
+export const createMarketAnalysisAction = withMutationRefresh(
+  create.actionable(actionable),
+  refreshMarketAnalysis,
+);
 
 export const updateMarketRequestAction = withMutationRefresh(
   updateMarketRequest.actionable(actionable),
-  refreshMarketAnalysis,
-);
-export const verifyMarketAnalysisAction = withMutationRefresh(
-  verify.actionable(actionable),
   refreshMarketAnalysis,
 );
 export const approveMarketChartAction = withMutationRefresh(

@@ -18,7 +18,6 @@ export function AnalysisFooter({
   pending = false,
   pendingLabel,
   primaryLabel,
-  primaryValue,
 }: {
   disabled?: boolean;
   form?: string;
@@ -27,7 +26,6 @@ export function AnalysisFooter({
   pending?: boolean;
   pendingLabel?: string;
   primaryLabel: string;
-  primaryValue?: string;
 }) {
   const t = useTranslations(MARKET_ANALYSIS_NAMESPACE);
   const slot = useAnalysisFooterSlot();
@@ -54,7 +52,6 @@ export function AnalysisFooter({
         onClick={onPrimary}
         paused={pending}
         type={form ? "submit" : "button"}
-        value={primaryValue}
       >
         {pending ? (
           <Spinner data-icon="inline-start" label={pendingLabel} />

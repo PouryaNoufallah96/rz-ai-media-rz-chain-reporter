@@ -434,14 +434,6 @@ function readDeclaredReferences(
           "MARKET_RASTER_INVALID",
           "Market raster",
         );
-      } else if (reference.kind === "market-composition") {
-        parseSidecar(
-          reference.path,
-          bytes,
-          marketCompositionCatalogSchema,
-          "MARKET_COMPOSITION_INVALID",
-          "Market composition catalog",
-        );
       } else if (reference.kind === "market-instrument-profile") {
         parseSidecar(
           reference.path,

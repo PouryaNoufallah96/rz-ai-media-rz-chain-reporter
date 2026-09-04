@@ -4141,7 +4141,10 @@ async function proveStaleImageOperations(
   );
   assert.equal(change?.code, "failed");
   assert.equal(change?.platformDraftId, fixture.platformDraftId);
-  assert.ok(change?.analysisRunId);
+  if (change?.kind !== "draft") {
+    throw new Error("STALE_FRESHNESS_CHANGE_NOT_DRAFT");
+  }
+  assert.ok(change.analysisRunId);
 }
 
 class DeterministicImageAdapter implements RemoteModelAdapter {
@@ -4168,12 +4171,13 @@ class DeterministicImageAdapter implements RemoteModelAdapter {
 
   async generateImage(input: ImageAdapterInput) {
     this.imageCalls += 1;
+    const reference = input.references?.[0];
     this.references.push(
-      input.reference
-        ? createHash("sha256").update(input.reference.bytes).digest("hex")
+      reference
+        ? createHash("sha256").update(reference.bytes).digest("hex")
         : null,
     );
-    this.referenceMimeTypes.push(input.reference?.mimeType ?? null);
+    this.referenceMimeTypes.push(reference?.mimeType ?? null);
     return {
       bytes: LOCAL_PNG,
       mimeType: "image/png",

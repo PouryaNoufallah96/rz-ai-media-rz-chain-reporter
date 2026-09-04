@@ -54,7 +54,6 @@ async function readCachedMarketAnalysisOptions(
       : [];
   });
   const clientOptions = {
-    brands: persisted.brands,
     instruments: persisted.instruments.flatMap((instrument) => {
       const configured = marketInstrumentTemplate(instrument.key);
       return configured

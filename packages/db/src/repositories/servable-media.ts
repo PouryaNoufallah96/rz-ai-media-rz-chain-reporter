@@ -36,20 +36,6 @@ export async function findServableMedia(
         eq(imageGeneration.workspaceId, mediaAsset.workspaceId),
       ),
     )
-    .leftJoin(
-      marketAnalysis,
-      and(
-        eq(marketAnalysis.currentFinalMediaAssetId, mediaAsset.id),
-        eq(marketAnalysis.workspaceId, mediaAsset.workspaceId),
-      ),
-    )
-    .leftJoin(
-      marketAnalysisHandoff,
-      and(
-        eq(marketAnalysisHandoff.finalMediaAssetId, mediaAsset.id),
-        eq(marketAnalysisHandoff.workspaceId, mediaAsset.workspaceId),
-      ),
-    )
     .where(
       and(
         inWorkspace(mediaAsset, workspaceId),
@@ -60,11 +46,7 @@ export async function findServableMedia(
           eq(mediaAsset.kind, MARKET_GENERATION_FINAL_MEDIA_KIND),
           and(
             eq(mediaAsset.kind, "image_final"),
-            or(
-              isNotNull(imageGeneration.operationId),
-              isNotNull(marketAnalysis.id),
-              isNotNull(marketAnalysisHandoff.id),
-            ),
+            isNotNull(imageGeneration.operationId),
           ),
         ),
         eq(mediaAsset.lifecycle, "verified"),

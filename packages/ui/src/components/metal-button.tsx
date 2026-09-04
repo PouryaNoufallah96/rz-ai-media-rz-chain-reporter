@@ -68,7 +68,6 @@ function MetalButton({
     getReducedMotionSnapshot,
     getReducedMotionServerSnapshot,
   );
-  const icon = typeof size === "string" && size.startsWith("icon");
 
   return (
     <MetalFx
@@ -80,11 +79,11 @@ function MetalButton({
       ringCssPx={2}
       strength={strength}
       theme={isLight ? "light" : "dark"}
-      variant={icon ? "circle" : "button"}
+      variant="button"
     >
       <Button
         className={cn(
-          "rounded-full font-semibold",
+          "font-semibold",
           isLight ? "text-foreground" : "text-primary-foreground",
           className,
         )}

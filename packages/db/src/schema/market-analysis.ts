@@ -1,6 +1,7 @@
 import type {
   ErrorCode,
   MarketProviderMapping,
+  MarketVerifiedFacts,
   NormalizedMarketRequest,
 } from "@rz-chain-reporter/contracts";
 import { type SQLWrapper, sql } from "drizzle-orm";
@@ -11,6 +12,7 @@ import {
   index,
   integer,
   jsonb,
+  type PgTableExtraConfigValue,
   pgTable,
   text,
   timestamp,
@@ -32,6 +34,7 @@ import {
   uuidPrimaryKey,
   workspaceScope,
 } from "./helpers";
+import { marketSnapshot } from "./market-snapshot";
 import { mediaAsset } from "./media-asset";
 import { mediaBrand } from "./media-brand";
 import { operation } from "./operation";
@@ -207,7 +210,7 @@ export const marketAnalysis = pgTable(
     completedBy: text("completed_by"),
     ...timestamps,
   },
-  (t) => [
+  (t): PgTableExtraConfigValue[] => [
     foreignKey({
       name: "fk_market_analysis_workspace_id",
       columns: [t.workspaceId],
@@ -229,9 +232,24 @@ export const marketAnalysis = pgTable(
       foreignColumns: [marketInstrument.id],
     }).onDelete("restrict"),
     foreignKey({
+      name: "fk_market_analysis_current_snapshot_id",
+      columns: [t.currentSnapshotId],
+      foreignColumns: [marketSnapshot.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "fk_market_analysis_current_chart_render_id",
+      columns: [t.currentChartRenderId],
+      foreignColumns: [marketChartRender.id],
+    }).onDelete("restrict"),
+    foreignKey({
       name: "fk_market_analysis_current_chart_media_asset_id",
       columns: [t.currentChartMediaAssetId],
       foreignColumns: [mediaAsset.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "fk_market_analysis_current_generation_id",
+      columns: [t.currentGenerationId],
+      foreignColumns: [marketGeneration.id],
     }).onDelete("restrict"),
     foreignKey({
       name: "fk_market_analysis_current_final_media_asset_id",
@@ -326,7 +344,7 @@ export const marketChartRender = pgTable(
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     ...timestamps,
   },
-  (t) => [
+  (t): PgTableExtraConfigValue[] => [
     foreignKey({
       name: "fk_market_chart_render_workspace_id",
       columns: [t.workspaceId],
@@ -416,6 +434,8 @@ export const marketGeneration = pgTable(
     policyRejections: jsonb("policy_rejections"),
     referenceSampleKey: text("reference_sample_key").notNull(),
     referenceSampleChecksum: text("reference_sample_checksum").notNull(),
+    footerLockupKey: text("footer_lockup_key").notNull(),
+    footerLockupChecksum: text("footer_lockup_checksum").notNull(),
     chartMediaAssetId: uuid("chart_media_asset_id").notNull(),
     chartMediaChecksum: text("chart_media_checksum").notNull(),
     outputWidth: integer("output_width").notNull(),
@@ -509,7 +529,9 @@ export const marketAnalysisHandoff = pgTable(
     contentLocale: contentLocale("content_locale").notNull(),
     storyHeadline: text("story_headline").notNull(),
     storySupportingText: text("story_supporting_text").notNull(),
-    verifiedFacts: jsonb("verified_facts").notNull(),
+    verifiedFacts: jsonb("verified_facts")
+      .$type<MarketVerifiedFacts>()
+      .notNull(),
     templateFingerprint: text("template_fingerprint").notNull(),
     catalogFingerprint: text("catalog_fingerprint").notNull(),
     instrumentProfileFingerprint: text(
@@ -539,6 +561,11 @@ export const marketAnalysisHandoff = pgTable(
       name: "fk_market_analysis_handoff_market_analysis_id",
       columns: [t.marketAnalysisId],
       foreignColumns: [marketAnalysis.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "fk_market_analysis_handoff_market_snapshot_id",
+      columns: [t.marketSnapshotId],
+      foreignColumns: [marketSnapshot.id],
     }).onDelete("restrict"),
     foreignKey({
       name: "fk_market_analysis_handoff_media_brand_id",

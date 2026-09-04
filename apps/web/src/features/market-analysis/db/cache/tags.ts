@@ -11,3 +11,14 @@ export const marketAnalysisTags = {
 export function updateMarketAnalysisTags(workspaceId: string) {
   updateTag(marketAnalysisTags.reads(workspaceId));
 }
+
+export function updateMarketPlatformTags(workspaceId: string) {
+  updateMarketAnalysisTags(workspaceId);
+  updateTag(workspaceCacheTag(workspaceId, "drafts"));
+  updateTag(workspaceCacheTag(workspaceId, "publishing"));
+}
+
+export function updateMarketCaptionTags(workspaceId: string) {
+  updateMarketAnalysisTags(workspaceId);
+  updateTag(workspaceCacheTag(workspaceId, "drafts"));
+}

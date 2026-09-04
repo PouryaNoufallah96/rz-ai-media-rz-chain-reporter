@@ -14,6 +14,11 @@ import {
   CardFooter,
   CardHeader,
 } from "@rz-chain-reporter/ui/components/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@rz-chain-reporter/ui/components/collapsible";
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
 import {
   Table,
@@ -26,6 +31,7 @@ import {
 } from "@rz-chain-reporter/ui/components/table";
 import {
   AlertTriangleIcon,
+  ChevronDownIcon,
   DownloadIcon,
   ExternalLinkIcon,
 } from "lucide-react";
@@ -38,7 +44,11 @@ import { currentLocale, getFormatter, getT } from "@/i18n/server";
 
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
 import { formatMarketAmount, formatMarketChange } from "../lib/format";
-import { warningMessage } from "../lib/snapshot";
+import {
+  failureMessage,
+  warningMessage,
+  warningRecords,
+} from "../lib/snapshot";
 import type {
   MarketAnalysisReportCore,
   MarketAnalysisReportLive,
@@ -89,13 +99,21 @@ export async function MarketAnalysisReport({
         />
         <Artifact
           alt={t("report.chartAlt", { symbols, period: core.snapshot.period })}
+          attribution={core.chart.attribution}
           integrity={mediaIntegrity(live, "chart", core.chart.media.id)}
           label={t("report.canonicalChart")}
           media={core.chart.media}
+          spec={core.chart.spec}
           t={t}
         />
       </section>
-      <MarketEvidence core={core} format={format} locale={locale} t={t} />
+      <MarketEvidence
+        core={core}
+        dateTime={dateTime}
+        format={format}
+        locale={locale}
+        t={t}
+      />
       <div className="grid gap-4 xl:grid-cols-2">
         <ReportSection
           footer={t("report.approvedAt", {
@@ -153,6 +171,7 @@ export async function MarketAnalysisReport({
           )}
         </Suspended>
       </ReportSection>
+      <ReportProvenance core={core} dateTime={dateTime} t={t} />
     </article>
   );
 }
@@ -205,15 +224,19 @@ function ReportHeader({
 
 function Artifact({
   alt,
+  attribution,
   integrity,
   label,
   media,
+  spec,
   t,
 }: {
   alt: string;
+  attribution?: readonly string[];
   integrity: Promise<MarketMediaIntegrity>;
   label: string;
   media: ReportMedia;
+  spec?: ReportCore["chart"]["spec"];
   t: Translate;
 }) {
   const href = `/api/media/${media.id}`;
@@ -231,18 +254,27 @@ function Artifact({
       }
       title={label}
     >
-      <Image
-        alt={alt}
-        className="h-auto max-h-[44rem] w-full rounded-lg border object-contain"
-        height={media.height}
-        loading="eager"
-        src={href}
-        unoptimized
-        width={media.width}
-      />
-      <Suspended data={integrity} fallback={null}>
+      <Suspended
+        data={integrity}
+        fallback={
+          <Skeleton
+            className="max-h-176 w-full rounded-lg"
+            style={{ aspectRatio: `${media.width} / ${media.height}` }}
+          />
+        }
+      >
         {(current) =>
-          current === "available" ? null : (
+          current === "available" ? (
+            <Image
+              alt={alt}
+              className="h-auto max-h-176 w-full rounded-lg border object-contain"
+              height={media.height}
+              loading="eager"
+              src={href}
+              unoptimized
+              width={media.width}
+            />
+          ) : (
             <p className="text-muted-foreground text-xs">
               {t(`report.integrityBody.${current}`)}
             </p>
@@ -250,37 +282,76 @@ function Artifact({
         }
       </Suspended>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <dl className="text-xs">
+        <dl className="grid compact:grid-cols-2 gap-3 text-xs">
           <Fact label={t("report.dimensions")}>
             <Bdi>
               {media.width} × {media.height}
             </Bdi>
           </Fact>
+          <Fact label={t("report.fileType")}>
+            <Bdi dir="ltr">{media.mimeType}</Bdi>
+          </Fact>
+          {attribution && attribution.length > 0 ? (
+            <Fact label={t("report.attribution")}>
+              <Bdi dir="ltr">{attribution.join(" · ")}</Bdi>
+            </Fact>
+          ) : null}
+          {spec ? (
+            <>
+              <Fact label={t("chart.legendPosition")}>
+                {t(`chart.legendPositions.${spec.legendPosition}`)}
+              </Fact>
+              <Fact label={t("chart.legendFormat")}>
+                {t(`chart.legendFormats.${spec.legendFormat}`)}
+              </Fact>
+              <Fact label={t("chart.lineWidth")}>
+                {t("chart.lineWidthValue", { value: spec.lineWidth })}
+              </Fact>
+              <Fact label={t("chart.markers")}>
+                {t(`chart.markerOptions.${spec.markers}`)}
+              </Fact>
+              <Fact label={t("chart.gridStrength")}>
+                {t(`chart.gridStrengths.${spec.gridStrength}`)}
+              </Fact>
+            </>
+          ) : null}
         </dl>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            nativeButton={false}
-            render={
-              <a href={href} rel="noreferrer" target="_blank">
-                <ExternalLinkIcon aria-hidden="true" data-icon="inline-start" />
-                {t("report.view")}
-              </a>
-            }
-            size="sm"
-            variant="outline"
-          />
-          <Button
-            nativeButton={false}
-            render={
-              <a href={`${href}?download=1`}>
-                <DownloadIcon aria-hidden="true" data-icon="inline-start" />
-                {t("report.download")}
-              </a>
-            }
-            size="sm"
-            variant="outline"
-          />
-        </div>
+        <Suspended data={integrity} fallback={null}>
+          {(current) =>
+            current === "available" ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  nativeButton={false}
+                  render={
+                    <a href={href} rel="noreferrer" target="_blank">
+                      <ExternalLinkIcon
+                        aria-hidden="true"
+                        data-icon="inline-start"
+                      />
+                      {t("report.view")}
+                    </a>
+                  }
+                  size="sm"
+                  variant="outline"
+                />
+                <Button
+                  nativeButton={false}
+                  render={
+                    <a href={`${href}?download=1`}>
+                      <DownloadIcon
+                        aria-hidden="true"
+                        data-icon="inline-start"
+                      />
+                      {t("report.download")}
+                    </a>
+                  }
+                  size="sm"
+                  variant="outline"
+                />
+              </div>
+            ) : null
+          }
+        </Suspended>
       </div>
     </ReportSection>
   );
@@ -288,18 +359,21 @@ function Artifact({
 
 function MarketEvidence({
   core,
+  dateTime,
   format,
   locale,
   t,
 }: {
   core: ReportCore;
+  dateTime: (value: Date) => string;
   format: Format;
   locale: Awaited<ReturnType<typeof currentLocale>>;
   t: Translate;
 }) {
-  const warnings = [...new Set(core.snapshot.warnings)];
+  const warnings = warningRecords(core.snapshot.id, core.snapshot.warnings);
   const columns = [
     "series",
+    "provider",
     "window",
     "start",
     "end",
@@ -311,6 +385,12 @@ function MarketEvidence({
       description={t("report.marketWindow", {
         status: t(`report.snapshotStatus.${core.snapshot.status}`),
         scale: t(`create.scales.${core.normalizedRequest.scale}`),
+        verified: dateTime(core.snapshot.fetchCompletedAt),
+        window: coverageWindow(
+          core.snapshot.effectiveWindowStart,
+          core.snapshot.effectiveWindowEnd,
+          format,
+        ),
       })}
       title={t("report.marketEvidence")}
     >
@@ -321,14 +401,14 @@ function MarketEvidence({
           <AlertDescription>
             <ul className="grid gap-1">
               {warnings.map((warning) => (
-                <li key={warning}>{warningMessage(t, warning)}</li>
+                <li key={warning.key}>{warningMessage(t, warning.code)}</li>
               ))}
             </ul>
           </AlertDescription>
         </Alert>
       ) : null}
       <div className="overflow-hidden rounded-lg border">
-        <Table className="min-w-[44rem]">
+        <Table className="min-w-208">
           <TableCaption className="sr-only">
             {t("report.factsCaption")}
           </TableCaption>
@@ -344,6 +424,17 @@ function MarketEvidence({
               <TableRow key={series.descriptorIdentity}>
                 <TableCell>
                   <Bdi>{seriesLabel(core, series.descriptorIdentity)}</Bdi>
+                </TableCell>
+                <TableCell>
+                  <Bdi dir="ltr">{series.provider ?? "—"}</Bdi>
+                  {series.providerReference ? (
+                    <Bdi
+                      className="block break-all font-mono text-muted-foreground text-xs"
+                      dir="ltr"
+                    >
+                      {series.providerReference}
+                    </Bdi>
+                  ) : null}
                 </TableCell>
                 <TableCell>
                   {coverageWindow(
@@ -363,6 +454,23 @@ function MarketEvidence({
                 </TableCell>
                 <TableCell>
                   {t(`report.seriesState.${series.outcome}`)}
+                  {series.outcome === "succeeded" ? null : (
+                    <span className="block text-muted-foreground text-xs">
+                      {failureMessage(t, series.failureCode)}
+                    </span>
+                  )}
+                  {series.warnings.length > 0 ? (
+                    <ul className="mt-1 grid gap-1 text-muted-foreground text-xs">
+                      {warningRecords(
+                        series.descriptorIdentity,
+                        series.warnings,
+                      ).map((warning) => (
+                        <li key={warning.key}>
+                          {warningMessage(t, warning.code)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </TableCell>
               </TableRow>
             ))}
@@ -370,6 +478,103 @@ function MarketEvidence({
         </Table>
       </div>
     </ReportSection>
+  );
+}
+
+function ReportProvenance({
+  core,
+  dateTime,
+  t,
+}: {
+  core: ReportCore;
+  dateTime: (value: Date) => string;
+  t: Translate;
+}) {
+  const entries: readonly (readonly [string, string])[] = [
+    [t("report.analysisId"), core.id],
+    [t("report.requestFingerprint"), core.requestFingerprint],
+    [t("report.snapshotId"), core.snapshot.id],
+    [t("report.chartFingerprint"), core.chart.fingerprint],
+    [t("report.renderContract"), core.chart.renderContractVersion],
+    [t("report.chartChecksum"), core.chart.media.checksum],
+    [t("report.storyFingerprint"), core.story.fingerprint],
+    [t("report.designFingerprint"), core.design.fingerprint],
+    [t("report.imageOption"), core.design.imageOptionKey],
+    [t("report.referenceKey"), core.design.referenceSampleKey],
+    [t("report.referenceChecksum"), core.design.referenceSampleChecksum],
+    [t("report.lockupKey"), core.design.footerLockupKey],
+    [t("report.lockupChecksum"), core.design.footerLockupChecksum],
+    [t("report.posterFingerprint"), core.final.fingerprint],
+    [t("report.posterChecksum"), core.final.media.checksum],
+    [t("report.operationId"), core.final.operationId],
+    [t("report.templateFingerprint"), core.fingerprints.template],
+    [t("report.catalogFingerprint"), core.fingerprints.catalog ?? "—"],
+    [t("report.profileFingerprint"), core.fingerprints.instrumentProfile],
+    [
+      t("report.approvedChartBy"),
+      `${core.chart.approvedBy} · ${dateTime(core.chart.approvedAt)}`,
+    ],
+    [
+      t("report.approvedStoryBy"),
+      `${core.story.approvedBy} · ${dateTime(core.story.approvedAt)}`,
+    ],
+    [
+      t("report.approvedDesignBy"),
+      `${core.design.approvedBy} · ${dateTime(core.design.approvedAt)}`,
+    ],
+    [
+      t("report.approvedPosterBy"),
+      `${core.final.approvedBy} · ${dateTime(core.final.approvedAt)}`,
+    ],
+    [
+      t("report.completedBy"),
+      `${core.completedBy} · ${dateTime(core.completedAt)}`,
+    ],
+  ];
+  const fallbackReason =
+    core.final.fallbackCode === "MODEL_INVOCATION_FAILED" ||
+    core.final.fallbackCode === "STRUCTURED_OUTPUT_INVALID"
+      ? t(`generate.fallback.${core.final.fallbackCode}`)
+      : t("generate.fallback.generic");
+  return (
+    <Collapsible className="rounded-xl border bg-card text-muted-foreground">
+      <CollapsibleTrigger
+        render={
+          <Button
+            className="group h-auto w-full justify-between whitespace-normal px-4 py-3 text-start"
+            variant="ghost"
+          />
+        }
+      >
+        <span className="text-xs">{t("report.provenance")}</span>
+        <ChevronDownIcon
+          aria-hidden="true"
+          className="size-4 shrink-0 transition-transform group-data-panel-open:rotate-180 motion-reduce:transition-none"
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="border-t p-4">
+        <dl className="grid compact:grid-cols-2 wide:grid-cols-3 gap-3 text-xs">
+          {entries.map(([label, value]) => (
+            <Fact key={label} label={label}>
+              <Bdi className="break-all font-mono font-normal">{value}</Bdi>
+            </Fact>
+          ))}
+          <Fact label={t("report.briefSource")}>
+            {core.final.briefSource
+              ? t(`report.briefSources.${core.final.briefSource}`)
+              : "—"}
+          </Fact>
+          {core.final.fallbackCode ? (
+            <Fact label={t("report.fallbackReason")}>{fallbackReason}</Fact>
+          ) : null}
+          <Fact label={t("report.createdAt")}>
+            <time dateTime={core.createdAt.toISOString()}>
+              {dateTime(core.createdAt)}
+            </time>
+          </Fact>
+        </dl>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

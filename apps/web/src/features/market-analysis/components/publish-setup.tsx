@@ -24,8 +24,8 @@ import { EDITORIAL_NAMESPACE } from "@/features/editorial/constants";
 import type { PlatformDraftExactCard } from "@/features/editorial/schemas/drafts";
 
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
+import { hasThreeReadyCaptions } from "../lib/publish-readiness";
 import type { MarketAnalysisOptionsProjection } from "../schemas/reads";
-import { hasThreeReadyCaptions } from "./publish-readiness";
 
 export function PublishSetup({
   busy,

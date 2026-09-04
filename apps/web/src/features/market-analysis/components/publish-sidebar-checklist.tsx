@@ -7,8 +7,8 @@ import { StateMark } from "@/components/common/state-mark";
 import { EDITORIAL_NAMESPACE } from "@/features/editorial/constants";
 
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
+import { hasThreeReadyCaptions } from "../lib/publish-readiness";
 import type { MarketAnalysisProjection } from "../schemas/reads";
-import { hasThreeReadyCaptions } from "./publish-readiness";
 
 export function PublishSidebarChecklist({
   analysis,

@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation";
+import { z } from "zod";
 
 import { Suspended } from "@/components/fetcher/suspended";
 import { getPlatformDraft } from "@/features/editorial/api/server/get-platform-draft";
 import { EDITORIAL_NAMESPACE } from "@/features/editorial/constants";
 import { PUBLISHING_NAMESPACE } from "@/features/publishing/constants";
 import { Localized } from "@/i18n/client";
+import { redirect } from "@/i18n/navigation";
+import { currentLocale } from "@/i18n/server";
 import {
   customerEditorial,
   enabledImageModels,
@@ -68,13 +71,7 @@ async function readAnalysisView(
   searchParams: MarketAnalysisSearchParams,
 ) {
   const id = await analysisId;
-  if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
-      id,
-    )
-  ) {
-    notFound();
-  }
+  if (!z.uuid().safeParse(id).success) notFound();
   const [report, analysis, catalog, options] = await Promise.all([
     getMarketAnalysisReport(id),
     getMarketAnalysis(id),
@@ -82,14 +79,30 @@ async function readAnalysisView(
     getMarketAnalysisOptions(),
   ]);
   if (report) {
+    const raw = await searchParams;
     const query = normalizeAnalysisReportQuery(
       await loadAnalysisReportSearchParams(searchParams),
     );
+    const draft = query.draft ? await getPlatformDraft(query.draft) : null;
+    const selectedDraft =
+      draft?.executionScope.kind === "market_analysis" &&
+      draft.executionScope.marketAnalysisId === id
+        ? draft
+        : null;
+    if (raw.step !== undefined || (raw.draft !== undefined && !selectedDraft)) {
+      redirect({
+        href: {
+          pathname: `/market-analysis/${id}`,
+          query: selectedDraft ? { draft: selectedDraft.card.id } : {},
+        },
+        locale: await currentLocale(),
+      });
+    }
     return {
       report: {
         ...report,
         analysisId: id,
-        selectedDraft: query.draft ? await getPlatformDraft(query.draft) : null,
+        selectedDraft,
         query,
         models: customerEditorial.models,
         imageModels: enabledImageModels,

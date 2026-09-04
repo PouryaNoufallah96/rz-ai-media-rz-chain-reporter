@@ -97,7 +97,6 @@ try {
         baseAsset: "BTC",
         quoteAsset: "USDT",
         tradingStatus: "TRADING",
-        providerMetadata: { quoteAsset: "USDT" },
       });
       await tx
         .update(operation)

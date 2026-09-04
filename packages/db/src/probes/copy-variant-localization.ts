@@ -474,6 +474,7 @@ try {
       [
         "fk_copy_variant_localization_copy_variant_id",
         "fk_copy_variant_translation_request_copy_variant_id",
+        "fk_draft_revision_originating_copy_variant_id",
       ].includes(constraintName(error) ?? ""),
   );
 

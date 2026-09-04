@@ -4,8 +4,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   MARKET_CHART_MIN_COLOR_CONTRAST,
+  MARKET_CHART_SPEC_SCHEMA_VERSION,
   marketChartColorContrast,
-  persistedMarketChartSpecSchema,
+  marketChartSpecSchema,
 } from "@rz-chain-reporter/contracts";
 import {
   marketCompositionCatalogSchema,
@@ -121,7 +122,7 @@ export function defaultChartSpec(
   if (colors.length < descriptorIdentities.length) return null;
   return {
     chartSpec: normalizeMarketChartSpec({
-      schemaVersion: 2,
+      schemaVersion: MARKET_CHART_SPEC_SCHEMA_VERSION,
       presetId: "custom",
       background,
       seriesColors: Object.fromEntries(
@@ -147,7 +148,7 @@ export function initialChartSpec(
 ) {
   const template = defaultChartSpec(instrumentKey, descriptorIdentities);
   if (!template) return null;
-  const saved = persistedMarketChartSpecSchema.safeParse(savedChartSpec);
+  const saved = marketChartSpecSchema.safeParse(savedChartSpec);
   if (!saved.success) return template;
   const merged = {
     ...saved.data,

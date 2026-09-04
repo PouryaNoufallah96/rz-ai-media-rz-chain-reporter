@@ -62,7 +62,7 @@ export function useAnalysisFooterSlot() {
 }
 
 const PANEL_COLUMNS =
-  "wide:grid-cols-[15rem_minmax(0,1fr)_20rem] workspace:grid-cols-[auto_minmax(0,1fr)_16rem]";
+  "wide:grid-cols-[15rem_minmax(0,1fr)_20rem] workspace:grid-cols-[auto_minmax(0,1fr)]";
 const FRAME_BALANCE = "flex min-w-0 flex-1 flex-col";
 const FRAME_SPACE_ABOVE = "workspace:block hidden max-h-32 flex-1 basis-0";
 const FRAME_SPACE_BELOW = "workspace:block hidden flex-1 basis-0";
@@ -88,6 +88,7 @@ export function AnalysisWorkspaceFrame({
   historyHref,
   loading = null,
   onStep,
+  pending = false,
   reachable,
   selected,
   sidebar,
@@ -100,6 +101,7 @@ export function AnalysisWorkspaceFrame({
   historyHref: ComponentProps<typeof Link>["href"];
   loading?: MarketAnalysisStep | null;
   onStep: (step: MarketAnalysisStep) => void;
+  pending?: boolean;
   reachable: readonly MarketAnalysisStep[];
   selected: MarketAnalysisStep;
   sidebar: ReactNode;
@@ -124,11 +126,14 @@ export function AnalysisWorkspaceFrame({
     <div className={FRAME_BALANCE}>
       <div className={FRAME_SPACE_ABOVE} />
       <div className="flex min-w-0 flex-none flex-col gap-4">
-        <div className="grid workspace:hidden gap-2 sm:grid-cols-2">
+        <div className="grid wide:hidden workspace:grid-cols-1 gap-2 sm:grid-cols-2">
           <Sheet>
             <SheetTrigger
               render={
-                <Button className="w-full justify-between" variant="outline" />
+                <Button
+                  className="workspace:hidden w-full justify-between"
+                  variant="outline"
+                />
               }
             >
               <span>
@@ -184,7 +189,14 @@ export function AnalysisWorkspaceFrame({
           </Card>
           <div className="flex min-w-0 flex-col gap-4">
             <Card className="grow">
-              <CardContent className="@container grid min-w-0 content-start gap-4">
+              <CardContent
+                aria-busy={pending || undefined}
+                className="@container grid min-w-0 content-start gap-4 data-pending:pointer-events-none data-pending:animate-pulse motion-reduce:animate-none"
+                data-pending={pending || undefined}
+              >
+                <span className="sr-only" role="status">
+                  {pending ? t("shell.updating") : ""}
+                </span>
                 <header className="grid gap-1">
                   <h1 className="font-semibold text-xl tracking-tight">
                     {title}
@@ -202,7 +214,7 @@ export function AnalysisWorkspaceFrame({
           </div>
           <Card
             className={cn(
-              "workspace:flex hidden min-w-0 gap-0 bg-sidebar py-0",
+              "wide:flex hidden min-w-0 gap-0 bg-sidebar py-0",
               PANEL_VIEWPORT,
             )}
           >
@@ -224,17 +236,17 @@ export function AnalysisFrameSkeleton() {
     <div aria-busy className={FRAME_BALANCE}>
       <div className={FRAME_SPACE_ABOVE} />
       <div className="flex min-w-0 flex-none flex-col gap-4">
-        <div className="grid workspace:hidden gap-2 sm:grid-cols-2">
-          <Skeleton className="h-8 rounded-lg" />
+        <div className="grid wide:hidden workspace:grid-cols-1 gap-2 sm:grid-cols-2">
+          <Skeleton className="workspace:hidden h-8 rounded-lg" />
           <Skeleton className="h-8 rounded-lg" />
         </div>
         <div className={cn("grid min-w-0 gap-4", PANEL_COLUMNS)}>
           <Skeleton className="workspace:block hidden wide:w-auto workspace:w-15 rounded-xl" />
           <div className="flex min-w-0 flex-col gap-4">
-            <Skeleton className="min-h-120w rounded-xl" />
+            <Skeleton className="min-h-120 rounded-xl" />
             <Skeleton className="h-14 rounded-xl" />
           </div>
-          <Skeleton className="workspace:block hidden rounded-xl" />
+          <Skeleton className="wide:block hidden rounded-xl" />
           <span className="sr-only" role="status">
             {t("shell.loading")}
           </span>
@@ -345,7 +357,7 @@ function AnalysisStepper({
                     </span>
                   </>
                 ) : (
-                  index + 1
+                  format.number(index + 1)
                 )}
               </StepperIndicator>
               <StepIcon

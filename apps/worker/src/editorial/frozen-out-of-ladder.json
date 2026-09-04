@@ -1,6 +1,6 @@
 {
   "template": {
-    "schemaVersion": 11,
+    "schemaVersion": 12,
     "customer": {
       "key": "demo-sports",
       "productName": "Demo Sports Desk",

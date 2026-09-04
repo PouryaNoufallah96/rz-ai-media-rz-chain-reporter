@@ -48,7 +48,6 @@ type OriginAuthority = {
   mediaBrandKey: string;
   sourceItemId: string | null;
   templateFingerprint: string;
-  brandPolicyFingerprint: string | null;
 };
 
 type DraftRow = typeof platformDraft.$inferSelect;
@@ -281,13 +280,6 @@ export async function routePlatformDraftInTransaction(
     return { status: "stale_origin" };
   }
   if (
-    !isMarketOrigin &&
-    authority.value.brandPolicyFingerprint !== null &&
-    authority.value.brandPolicyFingerprint !== input.brandPolicyFingerprint
-  ) {
-    return { status: "stale_origin" };
-  }
-  if (
     input.mediaBrandKey !== undefined &&
     authority.value.mediaBrandKey !== input.mediaBrandKey
   ) {
@@ -513,7 +505,6 @@ async function loadOriginAuthority(
         mediaBrandId: marketAnalysisHandoff.mediaBrandId,
         mediaBrandKey: mediaBrand.key,
         templateFingerprint: marketAnalysisHandoff.templateFingerprint,
-        brandPolicyFingerprint: marketAnalysisHandoff.brandPolicyFingerprint,
       })
       .from(marketAnalysisHandoff)
       .innerJoin(
@@ -560,7 +551,6 @@ async function loadOriginAuthority(
         mediaBrandKey: mediaBrand.key,
         sourceItemId: editorialSelection.sourceItemId,
         templateFingerprint: analysisRun.templateFingerprint,
-        brandPolicyFingerprint: sql<string | null>`null`,
       })
       .from(editorialSelection)
       .innerJoin(
@@ -607,7 +597,6 @@ async function loadOriginAuthority(
         mediaBrandId: analysisModelUnit.mediaBrandId,
         mediaBrandKey: mediaBrand.key,
         templateFingerprint: analysisRun.templateFingerprint,
-        brandPolicyFingerprint: sql<string | null>`null`,
       })
       .from(promoIdea)
       .innerJoin(
@@ -656,7 +645,6 @@ async function loadOriginAuthority(
       sourceItemId: filterResult.sourceItemId,
       disposition: filterResult.disposition,
       templateFingerprint: analysisRun.templateFingerprint,
-      brandPolicyFingerprint: sql<string | null>`null`,
     })
     .from(filterResult)
     .innerJoin(analysisRun, eq(analysisRun.id, filterResult.analysisRunId))

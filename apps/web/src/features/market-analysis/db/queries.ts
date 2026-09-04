@@ -4,10 +4,10 @@ import {
   MARKET_CHART_OUTPUT_DIMENSIONS,
   MARKET_CHART_RENDER_CONTRACT_VERSION,
   type MarketChartRenderInput,
-  persistedMarketChartSpecSchema,
+  marketChartSpecSchema,
 } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
-import { inWorkspace } from "@rz-chain-reporter/db/filters";
+import { containsPattern, inWorkspace } from "@rz-chain-reporter/db/filters";
 import { getCurrentMarketComparisonCatalog } from "@rz-chain-reporter/db/repositories/market-comparison-catalog";
 import {
   marketAnalysis,
@@ -40,7 +40,6 @@ import { suggestMarketStories } from "../lib/story-suggestions";
 import {
   defaultChartSpec,
   marketCompositionCatalog,
-  marketTemplate,
   requireMarketTemplate,
 } from "../lib/template";
 import type {
@@ -221,7 +220,7 @@ export async function readMarketAnalysisProjection(
           ),
         ),
     ]);
-  const persistedChartSpec = persistedMarketChartSpecSchema.safeParse(
+  const persistedChartSpec = marketChartSpecSchema.safeParse(
     analysis.currentChartSpec,
   );
   const effectiveChartSpec = persistedChartSpec.success
@@ -298,25 +297,11 @@ export async function readMarketAnalysisProjection(
           scale: snapshot.scale,
           series: renderSeries,
         });
-        if (!marketTemplate.enabled) {
-          throw new Error("MARKET_ANALYSIS_DISABLED");
-        }
-        const outputFormat =
-          analysis.outputFormat ?? marketTemplate.defaults.outputFormat;
-        const attributionIdentities = [
-          ...new Set(
-            series.flatMap((item) =>
-              item.outcome === "succeeded" && item.attributionIdentity
-                ? [item.attributionIdentity]
-                : [],
-            ),
-          ),
-        ].sort((left, right) => left.localeCompare(right, "en"));
+        const attributionIdentities = succeededAttributionIdentities(series);
         chartRenderInput = {
           renderContractVersion: MARKET_CHART_RENDER_CONTRACT_VERSION,
           contentLocale: analysis.contentLocale,
-          outputFormat,
-          dimensions: MARKET_CHART_OUTPUT_DIMENSIONS[outputFormat],
+          dimensions: MARKET_CHART_OUTPUT_DIMENSIONS.landscape,
           snapshot: {
             id: snapshot.id,
             checksum,
@@ -426,7 +411,10 @@ export async function readMarketAnalysisProjection(
               : null,
           finalizationRetryEpoch: generation.generation.finalizationRetryEpoch,
           operationId: generation.operation.id,
-          phase: generationPhase(generation),
+          phase: generationPhase({
+            ...generation,
+            currentFinalMediaAssetId: analysis.currentFinalMediaAssetId,
+          }),
           providerOriginalMediaAssetId:
             generation.generation.providerOriginalMediaAssetId,
         }
@@ -523,9 +511,7 @@ export async function readMarketAnalysisReportCore(
   ) {
     return null;
   }
-  const chartSpec = persistedMarketChartSpecSchema.safeParse(
-    analysis.currentChartSpec,
-  );
+  const chartSpec = marketChartSpecSchema.safeParse(analysis.currentChartSpec);
   if (!chartSpec.success) return null;
   const [snapshotRows, seriesRows, renderRows, generationRows, assets] =
     await Promise.all([
@@ -668,13 +654,7 @@ export async function readMarketAnalysisReportCore(
       approvedBy: analysis.chartApprovedBy,
       renderContractVersion: render.renderContractVersion,
       media: chartMedia,
-      attribution: [
-        ...new Set(
-          seriesRows.flatMap((series) =>
-            series.attributionIdentity ? [series.attributionIdentity] : [],
-          ),
-        ),
-      ].sort((left, right) => left.localeCompare(right, "en")),
+      attribution: succeededAttributionIdentities(seriesRows),
     },
     story: {
       headline: analysis.storyHeadline,
@@ -693,6 +673,8 @@ export async function readMarketAnalysisReportCore(
       referenceSampleKey: generation.referenceSampleKey,
       referenceSampleChecksum: generation.referenceSampleChecksum,
       referenceSampleLabel: sampleMatches ? variant.displayName : null,
+      footerLockupKey: generation.footerLockupKey,
+      footerLockupChecksum: generation.footerLockupChecksum,
       fingerprint: analysis.designApprovalFingerprint,
       approvedAt: analysis.designApprovedAt,
       approvedBy: analysis.designApprovedBy,
@@ -882,10 +864,15 @@ export async function readMarketAnalysisReportLive(
 }
 
 function generationPhase(input: {
+  currentFinalMediaAssetId: string | null;
   generation: typeof marketGeneration.$inferSelect;
   operation: typeof operation.$inferSelect;
 }): NonNullable<MarketAnalysisCoreProjection["generation"]>["phase"] {
-  if (input.generation.finalMediaAssetId) return "ready";
+  if (
+    input.generation.finalMediaAssetId &&
+    input.generation.finalMediaAssetId === input.currentFinalMediaAssetId
+  )
+    return "ready";
   if (input.operation.lifecycle === "cancelled") return "cancelled";
   if (input.operation.lifecycle === "failed") return "failed";
   if (input.operation.lifecycle === "unknown") return "unknown";
@@ -915,11 +902,13 @@ export async function readMarketAnalysisHistoryBase(
   const status = query.status
     ? sql`and analysis.status = ${query.status}`
     : sql``;
-  const brand = query.brand
-    ? sql`and analysis.media_brand_id = ${query.brand}::uuid`
-    : sql``;
-  const title = query.q
-    ? sql`and coalesce(analysis.story_headline, owner.name) ilike ${`%${query.q}%`}`
+  const symbols = sql`(
+    select string_agg(entry.item->>'symbol', ' / ' order by entry.ord)
+    from jsonb_array_elements(analysis.normalized_request->'series')
+      with ordinality entry(item, ord)
+  )`;
+  const search = query.q
+    ? sql`and ${symbols} ilike ${containsPattern(query.q)}`
     : sql``;
   const ordering =
     direction === "older"
@@ -937,9 +926,7 @@ export async function readMarketAnalysisHistoryBase(
     select analysis.id,
       analysis.status,
       analysis.version,
-      coalesce(analysis.story_headline, owner.name) as title,
-      analysis.media_brand_id as "mediaBrandId",
-      brand.name as "mediaBrandName",
+      ${symbols} as symbols,
       owner.name as "visualOwnerName",
       analysis.content_locale as "contentLocale",
       analysis.updated_at as "updatedAt",
@@ -967,9 +954,6 @@ export async function readMarketAnalysisHistoryBase(
     join operation owner_operation
       on owner_operation.id = analysis.operation_id
       and owner_operation.workspace_id = analysis.workspace_id
-    join media_brand brand
-      on brand.id = analysis.media_brand_id
-      and brand.workspace_id = analysis.workspace_id
     join market_instrument owner
       on owner.id = analysis.visual_owner_instrument_id
       and owner.workspace_id = analysis.workspace_id
@@ -982,8 +966,7 @@ export async function readMarketAnalysisHistoryBase(
     where analysis.workspace_id = ${workspaceId}::uuid
       and owner_operation.actor = ${userId}
       ${status}
-      ${brand}
-      ${title}
+      ${search}
       ${bound}
     order by ${ordering}
     limit ${MARKET_ANALYSIS_HISTORY_PAGE_SIZE + 1}
@@ -1087,9 +1070,7 @@ export async function readMarketAnalysisDynamicOverlay(
 export async function readMarketAnalysisCatalog(
   executor: Executor,
   workspaceId: string,
-  userId: string,
 ) {
-  void userId;
   const [instruments, comparison] = await Promise.all([
     executor
       .select()
@@ -1178,10 +1159,8 @@ export async function readFeaturedMarketComparisons(
 export async function searchMarketComparisons(
   executor: Executor,
   workspaceId: string,
-  userId: string,
   input: MarketComparisonSearchInput,
 ): Promise<MarketComparisonSearchResult> {
-  void userId;
   const entries = await executor
     .select(comparisonProjection)
     .from(marketComparisonCatalog)
@@ -1271,13 +1250,70 @@ export async function readOwnedMarketAnalysisCommandState(
   return ownedAnalysis(executor, workspaceId, userId, analysisId);
 }
 
+function succeededAttributionIdentities(
+  rows: readonly { outcome: string; attributionIdentity: string | null }[],
+) {
+  return [
+    ...new Set(
+      rows.flatMap((row) =>
+        row.outcome === "succeeded" && row.attributionIdentity
+          ? [row.attributionIdentity]
+          : [],
+      ),
+    ),
+  ].sort((left, right) => left.localeCompare(right, "en"));
+}
+
+export async function readMarketSnapshotAttribution(
+  executor: Executor,
+  workspaceId: string,
+  snapshotId: string,
+) {
+  const rows = await executor
+    .select({
+      outcome: marketSnapshotSeries.outcome,
+      attributionIdentity: marketSnapshotSeries.attributionIdentity,
+    })
+    .from(marketSnapshotSeries)
+    .where(
+      and(
+        inWorkspace(marketSnapshotSeries, workspaceId),
+        eq(marketSnapshotSeries.marketSnapshotId, snapshotId),
+      ),
+    );
+  return succeededAttributionIdentities(rows);
+}
+
+export async function readOwnedMarketDraftContentLocale(
+  executor: Executor,
+  workspaceId: string,
+  analysisId: string,
+  platformDraftId: string,
+) {
+  const [row] = await executor
+    .select({ contentLocale: marketAnalysisHandoff.contentLocale })
+    .from(platformDraft)
+    .innerJoin(
+      marketAnalysisHandoff,
+      eq(marketAnalysisHandoff.id, platformDraft.marketAnalysisHandoffId),
+    )
+    .where(
+      and(
+        inWorkspace(platformDraft, workspaceId),
+        eq(platformDraft.id, platformDraftId),
+        eq(marketAnalysisHandoff.marketAnalysisId, analysisId),
+        isNull(platformDraft.deletedAt),
+      ),
+    )
+    .limit(1);
+  return row?.contentLocale ?? null;
+}
+
 export async function readMarketAnalysisSelectionContext(
   executor: Executor,
   workspaceId: string,
-  userId: string,
   input: { mediaBrandId?: string; marketInstrumentId?: string },
 ) {
-  void userId;
   const [brand, instrument] = await Promise.all([
     input.mediaBrandId
       ? executor

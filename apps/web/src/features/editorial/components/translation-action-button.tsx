@@ -49,8 +49,8 @@ export function TranslationActionButton({
         aria-label={label}
         className={
           failed
-            ? "h-5 px-1.5 text-[11px] text-destructive"
-            : "h-5 px-1.5 text-[11px]"
+            ? "px-1.5 text-destructive max-compact:min-h-11"
+            : "px-1.5 max-compact:min-h-11"
         }
         disabled={pending}
         onClick={onTranslate}

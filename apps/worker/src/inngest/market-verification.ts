@@ -70,6 +70,26 @@ export function settleFetchAttempt(
   );
 }
 
+export async function loadMarketVerificationRequest(
+  executor: Executor,
+  workspaceId: string,
+  marketAnalysisId: string,
+  operationId: string,
+) {
+  const current = await getMarketAnalysis(
+    executor,
+    workspaceId,
+    marketAnalysisId,
+  );
+  if (!current?.verificationIntentId || current.verificationIntentVersion < 1) {
+    throw new NonRetriableError("market verification intent is missing");
+  }
+  if (current.verificationIntentId !== operationId) {
+    return { status: "superseded" as const };
+  }
+  return { status: "current" as const, analysis: current };
+}
+
 export function createMarketVerificationFunctions(
   client: WorkerInngestClient,
   runtime: WorkerRuntime,
@@ -130,25 +150,36 @@ export function createMarketVerificationFunctions(
           "market verification command type mismatch",
         );
       }
-      const analysis = await step.run(
-        "load-market-verification-request",
-        async () => {
-          const current = await getMarketAnalysis(
-            runtime.db,
+      const loaded = await step.run("load-market-verification-request", () =>
+        loadMarketVerificationRequest(
+          runtime.db,
+          event.data.workspaceId,
+          event.data.marketAnalysisId,
+          event.data.operationId,
+        ),
+      );
+      if (loaded.status === "superseded") {
+        const settled = await step.run(
+          "settle-superseded-market-verification",
+          () =>
+            settleOwnedMarketVerification(
+              runtime.db,
+              event.data.workspaceId,
+              event.data.operationId,
+              owner,
+              "cancelled",
+            ),
+        );
+        if (settled)
+          await notifyMarketAnalysisChanged(
+            step,
             event.data.workspaceId,
             event.data.marketAnalysisId,
+            "superseded",
           );
-          if (
-            !current?.verificationIntentId ||
-            current.verificationIntentVersion < 1
-          ) {
-            throw new NonRetriableError(
-              "market verification intent is missing",
-            );
-          }
-          return current;
-        },
-      );
+        return loaded;
+      }
+      const analysis = loaded.analysis;
       const adapters = createMarketAdapters(
         resolveMarketProviderBindings(runtime.template, workerEnv),
       ).adapters;
@@ -177,10 +208,6 @@ export function createMarketVerificationFunctions(
             }
           : outcome,
       );
-      const verificationIntentId = analysis.verificationIntentId;
-      if (!verificationIntentId) {
-        throw new NonRetriableError("market verification intent is missing");
-      }
       const settled = await step.run("persist-market-snapshot-and-settle", () =>
         persistMarketVerification(runtime.db, {
           workspaceId: event.data.workspaceId,
@@ -191,7 +218,7 @@ export function createMarketVerificationFunctions(
           request: analysis.normalizedRequest,
           requestFingerprint: analysis.requestFingerprint,
           templateFingerprint: analysis.templateFingerprint,
-          verificationIntentId,
+          verificationIntentId: event.data.operationId,
           verificationIntentVersion: analysis.verificationIntentVersion,
           outcomes: hydratedOutcomes,
         }),
@@ -221,7 +248,7 @@ export function createMarketVerificationFunctions(
       triggers: [
         {
           event: "inngest/function.cancelled",
-          expression: `event.data.function_id == '${FUNCTION_ID}'`,
+          if: `event.data.function_id == '${client.id}-${FUNCTION_ID}'`,
         },
       ],
     },

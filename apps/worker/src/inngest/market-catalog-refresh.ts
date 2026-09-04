@@ -175,7 +175,7 @@ export function createMarketCatalogRefreshFunctions(
       triggers: [
         {
           event: "inngest/function.cancelled",
-          expression: `event.data.function_id == '${FUNCTION_ID}'`,
+          if: `event.data.function_id == '${client.id}-${FUNCTION_ID}'`,
         },
       ],
     },

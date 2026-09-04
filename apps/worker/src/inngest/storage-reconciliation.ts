@@ -38,6 +38,7 @@ import {
 } from "../web-cache/drafts";
 import { notifyEditorialPresentationTranslationChanged } from "../web-cache/editorial";
 import {
+  notifyMarketAnalysisAndUsageChanged,
   notifyMarketAnalysisChanged,
   notifyMarketCatalogChanged,
   notifyMarketDraftsChanged,
@@ -72,7 +73,10 @@ const STALE_COPY_OPERATION_BATCH = 10;
 
 type SettledDraftNotification =
   | (DraftChange & { kind: "draft" })
-  | (DraftChange & { kind: "market"; marketAnalysisId: string });
+  | (Omit<DraftChange, "analysisRunId"> & {
+      kind: "market";
+      marketAnalysisId: string;
+    });
 
 async function notifySettledDraftChange(
   step: Parameters<typeof notifyDraftsChanged>[0],
@@ -434,7 +438,6 @@ async function loadSettledCopyDraftChange(
   if (!copy) throw new NonRetriableError("NOT_FOUND");
   return copy.executionScope.kind === "market_analysis"
     ? {
-        analysisRunId: copy.analysisRunId,
         code: "failed",
         kind: "market",
         marketAnalysisId: copy.executionScope.marketAnalysisId,
@@ -470,7 +473,6 @@ async function loadSettledDraftChange(
   if (!copy) throw new NonRetriableError("NOT_FOUND");
   return copy.executionScope.kind === "market_analysis"
     ? {
-        analysisRunId: copy.analysisRunId,
         code,
         kind: "market",
         marketAnalysisId: copy.executionScope.marketAnalysisId,
@@ -612,11 +614,12 @@ export function createStorageReconciliationFunction(
             ),
         );
         for (const terminal of staleMarketGenerations) {
-          await notifyMarketAnalysisChanged(
+          await notifyMarketAnalysisAndUsageChanged(
             step,
             result.workspaceId,
             terminal.marketAnalysisId,
             `stale-generation-${terminal.operationId}`,
+            terminal.actorId,
           );
         }
         const staleMarketCatalog = await step.run(

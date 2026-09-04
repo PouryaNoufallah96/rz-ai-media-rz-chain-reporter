@@ -1,5 +1,6 @@
 "use client";
 
+import { MARKET_ANALYSIS_STATUSES } from "@rz-chain-reporter/contracts";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import {
@@ -15,7 +16,6 @@ import { FileTextIcon } from "lucide-react";
 import Image from "next/image";
 import { useFormatter, useTranslations } from "next-intl";
 import { debounce } from "nuqs";
-
 import { CoreDataTable } from "@/components/data-table/data-table";
 import { KeysetPagination } from "@/components/data-table/keyset-pagination";
 import {
@@ -25,15 +25,14 @@ import {
 import { LabeledInput, LabeledSelect } from "@/components/form/form-field";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 import { Link } from "@/i18n/navigation";
-
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
+
 import type {
   MarketAnalysisDynamicOverlay,
   MarketAnalysisHistoryBaseRow,
   MarketAnalysisHistoryPage,
 } from "../schemas/reads";
 import {
-  MARKET_ANALYSIS_STATUSES,
   type MarketAnalysisSearchPatch,
   marketAnalysisSearchParsers,
 } from "../schemas/search";
@@ -46,10 +45,8 @@ type HistoryPayload = {
 };
 
 export function MarketAnalysisHistory({
-  brands,
   history,
 }: {
-  brands: readonly { id: string; name: string }[];
   history: HistoryPayload;
 }) {
   const t = useTranslations(MARKET_ANALYSIS_NAMESPACE);
@@ -69,6 +66,7 @@ export function MarketAnalysisHistory({
       header: t("history.columns.analysis"),
       cell: ({ row }) => {
         const item = row.original;
+        const title = `${item.symbols} · ${t(`create.periods.${item.period}`)}`;
         const final = overlays
           .get(item.id)
           ?.media.find(
@@ -79,7 +77,7 @@ export function MarketAnalysisHistory({
           <div className="flex min-w-0 items-center gap-3 py-1">
             {final ? (
               <Image
-                alt={t("history.thumbnail", { title: item.title })}
+                alt={t("history.thumbnail", { title })}
                 className="compact:block hidden size-12 shrink-0 rounded-lg border object-cover"
                 height={48}
                 loading="lazy"
@@ -91,24 +89,24 @@ export function MarketAnalysisHistory({
             ) : null}
             <span className="grid min-w-0 gap-0.5">
               <strong className="truncate font-medium">
-                <Bdi>{item.title}</Bdi>
+                <Bdi>{title}</Bdi>
               </strong>
               <span className="compact:hidden text-muted-foreground text-xs">
-                {item.mediaBrandName} · {t(`steps.${item.stage}`)} ·{" "}
+                {item.visualOwnerName} · {t(`steps.${item.stage}`)} ·{" "}
                 {format.dateTime(item.updatedAt, {
                   dateStyle: "short",
                   timeStyle: "short",
                 })}
               </span>
               <span className="text-muted-foreground text-xs">
-                {item.period} · {item.scale}
+                {t(`create.scales.${item.scale}`)}
               </span>
             </span>
           </div>
         );
       },
     },
-    { accessorKey: "mediaBrandName", header: t("history.columns.brand") },
+    { accessorKey: "visualOwnerName", header: t("history.columns.brand") },
     {
       accessorKey: "stage",
       header: t("history.columns.stage"),
@@ -161,7 +159,9 @@ export function MarketAnalysisHistory({
     },
     {
       id: "action",
-      header: t("history.columns.action"),
+      header: () => (
+        <span className="sr-only">{t("history.columns.action")}</span>
+      ),
       cell: ({ row }) => (
         <Button
           nativeButton={false}
@@ -182,8 +182,7 @@ export function MarketAnalysisHistory({
     getRowId: (row) => row.id,
   });
 
-  const filtered =
-    values.q !== null || values.status !== null || values.brand !== null;
+  const filtered = values.q !== null || values.status !== null;
 
   const setFilters = (patch: MarketAnalysisSearchPatch) =>
     setValues({ ...patch, cursor: null });
@@ -194,8 +193,7 @@ export function MarketAnalysisHistory({
       { limitUrlUpdates: debounce(300) },
     );
 
-  const clearFilters = () =>
-    setValues({ q: null, status: null, brand: null, cursor: null });
+  const clearFilters = () => setValues({ q: null, status: null, cursor: null });
 
   return (
     <>
@@ -225,19 +223,6 @@ export function MarketAnalysisHistory({
             value,
           }))}
           value={values.status}
-        />
-        <LabeledSelect
-          className="min-w-0 flex-1 sm:w-fit sm:flex-none"
-          contentProps={FILTER_SELECT_CONTENT}
-          emptyLabel={t("history.filters.all")}
-          label={t("history.filters.brand")}
-          onValueChange={(brand) => setFilters({ brand })}
-          options={brands.map((brand) => ({
-            label: brand.name,
-            value: brand.id,
-          }))}
-          triggerClassName="w-full sm:max-w-52"
-          value={values.brand}
         />
       </form>
       <section aria-labelledby="market-analysis-history-title" className="mt-6">
@@ -285,7 +270,7 @@ export function MarketAnalysisHistory({
           <>
             <CoreDataTable
               columnClassNames={{
-                mediaBrandName: "max-compact:hidden",
+                visualOwnerName: "max-compact:hidden",
                 stage: "max-compact:hidden",
                 updatedAt: "max-compact:hidden",
                 action: "w-24 max-compact:w-auto",

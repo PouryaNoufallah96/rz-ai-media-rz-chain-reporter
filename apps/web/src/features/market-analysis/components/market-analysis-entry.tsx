@@ -21,8 +21,8 @@ import { applyActionErrorToForm, useAction } from "@/hooks/use-action";
 import { useRouter } from "@/i18n/navigation";
 import { createMarketAnalysisAction } from "../actions/commands";
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
+import { useMarketActionError } from "../hooks/use-market-action-error";
 import { useRememberedComparisons } from "../hooks/use-remembered-comparisons";
-import { useMarketActionError } from "../lib/action-error";
 import { configuredInstruments } from "../lib/market-request";
 import {
   type MarketRequestSelectionInput,
@@ -35,7 +35,7 @@ import type {
 } from "../schemas/reads";
 import { AnalysisWorkspaceFrame } from "./analysis-workspace-frame";
 import { CurrentProjectSidebar } from "./current-project-sidebar";
-import { continueAfterFetch, MarketSetupForm } from "./market-setup-form";
+import { MarketSetupForm } from "./market-setup-form";
 
 const ROOT_REACHABLE_STEPS = ["market"] as const;
 const NO_COMPLETED_STEPS = new Set<"market">();
@@ -100,7 +100,7 @@ export function MarketAnalysisEntry({
   } = form;
   const pending = isSubmitting || action.isPending || isNavigating;
 
-  const onSubmit = handleSubmit(async (values, event) => {
+  const onSubmit = handleSubmit(async (values) => {
     clearErrors("root");
     action.reset();
     const result = await action.execute({
@@ -112,10 +112,9 @@ export function MarketAnalysisEntry({
       return;
     }
     const pathname = `/market-analysis/${result.data.analysisId}`;
-    const href = continueAfterFetch(event)
-      ? { pathname, query: { step: "chart" } }
-      : pathname;
-    startNavigation(() => router.push(href, { scroll: false }));
+    startNavigation(() =>
+      router.push({ pathname, query: { step: "chart" } }, { scroll: false }),
+    );
   });
 
   if (!initialInstrument) {

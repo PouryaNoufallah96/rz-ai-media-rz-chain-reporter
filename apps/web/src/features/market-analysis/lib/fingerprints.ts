@@ -35,10 +35,14 @@ export function marketRequestFingerprint(request: NormalizedMarketRequest) {
 export function chartFingerprint(input: {
   snapshotId: string;
   chartSpec: MarketChartSpec;
+  contentLocale: ContentLocale;
+  attribution: readonly string[];
 }) {
   return hashPayload({
     snapshotId: input.snapshotId,
     chartSpec: materialMarketChartSpec(input.chartSpec),
+    contentLocale: input.contentLocale,
+    attribution: input.attribution,
     renderContractVersion,
   });
 }

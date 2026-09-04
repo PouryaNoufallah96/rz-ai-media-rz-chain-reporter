@@ -28,7 +28,6 @@ type MarketRequestSelection = {
 export async function normalizeMarketRequestSelection(
   executor: Executor,
   workspaceId: string,
-  userId: string,
   selection: MarketRequestSelection,
 ) {
   const { comparisonProvider } = requireMarketTemplate();
@@ -38,9 +37,9 @@ export async function normalizeMarketRequestSelection(
   }
 
   const [catalog, ...selected] = await Promise.all([
-    readMarketAnalysisCatalog(executor, workspaceId, userId),
+    readMarketAnalysisCatalog(executor, workspaceId),
     ...primaryInstrumentIds.map((marketInstrumentId) =>
-      readMarketAnalysisSelectionContext(executor, workspaceId, userId, {
+      readMarketAnalysisSelectionContext(executor, workspaceId, {
         marketInstrumentId,
       }),
     ),

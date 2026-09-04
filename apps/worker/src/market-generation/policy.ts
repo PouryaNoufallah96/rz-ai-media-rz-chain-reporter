@@ -8,7 +8,7 @@ import type {
   MarketGenerationSeriesFact,
 } from "./brief";
 
-export type BriefPolicyRejection = {
+type BriefPolicyRejection = {
   code:
     | "FACT_NOT_VERIFIED"
     | "LANGUAGE_MISMATCH"

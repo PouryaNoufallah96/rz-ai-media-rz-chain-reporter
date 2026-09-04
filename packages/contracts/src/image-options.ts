@@ -56,7 +56,6 @@ export const IMAGE_OPTION_CAPABILITY_KEYS = [
   "gemini-pro-image",
   "gpt-image",
   "recraft-v4-pro",
-  "standard-image",
 ] as const;
 
 export const imageOptionCapabilityKeySchema = z.enum(
@@ -81,10 +80,6 @@ export const IMAGE_OPTION_CAPABILITIES = {
     aspectRatios: wideAspectRatios,
   },
   "recraft-v4-pro": {
-    ...orderedReferenceCapability,
-    aspectRatios: narrowAspectRatios,
-  },
-  "standard-image": {
     ...orderedReferenceCapability,
     aspectRatios: narrowAspectRatios,
   },

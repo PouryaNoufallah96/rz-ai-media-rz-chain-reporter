@@ -4,7 +4,7 @@ export const PUBLISH_PHOTO_JPEG_QUALITY = 85;
 const JPEG_MIME_TYPE = "image/jpeg";
 
 export async function publishRasterForUpload(
-  bytes: Uint8Array,
+  bytes: Uint8Array<ArrayBuffer>,
   mimeType: string,
 ) {
   if (mimeType === JPEG_MIME_TYPE) return { bytes, mimeType };
@@ -14,11 +14,7 @@ export async function publishRasterForUpload(
       .jpeg({ quality: PUBLISH_PHOTO_JPEG_QUALITY })
       .toBuffer();
     return {
-      bytes: new Uint8Array(
-        encoded.buffer,
-        encoded.byteOffset,
-        encoded.byteLength,
-      ),
+      bytes: new Uint8Array(encoded),
       mimeType: JPEG_MIME_TYPE,
     };
   } catch {

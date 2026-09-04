@@ -219,7 +219,7 @@
                       "!@/features/editorial/components/copy-variant-editor",
                       "!@/features/publishing/components/publishing-ticket"
                     ],
-                    "message": "Market Analysis DraftWorkspace may compose only CopyVariantSelector, CopyVariantEditor, and PublishingTicket across feature boundaries. Other feature components remain private. See chainreporter-feature-slice."
+                    "message": "Market Analysis DraftWorkspace may compose only CopyVariantEditor and useCopyVariantRevisionCommands from Editorial copy-variant-editor plus PublishingTicket across feature boundaries. Other feature components remain private. See chainreporter-feature-slice."
                   }
                 ]
               }

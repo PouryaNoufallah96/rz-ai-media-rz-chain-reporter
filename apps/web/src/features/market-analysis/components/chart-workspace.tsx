@@ -45,7 +45,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { useDeferredValue, useState } from "react";
 import type { Control, FieldPath } from "react-hook-form";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -67,7 +67,7 @@ import {
   saveMarketChartDefaultAction,
 } from "../actions/commands";
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
-import { useMarketActionError } from "../lib/action-error";
+import { useMarketActionError } from "../hooks/use-market-action-error";
 import {
   type MarketChartChecks,
   marketChartChecks,
@@ -114,18 +114,23 @@ export function ChartWorkspace({
   const retryRender = useAction(retryMarketChartAction);
   const saveDefault = useAction(saveMarketChartDefaultAction);
   const analysisId = analysis.id;
-  const analysisVersion = analysis.version;
   const authoritativeSpec = analysis.currentChartSpec;
   const renderInput = analysis.chartRenderInput;
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const values: Values | undefined = authoritativeSpec
+    ? {
+        analysisId: analysis.id,
+        expectedVersion: analysis.version,
+        idempotencyKey,
+        chartSpec: authoritativeSpec,
+      }
+    : undefined;
   const form = useForm<Values>({
-    defaultValues: {
-      analysisId: analysis.id,
-      expectedVersion: analysis.version,
-      idempotencyKey: crypto.randomUUID(),
-      chartSpec: analysis.currentChartSpec ?? undefined,
-    },
+    defaultValues: values,
     mode: "onChange",
+    resetOptions: { keepDirtyValues: true },
     resolver: zodResolver(approveChartInputSchema),
+    values,
   });
   const spec = useWatch({ control: form.control, name: "chartSpec" });
   const deferredSpec = useDeferredValue(spec);
@@ -136,20 +141,6 @@ export function ChartWorkspace({
   const [announcement, setAnnouncement] = useState("");
   const chartApproval = analysis.approvals.chart.fingerprint;
   const pending = chartActionsPending(approve.isPending, saveDefault.isPending);
-  const previousAnalysisId = useRef(analysisId);
-
-  useEffect(() => {
-    const analysisChanged = previousAnalysisId.current !== analysisId;
-    previousAnalysisId.current = analysisId;
-    syncChartForm({
-      analysisChanged,
-      analysisId,
-      analysisVersion,
-      authoritativeSpec,
-      form,
-      isDirty,
-    });
-  }, [analysisId, analysisVersion, authoritativeSpec, form, isDirty]);
 
   const markCustom = () => {
     onDirtyChange(true);
@@ -171,9 +162,9 @@ export function ChartWorkspace({
     onDirtyChange(true);
   };
 
-  const approveSubmit = form.handleSubmit(async (values) => {
+  const approveSubmit = form.handleSubmit(async (submitted) => {
     const result = await approve.execute({
-      ...values,
+      ...submitted,
       expectedVersion: analysis.version,
       idempotencyKey: crypto.randomUUID(),
     });
@@ -181,7 +172,7 @@ export function ChartWorkspace({
       applyActionErrorToForm(form.setError, result, form.setFocus);
       return;
     }
-    form.reset({ ...values, idempotencyKey: crypto.randomUUID() });
+    form.reset(submitted, { keepDirtyValues: false });
     onDirtyChange(false);
   });
 
@@ -238,9 +229,7 @@ export function ChartWorkspace({
           isDirty={isDirty}
           onManualChange={markCustom}
           onReset={() => {
-            form.reset(
-              chartFormValues(analysisId, analysisVersion, authoritativeSpec),
-            );
+            form.reset(values, { keepDirtyValues: false });
             onDirtyChange(false);
           }}
           onSaveDefault={async () => {
@@ -307,7 +296,6 @@ function createChartPreview(
     const scene = createMarketChartScene(
       {
         ...renderInput,
-        dimensions: MARKET_CHART_OUTPUT_DIMENSIONS.landscape,
         spec,
       },
       { enforceColorPolicy: false },
@@ -334,29 +322,6 @@ function chartSeriesIdentities(
 
 function chartActionsPending(approving: boolean, savingDefault: boolean) {
   return approving || savingDefault;
-}
-
-function syncChartForm({
-  analysisChanged,
-  analysisId,
-  analysisVersion,
-  authoritativeSpec,
-  form,
-  isDirty,
-}: {
-  analysisChanged: boolean;
-  analysisId: string;
-  analysisVersion: number;
-  authoritativeSpec: MarketChartRenderInput["spec"] | null;
-  form: ReturnType<typeof useForm<Values>>;
-  isDirty: boolean;
-}) {
-  if (!authoritativeSpec) {
-    form.reset();
-    return;
-  }
-  if (isDirty && !analysisChanged) return;
-  form.reset(chartFormValues(analysisId, analysisVersion, authoritativeSpec));
 }
 
 function chartApprovalBlocked(
@@ -901,6 +866,8 @@ export function ChartSidebarPreview({
 }) {
   const t = useTranslations(MARKET_ANALYSIS_NAMESPACE);
   const renderInput = analysis.chartRenderInput;
+  const dimensions =
+    renderInput?.dimensions ?? MARKET_CHART_OUTPUT_DIMENSIONS.landscape;
   const lifecycle = analysis.chartRender?.lifecycle;
   const state = analysis.currentChartMediaAssetId
     ? "ready"
@@ -922,11 +889,11 @@ export function ChartSidebarPreview({
         <Image
           alt={t("chart.canonicalAlt")}
           className="h-auto w-full rounded-lg border"
-          height={1350}
+          height={dimensions.height}
           loading="eager"
           src={`/api/media/${analysis.currentChartMediaAssetId}`}
           unoptimized
-          width={1080}
+          width={dimensions.width}
         />
       ) : svg ? (
         <div
@@ -941,17 +908,4 @@ export function ChartSidebarPreview({
       </div>
     </div>
   );
-}
-
-function chartFormValues(
-  analysisId: string,
-  expectedVersion: number,
-  chartSpec: NonNullable<MarketAnalysisProjection["currentChartSpec"]>,
-): Values {
-  return {
-    analysisId,
-    expectedVersion,
-    idempotencyKey: crypto.randomUUID(),
-    chartSpec,
-  };
 }

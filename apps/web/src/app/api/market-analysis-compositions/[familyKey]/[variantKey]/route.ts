@@ -1,17 +1,15 @@
 import "server-only";
 
 import { problemResponse, withRequestId } from "@rz-chain-reporter/api/request";
+import { stableKeySchema } from "@rz-chain-reporter/customer-template/stable-key";
 import type { NextRequest } from "next/server";
-import { z } from "zod";
 
 import { readMarketCompositionSample } from "@/features/market-analysis/lib/template";
 import { createInstallationContext } from "@/server/rpc/context";
 
-const catalogKeySchema = z.string().regex(/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/u);
-
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ familyKey: string; variantKey: string }> },
+  context: RouteContext<"/api/market-analysis-compositions/[familyKey]/[variantKey]">,
 ) {
   const installation = createInstallationContext(request.headers);
   const { requestId } = installation;
@@ -19,8 +17,8 @@ export async function GET(
   if (!session?.user) return notFound(requestId);
   await installation.getWorkspaceId();
   const params = await context.params;
-  const familyKey = catalogKeySchema.safeParse(params.familyKey);
-  const variantKey = catalogKeySchema.safeParse(params.variantKey);
+  const familyKey = stableKeySchema.safeParse(params.familyKey);
+  const variantKey = stableKeySchema.safeParse(params.variantKey);
   if (!familyKey.success || !variantKey.success) return notFound(requestId);
   const sample = readMarketCompositionSample(familyKey.data, variantKey.data);
   if (!sample) return notFound(requestId);

@@ -16,6 +16,8 @@
     "probe:copy-variant-translation": "tsx src/inngest/copy-variant-translation-probe-cli.ts",
     "probe:image-generation": "tsx src/inngest/image-generation-probe-cli.ts",
     "probe:market": "tsx src/market/market-probe-cli.ts",
+    "probe:market-generation": "tsx src/inngest/market-generation-probe-cli.ts",
+    "probe:verification-settlement": "tsx src/market/verification-settlement-probe-cli.ts",
     "probe:analysis-run": "tsx src/inngest/analysis-run-probe-cli.ts",
     "probe:presentation-translation": "tsx src/inngest/presentation-translation-probe-cli.ts",
     "probe:publishing": "tsx src/inngest/publishing-probe-cli.ts",
@@ -58,7 +60,7 @@
     "@types/node": "catalog:",
     "esbuild": "0.28.2",
     "inngest-cli": "1.44.0",
-    "tsx": "4.23.12",
+    "tsx": "4.23.13",
     "typescript": "catalog:"
   }
 }

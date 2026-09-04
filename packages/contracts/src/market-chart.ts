@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-import {
-  marketOutputFormatSchema,
-  marketPeriodSchema,
-  marketScaleSchema,
-} from "./market";
+import { marketPeriodSchema, marketScaleSchema } from "./market";
 import { contentLocaleSchema } from "./source";
 
 export const MARKET_CHART_SPEC_SCHEMA_VERSION = 2;
@@ -124,33 +120,6 @@ export const marketChartSpecSchema = marketChartSpecShapeSchema.superRefine(
 
 export type MarketChartSpec = z.infer<typeof marketChartSpecSchema>;
 
-const legacyMarketChartSpecSchema = z.strictObject({
-  schemaVersion: z.literal(1),
-  presetId: z.string().trim().min(1).max(80),
-  background: hexColorSchema,
-  seriesColors: z.record(boundedLabelSchema, hexColorSchema),
-  legendPosition: z.enum(["top", "bottom", "right"]),
-  legendFormat: z.enum(["label", "label_change", "label_value"]),
-  lineWidth: z.union([z.literal(2), z.literal(4), z.literal(6)]),
-  markers: z.boolean(),
-  gridStrength: marketChartGridStrengthSchema,
-});
-
-export const persistedMarketChartSpecSchema = z
-  .union([marketChartSpecSchema, legacyMarketChartSpecSchema])
-  .transform((spec): MarketChartSpec => {
-    if (spec.schemaVersion === MARKET_CHART_SPEC_SCHEMA_VERSION) return spec;
-    return {
-      ...spec,
-      schemaVersion: MARKET_CHART_SPEC_SCHEMA_VERSION,
-      presetId: "custom",
-      legendFormat:
-        spec.legendFormat === "label_change" ? "symbol_change" : "symbol_only",
-      markers: spec.markers ? "all" : "none",
-    };
-  })
-  .pipe(marketChartSpecSchema);
-
 export const marketChartPointSchema = z.tuple([
   z.iso.datetime({ offset: true }),
   z.string().regex(/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/u),
@@ -191,7 +160,6 @@ export const marketChartAttributionProfileSchema = z.strictObject({
 export const marketChartRenderInputSchema = z.strictObject({
   renderContractVersion: z.literal(MARKET_CHART_RENDER_CONTRACT_VERSION),
   contentLocale: contentLocaleSchema,
-  outputFormat: marketOutputFormatSchema,
   dimensions: z.strictObject({
     width: z.int().min(640).max(4096),
     height: z.int().min(640).max(4096),

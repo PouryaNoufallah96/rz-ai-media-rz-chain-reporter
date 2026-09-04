@@ -1,10 +1,15 @@
 import type {
   ContentLocale,
+  MARKET_GENERATION_BRIEF_SOURCES,
+  MARKET_SNAPSHOT_SERIES_OUTCOMES,
+  MarketAnalysisStatus,
   MarketChartRenderInput,
   MarketChartSpec,
   MarketOutputFormat,
   MarketPeriod,
   MarketScale,
+  MarketSeriesRole,
+  MarketSnapshotStatus,
   ModelOption,
   NormalizedMarketRequest,
   OperationLifecycle,
@@ -12,6 +17,8 @@ import type {
 } from "@rz-chain-reporter/contracts";
 import { z } from "zod";
 import type { PlatformDraftExactCard } from "@/features/editorial/schemas/drafts";
+
+import type { MARKET_ANALYSIS_STEPS } from "./search";
 
 export const MARKET_COMPARISON_SEARCH_LIMIT = 8;
 const MARKET_COMPARISON_SEARCH_QUERY_MAX_LENGTH = 80;
@@ -69,7 +76,6 @@ export type MarketComparisonSearchResult = z.infer<
 >;
 
 export type MarketAnalysisOptionsProjection = {
-  brands: readonly { id: string; key: string; name: string }[];
   instruments: readonly {
     id: string;
     key: string;
@@ -116,16 +122,16 @@ export type MarketAnalysisCatalogProjection = {
 
 export type MarketSnapshotProjection = {
   id: string;
-  status: "verified" | "partial" | "unverified";
-  period: string;
-  scale: string;
+  status: MarketSnapshotStatus;
+  period: MarketPeriod;
+  scale: MarketScale;
   warnings: readonly string[];
   series: readonly MarketSeriesProjection[];
 };
 
 export type MarketAnalysisCoreProjection = {
   id: string;
-  status: "in_progress" | "completed";
+  status: MarketAnalysisStatus;
   version: number;
   mediaBrandId: string;
   mediaBrandKey: string;
@@ -161,7 +167,7 @@ export type MarketAnalysisCoreProjection = {
   imageOptionKey: string | null;
   currentFinalMediaAssetId: string | null;
   generation: null | {
-    briefSource: "model" | "deterministic_fallback" | null;
+    briefSource: (typeof MARKET_GENERATION_BRIEF_SOURCES)[number] | null;
     canRetryFinalization: boolean;
     fallbackCode:
       | "MODEL_INVOCATION_FAILED"
@@ -206,8 +212,8 @@ export type MarketStorySuggestion = {
 
 export type MarketSeriesProjection = {
   descriptorIdentity: string;
-  role: "primary" | "comparison";
-  outcome: "succeeded" | "failed";
+  role: MarketSeriesRole;
+  outcome: (typeof MARKET_SNAPSHOT_SERIES_OUTCOMES)[number];
   startPrice: string | null;
   endPrice: string | null;
   changePercent: string | null;
@@ -223,18 +229,16 @@ type ApprovalProjection = {
 
 export type MarketAnalysisHistoryBaseRow = {
   id: string;
-  status: "in_progress" | "completed";
+  status: MarketAnalysisStatus;
   version: number;
-  title: string;
-  mediaBrandName: string;
-  mediaBrandId: string;
+  symbols: string;
   visualOwnerName: string;
   contentLocale: ContentLocale;
   updatedAt: Date;
   completedAt: Date | null;
-  period: string;
-  scale: string;
-  stage: "market" | "chart" | "story" | "design" | "generate" | "publish";
+  period: MarketPeriod;
+  scale: MarketScale;
+  stage: (typeof MARKET_ANALYSIS_STEPS)[number];
   currentFinalMediaAssetId: string | null;
   currentOperationIds: readonly string[];
 };
@@ -281,9 +285,9 @@ export type MarketAnalysisReportCore = {
   requestFingerprint: string;
   snapshot: {
     id: string;
-    status: "verified" | "partial" | "unverified";
-    period: string;
-    scale: string;
+    status: MarketSnapshotStatus;
+    period: MarketPeriod;
+    scale: MarketScale;
     effectiveWindowStart: Date | null;
     effectiveWindowEnd: Date | null;
     fetchCompletedAt: Date;
@@ -322,6 +326,8 @@ export type MarketAnalysisReportCore = {
     referenceSampleKey: string;
     referenceSampleChecksum: string;
     referenceSampleLabel: string | null;
+    footerLockupKey: string;
+    footerLockupChecksum: string;
     fingerprint: string;
     approvedAt: Date;
     approvedBy: string;
@@ -332,7 +338,7 @@ export type MarketAnalysisReportCore = {
     approvedBy: string;
     media: ReportMedia;
     operationId: string;
-    briefSource: "model" | "deterministic_fallback" | null;
+    briefSource: (typeof MARKET_GENERATION_BRIEF_SOURCES)[number] | null;
     fallbackCode: string | null;
   };
   fingerprints: {

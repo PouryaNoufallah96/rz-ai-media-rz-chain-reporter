@@ -2,6 +2,7 @@ import { Button } from "@rz-chain-reporter/ui/components/button";
 import { PlusIcon } from "lucide-react";
 
 import { Suspended } from "@/components/fetcher/suspended";
+import { PageContainer } from "@/components/layout/page-container";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
 import { Localized } from "@/i18n/client";
 import { Link } from "@/i18n/navigation";
@@ -55,7 +56,7 @@ export async function MarketAnalysisScreen({
           const history = await getMarketAnalysisHistory(
             normalizeMarketAnalysisHistoryQuery(parsed),
           );
-          return { history, kind: "history" as const, options };
+          return { history, kind: "history" as const };
         }}
         fallback={
           <div className={WORKSPACE_FRAME}>
@@ -73,7 +74,7 @@ export async function MarketAnalysisScreen({
               />
             </div>
           ) : (
-            <div className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-6 lg:px-8">
+            <PageContainer>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h1 className="text-balance font-semibold text-2xl tracking-display">
@@ -91,11 +92,8 @@ export async function MarketAnalysisScreen({
                   {t("actions.create")}
                 </Button>
               </div>
-              <MarketAnalysisHistory
-                brands={result.options.brands}
-                history={result.history}
-              />
-            </div>
+              <MarketAnalysisHistory history={result.history} />
+            </PageContainer>
           )
         }
       </Suspended>

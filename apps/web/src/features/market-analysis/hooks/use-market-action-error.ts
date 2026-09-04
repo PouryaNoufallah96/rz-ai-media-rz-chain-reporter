@@ -22,6 +22,10 @@ export function useMarketActionError() {
         return t("create.errors.comparisonDuplicate");
       case "MARKET_INSTRUMENT_REQUIRED":
         return t("create.errors.primary");
+      case "MARKET_STORY_HEADLINE_REQUIRED":
+        return t("story.errors.headline");
+      case "MARKET_STORY_TEXT_REQUIRED":
+        return t("story.errors.supportingText");
       case "NOT_FOUND":
         return t("errors.notFound");
       case "TRANSIENT_CONFLICT":

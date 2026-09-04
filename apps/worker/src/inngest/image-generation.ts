@@ -266,8 +266,11 @@ async function loadImageDraftChange(
       context.copyOperationId,
     );
     if (!copy) throw new NonRetriableError("NOT_FOUND");
+    if (copy.executionScope.kind !== "analysis_run") {
+      throw new Error("draft notification requires an analysis-run scope");
+    }
     return {
-      analysisRunId: copy.analysisRunId,
+      analysisRunId: copy.executionScope.analysisRunId,
       code,
       operationId: context.operationId,
       platformDraftId: context.platformDraftId,

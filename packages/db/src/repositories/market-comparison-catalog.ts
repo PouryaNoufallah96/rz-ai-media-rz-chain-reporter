@@ -154,23 +154,28 @@ export async function getCurrentMarketComparisonCatalog(
   executor: Executor,
   workspaceId: string,
 ) {
-  const [state] = await executor
-    .select()
+  const joined = await executor
+    .select({
+      state: marketComparisonCatalogState,
+      row: marketComparisonCatalog,
+    })
     .from(marketComparisonCatalogState)
-    .where(inWorkspace(marketComparisonCatalogState, workspaceId));
-  if (!state?.currentBatchId) return { state: state ?? null, rows: [] };
-
-  const rows = await executor
-    .select()
-    .from(marketComparisonCatalog)
-    .where(
+    .leftJoin(
+      marketComparisonCatalog,
       and(
         inWorkspace(marketComparisonCatalog, workspaceId),
-        eq(marketComparisonCatalog.batchId, state.currentBatchId),
+        eq(
+          marketComparisonCatalog.batchId,
+          marketComparisonCatalogState.currentBatchId,
+        ),
       ),
     )
+    .where(inWorkspace(marketComparisonCatalogState, workspaceId))
     .orderBy(asc(marketComparisonCatalog.symbol));
-  return { state, rows };
+  return {
+    state: joined[0]?.state ?? null,
+    rows: joined.flatMap((entry) => (entry.row ? [entry.row] : [])),
+  };
 }
 
 export async function claimMarketComparisonCatalogRefresh(

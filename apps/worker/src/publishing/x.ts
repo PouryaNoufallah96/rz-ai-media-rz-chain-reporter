@@ -114,7 +114,7 @@ export function createXPublisher(input: XDependencies): Publisher {
               ),
             };
           }
-          let media: Uint8Array;
+          let media: Uint8Array<ArrayBuffer>;
           try {
             media = await input.runtime.readMedia(material.media.objectKey);
           } catch (error) {

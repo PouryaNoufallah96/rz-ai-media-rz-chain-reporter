@@ -53,6 +53,44 @@ export async function notifyMarketAnalysisChanged(
   };
 }
 
+export async function notifyMarketAnalysisAndUsageChanged(
+  step: WorkerStep,
+  workspaceId: string,
+  marketAnalysisId: string,
+  callSite: string,
+  usageActorId: string | null,
+) {
+  const cacheInvalidation = await step.run(
+    `notify-market-analysis-usage-cache-${callSite}`,
+    () =>
+      notifyCacheInvalidationForDurableStep([
+        workspaceCacheTag(workspaceId, "market-analysis"),
+        workspaceCacheTag(workspaceId, "usage"),
+      ]),
+  );
+  if (cacheInvalidation !== "accepted")
+    return {
+      cacheInvalidation,
+      realtimePublished: false,
+      usageRealtimePublished: false,
+    };
+  await step.sleep(`let-market-analysis-usage-cache-flush-${callSite}`, "1s");
+  return {
+    cacheInvalidation,
+    realtimePublished: await publishMarketAnalysisChanged(
+      step,
+      workspaceId,
+      message(marketAnalysisId),
+      callSite,
+    ),
+    usageRealtimePublished: await publishUsageLedgerChanged(
+      step,
+      workspaceId,
+      usageActorId,
+    ),
+  };
+}
+
 export function notifyMarketCatalogChanged(
   step: WorkerStep,
   workspaceId: string,

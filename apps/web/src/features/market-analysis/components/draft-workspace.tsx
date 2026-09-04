@@ -38,9 +38,9 @@ import { useAction } from "@/hooks/use-action";
 
 import { retryMarketCaptionsAction } from "../actions/prepare-platform";
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
-import { useMarketActionError } from "../lib/action-error";
+import { useMarketActionError } from "../hooks/use-market-action-error";
+import { hasThreeReadyCaptions } from "../lib/publish-readiness";
 import { CAPTION_EDITOR_ID, CaptionOptions } from "./caption-options";
-import { hasThreeReadyCaptions } from "./publish-readiness";
 
 export function DraftWorkspace({
   analysisId,

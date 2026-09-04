@@ -6,9 +6,9 @@ import {
   type ContentLocale,
   MARKET_CHART_PRESET_IDS,
   MARKET_CHART_RENDER_CONTRACT_VERSION,
+  MARKET_CHART_SPEC_SCHEMA_VERSION,
   type MarketChartRenderInput,
   marketChartSpecSchema,
-  persistedMarketChartSpecSchema,
 } from "@rz-chain-reporter/contracts";
 
 import {
@@ -24,7 +24,7 @@ function checksum(value: string) {
 }
 
 const spec = {
-  schemaVersion: 2,
+  schemaVersion: MARKET_CHART_SPEC_SCHEMA_VERSION,
   presetId: "brand-dark",
   background: "#0F172A",
   seriesColors: {
@@ -43,7 +43,6 @@ function fixture(contentLocale: ContentLocale): MarketChartRenderInput {
   return {
     renderContractVersion: MARKET_CHART_RENDER_CONTRACT_VERSION,
     contentLocale,
-    outputFormat: "square",
     dimensions: { width: 1080, height: 1080 },
     snapshot: {
       id: "11111111-1111-4111-8111-111111111111",
@@ -123,17 +122,6 @@ assert.deepEqual(
   materialMarketChartSpec({ ...spec, presetId: "custom" }),
   materialMarketChartSpec(spec),
 );
-
-const legacy = persistedMarketChartSpecSchema.parse({
-  ...spec,
-  schemaVersion: 1,
-  legendFormat: "label_change",
-  markers: true,
-});
-assert.equal(legacy.schemaVersion, 2);
-assert.equal(legacy.presetId, "custom");
-assert.equal(legacy.legendFormat, "symbol_change");
-assert.equal(legacy.markers, "all");
 
 const cleanLight = applyMarketChartPreset(spec, "clean-light", [
   "alpha",

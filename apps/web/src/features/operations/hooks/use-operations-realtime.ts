@@ -45,8 +45,10 @@ export function useOperationsRealtime({
     refetch,
   });
   const route = useRealtimeRouterRefresh();
-  const refreshRoute = useEffectEvent(route.requestRefresh);
   const pathname = usePathname();
+  const refreshRoute = useEffectEvent(() => {
+    if (pathname === "/market-analysis") route.requestRefresh();
+  });
   const refetchSnapshot = useEffectEvent(snapshot.requestRefresh);
   const connection = useRef<RealtimeConnectionState>({
     active: false,
@@ -97,9 +99,9 @@ export function useOperationsRealtime({
 
     if (requiresSnapshot) {
       refetchSnapshot();
-      if (pathname.startsWith("/market-analysis")) refreshRoute();
+      refreshRoute();
     }
-  }, [pathname, realtime.messages.delta, viewerId]);
+  }, [realtime.messages.delta, viewerId]);
 
   useEffect(() => {
     const transition = transitionRealtimeConnection(connection.current, [

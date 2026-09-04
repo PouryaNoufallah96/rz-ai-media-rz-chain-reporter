@@ -1,6 +1,7 @@
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
 
 import { Suspended } from "@/components/fetcher/suspended";
+import { PageContainer } from "@/components/layout/page-container";
 import { requireSession } from "@/features/auth/api/server/session";
 import { getPlatformDraft } from "@/features/editorial/api/server/get-platform-draft";
 import { getRecentTopics } from "@/features/editorial/api/server/get-recent-topics";
@@ -38,7 +39,7 @@ export function AccountScreen({
       fallback={<AccountHeadingSkeleton />}
     >
       {(t) => (
-        <div className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-6 lg:px-8">
+        <PageContainer>
           <h1 className="text-balance font-semibold text-2xl tracking-display">
             {t("title")}
           </h1>
@@ -62,7 +63,7 @@ export function AccountScreen({
               </Localized>
             )}
           </Suspended>
-        </div>
+        </PageContainer>
       )}
     </Suspended>
   );
@@ -114,10 +115,10 @@ async function readAccountDesk(searchParams: AccountSearchParams) {
 
 function AccountHeadingSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-6 lg:px-8">
+    <PageContainer>
       <Skeleton className="h-8 w-40" />
       <Skeleton className="mt-1 h-5 w-full max-w-xl" />
-    </div>
+    </PageContainer>
   );
 }
 

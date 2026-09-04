@@ -284,7 +284,6 @@ export function createModelGateway(options: {
           aspectRatio: input.aspectRatio,
           deadlineMs: input.deadlineMs,
           model: route.model,
-          reference: input.references?.[0],
           prompt: input.prompt,
           references: input.references,
         })

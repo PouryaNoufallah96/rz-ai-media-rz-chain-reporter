@@ -1,17 +1,15 @@
 import "server-only";
 
 import { problemResponse, withRequestId } from "@rz-chain-reporter/api/request";
+import { stableKeySchema } from "@rz-chain-reporter/customer-template/stable-key";
 import type { NextRequest } from "next/server";
-import { z } from "zod";
 
 import { readMarketInstrumentSelectorIcon } from "@/features/market-analysis/lib/template";
 import { createInstallationContext } from "@/server/rpc/context";
 
-const catalogKeySchema = z.string().regex(/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/u);
-
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ instrumentKey: string }> },
+  context: RouteContext<"/api/market-analysis-instruments/[instrumentKey]/icon">,
 ) {
   const installation = createInstallationContext(request.headers);
   const { requestId } = installation;
@@ -19,7 +17,7 @@ export async function GET(
   if (!session?.user) return notFound(requestId);
   await installation.getWorkspaceId();
   const params = await context.params;
-  const instrumentKey = catalogKeySchema.safeParse(params.instrumentKey);
+  const instrumentKey = stableKeySchema.safeParse(params.instrumentKey);
   if (!instrumentKey.success) return notFound(requestId);
   const icon = readMarketInstrumentSelectorIcon(instrumentKey.data);
   if (!icon) return notFound(requestId);

@@ -7,6 +7,8 @@ import type {
   MarketSeriesRole,
 } from "@rz-chain-reporter/contracts";
 
+import type { SafeHttpRequest } from "../fetch/safe-http";
+
 export type MarketPoint = readonly [timestamp: number, price: number];
 export type MarketProviderBinding = {
   apiKey?: string;
@@ -34,7 +36,6 @@ export type MarketCatalogEntry = {
   canonicalIdentity: string;
   displayName: string;
   provider: MarketComparisonProvider;
-  providerMetadata: { quoteAsset: string };
   quoteAsset: string;
   symbol: string;
   tradingStatus: string;
@@ -46,14 +47,7 @@ export interface MarketProviderAdapter {
 export interface MarketCatalogAdapter {
   fetchCatalog(): Promise<readonly MarketCatalogEntry[]>;
 }
-export type MarketTransportRequest = {
-  credentialedRedirects?: "reject" | "same-origin";
-  headers?: Record<string, string>;
-  maxDecodedBytes: number;
-  mimeAllowlist: readonly string[];
-  timeoutMs: number;
-  url: string;
-};
+export type MarketTransportRequest = SafeHttpRequest;
 export type MarketTransportResponse = {
   status: number;
   text: string;

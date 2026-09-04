@@ -14,7 +14,7 @@ const PERIOD_MS: Record<MarketPeriod, number> = {
   "1y": 31_536_000_000,
 };
 export const periodMilliseconds = (period: MarketPeriod) => PERIOD_MS[period];
-export function normalizeObservedPoints(points: readonly MarketPoint[]) {
+function normalizeObservedPoints(points: readonly MarketPoint[]) {
   const byTimestamp = new Map<number, number>();
   for (const [timestamp, price] of points) {
     if (

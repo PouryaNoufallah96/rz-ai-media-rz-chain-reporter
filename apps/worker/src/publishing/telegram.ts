@@ -120,7 +120,7 @@ export function createTelegramPublisher({
             ),
           );
         }
-        let media: Uint8Array | null = null;
+        let media: Uint8Array<ArrayBuffer> | null = null;
         if (material.media) {
           try {
             media = await runtime.readMedia(material.media.objectKey);
@@ -284,7 +284,7 @@ function telegramRequest(
     | {
         chatId: string;
         link: { length: number; offset: number; url: string } | null;
-        media: Uint8Array | null;
+        media: Uint8Array<ArrayBuffer> | null;
         method: "sendMessage";
         mimeType: string | null;
         text: string;
@@ -292,7 +292,7 @@ function telegramRequest(
     | {
         chatId: string;
         link: { length: number; offset: number; url: string } | null;
-        media: Uint8Array | null;
+        media: Uint8Array<ArrayBuffer> | null;
         method: "sendPhoto";
         mimeType: string | null;
         text: string;

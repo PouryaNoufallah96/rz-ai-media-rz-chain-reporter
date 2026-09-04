@@ -32,7 +32,7 @@ import { applyActionErrorToForm, useAction } from "@/hooks/use-action";
 import { approveMarketStoryAction } from "../actions/commands";
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
 import { useAdvanceOnApproval } from "../hooks/use-advance-on-approval";
-import { useMarketActionError } from "../lib/action-error";
+import { useMarketActionError } from "../hooks/use-market-action-error";
 import { formatMarketChange } from "../lib/format";
 import { descriptorOf } from "../lib/snapshot";
 import {

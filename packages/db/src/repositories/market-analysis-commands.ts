@@ -28,7 +28,6 @@ import { readOperationIdentity } from "./operation";
 export const MARKET_ANALYSIS_CREATE_COMMAND = "market-analysis:create";
 export const MARKET_VERIFICATION_COMMAND = "market-verification:analysis";
 export const MARKET_CHART_RENDER_COMMAND = "market-chart-render:analysis";
-export const MARKET_DESIGN_APPROVAL_COMMAND = "market-design:approve";
 
 type AnalysisRow = typeof marketAnalysis.$inferSelect;
 type ChartSpec = NonNullable<AnalysisRow["currentChartSpec"]>;
@@ -254,6 +253,7 @@ export async function createOwnedMarketAnalysis(
     templateFingerprint: string;
     catalogFingerprint: string | null;
     instrumentProfileFingerprint: string;
+    verification: Identity & { verificationIntentId: string };
   },
 ): Promise<CommandResult> {
   return executor.transaction(async (tx) => {
@@ -266,6 +266,7 @@ export async function createOwnedMarketAnalysis(
     if (identity.status === "mismatch") {
       return { status: "idempotency_mismatch" };
     }
+    let analysis: AnalysisRow;
     if (identity.status === "replayed") {
       const [existing] = await tx
         .select()
@@ -275,39 +276,36 @@ export async function createOwnedMarketAnalysis(
             inWorkspace(marketAnalysis, workspaceId),
             eq(marketAnalysis.operationId, identity.operation.id),
           ),
-        );
+        )
+        .for("update");
       if (!existing) throw new Error("market analysis replay row is missing");
-      return {
-        status: "replayed",
-        analysis: existing,
-        operationId: identity.operation.id,
-      };
+      analysis = existing;
+    } else {
+      const [created] = await tx
+        .insert(marketAnalysis)
+        .values({
+          id: input.analysisId,
+          workspaceId,
+          operationId: identity.operation.id,
+          mediaBrandId: input.mediaBrandId,
+          visualOwnerInstrumentId: input.visualOwnerInstrumentId,
+          contentLocale: input.contentLocale,
+          outputFormat: input.outputFormat,
+          normalizedRequest: input.normalizedRequest,
+          requestFingerprint: input.requestFingerprint,
+          currentChartSpec: input.currentChartSpec,
+          templateFingerprint: input.templateFingerprint,
+          catalogFingerprint: input.catalogFingerprint,
+          instrumentProfileFingerprint: input.instrumentProfileFingerprint,
+        })
+        .returning();
+      if (!created) throw new Error("market analysis insert returned no row");
+      analysis = created;
     }
-
-    const [analysis] = await tx
-      .insert(marketAnalysis)
-      .values({
-        id: input.analysisId,
-        workspaceId,
-        operationId: identity.operation.id,
-        mediaBrandId: input.mediaBrandId,
-        visualOwnerInstrumentId: input.visualOwnerInstrumentId,
-        contentLocale: input.contentLocale,
-        outputFormat: input.outputFormat,
-        normalizedRequest: input.normalizedRequest,
-        requestFingerprint: input.requestFingerprint,
-        currentChartSpec: input.currentChartSpec,
-        templateFingerprint: input.templateFingerprint,
-        catalogFingerprint: input.catalogFingerprint,
-        instrumentProfileFingerprint: input.instrumentProfileFingerprint,
-      })
-      .returning();
-    if (!analysis) throw new Error("market analysis insert returned no row");
-    return {
-      status: "updated",
-      analysis,
-      operationId: identity.operation.id,
-    };
+    return enqueueVerification(tx, workspaceId, userId, analysis, {
+      ...input.verification,
+      expectedVersion: analysis.version,
+    });
   });
 }
 
@@ -330,6 +328,7 @@ export async function updateMarketAnalysisStage(
     analysisId: string;
     expectedVersion: number;
     change: MarketRequestChange;
+    verification: Identity & { verificationIntentId: string };
   },
 ): Promise<CommandResult> {
   return executor.transaction(async (tx) => {
@@ -389,12 +388,19 @@ export async function updateMarketAnalysisStage(
       };
     }
 
-    if (!changes) return { status: "replayed", analysis: row };
+    if (!changes) {
+      return enqueueVerification(tx, workspaceId, userId, row, {
+        ...input.verification,
+        expectedVersion: row.version,
+      });
+    }
     if (row.version !== input.expectedVersion) return { status: "conflict" };
     const updated = await casUpdate(tx, workspaceId, row, changes);
-    return updated
-      ? { status: "updated", analysis: updated }
-      : { status: "conflict" };
+    if (!updated) return { status: "conflict" };
+    return enqueueVerification(tx, workspaceId, userId, updated, {
+      ...input.verification,
+      expectedVersion: updated.version,
+    });
   });
 }
 
@@ -417,63 +423,76 @@ export async function requestMarketVerification(
       input.analysisId,
     );
     if (!row) return { status: "not_found" };
-    const replay = await readOperationIdentity(tx, workspaceId, {
-      actor: userId,
-      commandType: MARKET_VERIFICATION_COMMAND,
-      idempotencyKey: input.idempotencyKey,
-    });
-    if (replay) {
-      return replay.requestHash === input.requestHash
-        ? {
-            status: "replayed",
-            analysis: row,
-            operationId: replay.id,
-          }
-        : { status: "idempotency_mismatch" };
-    }
-    const rejected = admissionStatus(row);
-    if (rejected) return { status: rejected };
-    if (row.version !== input.expectedVersion) return { status: "conflict" };
-    const identity = await insertCommandOperation(tx, workspaceId, {
-      ...input,
-      actor: userId,
-      commandType: MARKET_VERIFICATION_COMMAND,
-    });
-    if (identity.status === "mismatch") {
-      return { status: "idempotency_mismatch" };
-    }
-    if (identity.status === "replayed") {
-      return {
-        status: "replayed",
-        analysis: row,
-        operationId: identity.operation.id,
-      };
-    }
-    const updated = await casUpdate(tx, workspaceId, row, {
-      verificationIntentId: input.verificationIntentId,
-      verificationIntentVersion: row.verificationIntentVersion + 1,
-    });
-    if (!updated) {
-      throw new Error("market verification CAS failed after admission");
-    }
-    await tx.insert(outboxEvent).values({
-      workspaceId,
-      operationId: identity.operation.id,
-      eventType: OPERATION_MARKET_VERIFICATION_REQUESTED_EVENT_NAME,
-      schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
-      payload: {
-        schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
-        workspaceId,
-        marketAnalysisId: row.id,
-        operationId: identity.operation.id,
-      },
-    });
+    return enqueueVerification(tx, workspaceId, userId, row, input);
+  });
+}
+
+async function enqueueVerification(
+  tx: Transaction,
+  workspaceId: string,
+  userId: string,
+  row: AnalysisRow,
+  input: Identity & {
+    expectedVersion: number;
+    verificationIntentId: string;
+  },
+): Promise<CommandResult> {
+  const replay = await readOperationIdentity(tx, workspaceId, {
+    actor: userId,
+    commandType: MARKET_VERIFICATION_COMMAND,
+    idempotencyKey: input.idempotencyKey,
+  });
+  if (replay) {
+    return replay.requestHash === input.requestHash
+      ? {
+          status: "replayed",
+          analysis: row,
+          operationId: replay.id,
+        }
+      : { status: "idempotency_mismatch" };
+  }
+  const rejected = admissionStatus(row);
+  if (rejected) return { status: rejected };
+  if (row.version !== input.expectedVersion) return { status: "conflict" };
+  const identity = await insertCommandOperation(tx, workspaceId, {
+    ...input,
+    actor: userId,
+    commandType: MARKET_VERIFICATION_COMMAND,
+  });
+  if (identity.status === "mismatch") {
+    return { status: "idempotency_mismatch" };
+  }
+  if (identity.status === "replayed") {
     return {
-      status: "updated",
-      analysis: updated,
+      status: "replayed",
+      analysis: row,
       operationId: identity.operation.id,
     };
+  }
+  const updated = await casUpdate(tx, workspaceId, row, {
+    verificationIntentId: input.verificationIntentId,
+    verificationIntentVersion: row.verificationIntentVersion + 1,
   });
+  if (!updated) {
+    throw new Error("market verification CAS failed after admission");
+  }
+  await tx.insert(outboxEvent).values({
+    workspaceId,
+    operationId: identity.operation.id,
+    eventType: OPERATION_MARKET_VERIFICATION_REQUESTED_EVENT_NAME,
+    schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+    payload: {
+      schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+      workspaceId,
+      marketAnalysisId: row.id,
+      operationId: identity.operation.id,
+    },
+  });
+  return {
+    status: "updated",
+    analysis: updated,
+    operationId: identity.operation.id,
+  };
 }
 
 async function enqueueChartRender(
@@ -694,7 +713,7 @@ export async function approveMarketDesign(
   executor: TransactionalExecutor,
   workspaceId: string,
   userId: string,
-  input: Identity & {
+  input: {
     analysisId: string;
     expectedVersion: number;
     fingerprint: string;
@@ -711,19 +730,14 @@ export async function approveMarketDesign(
       input.analysisId,
     );
     if (!row) return { status: "not_found" };
-    const replay = await readOperationIdentity(tx, workspaceId, {
-      actor: userId,
-      commandType: MARKET_DESIGN_APPROVAL_COMMAND,
-      idempotencyKey: input.idempotencyKey,
-    });
-    if (replay) {
-      return replay.requestHash === input.requestHash
-        ? {
-            status: "replayed",
-            analysis: row,
-            operationId: replay.id,
-          }
-        : { status: "idempotency_mismatch" };
+    const materialChanged =
+      row.designFamilyKey !== input.material.familyKey ||
+      row.designVariantKey !== input.material.variantKey;
+    if (
+      !materialChanged &&
+      row.designApprovalFingerprint === input.fingerprint
+    ) {
+      return { status: "replayed", analysis: row };
     }
     const rejected = admissionStatus(row);
     if (rejected) return { status: rejected };
@@ -733,35 +747,6 @@ export async function approveMarketDesign(
       !row.currentChartMediaAssetId
     ) {
       return { status: "not_ready" };
-    }
-    const identity = await insertCommandOperation(tx, workspaceId, {
-      ...input,
-      actor: userId,
-      commandType: MARKET_DESIGN_APPROVAL_COMMAND,
-      lifecycle: "succeeded",
-    });
-    if (identity.status === "mismatch") {
-      return { status: "idempotency_mismatch" };
-    }
-    if (identity.status === "replayed") {
-      return {
-        status: "replayed",
-        analysis: row,
-        operationId: identity.operation.id,
-      };
-    }
-    const materialChanged =
-      row.designFamilyKey !== input.material.familyKey ||
-      row.designVariantKey !== input.material.variantKey;
-    if (
-      !materialChanged &&
-      row.designApprovalFingerprint === input.fingerprint
-    ) {
-      return {
-        status: "replayed",
-        analysis: row,
-        operationId: identity.operation.id,
-      };
     }
     const updated = await casUpdate(tx, workspaceId, row, {
       ...(materialChanged ? { currentGenerationId: null, ...clearFinal } : {}),
@@ -774,11 +759,7 @@ export async function approveMarketDesign(
     if (!updated) {
       throw new Error("market design approval CAS failed after admission");
     }
-    return {
-      status: "updated",
-      analysis: updated,
-      operationId: identity.operation.id,
-    };
+    return { status: "updated", analysis: updated };
   });
 }
 

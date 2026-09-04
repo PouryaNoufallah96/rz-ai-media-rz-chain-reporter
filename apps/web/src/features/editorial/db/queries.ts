@@ -7,6 +7,7 @@ import {
   type FilteringReason,
   isOperationSettled,
   type ModelUnitStatus,
+  marketVerifiedFactsSchema,
   OPERATION_ANALYSIS_RUN_REQUESTED_EVENT_NAME,
   type OperationLifecycle,
   type RunCardOriginReference,
@@ -311,7 +312,6 @@ type PlatformDraftSelector =
   | { analysisRunId?: never; platformDraftId: string };
 
 type PlatformDraftRead = {
-  analysisRunId: string | null;
   executionScope:
     | { kind: "analysis_run"; analysisRunId: string }
     | { kind: "market_analysis"; marketAnalysisId: string };
@@ -320,7 +320,6 @@ type PlatformDraftRead = {
 };
 
 type PlatformDraftLaneRead = {
-  analysisRunId: string;
   executionScope: { kind: "analysis_run"; analysisRunId: string };
   lifecycle: OperationLifecycle;
   card: PlatformDraftCard;
@@ -1073,6 +1072,15 @@ export async function readPlatformDrafts(
               }
             : null;
 
+        const executionScope = row.marketAnalysisId
+          ? ({
+              kind: "market_analysis",
+              marketAnalysisId: row.marketAnalysisId,
+            } as const)
+          : ({
+              kind: "analysis_run",
+              analysisRunId: requireAnalysisRunId(row),
+            } as const);
         const card: PlatformDraftExactCard = {
           id: row.id,
           mediaBrandId: row.mediaBrandId,
@@ -1080,15 +1088,7 @@ export async function readPlatformDrafts(
           brandName: row.brandName,
           platform: row.platform,
           lanePosition: row.lanePosition,
-          executionScope: row.marketAnalysisId
-            ? {
-                kind: "market_analysis",
-                marketAnalysisId: row.marketAnalysisId,
-              }
-            : {
-                kind: "analysis_run",
-                analysisRunId: requireAnalysisRunId(row),
-              },
+          executionScope,
           version: row.version,
           activeRevisionId: row.activeRevisionId,
           revisionVersion: row.revisionVersion,
@@ -1113,17 +1113,7 @@ export async function readPlatformDrafts(
             emptyPublishingProjection(environmentForcedPause, timeZone),
         };
 
-        const executionScope = row.marketAnalysisId
-          ? ({
-              kind: "market_analysis",
-              marketAnalysisId: row.marketAnalysisId,
-            } as const)
-          : ({
-              kind: "analysis_run",
-              analysisRunId: requireAnalysisRunId(row),
-            } as const);
         return {
-          analysisRunId: row.analysisRunId,
           executionScope,
           lifecycle: row.originLifecycle,
           card,
@@ -1563,7 +1553,8 @@ function platformDraftOriginDetails(
     telegramReason: row.originTelegramReason,
     promoAngle: row.originPromoAngle,
     marketAnalysisId: row.marketAnalysisId,
-    verifiedFacts: row.originVerifiedFacts,
+    verifiedFacts:
+      marketVerifiedFactsSchema.safeParse(row.originVerifiedFacts).data ?? null,
   };
 }
 

@@ -9,7 +9,6 @@
         "search": "Search by title",
         "searchPlaceholder": "Search analysis titles…",
         "status": "Status",
-        "brand": "Post theme",
         "all": "All"
       },
       "empty": {
@@ -30,7 +29,7 @@
         "brand": "Post theme",
         "stage": "Stage",
         "updated": "Updated",
-        "action": ""
+        "action": "Open analysis"
       },
       "resume": "Resume",
       "open": "Open",
@@ -52,10 +51,10 @@
     "create": {
       "pageDescription": "Configure a market window, verify its data, and carry the result through chart, story, design, generation, and publishing.",
       "title": "Start a market analysis",
-      "primaryTitle": "RZWire tokens",
+      "primaryTitle": "Controlled tokens",
       "primaryDescription": "Select one to three tokens. Price data is fetched from each token's configured public provider.",
       "selectionCount": "{count, number} of {max, number}",
-      "brandingDescription": "This token supplies the visual style and footer when several RZWire tokens share one analysis.",
+      "brandingDescription": "This token supplies the visual style and footer when several controlled tokens share one analysis.",
       "comparisonTitle": "Compare with the market",
       "comparisonDescription": "Add up to three live Binance USDT markets from the latest persisted catalog. The analysis supports six series in total.",
       "searchComparisons": "Search Binance markets",
@@ -106,14 +105,13 @@
         "story": "Story",
         "landscape": "Landscape"
       },
-      "fetchPrices": "Fetch verified prices",
       "fetching": "Fetching prices…",
       "unavailableTitle": "Market setup is unavailable",
-      "unavailableBody": "This installation has no enabled RZWire token with a configured branding profile.",
+      "unavailableBody": "This installation has no enabled controlled token with a configured branding profile.",
       "errors": {
-        "primary": "Select at least one RZWire token.",
-        "primaryLimit": "Select no more than three RZWire tokens.",
-        "primaryDuplicate": "Each RZWire token can be selected only once.",
+        "primary": "Select at least one controlled token.",
+        "primaryLimit": "Select no more than three controlled tokens.",
+        "primaryDuplicate": "Each controlled token can be selected only once.",
         "branding": "Choose which selected token supplies the branding.",
         "comparisonLimit": "Select no more than three market comparisons.",
         "comparisonDuplicate": "Each market comparison can be selected only once."
@@ -135,12 +133,12 @@
       "openSteps": "Open analysis steps",
       "closeSteps": "Close steps",
       "locked": "Complete the preceding stage to unlock {step}.",
-      "brand": "Selected tokens",
       "owner": "Post theme",
       "period": "Period",
       "scale": "Scale",
       "status": "Status",
       "loading": "Loading analysis workspace",
+      "updating": "Loading the selected stage…",
       "back": "Back",
       "project": "Current project",
       "closeProject": "Close current project",
@@ -333,7 +331,11 @@
       "notWritten": "Not written yet",
       "status": "Story status",
       "statusApproved": "Approved",
-      "statusAwaiting": "Awaiting approval"
+      "statusAwaiting": "Awaiting approval",
+      "errors": {
+        "headline": "Write a headline.",
+        "supportingText": "Write the chart text."
+      }
     },
     "design": {
       "title": "Choose template family",
@@ -428,8 +430,8 @@
       "prepareFailedTitle": "The platform was not prepared",
       "prepareFailedBody": "Review the message below and try preparing this platform again.",
       "finishFailedTitle": "The analysis was not finished",
-      "finishFailedBody": "Resolve unfinished captions or unsaved edits, then try again.",
-      "finishBlocked": "Prepare at least one platform with all three captions and save or discard any edits before finishing.",
+      "finishFailedBody": "Approve the final image again or wait for the running operation to settle, then try again.",
+      "finishBlocked": "Save or discard your caption edits before finishing.",
       "finishing": "Finishing analysis",
       "stay": "Keep editing",
       "discard": "Discard changes",
@@ -460,7 +462,6 @@
       "readyNo": "Not yet"
     },
     "report": {
-      "eyebrow": "Immutable completed report",
       "summary": "Approved poster, chart, story, and publishing status.",
       "completed": "Completed",
       "approvedAt": "Approved {date}",
@@ -472,7 +473,7 @@
       "posterAlt": "Approved final poster for {symbols} over {period}",
       "chartAlt": "Approved canonical chart for {symbols} over {period}",
       "marketEvidence": "Verified market data",
-      "marketWindow": "{status} · {scale}",
+      "marketWindow": "{status} · {scale} · Verified {verified} · Coverage {window}",
       "factsCaption": "Verified market values",
       "columns": {
         "series": "Series",
@@ -513,8 +514,6 @@
       "notSaved": "Not saved",
       "destinationReady": "Account connected",
       "destinationUnavailable": "Account unavailable",
-      "notPublished": "Not published",
-      "deliveryUnknown": "Delivery outcome unknown",
       "openDraft": "Open caption",
       "deliveryState": {
         "confirmed": "Published",
@@ -525,7 +524,39 @@
         "notPublished": "Not published"
       },
       "dimensions": "Dimensions",
-      "checksum": "Checksum",
+      "fileType": "File type",
+      "attribution": "Attribution",
+      "provenance": "Provenance and checksums",
+      "requestFingerprint": "Request fingerprint",
+      "snapshotId": "Snapshot ID",
+      "chartFingerprint": "Chart fingerprint",
+      "renderContract": "Chart render contract",
+      "chartChecksum": "Chart checksum",
+      "storyFingerprint": "Text fingerprint",
+      "designFingerprint": "Layout fingerprint",
+      "imageOption": "Image model option",
+      "referenceKey": "Sample key",
+      "referenceChecksum": "Sample checksum",
+      "lockupKey": "Lockup key",
+      "lockupChecksum": "Lockup checksum",
+      "posterFingerprint": "Poster fingerprint",
+      "posterChecksum": "Poster checksum",
+      "operationId": "Generation operation",
+      "templateFingerprint": "Template fingerprint",
+      "catalogFingerprint": "Catalog fingerprint",
+      "profileFingerprint": "Token profile fingerprint",
+      "approvedChartBy": "Chart approved by",
+      "approvedStoryBy": "Text approved by",
+      "approvedDesignBy": "Layout approved by",
+      "approvedPosterBy": "Poster approved by",
+      "completedBy": "Completed by",
+      "createdAt": "Started",
+      "briefSource": "Brief source",
+      "briefSources": {
+        "model": "Generated brief",
+        "deterministic_fallback": "Deterministic brief"
+      },
+      "fallbackReason": "Deterministic brief reason",
       "view": "View",
       "download": "Download",
       "integrity": {

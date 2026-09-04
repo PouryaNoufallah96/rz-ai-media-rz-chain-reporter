@@ -2517,6 +2517,7 @@ async function proveStaleCopyReconciliation(probe: CopySourceFixture) {
     (item) => item.operationId === fixture.operationId,
   );
   assert.ok(change);
+  if (change.kind !== "draft") throw new Error("STALE_COPY_CHANGE_NOT_DRAFT");
   const settled = await findCopyExecutionContext(
     opened.database.db,
     probe.workspaceId,
@@ -3166,6 +3167,9 @@ async function proveFreshnessOrdering(
   probe: CopySourceFixture,
   context: NonNullable<Awaited<ReturnType<typeof findCopyExecutionContext>>>,
 ) {
+  if (context.executionScope.kind !== "analysis_run") {
+    throw new Error("draft notification requires an analysis-run scope");
+  }
   const order: string[] = [];
   const messages: unknown[] = [];
   const step = {
@@ -3193,7 +3197,7 @@ async function proveFreshnessOrdering(
     step,
     probe.workspaceId,
     {
-      analysisRunId: context.analysisRunId,
+      analysisRunId: context.executionScope.analysisRunId,
       code: "partial",
       operationId: context.operationId,
       platformDraftId: context.platformDraftId,
@@ -3227,6 +3231,9 @@ async function proveDraftInvalidationRetry(
   probe: CopySourceFixture,
   context: NonNullable<Awaited<ReturnType<typeof findCopyExecutionContext>>>,
 ) {
+  if (context.executionScope.kind !== "analysis_run") {
+    throw new Error("draft notification requires an analysis-run scope");
+  }
   const originalBaseUrl = workerEnv.WEB_INTERNAL_BASE_URL;
   const originalSecret = workerEnv.CACHE_INVALIDATION_WEBHOOK_SECRET;
   const originalFetch = globalThis.fetch;
@@ -3278,7 +3285,7 @@ async function proveDraftInvalidationRetry(
       step,
       probe.workspaceId,
       {
-        analysisRunId: context.analysisRunId,
+        analysisRunId: context.executionScope.analysisRunId,
         code: "partial",
         operationId: context.operationId,
         platformDraftId: context.platformDraftId,

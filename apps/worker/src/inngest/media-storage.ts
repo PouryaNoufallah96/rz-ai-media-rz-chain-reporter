@@ -13,6 +13,7 @@ const MAX_PROVIDER_IMAGE_BYTES = 16 * 1024 * 1024;
 const MAX_BRANDED_FINAL_BYTES = 12 * 1024 * 1024;
 const MAX_MARKET_CHART_BYTES = 12 * 1024 * 1024;
 const BRANDED_FINAL_MIME_TYPE = "image/png";
+const MARKET_CHART_MIME_TYPE = "image/png";
 const MAX_PROVIDER_IMAGE_DIMENSION = 8192;
 const MAX_PROVIDER_IMAGE_PIXELS = 64_000_000;
 const MIME_BY_FORMAT = {
@@ -116,11 +117,13 @@ export async function readStorageBytes(storage: Storage, objectKey: string) {
     length += chunk.byteLength;
     if (length > 20 * 1024 * 1024) throw new Error("IMAGE_BYTES_TOO_LARGE");
   }
-  const bytes = Buffer.concat(
-    chunks.map((chunk) => Buffer.from(chunk)),
-    length,
-  );
-  return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
 
 export async function prepareProviderOriginal(
@@ -183,32 +186,32 @@ export async function compensateProviderOriginal(
   }
 }
 
-export async function prepareBrandedFinal(
+async function prepareVerifiedRaster(
   storage: Storage,
   input: {
     bytes: Uint8Array;
     height: number;
+    maxBytes: number;
     mediaAssetId: string;
+    mimeType: string;
     objectKey: string;
     width: number;
   },
 ) {
   const bounds = {
-    maxBytes: MAX_BRANDED_FINAL_BYTES,
+    maxBytes: input.maxBytes,
     maxDimension: Math.max(input.width, input.height),
     maxPixels: input.width * input.height,
-    mimeType: BRANDED_FINAL_MIME_TYPE,
+    mimeType: input.mimeType,
   };
   const decoded = await validateStaticRaster(input.bytes, bounds);
   if (decoded.width !== input.width || decoded.height !== input.height) {
     throw new ImagePreparationError({ outcome: "definite" });
   }
   const checksum = createHash("sha256").update(input.bytes).digest("hex");
-  await storage
-    .put(input.objectKey, input.bytes, BRANDED_FINAL_MIME_TYPE)
-    .catch(() => {
-      throw new ImagePreparationError({ outcome: "ambiguous" });
-    });
+  await storage.put(input.objectKey, input.bytes, input.mimeType).catch(() => {
+    throw new ImagePreparationError({ outcome: "ambiguous" });
+  });
   const stored = await readStorageBytes(storage, input.objectKey).catch(() => {
     throw new ImagePreparationError({ outcome: "ambiguous" });
   });
@@ -232,13 +235,13 @@ export async function prepareBrandedFinal(
     checksum,
     height: storedDecoded.height,
     mediaAssetId: input.mediaAssetId,
-    mimeType: BRANDED_FINAL_MIME_TYPE,
+    mimeType: input.mimeType,
     objectKey: input.objectKey,
     width: storedDecoded.width,
   };
 }
 
-export async function prepareMarketChartRender(
+export function prepareBrandedFinal(
   storage: Storage,
   input: {
     bytes: Uint8Array;
@@ -248,48 +251,29 @@ export async function prepareMarketChartRender(
     width: number;
   },
 ) {
-  const bounds = {
-    maxBytes: MAX_MARKET_CHART_BYTES,
-    maxDimension: Math.max(input.width, input.height),
-    maxPixels: input.width * input.height,
+  return prepareVerifiedRaster(storage, {
+    ...input,
+    maxBytes: MAX_BRANDED_FINAL_BYTES,
     mimeType: BRANDED_FINAL_MIME_TYPE,
-  };
-  const decoded = await validateStaticRaster(input.bytes, bounds);
-  if (decoded.width !== input.width || decoded.height !== input.height) {
-    throw new ImagePreparationError({ outcome: "definite" });
-  }
-  const checksum = createHash("sha256").update(input.bytes).digest("hex");
-  await storage
-    .put(input.objectKey, input.bytes, BRANDED_FINAL_MIME_TYPE)
-    .catch(() => {
-      throw new ImagePreparationError({ outcome: "ambiguous" });
-    });
-  const stored = await readStorageBytes(storage, input.objectKey).catch(() => {
-    throw new ImagePreparationError({ outcome: "ambiguous" });
   });
-  const storedDecoded = await validateStaticRaster(stored, bounds).catch(() => {
-    throw new ImagePreparationError({ outcome: "ambiguous" });
-  });
-  if (
-    stored.byteLength !== input.bytes.byteLength ||
-    storedDecoded.width !== input.width ||
-    storedDecoded.height !== input.height ||
-    createHash("sha256").update(stored).digest("hex") !== checksum
-  ) {
-    throw new ImagePreparationError({ outcome: "ambiguous" });
-  }
-  return {
-    actualBytes: stored.byteLength,
-    checksum,
-    height: storedDecoded.height,
-    mediaAssetId: input.mediaAssetId,
-    mimeType: BRANDED_FINAL_MIME_TYPE,
-    objectKey: input.objectKey,
-    width: storedDecoded.width,
-  };
 }
 
-export const compensateMarketChartRender = compensateProviderOriginal;
+export function prepareMarketChartRender(
+  storage: Storage,
+  input: {
+    bytes: Uint8Array;
+    height: number;
+    mediaAssetId: string;
+    objectKey: string;
+    width: number;
+  },
+) {
+  return prepareVerifiedRaster(storage, {
+    ...input,
+    maxBytes: MAX_MARKET_CHART_BYTES,
+    mimeType: MARKET_CHART_MIME_TYPE,
+  });
+}
 
 export async function readVerifiedProviderOriginal(
   storage: Storage,

@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   isOperationInProgress,
   MAX_REFERENCE_IMAGE_BYTES,
+  type MarketVerifiedFacts,
   type ModelOption,
   REFERENCE_IMAGE_KIND,
   REFERENCE_IMAGE_MIME_TYPES,
@@ -57,6 +58,10 @@ import { PlatformIcon } from "@/components/common/platform-icon";
 import { FieldCaption, LabeledSelect } from "@/components/form/form-field";
 import { useAssistant } from "@/features/assistant/lib/assistant-context";
 import { MARKET_ANALYSIS_NAMESPACE } from "@/features/market-analysis/constants";
+import {
+  formatMarketAmount,
+  formatMarketChange,
+} from "@/features/market-analysis/lib/format";
 import { createMediaUploadInputSchema } from "@/features/media/schemas/upload";
 import { operationCreated } from "@/features/operations/lib/focus-operation";
 import { PublishingTicket } from "@/features/publishing/components/publishing-ticket";
@@ -598,18 +603,32 @@ function MarketOriginFacts({
   verifiedFacts,
 }: {
   marketAnalysisId: string;
-  verifiedFacts: unknown;
+  verifiedFacts: MarketVerifiedFacts | null;
 }) {
   const t = useTranslations(MARKET_ANALYSIS_NAMESPACE);
+  const locale = useLocale();
 
   return (
     <>
       <InformationFact label={t("publish.verifiedFacts")}>
-        <Bdi className="block text-start" dir="auto">
-          {verifiedFacts
-            ? JSON.stringify(verifiedFacts)
-            : t("publish.noVerifiedFacts")}
-        </Bdi>
+        {verifiedFacts?.length ? (
+          <ul className="grid gap-1">
+            {verifiedFacts.map((fact) => (
+              <li className="tabular-nums" key={fact.descriptorIdentity}>
+                {t("market.start")}{" "}
+                <Bdi>{formatMarketAmount(fact.startPrice, locale)}</Bdi>
+                {" · "}
+                {t("market.end")}{" "}
+                <Bdi>{formatMarketAmount(fact.endPrice, locale)}</Bdi>
+                {" · "}
+                {t("market.change")}{" "}
+                <Bdi>{formatMarketChange(fact.changePercent, locale)}</Bdi>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          t("publish.noVerifiedFacts")
+        )}
       </InformationFact>
       <InformationFact label={t("publish.analysis")}>
         <Link
@@ -1580,6 +1599,10 @@ function CopyControls({
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const uiLocale = useLocale();
+  const contentLocale =
+    card.sourceKind === "market"
+      ? (card.originDetails?.contentLocale ?? uiLocale)
+      : uiLocale;
   const onSettled = () => {
     onGenerationPendingChange(false);
     onPendingChange(false);
@@ -1614,25 +1637,28 @@ function CopyControls({
       platformDraftId: card.id,
       idempotencyKey: crypto.randomUUID(),
     };
-    const requestedContentLocale = uiLocale;
     const modelOptionKey = card.generation?.modelOptionKey ?? "";
     onGenerationPendingChange(true);
     onPendingChange(true);
     const settled =
       kind === "retry_failed"
-        ? await retry.execute({ kind, ...common, requestedContentLocale })
+        ? await retry.execute({
+            kind,
+            ...common,
+            requestedContentLocale: contentLocale,
+          })
         : kind === "refresh_article"
           ? await refreshArticle.execute({
               kind,
               ...common,
               modelOptionKey,
-              requestedContentLocale,
+              requestedContentLocale: contentLocale,
             })
           : await regenerate.execute({
               kind,
               ...common,
               modelOptionKey,
-              requestedContentLocale,
+              requestedContentLocale: contentLocale,
             });
     if (settled.data?.status === "created") {
       operationCreated(settled.data.operationId);
@@ -1665,10 +1691,10 @@ function CopyControls({
       <CopyActionButtons
         actionBlocked={actionBlocked}
         card={card}
+        contentLocale={contentLocale}
         failedUnits={failedUnits}
         generationBlocked={generationBlocked}
         onRun={run}
-        uiLocale={uiLocale}
       />
     </section>
   );
@@ -1677,19 +1703,19 @@ function CopyControls({
 function CopyActionButtons({
   actionBlocked,
   card,
+  contentLocale,
   failedUnits,
   generationBlocked,
   onRun,
-  uiLocale,
 }: {
   actionBlocked: boolean;
   card: RevisionDraftCard;
+  contentLocale: string;
   failedUnits: number;
   generationBlocked: boolean;
   onRun: (
     kind: "refresh_article" | "regenerate" | "retry_failed",
   ) => Promise<void>;
-  uiLocale: string;
 }) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const descriptionId = generationBlocked
@@ -1723,7 +1749,7 @@ function CopyActionButtons({
         </Button>
       ) : null}
       {failedUnits > 0 &&
-      card.generation?.requestedContentLocale === uiLocale ? (
+      card.generation?.requestedContentLocale === contentLocale ? (
         <Button
           aria-describedby={descriptionId}
           className="h-auto min-h-8 justify-start whitespace-normal py-1.5"

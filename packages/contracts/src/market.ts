@@ -166,6 +166,20 @@ export type NormalizedMarketRequest = z.infer<
   typeof normalizedMarketRequestSchema
 >;
 
+export const marketVerifiedFactsSchema = z.array(
+  z.strictObject({
+    attributionIdentity: z.string().nullable(),
+    changePercent: z.string().nullable(),
+    descriptorIdentity: z.string(),
+    endPrice: z.string().nullable(),
+    position: z.int(),
+    role: marketSeriesRoleSchema,
+    startPrice: z.string().nullable(),
+  }),
+);
+
+export type MarketVerifiedFacts = z.infer<typeof marketVerifiedFactsSchema>;
+
 export const marketExecutionScopeTargetSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("analysis_run"), analysisRunId: z.uuid() }),
   z.strictObject({

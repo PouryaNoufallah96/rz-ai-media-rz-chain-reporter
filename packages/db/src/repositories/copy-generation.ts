@@ -285,6 +285,7 @@ export async function startCopyOperation(
     const [draft] = await tx
       .select({
         brandKey: mediaBrand.key,
+        handoffContentLocale: marketAnalysisHandoff.contentLocale,
         id: platformDraft.id,
         marketAnalysisId: marketAnalysis.id,
         marketAnalysisVersion: marketAnalysis.version,
@@ -330,6 +331,13 @@ export async function startCopyOperation(
       ) {
         return { status: "version_conflict" };
       }
+    }
+    if (
+      (input.mode === "regenerate" || input.mode === "refresh_article") &&
+      draft.handoffContentLocale !== null &&
+      input.requestedContentLocale !== draft.handoffContentLocale
+    ) {
+      return { status: "validation_failed" };
     }
 
     const resolved = resolveCopyCommand(draft, input);
@@ -1414,7 +1422,6 @@ async function bindPageEnrichment(
 const NONTERMINAL_UNIT_STATUSES = ["pending", "running"] as const;
 
 export type CopyExecutionContext = {
-  analysisRunId: string;
   executionScope: MarketExecutionScopeTarget;
   brandPolicyFingerprint: string;
   brandKey: string;
@@ -1445,7 +1452,9 @@ export async function findCopyExecutionContext(
 ): Promise<(CopyExecutionContext & { units: CopyExecutionUnit[] }) | null> {
   const [row] = await executor
     .select({
-      analysisRunId: sql<string>`coalesce(${filterResult.analysisRunId}, ${analysisRun.id}, ${marketAnalysisHandoff.marketAnalysisId})`,
+      analysisRunId: sql<
+        string | null
+      >`coalesce(${filterResult.analysisRunId}, ${analysisRun.id})`,
       marketAnalysisId: marketAnalysisHandoff.marketAnalysisId,
       brandPolicyFingerprint: copyGeneration.brandPolicyFingerprint,
       brandKey: mediaBrand.key,
@@ -1496,7 +1505,13 @@ export async function findCopyExecutionContext(
       ),
     );
 
-  if (!row?.analysisRunId) return null;
+  if (!row) return null;
+  const executionScope: MarketExecutionScopeTarget | null = row.marketAnalysisId
+    ? { kind: "market_analysis", marketAnalysisId: row.marketAnalysisId }
+    : row.analysisRunId
+      ? { kind: "analysis_run", analysisRunId: row.analysisRunId }
+      : null;
+  if (!executionScope) return null;
   const units = await executor
     .select({
       id: copyGenerationUnit.id,
@@ -1513,10 +1528,11 @@ export async function findCopyExecutionContext(
     )
     .orderBy(asc(copyGenerationUnit.createdAt), asc(copyGenerationUnit.id));
 
-  const executionScope: MarketExecutionScopeTarget = row.marketAnalysisId
-    ? { kind: "market_analysis", marketAnalysisId: row.marketAnalysisId }
-    : { kind: "analysis_run", analysisRunId: row.analysisRunId };
-  const { marketAnalysisId: _marketAnalysisId, ...context } = row;
+  const {
+    analysisRunId: _analysisRunId,
+    marketAnalysisId: _marketAnalysisId,
+    ...context
+  } = row;
   return { ...context, executionScope, units };
 }
 

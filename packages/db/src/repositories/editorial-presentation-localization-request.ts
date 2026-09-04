@@ -1,6 +1,5 @@
 import {
   type AttemptOutcome,
-  type RunCardOriginReference as CardOriginReference,
   type ContentLocale,
   type DispatchState,
   DURABLE_EVENT_SCHEMA_VERSION,
@@ -8,6 +7,7 @@ import {
   OPERATION_PRESENTATION_TRANSLATION_REQUESTED_EVENT_NAME,
   type OperationLifecycle,
   PRESENTATION_TRANSLATION_COMMAND_TYPE,
+  type RunCardOriginReference,
 } from "@rz-chain-reporter/contracts";
 import {
   and,
@@ -104,7 +104,7 @@ export type EditorialPresentationTranslationSubject =
 export type StartEditorialPresentationTranslationInput = {
   actor: string;
   idempotencyKey: string;
-  origin: CardOriginReference;
+  origin: RunCardOriginReference;
   presentationLocale: ContentLocale;
   requestHash: string;
   requestId: string | null;
@@ -130,7 +130,7 @@ export type LoadEditorialPresentationTranslationRequestResult =
       card: EditorialPresentationTranslationCard;
       missingSubjects: EditorialPresentationTranslationSubject[];
       operationId: string;
-      origin: CardOriginReference;
+      origin: RunCardOriginReference;
       platformDraftIds: string[];
       presentationLocale: ContentLocale;
       status: "ready";
@@ -146,7 +146,7 @@ export type EditorialPresentationTranslationStatus = {
   dispatchState: DispatchState;
   lifecycle: OperationLifecycle;
   operationId: string;
-  origin: CardOriginReference;
+  origin: RunCardOriginReference;
 };
 
 export type EditorialPresentationTranslationWrite =
@@ -372,7 +372,7 @@ export async function readEditorialPresentationTranslationStatuses(
   executor: Executor,
   workspaceId: string,
   actorId: string,
-  origins: readonly CardOriginReference[],
+  origins: readonly RunCardOriginReference[],
   presentationLocale: ContentLocale,
 ): Promise<EditorialPresentationTranslationStatus[]> {
   const editorialSelectionIds = [
@@ -1115,7 +1115,7 @@ function ownsTranslationClaim(
 async function loadAuthoritativeCard(
   tx: Transaction,
   workspaceId: string,
-  origin: CardOriginReference,
+  origin: RunCardOriginReference,
 ): Promise<
   | { status: "found"; value: AuthoritativeCard }
   | { status: "invalid_origin" | "not_found" }
@@ -1385,7 +1385,7 @@ function requiredSubjects(
 async function readInProgressRequest(
   tx: Transaction,
   workspaceId: string,
-  origin: CardOriginReference,
+  origin: RunCardOriginReference,
   presentationLocale: ContentLocale,
 ) {
   const [row] = await tx
@@ -1466,7 +1466,7 @@ function replay(
     : { status: "idempotency_mismatch" };
 }
 
-function originColumns(origin: CardOriginReference) {
+function originColumns(origin: RunCardOriginReference) {
   if (origin.kind === "editorial_selection") {
     return { editorialSelectionId: origin.editorialSelectionId };
   }
@@ -1476,7 +1476,7 @@ function originColumns(origin: CardOriginReference) {
   return { promoIdeaId: origin.promoIdeaId };
 }
 
-function requestOriginPredicate(origin: CardOriginReference) {
+function requestOriginPredicate(origin: RunCardOriginReference) {
   if (origin.kind === "editorial_selection") {
     return eq(
       editorialPresentationLocalizationRequest.editorialSelectionId,
@@ -1498,7 +1498,7 @@ function requestOriginPredicate(origin: CardOriginReference) {
 async function readPlatformDraftIds(
   executor: Executor | Transaction,
   workspaceId: string,
-  origin: CardOriginReference,
+  origin: RunCardOriginReference,
 ) {
   const originPredicate =
     origin.kind === "editorial_selection"
@@ -1527,7 +1527,7 @@ function originFromRequest(request: {
   editorialSelectionId: string | null;
   promoIdeaId: string | null;
   telegramFilterResultId: string | null;
-}): CardOriginReference | null {
+}): RunCardOriginReference | null {
   if (request.editorialSelectionId) {
     return {
       kind: "editorial_selection",
@@ -1545,7 +1545,7 @@ function originFromRequest(request: {
     : null;
 }
 
-function originIdentity(origin: CardOriginReference) {
+function originIdentity(origin: RunCardOriginReference) {
   if (origin.kind === "editorial_selection") {
     return `${origin.kind}:${origin.editorialSelectionId}`;
   }

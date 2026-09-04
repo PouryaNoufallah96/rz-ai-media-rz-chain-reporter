@@ -7,12 +7,14 @@ import {
   COPY_CONFIGURATION_VERSION,
   COPY_PROMPT_VERSION,
   IMAGE_OPTION_CAPABILITIES,
+  imageOptionCapabilityKeySchema,
   MARKET_CHART_OUTPUT_DIMENSIONS,
+  type MarketChartSpec,
   marketChartSpecSchema,
-  persistedMarketChartSpecSchema,
   prepareMarketPlatformInputSchema,
   prepareMarketPlatformResultSchema,
 } from "@rz-chain-reporter/contracts";
+import { classifyDbError } from "@rz-chain-reporter/db/db-error";
 import { startCopyOperation } from "@rz-chain-reporter/db/repositories/copy-generation";
 import {
   approveMarketChart,
@@ -22,9 +24,7 @@ import {
   createOwnedMarketAnalysis,
   finishMarketAnalysis,
   MARKET_ANALYSIS_CREATE_COMMAND,
-  MARKET_DESIGN_APPROVAL_COMMAND,
   MARKET_VERIFICATION_COMMAND,
-  requestMarketVerification,
   retryMarketChartRender,
   saveOwnedMarketChartDefault,
   updateMarketAnalysisStage,
@@ -41,7 +41,9 @@ import { copyOperationResultSchema } from "@/features/editorial/schemas/drafts";
 import {
   readMarketAnalysisOptions,
   readMarketAnalysisSelectionContext,
+  readMarketSnapshotAttribution,
   readOwnedMarketAnalysisCommandState,
+  readOwnedMarketDraftContentLocale,
   searchMarketComparisons,
 } from "@/features/market-analysis/db/queries";
 import {
@@ -106,12 +108,7 @@ export const searchComparisons = installationProcedure
   .output(marketComparisonSearchResultSchema)
   .handler(({ context, input }) => {
     if (!marketTemplate.enabled) return { entries: [] };
-    return searchMarketComparisons(
-      rpcDb(),
-      context.workspaceId,
-      context.session.user.id,
-      input,
-    );
+    return searchMarketComparisons(rpcDb(), context.workspaceId, input);
   });
 
 const captionRetryErrors = {
@@ -161,7 +158,14 @@ async function ownedState(
     analysisId,
   );
   if (!state) throw errors.NOT_FOUND();
-  return state;
+  const chartAttribution = state.analysis.currentSnapshotId
+    ? await readMarketSnapshotAttribution(
+        rpcDb(),
+        context.workspaceId,
+        state.analysis.currentSnapshotId,
+      )
+    : [];
+  return { ...state, chartAttribution };
 }
 
 function visualOwnerBrand(
@@ -181,7 +185,6 @@ async function selectionContext(
   const selected = await readMarketAnalysisSelectionContext(
     rpcDb(),
     context.workspaceId,
-    context.session.user.id,
     input,
   );
   if (input.mediaBrandId && !selected.brand) throw errors.VALIDATION_FAILED();
@@ -195,11 +198,13 @@ function currentChartFingerprint(
   state: Awaited<ReturnType<typeof ownedState>>,
 ) {
   const row = state.analysis;
-  const parsed = persistedMarketChartSpecSchema.safeParse(row.currentChartSpec);
+  const parsed = marketChartSpecSchema.safeParse(row.currentChartSpec);
   if (!row.currentSnapshotId || !parsed.success) return null;
   return chartFingerprint({
     snapshotId: row.currentSnapshotId,
     chartSpec: parsed.data,
+    contentLocale: row.contentLocale,
+    attribution: state.chartAttribution,
   });
 }
 
@@ -254,11 +259,11 @@ function currentGenerationFingerprint(
 }
 
 function approvedImageOption(key: string) {
-  const capability =
-    IMAGE_OPTION_CAPABILITIES[key as keyof typeof IMAGE_OPTION_CAPABILITIES];
+  const parsed = imageOptionCapabilityKeySchema.safeParse(key);
+  if (!parsed.success) return false;
   return (
     marketTemplate.enabled &&
-    capability?.maxOrderedReferences >= 2 &&
+    IMAGE_OPTION_CAPABILITIES[parsed.data].maxOrderedReferences >= 2 &&
     marketTemplate.approvedImageOptionKeys.includes(key) &&
     enabledImageModels.some((model) => model.key === key)
   );
@@ -303,6 +308,23 @@ function designOutputFormat(
   return outputFormat;
 }
 
+function verificationIdentity(
+  context: Context,
+  idempotencyKey: string,
+  requestHash: string,
+) {
+  const operationId = randomUUID();
+  return {
+    operationId,
+    actor: context.session.user.id,
+    commandType: MARKET_VERIFICATION_COMMAND,
+    idempotencyKey,
+    requestHash,
+    requestId: context.requestId,
+    verificationIntentId: operationId,
+  };
+}
+
 export const create = installationProcedure
   .input(createMarketAnalysisInputSchema)
   .output(marketAnalysisCommandResultSchema)
@@ -310,12 +332,7 @@ export const create = installationProcedure
   .handler(async ({ context, errors, input }) => {
     if (!marketTemplate.enabled) throw errors.VALIDATION_FAILED();
     const [normalized, options] = await Promise.all([
-      normalizeMarketRequestSelection(
-        rpcDb(),
-        context.workspaceId,
-        context.session.user.id,
-        input,
-      ),
+      normalizeMarketRequestSelection(rpcDb(), context.workspaceId, input),
       readMarketAnalysisOptions(
         rpcDb(),
         context.workspaceId,
@@ -343,14 +360,13 @@ export const create = installationProcedure
       saved?.normalizedChartSpec,
     );
     if (!initial) throw errors.VALIDATION_FAILED();
-    const createOperationId = randomUUID();
-    const created = commandOutput(
+    return commandOutput(
       await createOwnedMarketAnalysis(
         rpcDb(),
         context.workspaceId,
         context.session.user.id,
         {
-          operationId: createOperationId,
+          operationId: randomUUID(),
           actor: context.session.user.id,
           commandType: MARKET_ANALYSIS_CREATE_COMMAND,
           idempotencyKey: input.idempotencyKey,
@@ -367,29 +383,11 @@ export const create = installationProcedure
           templateFingerprint: customerTemplateFingerprint,
           catalogFingerprint: normalized.catalogFingerprint,
           instrumentProfileFingerprint: initial.profileFingerprint,
-        },
-      ),
-      errors,
-    );
-    const verificationOperationId = randomUUID();
-    return commandOutput(
-      await requestMarketVerification(
-        rpcDb(),
-        context.workspaceId,
-        context.session.user.id,
-        {
-          operationId: verificationOperationId,
-          actor: context.session.user.id,
-          commandType: MARKET_VERIFICATION_COMMAND,
-          idempotencyKey: `market-entry:${hashPayload(input.idempotencyKey)}`,
-          requestHash: hashPayload({
-            analysisId: created.analysisId,
-            createIdempotencyKey: input.idempotencyKey,
-          }),
-          requestId: context.requestId,
-          analysisId: created.analysisId,
-          expectedVersion: created.version,
-          verificationIntentId: verificationOperationId,
+          verification: verificationIdentity(
+            context,
+            `market-entry:${hashPayload(input.idempotencyKey)}`,
+            hashPayload({ createIdempotencyKey: input.idempotencyKey }),
+          ),
         },
       ),
       errors,
@@ -402,12 +400,7 @@ export const updateMarketRequest = installationProcedure
   .errors(commandErrors)
   .handler(async ({ context, errors, input }) => {
     const [normalized, options] = await Promise.all([
-      normalizeMarketRequestSelection(
-        rpcDb(),
-        context.workspaceId,
-        context.session.user.id,
-        input,
-      ),
+      normalizeMarketRequestSelection(rpcDb(), context.workspaceId, input),
       readMarketAnalysisOptions(
         rpcDb(),
         context.workspaceId,
@@ -453,33 +446,11 @@ export const updateMarketRequest = installationProcedure
             instrumentProfileFingerprint: initial.profileFingerprint,
             contentLocale: input.contentLocale,
           },
-        },
-      ),
-      errors,
-    );
-  });
-
-export const verify = installationProcedure
-  .input(effectfulAnalysisInputSchema)
-  .output(marketAnalysisCommandResultSchema)
-  .errors(commandErrors)
-  .handler(async ({ context, errors, input }) => {
-    const operationId = randomUUID();
-    return commandOutput(
-      await requestMarketVerification(
-        rpcDb(),
-        context.workspaceId,
-        context.session.user.id,
-        {
-          operationId,
-          actor: context.session.user.id,
-          commandType: "market-verification:analysis",
-          idempotencyKey: input.idempotencyKey,
-          requestHash: hashPayload(input),
-          requestId: context.requestId,
-          analysisId: input.analysisId,
-          expectedVersion: input.expectedVersion,
-          verificationIntentId: operationId,
+          verification: verificationIdentity(
+            context,
+            input.idempotencyKey,
+            hashPayload(input),
+          ),
         },
       ),
       errors,
@@ -493,22 +464,24 @@ async function chartRenderCommand(
     analysisId: string;
     expectedVersion: number;
     idempotencyKey: string;
-    chartSpec?: unknown;
+    chartSpec?: MarketChartSpec;
   },
   retry: boolean,
 ) {
   const state = await ownedState(context, input.analysisId, errors);
   const chartSpec = retry
-    ? persistedMarketChartSpecSchema.safeParse(state.analysis.currentChartSpec)
-    : marketChartSpecSchema.safeParse(input.chartSpec);
-  const normalizedChartSpec = chartSpec.success
-    ? normalizeMarketChartSpec(chartSpec.data)
+    ? marketChartSpecSchema.safeParse(state.analysis.currentChartSpec).data
+    : input.chartSpec;
+  const normalizedChartSpec = chartSpec
+    ? normalizeMarketChartSpec(chartSpec)
     : null;
   const fingerprint =
     state.analysis.currentSnapshotId && normalizedChartSpec
       ? chartFingerprint({
           snapshotId: state.analysis.currentSnapshotId,
           chartSpec: normalizedChartSpec,
+          contentLocale: state.analysis.contentLocale,
+          attribution: state.chartAttribution,
         })
       : null;
   if (
@@ -654,6 +627,7 @@ export const approveDesign = installationProcedure
     if (
       !story ||
       !outputFormat ||
+      state.analysis.templateFingerprint !== customerTemplateFingerprint ||
       state.analysis.storyApprovalFingerprint !== story
     ) {
       throw errors.MARKET_ANALYSIS_NOT_READY();
@@ -669,19 +643,12 @@ export const approveDesign = installationProcedure
       templateFingerprint: state.analysis.templateFingerprint,
       instrumentProfileFingerprint: state.analysis.instrumentProfileFingerprint,
     });
-    const operationId = randomUUID();
     return commandOutput(
       await approveMarketDesign(
         rpcDb(),
         context.workspaceId,
         context.session.user.id,
         {
-          operationId,
-          actor: context.session.user.id,
-          commandType: MARKET_DESIGN_APPROVAL_COMMAND,
-          idempotencyKey: input.idempotencyKey,
-          requestHash: hashPayload(input),
-          requestId: context.requestId,
           analysisId: input.analysisId,
           expectedVersion: input.expectedVersion,
           fingerprint,
@@ -706,6 +673,7 @@ export const generate = installationProcedure
     const row = state.analysis;
     if (
       !design ||
+      row.templateFingerprint !== customerTemplateFingerprint ||
       row.designApprovalFingerprint !== design ||
       !row.currentChartMediaAssetId ||
       !row.designFamilyKey ||
@@ -722,7 +690,20 @@ export const generate = installationProcedure
     const variant = marketCompositionCatalog.families
       .find((family) => family.key === row.designFamilyKey)
       ?.variants.find((candidate) => candidate.key === row.designVariantKey);
-    if (!asset?.checksum || asset.lifecycle !== "verified" || !variant) {
+    const owner = await selectionContext(
+      context,
+      { marketInstrumentId: row.visualOwnerInstrumentId },
+      errors,
+    );
+    const instrument = owner.instrument
+      ? marketInstrumentTemplate(owner.instrument.key)
+      : undefined;
+    if (
+      !asset?.checksum ||
+      asset.lifecycle !== "verified" ||
+      !variant ||
+      !instrument
+    ) {
       throw errors.MARKET_ANALYSIS_NOT_READY();
     }
     const operationId = randomUUID();
@@ -738,6 +719,8 @@ export const generate = installationProcedure
           chartMediaChecksum: asset.checksum,
           expectedDesignFingerprint: design,
           expectedVersion: input.expectedVersion,
+          footerLockupChecksum: instrument.footerLockup.sha256,
+          footerLockupKey: instrument.footerLockup.path,
           generationId: randomUUID(),
           idempotencyKey: input.idempotencyKey,
           imageOptionKey: input.imageOptionKey,
@@ -814,23 +797,9 @@ export const preparePlatform = installationProcedure
     const row = state.analysis;
     const selected = await selectionContext(
       context,
-      {
-        mediaBrandId: row.mediaBrandId,
-        marketInstrumentId: row.visualOwnerInstrumentId,
-      },
+      { mediaBrandId: row.mediaBrandId },
       errors,
     );
-    const instrument = selected.instrument
-      ? marketInstrumentTemplate(selected.instrument.key)
-      : null;
-    const profile = selected.instrument
-      ? marketInstrumentProfile(selected.instrument.key)
-      : null;
-    const sample = marketCompositionCatalog.families
-      .find((family) => family.key === row.designFamilyKey)
-      ?.variants.find(
-        (variant) => variant.key === row.designVariantKey,
-      )?.sample;
     const policyFingerprint = selected.brand
       ? customerBrandPolicyFingerprints.get(selected.brand.key)
       : null;
@@ -838,14 +807,7 @@ export const preparePlatform = installationProcedure
       (candidate) => candidate.platform === input.platform,
     );
     const modelOptionKey = resolvedCopyModelOptionKey(input.modelOptionKey);
-    if (
-      !instrument ||
-      !profile ||
-      !sample ||
-      !policyFingerprint ||
-      !platformPolicy ||
-      !modelOptionKey
-    ) {
+    if (!policyFingerprint || !platformPolicy || !modelOptionKey) {
       throw errors.VALIDATION_FAILED();
     }
     const result = await prepareMarketPlatform(rpcDb(), context.workspaceId, {
@@ -859,18 +821,17 @@ export const preparePlatform = installationProcedure
       variantKeys: platformPolicy.variants.map((variant) => variant.key),
       customerTemplateFingerprint,
       brandPolicyFingerprint: policyFingerprint,
-      instrumentProfileFingerprint: profile.fingerprint,
-      referenceSampleChecksum: sample.sha256,
-      footerLockupChecksum: instrument.footerLockup.sha256,
       promptVersion: COPY_PROMPT_VERSION,
       configurationVersion: COPY_CONFIGURATION_VERSION,
+    }).catch((error: unknown) => {
+      if (classifyDbError(error)?.kind === "retry") {
+        throw errors.TRANSIENT_CONFLICT();
+      }
+      throw error;
     });
     if (result.status === "not_found") throw errors.NOT_FOUND();
     if (result.status === "not_ready") {
       throw errors.MARKET_ANALYSIS_NOT_READY();
-    }
-    if (result.status === "stale_policy") {
-      throw errors.VALIDATION_FAILED();
     }
     if (result.status === "mismatch") {
       throw errors.IDEMPOTENCY_KEY_REUSED();
@@ -936,7 +897,13 @@ export const retryCaptions = installationProcedure
             ...recovery,
             mode: "regenerate",
             modelOptionKey,
-            requestedContentLocale: state.analysis.contentLocale,
+            requestedContentLocale:
+              (await readOwnedMarketDraftContentLocale(
+                rpcDb(),
+                context.workspaceId,
+                input.analysisId,
+                input.platformDraftId,
+              )) ?? state.analysis.contentLocale,
           })
         : recovered;
     if (!("operationId" in result)) {

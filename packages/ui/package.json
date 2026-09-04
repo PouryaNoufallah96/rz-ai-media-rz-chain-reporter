@@ -18,7 +18,7 @@
     "@base-ui/react": "1.7.0",
     "@daypicker/persian": "10.0.1",
     "@daypicker/react": "10.0.1",
-    "@shadcn/react": "0.3.0",
+    "@shadcn/react": "0.3.1",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "lucide-react": "catalog:",
@@ -35,7 +35,7 @@
     "@tailwindcss/postcss": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "shadcn": "4.19.0",
+    "shadcn": "4.20.1",
     "tailwindcss": "catalog:",
     "typescript": "catalog:"
   }

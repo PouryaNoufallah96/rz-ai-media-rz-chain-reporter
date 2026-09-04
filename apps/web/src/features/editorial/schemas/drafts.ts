@@ -3,6 +3,7 @@ import {
   contentLocaleSchema,
   draftRevisionMaterialSchema,
   filteringReasonSchema,
+  marketVerifiedFactsSchema,
   modelUnitStatusSchema,
   operationLifecycleSchema,
   operatorImageDirectionSchema,
@@ -211,7 +212,7 @@ export const platformDraftExactCardSchema = platformDraftCardSchema.extend({
   originDetails: platformDraftOriginDetailsSchema
     .extend({
       marketAnalysisId: z.uuid().nullable(),
-      verifiedFacts: z.unknown().nullable(),
+      verifiedFacts: marketVerifiedFactsSchema.nullable(),
     })
     .nullable(),
 });

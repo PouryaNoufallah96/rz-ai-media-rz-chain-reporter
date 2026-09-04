@@ -57,7 +57,10 @@ export async function readSavedHistory(
         : sql``;
   const result = await executor.execute<
     Omit<SavedHistoryRow, "executionScope"> &
-      CursorRow & { marketAnalysisId: string | null }
+      CursorRow & {
+        analysisRunId: string | null;
+        marketAnalysisId: string | null;
+      }
   >(sql`
     select saved.id,
       coalesce(selection_unit.analysis_run_id, telegram.analysis_run_id, promo_unit.analysis_run_id) as "analysisRunId",
@@ -107,13 +110,15 @@ export async function readSavedHistory(
   return {
     ...page,
     rows: ordered.map(
-      ({ cursorOccurredAt: _cursor, marketAnalysisId, ...row }) => {
+      ({
+        cursorOccurredAt: _cursor,
+        analysisRunId,
+        marketAnalysisId,
+        ...row
+      }) => {
         return {
           ...row,
-          executionScope: savedExecutionScope(
-            marketAnalysisId,
-            row.analysisRunId,
-          ),
+          executionScope: savedExecutionScope(marketAnalysisId, analysisRunId),
         };
       },
     ),

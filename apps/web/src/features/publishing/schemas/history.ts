@@ -59,7 +59,6 @@ export function normalizePublishingQuery(
 
 export type SavedHistoryRow = {
   id: string;
-  analysisRunId: string | null;
   executionScope: MarketExecutionScopeTarget;
   platformDraftId: string;
   savedAt: Date;

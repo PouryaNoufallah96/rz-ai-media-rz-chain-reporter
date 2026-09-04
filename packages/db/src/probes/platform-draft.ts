@@ -1547,6 +1547,8 @@ async function proveMarketOrigin() {
         chartOperation: randomUUID(),
         chartRender: randomUUID(),
         finalAsset: randomUUID(),
+        generation: randomUUID(),
+        generationOperation: randomUUID(),
         handoff: randomUUID(),
         instrument: randomUUID(),
         snapshot: randomUUID(),
@@ -1572,9 +1574,6 @@ async function proveMarketOrigin() {
         variantKeys: ["first", "second", "third"],
         customerTemplateFingerprint: "current-policy-template",
         brandPolicyFingerprint: "current-policy-brand",
-        instrumentProfileFingerprint: "historical-profile",
-        referenceSampleChecksum: "historical-sample",
-        footerLockupChecksum: "historical-lockup",
         promptVersion: "probe-prompt",
         configurationVersion: "probe-configuration",
       });
@@ -1593,9 +1592,6 @@ async function proveMarketOrigin() {
         variantKeys: ["first", "second", "third"],
         customerTemplateFingerprint: "current-policy-template",
         brandPolicyFingerprint: "current-policy-brand",
-        instrumentProfileFingerprint: "historical-profile",
-        referenceSampleChecksum: "historical-sample",
-        footerLockupChecksum: "historical-lockup",
         promptVersion: "probe-prompt",
         configurationVersion: "probe-configuration",
       });
@@ -1958,6 +1954,8 @@ async function insertMarketFixture(
     chartOperation: string;
     chartRender: string;
     finalAsset: string;
+    generation: string;
+    generationOperation: string;
     handoff: string;
     instrument: string;
     snapshot: string;
@@ -1991,7 +1989,8 @@ async function insertMarketFixture(
     values
       (${ids.analysisOperation}::uuid, ${workspaceId}::uuid, ${actor}, 'market-analysis:create', 'market-create', 'market-create-hash', 'succeeded', 0, 1),
       (${ids.snapshotOperation}::uuid, ${workspaceId}::uuid, ${actor}, 'market-verification:probe', 'market-snapshot', 'market-snapshot-hash', 'succeeded', 0, 1),
-      (${ids.chartOperation}::uuid, ${workspaceId}::uuid, ${actor}, 'market-chart-render:probe', 'market-chart', 'market-chart-hash', 'succeeded', 0, 1)
+      (${ids.chartOperation}::uuid, ${workspaceId}::uuid, ${actor}, 'market-chart-render:probe', 'market-chart', 'market-chart-hash', 'succeeded', 0, 1),
+      (${ids.generationOperation}::uuid, ${workspaceId}::uuid, ${actor}, 'market-generation:analysis', 'market-generation', 'market-generation-hash', 'succeeded', 0, 1)
   `);
   await tx.execute(sql`
     insert into market_instrument
@@ -2051,6 +2050,25 @@ async function insertMarketFixture(
     update market_chart_render
        set media_asset_id = ${ids.chartAsset}::uuid, verified_at = now()
      where id = ${ids.chartRender}::uuid
+  `);
+  await tx.execute(sql`
+    insert into market_generation
+      (id, workspace_id, operation_id, market_analysis_id, intent_id, intent_version,
+       expected_design_fingerprint, image_option_key, reference_sample_key,
+       reference_sample_checksum, footer_lockup_key, footer_lockup_checksum,
+       chart_media_asset_id, chart_media_checksum, output_width, output_height,
+       final_media_asset_id)
+    values
+      (${ids.generation}::uuid, ${workspaceId}::uuid, ${ids.generationOperation}::uuid,
+       ${ids.analysis}::uuid, ${ids.generationOperation}::uuid, 1, 'market-design-fingerprint',
+       'probe-option', 'historical-sample-path', 'historical-sample', 'historical-lockup-path',
+       'historical-lockup', ${ids.chartAsset}::uuid, 'market-chart-checksum', 1080, 1350,
+       ${ids.finalAsset}::uuid)
+  `);
+  await tx.execute(sql`
+    update market_analysis
+       set current_generation_id = ${ids.generation}::uuid
+     where id = ${ids.analysis}::uuid
   `);
   await tx.execute(sql`
     insert into market_analysis_handoff

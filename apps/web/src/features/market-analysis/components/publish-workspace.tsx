@@ -16,14 +16,13 @@ import { useAction } from "@/hooks/use-action";
 import { finishMarketAnalysisAction } from "../actions/commands";
 import { prepareMarketPlatformAction } from "../actions/prepare-platform";
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
-import { useMarketActionError } from "../lib/action-error";
+import { useMarketActionError } from "../hooks/use-market-action-error";
 import type {
   MarketAnalysisOptionsProjection,
   MarketAnalysisProjection,
 } from "../schemas/reads";
 import { AnalysisFooter } from "./analysis-footer";
 import { DraftWorkspace } from "./draft-workspace";
-import { hasThreeReadyCaptions } from "./publish-readiness";
 import { PublishSetup } from "./publish-setup";
 
 export function PublishWorkspace({
@@ -61,14 +60,8 @@ export function PublishWorkspace({
   );
   const selectedCard = platform ? drafts.get(platform) : undefined;
   const busy = prepare.isPending || finish.isPending;
-  const captionsReady =
-    analysis.platformDrafts.length > 0 &&
-    analysis.platformDrafts.every(hasThreeReadyCaptions);
   const finishBlocked =
-    busy ||
-    dirtyDraftIds.size > 0 ||
-    pendingDraftIds.size > 0 ||
-    !captionsReady;
+    busy || dirtyDraftIds.size > 0 || pendingDraftIds.size > 0;
 
   const changeDraftState = (
     setter: typeof setDirtyDraftIds,
@@ -81,6 +74,14 @@ export function PublishWorkspace({
       else next.delete(id);
       return next;
     });
+  };
+
+  const changePlatform = (next: Platform) => {
+    if (next === platform) return;
+    setDirtyDraftIds(new Set());
+    setPendingDraftIds(new Set());
+    onDirtyChange(false);
+    setPlatform(next);
   };
 
   const preparePlatform = async () => {
@@ -110,7 +111,7 @@ export function PublishWorkspace({
       modelOptionKey={modelOptionKey}
       models={options.copyModels}
       onModelOptionChange={setModelOptionKey}
-      onPlatformChange={setPlatform}
+      onPlatformChange={changePlatform}
       onPrepare={() => void preparePlatform()}
       platform={platform}
       platforms={platforms}
@@ -134,10 +135,7 @@ export function PublishWorkspace({
             setup={setup}
             onDirtyChange={(dirty) => {
               changeDraftState(setDirtyDraftIds, selectedCard.id, dirty);
-              const otherDirty = [...dirtyDraftIds].some(
-                (id) => id !== selectedCard.id,
-              );
-              onDirtyChange(dirty || otherDirty);
+              onDirtyChange(dirty);
             }}
             onPendingChange={(pending) =>
               changeDraftState(setPendingDraftIds, selectedCard.id, pending)
@@ -160,7 +158,8 @@ export function PublishWorkspace({
             </AlertDescription>
           </Alert>
         ) : null}
-        {finishBlocked && !finish.isPending ? (
+        {(dirtyDraftIds.size > 0 || pendingDraftIds.size > 0) &&
+        !finish.isPending ? (
           <p className="text-muted-foreground text-sm">
             {t("publish.finishBlocked")}
           </p>

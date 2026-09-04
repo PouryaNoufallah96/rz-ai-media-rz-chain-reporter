@@ -9,7 +9,6 @@ import {
   MAX_REFERENCE_IMAGE_BYTES,
   MAX_REFERENCE_IMAGE_DIMENSION,
   MAX_REFERENCE_IMAGE_PIXELS,
-  type MarketProvider,
   marketComparisonProviderSchema,
   marketOutputFormatSchema,
   marketPeriodSchema,
@@ -468,25 +467,11 @@ const marketInstrumentSchema = z.strictObject({
   name: trimmedText,
   symbol: z.string().regex(/^[A-Z0-9]{2,20}$/u),
   enabled: z.boolean(),
-  providerMappings: z.array(marketProviderMappingSchema).min(1).max(5),
+  providerMappings: z.array(marketProviderMappingSchema).min(1).max(4),
   visualProfile: referencePathSchema,
   selectorIcon: staticRasterAssetReferenceSchema,
   footerLockup: staticRasterAssetReferenceSchema,
 });
-
-type ConfiguredMarketProvider = z.infer<
-  typeof marketInstrumentSchema
->["providerMappings"][number]["provider"];
-
-type AssertMarketProviderCoverage =
-  ConfiguredMarketProvider extends MarketProvider
-    ? MarketProvider extends ConfiguredMarketProvider
-      ? true
-      : never
-    : never;
-
-const assertMarketProviderCoverage: AssertMarketProviderCoverage = true;
-void assertMarketProviderCoverage;
 
 const compositionDirectionSchema = z.strictObject({
   composition: trimmedText,
@@ -899,6 +884,19 @@ function reportMarketAnalysisIssues(
     mapped.add(pair);
   }
 
+  for (const [
+    index,
+    policy,
+  ] of template.editorial.drafting.copy.platforms.entries()) {
+    if (policy.variants.length !== 3) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["editorial", "drafting", "copy", "platforms", index, "variants"],
+        message: "MARKET_COPY_PLATFORM_REQUIRES_THREE_VARIANTS",
+      });
+    }
+  }
+
   const imageOptions = new Map(
     template.editorial.drafting.image.models.map((option) => [
       option.key,
@@ -1071,6 +1069,9 @@ function reportEditorialIssues(
     "image-template-selection",
     "image-creative-brief",
     ...(template.enrichment.enabled ? (["enrichment-brief"] as const) : []),
+    ...(template.marketAnalysis.enabled
+      ? (["market-art-director-brief"] as const)
+      : []),
   ] satisfies readonly ModelTaskKey[];
 
   for (const fixedTaskKey of requiredTaskKeys) {

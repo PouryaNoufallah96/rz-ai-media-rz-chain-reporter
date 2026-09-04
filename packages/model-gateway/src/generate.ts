@@ -56,15 +56,12 @@ export async function generateImageOnce(
       maxRetries: 0,
       model,
       n: 1,
-      prompt:
-        input.references?.length || input.reference
-          ? {
-              images: (input.references ?? [input.reference]).flatMap(
-                (reference) => (reference ? [reference.bytes] : []),
-              ),
-              text: input.prompt,
-            }
-          : input.prompt,
+      prompt: input.references?.length
+        ? {
+            images: input.references.map((reference) => reference.bytes),
+            text: input.prompt,
+          }
+        : input.prompt,
     });
     if (result.images.length !== 1) {
       throw noImageReturned();

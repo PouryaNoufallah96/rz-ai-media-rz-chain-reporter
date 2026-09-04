@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import {
+  MARKET_CHART_SPEC_SCHEMA_VERSION,
+  MARKET_GENERATION_COMMAND_PREFIX,
   type MarketChartSpec,
   MEDIA_DERIVATION_PURPOSES,
   type NormalizedMarketRequest,
@@ -18,18 +20,27 @@ import {
   approveMarketChart,
   approveMarketDesign,
   approveMarketStory,
+  createOwnedMarketAnalysis,
   MARKET_CHART_RENDER_COMMAND,
-  MARKET_DESIGN_APPROVAL_COMMAND,
   MARKET_VERIFICATION_COMMAND,
   requestMarketVerification,
   retryMarketChartRender,
+  updateMarketAnalysisStage,
 } from "../repositories/market-analysis-commands";
+import {
+  attachMarketFinal,
+  reconcileStaleMarketGenerations,
+  releaseMarketFinalizationForRetry,
+  retryMarketGenerationFinalization,
+} from "../repositories/market-generation";
 import { insertOrReloadMarketSnapshot } from "../repositories/market-snapshot";
+import { aiUsageEvent } from "../schema/ai-usage-event";
 import { user } from "../schema/auth";
 import {
   marketAnalysis,
   marketAnalysisHandoff,
   marketChartRender,
+  marketGeneration,
   marketInstrument,
 } from "../schema/market-analysis";
 import {
@@ -38,7 +49,9 @@ import {
 } from "../schema/market-snapshot";
 import { mediaAsset } from "../schema/media-asset";
 import { mediaBrand } from "../schema/media-brand";
+import { mediaDerivation } from "../schema/media-derivation";
 import { operation } from "../schema/operation";
+import { operationAttempt } from "../schema/operation-attempt";
 import { outboxEvent } from "../schema/outbox-event";
 import { workspace } from "../schema/workspace";
 
@@ -96,7 +109,7 @@ const commandFixture = {
   finalAsset: randomUUID(),
 };
 const chartSpec = {
-  schemaVersion: 2,
+  schemaVersion: MARKET_CHART_SPEC_SCHEMA_VERSION,
   presetId: "probe",
   background: "#ffffff",
   seriesColors: { "controlled:industrial": "#111111" },
@@ -248,7 +261,17 @@ try {
         contentLocale: "en",
         storyHeadline: "Market headline",
         storySupportingText: "Verified supporting text",
-        verifiedFacts: { symbols: ["IND"], period: "7d" },
+        verifiedFacts: [
+          {
+            attributionIdentity: "Binance",
+            changePercent: "1.5",
+            descriptorIdentity: "controlled:ind",
+            endPrice: "101.5",
+            position: 1,
+            role: "primary",
+            startPrice: "100",
+          },
+        ],
         templateFingerprint: "template-fingerprint",
         catalogFingerprint: "catalog-fingerprint",
         instrumentProfileFingerprint: "profile-fingerprint",
@@ -336,7 +359,10 @@ try {
   );
 
   await proveRollbackScopedCommandMatrix();
+  await proveAtomicCreateVerification();
   await proveConcurrentCommandMatrix();
+  await proveGenerationSettlementAndAttachFence();
+  await proveGenerationFinalizationRetryEpochReplay();
 
   console.log(`market analysis probe passed: ${observed.join(", ")}`);
 } finally {
@@ -742,6 +768,7 @@ async function proveRollbackScopedCommandMatrix() {
         designVersion,
         "design-material",
       );
+      const designOperations = await fixtureOperationCount(tx);
       const designUpdated = await approveMarketDesign(
         tx,
         commandFixture.workspace,
@@ -763,20 +790,8 @@ async function proveRollbackScopedCommandMatrix() {
         designInput,
       );
       assert.equal(designReplay.status, "replayed");
-      assert.equal(designReplay.operationId, designUpdated.operationId);
-      const designMismatch = await approveMarketDesign(
-        tx,
-        commandFixture.workspace,
-        commandFixture.actor,
-        { ...designInput, requestHash: "design-material-mismatch" },
-      );
-      assert.equal(designMismatch.status, "idempotency_mismatch");
-      await assertWorkPackageCounts(
-        tx,
-        MARKET_DESIGN_APPROVAL_COMMAND,
-        designInput.idempotencyKey,
-        { operations: 1, outbox: 0, checkpoints: 0 },
-      );
+      assert.equal(designReplay.analysis?.version, designVersion + 1);
+      assert.equal(await fixtureOperationCount(tx), designOperations);
 
       const designNoopAnalysis = await insertCommandAnalysis(tx, "design-noop");
       const designNoopInput = designApprovalInput(
@@ -802,12 +817,6 @@ async function proveRollbackScopedCommandMatrix() {
       );
       assert.equal(designNoop.status, "replayed");
       assert.equal(designNoop.analysis?.version, designNoopVersion);
-      await assertWorkPackageCounts(
-        tx,
-        MARKET_DESIGN_APPROVAL_COMMAND,
-        designNoopInput.idempotencyKey,
-        { operations: 1, outbox: 0, checkpoints: 0 },
-      );
 
       const designStaleAnalysis = await insertCommandAnalysis(
         tx,
@@ -833,12 +842,6 @@ async function proveRollbackScopedCommandMatrix() {
         ).status,
         "conflict",
       );
-      await assertWorkPackageCounts(
-        tx,
-        MARKET_DESIGN_APPROVAL_COMMAND,
-        designStaleInput.idempotencyKey,
-        { operations: 0, outbox: 0, checkpoints: 0 },
-      );
 
       const designNotReadyAnalysis = await insertCommandAnalysis(
         tx,
@@ -859,12 +862,6 @@ async function proveRollbackScopedCommandMatrix() {
           )
         ).status,
         "not_ready",
-      );
-      await assertWorkPackageCounts(
-        tx,
-        MARKET_DESIGN_APPROVAL_COMMAND,
-        designNotReadyInput.idempotencyKey,
-        { operations: 0, outbox: 0, checkpoints: 0 },
       );
 
       const designCompletedAnalysis = await insertCommandAnalysis(
@@ -892,14 +889,8 @@ async function proveRollbackScopedCommandMatrix() {
         ).status,
         "completed",
       );
-      await assertWorkPackageCounts(
-        tx,
-        MARKET_DESIGN_APPROVAL_COMMAND,
-        designCompletedInput.idempotencyKey,
-        { operations: 0, outbox: 0, checkpoints: 0 },
-      );
       observed.push(
-        "design-normalized-atomic-material-noop-replay-mismatch-version-completed-not-ready-invalidation-zero-command-outbox",
+        "design-normalized-atomic-material-noop-replay-version-completed-not-ready-invalidation-zero-operations",
       );
 
       const verifyCasAnalysis = await insertCommandAnalysis(
@@ -988,12 +979,6 @@ async function proveRollbackScopedCommandMatrix() {
         ),
         /market design approval CAS failed after admission/u,
       );
-      await assertWorkPackageCounts(
-        tx,
-        MARKET_DESIGN_APPROVAL_COMMAND,
-        designCasInput.idempotencyKey,
-        { operations: 0, outbox: 0, checkpoints: 0 },
-      );
       await assertAnalysisVersion(tx, designCasAnalysis, designCasVersion);
       const storyCas = await approveMarketStory(
         tx,
@@ -1022,6 +1007,149 @@ async function proveRollbackScopedCommandMatrix() {
         "verify-chart-story-design-post-lock-cas-full-rollback-zero-partial-rows",
       );
 
+      throw rollback;
+    }),
+    rollback,
+  );
+}
+
+async function proveAtomicCreateVerification() {
+  await assert.rejects(
+    database.db.transaction(async (tx) => {
+      await insertCommandFixture(tx);
+
+      const analysisId = randomUUID();
+      const created = await createOwnedMarketAnalysis(
+        tx,
+        commandFixture.workspace,
+        commandFixture.actor,
+        {
+          ...commandIdentity("atomic-create", "market-analysis:create"),
+          analysisId,
+          mediaBrandId: commandFixture.brand,
+          visualOwnerInstrumentId: commandFixture.instrument,
+          contentLocale: "en",
+          outputFormat: "portrait",
+          normalizedRequest: request,
+          requestFingerprint: "atomic-create-request-fingerprint",
+          currentChartSpec: chartSpec,
+          templateFingerprint: "command-probe-template-fingerprint",
+          catalogFingerprint: null,
+          instrumentProfileFingerprint: "command-probe-profile-fingerprint",
+          verification: {
+            ...commandIdentity(
+              "atomic-create-verify",
+              MARKET_VERIFICATION_COMMAND,
+            ),
+            verificationIntentId: randomUUID(),
+          },
+        },
+      );
+      assert.equal(created.status, "updated");
+      assert.ok(created.operationId);
+      await assertAnalysisVersion(tx, analysisId, 2);
+      await assertWorkPackageCounts(
+        tx,
+        "market-analysis:create",
+        "atomic-create",
+        { operations: 1, outbox: 0, checkpoints: 0 },
+      );
+      await assertWorkPackageCounts(
+        tx,
+        MARKET_VERIFICATION_COMMAND,
+        "atomic-create-verify",
+        { operations: 1, outbox: 1, checkpoints: 0 },
+      );
+
+      const change = {
+        normalizedRequest: request,
+        requestFingerprint: "atomic-create-request-fingerprint",
+        outputFormat: "portrait" as const,
+        mediaBrandId: commandFixture.brand,
+        visualOwnerInstrumentId: commandFixture.instrument,
+        visualOwnerChartSpec: chartSpec,
+        instrumentProfileFingerprint: "command-probe-profile-fingerprint",
+        contentLocale: "en" as const,
+      };
+      const noop = await updateMarketAnalysisStage(
+        tx,
+        commandFixture.workspace,
+        commandFixture.actor,
+        {
+          analysisId,
+          expectedVersion: 2,
+          change,
+          verification: {
+            ...commandIdentity(
+              "atomic-update-verify",
+              MARKET_VERIFICATION_COMMAND,
+            ),
+            verificationIntentId: randomUUID(),
+          },
+        },
+      );
+      assert.equal(noop.status, "updated");
+      assert.ok(noop.operationId);
+      assert.equal(
+        noop.analysis?.requestFingerprint,
+        change.requestFingerprint,
+      );
+      await assertWorkPackageCounts(
+        tx,
+        MARKET_VERIFICATION_COMMAND,
+        "atomic-update-verify",
+        { operations: 1, outbox: 1, checkpoints: 0 },
+      );
+
+      const abandonedId = randomUUID();
+      await assert.rejects(
+        tx.transaction(async (nested) => {
+          await createOwnedMarketAnalysis(
+            nested,
+            commandFixture.workspace,
+            commandFixture.actor,
+            {
+              ...commandIdentity(
+                "atomic-create-abandoned",
+                "market-analysis:create",
+              ),
+              analysisId: abandonedId,
+              mediaBrandId: commandFixture.brand,
+              visualOwnerInstrumentId: commandFixture.instrument,
+              contentLocale: "en",
+              outputFormat: "portrait",
+              normalizedRequest: request,
+              requestFingerprint: "atomic-create-abandoned-fingerprint",
+              currentChartSpec: chartSpec,
+              templateFingerprint: "command-probe-template-fingerprint",
+              catalogFingerprint: null,
+              instrumentProfileFingerprint: "command-probe-profile-fingerprint",
+              verification: {
+                ...commandIdentity(
+                  "atomic-create-abandoned-verify",
+                  MARKET_VERIFICATION_COMMAND,
+                ),
+                verificationIntentId: randomUUID(),
+              },
+            },
+          );
+          throw rollback;
+        }),
+        rollback,
+      );
+      const abandoned = await tx
+        .select({ id: marketAnalysis.id })
+        .from(marketAnalysis)
+        .where(eq(marketAnalysis.id, abandonedId));
+      assert.equal(abandoned.length, 0);
+      await assertWorkPackageCounts(
+        tx,
+        MARKET_VERIFICATION_COMMAND,
+        "atomic-create-abandoned-verify",
+        { operations: 0, outbox: 0, checkpoints: 0 },
+      );
+
+      observed.push("atomic-create-update-verification-single-transaction");
       throw rollback;
     }),
     rollback,
@@ -1466,7 +1594,6 @@ function designApprovalInput(
   label: string,
 ) {
   return {
-    ...commandIdentity(label, MARKET_DESIGN_APPROVAL_COMMAND),
     analysisId,
     expectedVersion,
     fingerprint: `${label}-design-fingerprint`,
@@ -1554,6 +1681,19 @@ async function prepareDesignAnalysis(
     .returning({ version: marketAnalysis.version });
   assert.ok(prepared);
   return prepared.version;
+}
+
+async function fixtureOperationCount(tx: Transaction) {
+  const rows = await tx
+    .select({ id: operation.id })
+    .from(operation)
+    .where(
+      and(
+        eq(operation.workspaceId, commandFixture.workspace),
+        eq(operation.actor, commandFixture.actor),
+      ),
+    );
+  return rows.length;
 }
 
 async function workPackageCounts(
@@ -1705,6 +1845,409 @@ async function cleanupConcurrentCommandFixture() {
       .delete(workspace)
       .where(eq(workspace.id, commandFixture.workspace));
     await tx.delete(user).where(eq(user.id, commandFixture.actor));
+  });
+}
+
+async function proveGenerationSettlementAndAttachFence() {
+  const settlement = {
+    workspace: randomUUID(),
+    actor: `market-generation-settlement-probe-${randomUUID()}`,
+    brand: randomUUID(),
+    instrument: randomUUID(),
+    analysisOperation: randomUUID(),
+    analysis: randomUUID(),
+    chartAsset: randomUUID(),
+    originalAsset: randomUUID(),
+    openOperation: randomUUID(),
+    openGeneration: randomUUID(),
+    openAttempt: randomUUID(),
+    supersededOperation: randomUUID(),
+    supersededGeneration: randomUUID(),
+    attachedAsset: randomUUID(),
+  };
+  const leaseExpired = new Date("2026-09-01T10:00:00.000Z");
+  const now = new Date("2026-09-01T12:00:00.000Z");
+  await assert.rejects(
+    database.db.transaction(async (tx) => {
+      await insertSettlementFixture(tx, settlement, leaseExpired);
+
+      const settled = await reconcileStaleMarketGenerations(
+        tx,
+        settlement.workspace,
+        now,
+      );
+      const settledLifecycles = new Map(
+        settled.map((row) => [row.operationId, row.lifecycle]),
+      );
+      assert.equal(settled.length, 2);
+      assert.equal(settledLifecycles.get(settlement.openOperation), "unknown");
+      assert.equal(
+        settledLifecycles.get(settlement.supersededOperation),
+        "cancelled",
+      );
+      const [usage] = await tx
+        .select({
+          costAuthority: aiUsageEvent.costAuthority,
+          status: aiUsageEvent.status,
+        })
+        .from(aiUsageEvent)
+        .where(eq(aiUsageEvent.operationId, settlement.openOperation));
+      assert.equal(usage?.status, "unknown");
+      assert.equal(usage?.costAuthority, "unknown");
+      const [attempt] = await tx
+        .select({ outcome: operationAttempt.outcome })
+        .from(operationAttempt)
+        .where(eq(operationAttempt.id, settlement.openAttempt));
+      assert.equal(attempt?.outcome, "ambiguous");
+      const lifecycles = await tx
+        .select({ id: operation.id, lifecycle: operation.lifecycle })
+        .from(operation)
+        .where(
+          inArray(operation.id, [
+            settlement.openOperation,
+            settlement.supersededOperation,
+          ]),
+        );
+      assert.equal(
+        lifecycles.find((row) => row.id === settlement.openOperation)
+          ?.lifecycle,
+        "unknown",
+      );
+      assert.equal(
+        lifecycles.find((row) => row.id === settlement.supersededOperation)
+          ?.lifecycle,
+        "cancelled",
+      );
+      observed.push(
+        "generation-settlement-pending-usage-unknown-noncurrent-cancelled",
+      );
+
+      const fenced = await attachMarketFinal(tx, settlement.workspace, {
+        claim: {
+          claimedBy: settlement.actor,
+          expectedVersion: 1,
+          operationId: settlement.supersededOperation,
+        },
+        final: {
+          actualBytes: 100,
+          checksum: "attached-checksum",
+          height: 1350,
+          mediaAssetId: settlement.attachedAsset,
+          mimeType: "image/png",
+          objectKey: `probe/${settlement.attachedAsset}.png`,
+          width: 1080,
+        },
+        generationId: settlement.supersededGeneration,
+      });
+      assert.equal(fenced.status, "superseded");
+      const attached = await tx
+        .select({ id: mediaAsset.id })
+        .from(mediaAsset)
+        .where(eq(mediaAsset.id, settlement.attachedAsset));
+      assert.equal(attached.length, 0);
+      const derivations = await tx
+        .select({ id: mediaDerivation.id })
+        .from(mediaDerivation)
+        .where(eq(mediaDerivation.workspaceId, settlement.workspace));
+      assert.equal(derivations.length, 0);
+      const [generation] = await tx
+        .select({ finalMediaAssetId: marketGeneration.finalMediaAssetId })
+        .from(marketGeneration)
+        .where(eq(marketGeneration.id, settlement.supersededGeneration));
+      assert.equal(generation?.finalMediaAssetId, null);
+      observed.push("generation-attach-stale-claim-fence");
+      throw rollback;
+    }),
+    rollback,
+  );
+}
+
+async function proveGenerationFinalizationRetryEpochReplay() {
+  const settlement = {
+    workspace: randomUUID(),
+    actor: `market-generation-retry-probe-${randomUUID()}`,
+    brand: randomUUID(),
+    instrument: randomUUID(),
+    analysisOperation: randomUUID(),
+    analysis: randomUUID(),
+    chartAsset: randomUUID(),
+    originalAsset: randomUUID(),
+    openOperation: randomUUID(),
+    openGeneration: randomUUID(),
+    openAttempt: randomUUID(),
+    supersededOperation: randomUUID(),
+    supersededGeneration: randomUUID(),
+  };
+  const leaseExpired = new Date("2026-09-01T10:00:00.000Z");
+  const wakes = (tx: Transaction, operationId: string) =>
+    tx
+      .select({ id: outboxEvent.id })
+      .from(outboxEvent)
+      .where(
+        and(
+          eq(outboxEvent.operationId, operationId),
+          eq(
+            outboxEvent.eventType,
+            OPERATION_MARKET_GENERATION_REQUESTED_EVENT_NAME,
+          ),
+        ),
+      );
+  const receipt = (tx: Transaction) =>
+    tx
+      .select({
+        epoch: marketGeneration.finalizationRetryEpoch,
+        receipt: marketGeneration.latestFinalizationRetryReceipt,
+      })
+      .from(marketGeneration)
+      .where(eq(marketGeneration.id, settlement.supersededGeneration));
+  await assert.rejects(
+    database.db.transaction(async (tx) => {
+      await insertSettlementFixture(tx, settlement, leaseExpired);
+
+      const released = await releaseMarketFinalizationForRetry(
+        tx,
+        settlement.workspace,
+        {
+          claimedBy: settlement.actor,
+          expectedVersion: 1,
+          operationId: settlement.supersededOperation,
+        },
+      );
+      assert.equal(released?.lifecycle, "queued");
+      assert.equal(released?.claimedBy, null);
+      assert.equal(released?.version, 2);
+      assert.equal((await wakes(tx, settlement.supersededOperation)).length, 0);
+
+      const updated = await retryMarketGenerationFinalization(
+        tx,
+        settlement.workspace,
+        settlement.actor,
+        {
+          operationId: settlement.supersededOperation,
+          expectedEpoch: 0,
+          receipt: "receipt-a",
+        },
+      );
+      assert.deepEqual(updated, { status: "updated", epoch: 1 });
+      assert.deepEqual(await receipt(tx), [{ epoch: 1, receipt: "receipt-a" }]);
+      assert.equal((await wakes(tx, settlement.supersededOperation)).length, 1);
+
+      const replayed = await retryMarketGenerationFinalization(
+        tx,
+        settlement.workspace,
+        settlement.actor,
+        {
+          operationId: settlement.supersededOperation,
+          expectedEpoch: 0,
+          receipt: "receipt-b",
+        },
+      );
+      assert.deepEqual(replayed, { status: "conflict", epoch: 1 });
+      assert.deepEqual(await receipt(tx), [{ epoch: 1, receipt: "receipt-a" }]);
+      assert.equal((await wakes(tx, settlement.supersededOperation)).length, 1);
+
+      await releaseMarketFinalizationForRetry(tx, settlement.workspace, {
+        claimedBy: settlement.actor,
+        expectedVersion: 1,
+        operationId: settlement.openOperation,
+      });
+      const withoutOriginal = await retryMarketGenerationFinalization(
+        tx,
+        settlement.workspace,
+        settlement.actor,
+        {
+          operationId: settlement.openOperation,
+          expectedEpoch: 0,
+          receipt: "receipt-c",
+        },
+      );
+      assert.deepEqual(withoutOriginal, { status: "conflict", epoch: 0 });
+      assert.equal((await wakes(tx, settlement.openOperation)).length, 0);
+      observed.push("generation-finalization-retry-epoch-replay");
+      throw rollback;
+    }),
+    rollback,
+  );
+}
+
+async function insertSettlementFixture(
+  tx: Transaction,
+  settlement: {
+    actor: string;
+    analysis: string;
+    analysisOperation: string;
+    brand: string;
+    chartAsset: string;
+    instrument: string;
+    openAttempt: string;
+    openGeneration: string;
+    openOperation: string;
+    originalAsset: string;
+    supersededGeneration: string;
+    supersededOperation: string;
+    workspace: string;
+  },
+  leaseExpired: Date,
+) {
+  await tx.insert(user).values({
+    id: settlement.actor,
+    email: `${settlement.actor}@example.invalid`,
+    name: "Market Generation Settlement Probe",
+  });
+  await tx.insert(workspace).values({
+    id: settlement.workspace,
+    name: `Market Generation Settlement Probe ${settlement.workspace}`,
+  });
+  await tx.insert(mediaBrand).values({
+    id: settlement.brand,
+    workspaceId: settlement.workspace,
+    key: "probe-brand",
+    name: "Probe Brand",
+    sortOrder: 1,
+  });
+  await tx.insert(marketInstrument).values({
+    id: settlement.instrument,
+    workspaceId: settlement.workspace,
+    key: "industrial",
+    name: "Industrial Token",
+    symbol: "IND",
+    providerMappings: [primaryMapping],
+  });
+  await tx.insert(operation).values([
+    {
+      id: settlement.analysisOperation,
+      workspaceId: settlement.workspace,
+      actor: settlement.actor,
+      commandType: "market-analysis:create",
+      idempotencyKey: "settlement-create",
+      requestHash: "settlement-create-hash",
+    },
+    {
+      id: settlement.openOperation,
+      workspaceId: settlement.workspace,
+      actor: settlement.actor,
+      commandType: `${MARKET_GENERATION_COMMAND_PREFIX}analysis`,
+      idempotencyKey: "settlement-open",
+      requestHash: "settlement-open-hash",
+      lifecycle: "running",
+      claimedBy: settlement.actor,
+      claimedAt: leaseExpired,
+      leaseExpiresAt: leaseExpired,
+    },
+    {
+      id: settlement.supersededOperation,
+      workspaceId: settlement.workspace,
+      actor: settlement.actor,
+      commandType: `${MARKET_GENERATION_COMMAND_PREFIX}analysis`,
+      idempotencyKey: "settlement-superseded",
+      requestHash: "settlement-superseded-hash",
+      lifecycle: "running",
+      claimedBy: settlement.actor,
+      claimedAt: leaseExpired,
+      leaseExpiresAt: leaseExpired,
+    },
+  ]);
+  await tx.insert(mediaAsset).values([
+    {
+      id: settlement.chartAsset,
+      workspaceId: settlement.workspace,
+      kind: "market_chart_render",
+      objectKey: `probe/${settlement.chartAsset}.png`,
+      mimeType: "image/png",
+      declaredBytes: 100,
+      actualBytes: 100,
+      checksum: "settlement-chart-checksum",
+      width: 1080,
+      height: 1350,
+      lifecycle: "verified",
+      verifiedAt: leaseExpired,
+    },
+    {
+      id: settlement.originalAsset,
+      workspaceId: settlement.workspace,
+      kind: "image_provider_original",
+      objectKey: `probe/${settlement.originalAsset}.png`,
+      mimeType: "image/png",
+      declaredBytes: 100,
+      actualBytes: 100,
+      checksum: "settlement-original-checksum",
+      width: 1080,
+      height: 1350,
+      lifecycle: "verified",
+      verifiedAt: leaseExpired,
+    },
+  ]);
+  await tx.insert(marketAnalysis).values({
+    id: settlement.analysis,
+    workspaceId: settlement.workspace,
+    operationId: settlement.analysisOperation,
+    mediaBrandId: settlement.brand,
+    visualOwnerInstrumentId: settlement.instrument,
+    contentLocale: "en",
+    normalizedRequest: request,
+    requestFingerprint: "settlement-request-fingerprint",
+    templateFingerprint: "template-fingerprint",
+    instrumentProfileFingerprint: "profile-fingerprint",
+  });
+  await tx.insert(marketGeneration).values([
+    {
+      id: settlement.openGeneration,
+      workspaceId: settlement.workspace,
+      operationId: settlement.openOperation,
+      marketAnalysisId: settlement.analysis,
+      intentId: settlement.openOperation,
+      intentVersion: 1,
+      expectedDesignFingerprint: "design-fingerprint",
+      imageOptionKey: "probe-option",
+      referenceSampleKey: "sample-path",
+      referenceSampleChecksum: "sample-checksum",
+      footerLockupKey: "lockup-path",
+      footerLockupChecksum: "lockup-checksum",
+      chartMediaAssetId: settlement.chartAsset,
+      chartMediaChecksum: "settlement-chart-checksum",
+      outputWidth: 1080,
+      outputHeight: 1350,
+    },
+    {
+      id: settlement.supersededGeneration,
+      workspaceId: settlement.workspace,
+      operationId: settlement.supersededOperation,
+      marketAnalysisId: settlement.analysis,
+      intentId: settlement.supersededOperation,
+      intentVersion: 1,
+      expectedDesignFingerprint: "design-fingerprint",
+      imageOptionKey: "probe-option",
+      referenceSampleKey: "sample-path",
+      referenceSampleChecksum: "sample-checksum",
+      footerLockupKey: "lockup-path",
+      footerLockupChecksum: "lockup-checksum",
+      chartMediaAssetId: settlement.chartAsset,
+      chartMediaChecksum: "settlement-chart-checksum",
+      outputWidth: 1080,
+      outputHeight: 1350,
+      providerOriginalMediaAssetId: settlement.originalAsset,
+    },
+  ]);
+  await tx
+    .update(marketAnalysis)
+    .set({ currentGenerationId: settlement.openGeneration })
+    .where(eq(marketAnalysis.id, settlement.analysis));
+  await tx.insert(operationAttempt).values({
+    id: settlement.openAttempt,
+    workspaceId: settlement.workspace,
+    operationId: settlement.openOperation,
+    attemptNumber: 1,
+  });
+  await tx.insert(aiUsageEvent).values({
+    workspaceId: settlement.workspace,
+    operationId: settlement.openOperation,
+    operationAttemptId: settlement.openAttempt,
+    invocationKey: "primary",
+    taskKey: "market-analysis-brief",
+    apiKind: "chat",
+    backend: "remote",
+    providerGateway: "openrouter",
+    requestedModel: "probe-model",
   });
 }
 

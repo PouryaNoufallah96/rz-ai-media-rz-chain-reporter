@@ -14,13 +14,10 @@ import { FormProvider, useForm } from "react-hook-form";
 
 import { applyActionErrorToForm, useAction } from "@/hooks/use-action";
 
-import {
-  updateMarketRequestAction,
-  verifyMarketAnalysisAction,
-} from "../actions/commands";
+import { updateMarketRequestAction } from "../actions/commands";
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
+import { useMarketActionError } from "../hooks/use-market-action-error";
 import { useRememberedComparisons } from "../hooks/use-remembered-comparisons";
-import { useMarketActionError } from "../lib/action-error";
 import {
   comparisonsFromRequest,
   configuredInstruments,
@@ -40,7 +37,7 @@ import type {
   MarketAnalysisOptionsProjection,
   MarketAnalysisProjection,
 } from "../schemas/reads";
-import { continueAfterFetch, MarketSetupForm } from "./market-setup-form";
+import { MarketSetupForm } from "./market-setup-form";
 
 export function MarketWorkspace({
   analysis,
@@ -60,7 +57,6 @@ export function MarketWorkspace({
   const t = useTranslations(MARKET_ANALYSIS_NAMESPACE);
   const resolveError = useMarketActionError();
   const update = useAction(updateMarketRequestAction);
-  const verify = useAction(verifyMarketAnalysisAction);
   const { comparisons, remember } = useRememberedComparisons(
     mergeComparisons(
       catalog.entries,
@@ -92,7 +88,7 @@ export function MarketWorkspace({
     setError,
     setFocus,
   } = form;
-  const pending = isSubmitting || update.isPending || verify.isPending;
+  const pending = isSubmitting || update.isPending;
   const status = marketSetupStatus(analysis, pending);
   const working = status === "fetching";
   const snapshot = analysis.currentSnapshot ?? null;
@@ -118,32 +114,21 @@ export function MarketWorkspace({
     onContinue();
   }, [awaitedSnapshotId, onContinue, snapshot]);
 
-  const onSubmit = handleSubmit(async (values, event) => {
+  const onSubmit = handleSubmit(async (values) => {
     clearErrors("root");
     update.reset();
-    verify.reset();
-    const saved = await update.execute({
+    const started = await update.execute({
       analysisId: analysis.id,
       expectedVersion: analysis.version,
-      ...values,
-    });
-    if (saved.status !== "success" || !saved.data) {
-      applyActionErrorToForm(setError, saved, setFocus);
-      return;
-    }
-    const started = await verify.execute({
-      analysisId: analysis.id,
-      expectedVersion: saved.data.version,
       idempotencyKey: crypto.randomUUID(),
+      ...values,
     });
     if (started.status !== "success") {
       applyActionErrorToForm(setError, started, setFocus);
       return;
     }
     reset(values);
-    setAwaitedSnapshotId(
-      continueAfterFetch(event) ? (snapshot?.id ?? null) : undefined,
-    );
+    setAwaitedSnapshotId(snapshot?.id ?? null);
   });
 
   return (

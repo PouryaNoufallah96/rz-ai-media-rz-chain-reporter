@@ -22,9 +22,6 @@ export type PrepareMarketPlatformInput = {
   variantKeys: readonly string[];
   customerTemplateFingerprint: string;
   brandPolicyFingerprint: string;
-  instrumentProfileFingerprint: string;
-  referenceSampleChecksum: string;
-  footerLockupChecksum: string;
   promptVersion: string;
   configurationVersion: string;
 };
@@ -35,7 +32,6 @@ export type PrepareMarketPlatformResult =
       status:
         | "not_found"
         | "not_ready"
-        | "stale_policy"
         | "invalid_disposition"
         | "stale_origin"
         | "platform_not_allowed"
@@ -57,12 +53,14 @@ type AuthorityRow = {
   finalMediaAssetId: string | null;
   finalMediaChecksum: string | null;
   finalMediaLifecycle: string | null;
+  footerLockupChecksum: string | null;
   imageOptionKey: string | null;
   instrumentProfileFingerprint: string;
   marketChartRenderId: string | null;
   marketSnapshotId: string | null;
   mediaBrandId: string;
   operationActor: string;
+  referenceSampleChecksum: string | null;
   storyApprovalFingerprint: string | null;
   storyHeadline: string | null;
   storySupportingText: string | null;
@@ -137,8 +135,8 @@ export async function prepareMarketPlatform(
           catalogFingerprint: authority.catalogFingerprint,
           instrumentProfileFingerprint: authority.instrumentProfileFingerprint,
           brandPolicyFingerprint: input.brandPolicyFingerprint,
-          referenceSampleChecksum: input.referenceSampleChecksum,
-          footerLockupChecksum: input.footerLockupChecksum,
+          referenceSampleChecksum: authority.referenceSampleChecksum,
+          footerLockupChecksum: authority.footerLockupChecksum,
           imageOptionKey: authority.imageOptionKey,
           marketChartRenderId: authority.marketChartRenderId,
           chartMediaAssetId: authority.chartMediaAssetId,
@@ -227,12 +225,14 @@ async function loadAuthority(
       analysis.current_final_media_asset_id as "finalMediaAssetId",
       final_asset.checksum as "finalMediaChecksum",
       final_asset.lifecycle as "finalMediaLifecycle",
+      generation.footer_lockup_checksum as "footerLockupChecksum",
       analysis.image_option_key as "imageOptionKey",
       analysis.instrument_profile_fingerprint as "instrumentProfileFingerprint",
       analysis.current_chart_render_id as "marketChartRenderId",
       analysis.current_snapshot_id as "marketSnapshotId",
       analysis.media_brand_id as "mediaBrandId",
       owner_operation.actor as "operationActor",
+      generation.reference_sample_checksum as "referenceSampleChecksum",
       analysis.story_approval_fingerprint as "storyApprovalFingerprint",
       analysis.story_headline as "storyHeadline",
       analysis.story_supporting_text as "storySupportingText",
@@ -251,6 +251,9 @@ async function loadAuthority(
     left join media_asset final_asset
       on final_asset.workspace_id = analysis.workspace_id
       and final_asset.id = analysis.current_final_media_asset_id
+    left join market_generation generation
+      on generation.workspace_id = analysis.workspace_id
+      and generation.final_media_asset_id = analysis.current_final_media_asset_id
     where analysis.workspace_id = ${workspaceId}::uuid
       and analysis.id = ${analysisId}::uuid
     for update of analysis
@@ -269,9 +272,11 @@ function ready(row: AuthorityRow): row is AuthorityRow & {
   designVariantKey: string;
   finalMediaAssetId: string;
   finalMediaChecksum: string;
+  footerLockupChecksum: string;
   imageOptionKey: string;
   marketChartRenderId: string;
   marketSnapshotId: string;
+  referenceSampleChecksum: string;
   storyApprovalFingerprint: string;
   storyHeadline: string;
   storySupportingText: string;
@@ -289,9 +294,11 @@ function ready(row: AuthorityRow): row is AuthorityRow & {
       row.finalMediaAssetId &&
       row.finalMediaChecksum &&
       row.finalMediaLifecycle === "verified" &&
+      row.footerLockupChecksum &&
       row.imageOptionKey &&
       row.marketChartRenderId &&
       row.marketSnapshotId &&
+      row.referenceSampleChecksum &&
       row.storyApprovalFingerprint &&
       row.storyHeadline &&
       row.storySupportingText,

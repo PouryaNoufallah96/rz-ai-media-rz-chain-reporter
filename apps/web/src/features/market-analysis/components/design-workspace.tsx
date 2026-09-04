@@ -26,12 +26,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import {
-  type ComponentType,
-  type ReactNode,
-  type SVGProps,
-  useState,
-} from "react";
+import type { ComponentType, ReactNode, SVGProps } from "react";
 import type { Control, UseFormReturn } from "react-hook-form";
 import { useForm, useFormState, useWatch } from "react-hook-form";
 import type { z } from "zod";
@@ -42,7 +37,7 @@ import { applyActionErrorToForm, useAction } from "@/hooks/use-action";
 import { approveMarketDesignAction } from "../actions/commands";
 import { MARKET_ANALYSIS_NAMESPACE } from "../constants";
 import { useAdvanceOnApproval } from "../hooks/use-advance-on-approval";
-import { useMarketActionError } from "../lib/action-error";
+import { useMarketActionError } from "../hooks/use-market-action-error";
 import { findComposition } from "../lib/compositions";
 import { approveDesignInputSchema } from "../schemas/commands";
 import type {
@@ -75,7 +70,6 @@ export function useDesignForm(
   analysis: MarketAnalysisProjection,
   options: MarketAnalysisOptionsProjection,
 ) {
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const found = findComposition(
     options,
     analysis.designFamilyKey,
@@ -86,7 +80,6 @@ export function useDesignForm(
   const values: Values = {
     analysisId: analysis.id,
     expectedVersion: analysis.version,
-    idempotencyKey,
     familyKey: family?.key ?? "",
     variantKey: variant?.key ?? "",
   };
@@ -143,7 +136,6 @@ export function DesignWorkspace({
       expectedVersion: analysis.version,
       familyKey: values.familyKey,
       variantKey: values.variantKey,
-      idempotencyKey: crypto.randomUUID(),
     });
     if (result.status === "error") {
       applyActionErrorToForm(form.setError, result, form.setFocus);

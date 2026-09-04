@@ -1,10 +1,11 @@
 import {
   DURABLE_EVENT_SCHEMA_VERSION,
+  type ErrorCode,
   MARKET_GENERATION_COMMAND_PREFIX,
   MARKET_GENERATION_FINAL_MEDIA_KIND,
   OPERATION_MARKET_GENERATION_REQUESTED_EVENT_NAME,
 } from "@rz-chain-reporter/contracts";
-import { and, eq, inArray, isNull, like, lte, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, like, lte, sql } from "drizzle-orm";
 
 import type { Executor, Transaction } from "../executor";
 import { withWorkspaceContext } from "../executor";
@@ -58,6 +59,8 @@ export async function requestMarketGeneration(
     chartMediaChecksum: string;
     expectedDesignFingerprint: string;
     expectedVersion: number;
+    footerLockupChecksum: string;
+    footerLockupKey: string;
     generationId: string;
     idempotencyKey: string;
     imageOptionKey: string;
@@ -154,6 +157,8 @@ export async function requestMarketGeneration(
         operatorDirection: input.operatorDirection,
         referenceSampleKey: input.referenceSampleKey,
         referenceSampleChecksum: input.referenceSampleChecksum,
+        footerLockupKey: input.footerLockupKey,
+        footerLockupChecksum: input.footerLockupChecksum,
         chartMediaAssetId: input.chartMediaAssetId,
         chartMediaChecksum: input.chartMediaChecksum,
         outputWidth: input.outputWidth,
@@ -193,6 +198,23 @@ async function insertWake(
   workspaceId: string,
   generation: GenerationRow,
 ) {
+  const [live] = await tx
+    .select({ id: outboxEvent.id })
+    .from(outboxEvent)
+    .where(
+      and(
+        inWorkspace(outboxEvent, workspaceId),
+        eq(outboxEvent.operationId, generation.operationId),
+        eq(
+          outboxEvent.eventType,
+          OPERATION_MARKET_GENERATION_REQUESTED_EVENT_NAME,
+        ),
+        isNull(outboxEvent.dispatchedAt),
+        isNull(outboxEvent.exhaustedAt),
+      ),
+    )
+    .limit(1);
+  if (live) return;
   await tx.insert(outboxEvent).values({
     workspaceId,
     operationId: generation.operationId,
@@ -247,7 +269,7 @@ export async function persistMarketBrief(
     briefPolicyVersion: string;
     briefSchemaVersion: string;
     briefSource: "deterministic_fallback" | "model";
-    fallbackCode?: string | null;
+    fallbackCode?: ErrorCode | null;
     generationId: string;
     policyRejections: readonly unknown[];
   },
@@ -259,7 +281,7 @@ export async function persistMarketBrief(
       briefPolicyVersion: input.briefPolicyVersion,
       briefSchemaVersion: input.briefSchemaVersion,
       briefSource: input.briefSource,
-      fallbackCode: input.fallbackCode as never,
+      fallbackCode: input.fallbackCode,
       policyRejections: [...input.policyRejections].slice(0, 12),
       updatedAt: new Date(),
     })
@@ -429,10 +451,29 @@ export async function attachMarketProviderOriginal(
 export async function attachMarketFinal(
   executor: Executor,
   workspaceId: string,
-  input: { final: PreparedImageResult; generationId: string },
+  input: {
+    claim: { claimedBy: string; expectedVersion: number; operationId: string };
+    final: PreparedImageResult;
+    generationId: string;
+  },
 ) {
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
+    const [claimed] = await tx
+      .select({ id: operation.id })
+      .from(operation)
+      .where(
+        and(
+          inWorkspace(operation, workspaceId),
+          eq(operation.id, input.claim.operationId),
+          eq(operation.claimedBy, input.claim.claimedBy),
+          eq(operation.version, input.claim.expectedVersion),
+          eq(operation.lifecycle, "running"),
+          gt(operation.leaseExpiresAt, new Date()),
+        ),
+      )
+      .for("update");
+    if (!claimed) return { status: "superseded" as const };
     const [generation] = await tx
       .select()
       .from(marketGeneration)
@@ -443,8 +484,9 @@ export async function attachMarketFinal(
         ),
       )
       .for("update");
-    if (!generation?.providerOriginalMediaAssetId) return null;
-    if (generation.finalMediaAssetId) return generation;
+    if (!generation?.providerOriginalMediaAssetId)
+      return { status: "lost" as const };
+    if (generation.finalMediaAssetId) return { status: "replayed" as const };
     await tx
       .insert(mediaAsset)
       .values({
@@ -485,7 +527,7 @@ export async function attachMarketFinal(
         ),
       )
       .returning();
-    if (!updated) return null;
+    if (!updated) return { status: "lost" as const };
     const [analysis] = await tx
       .select()
       .from(marketAnalysis)
@@ -504,7 +546,7 @@ export async function attachMarketFinal(
       analysis.operatorDirection !== generation.operatorDirection ||
       analysis.imageOptionKey !== generation.imageOptionKey
     ) {
-      return { ...updated, superseded: true };
+      return { status: "superseded" as const };
     }
     await tx
       .update(marketAnalysis)
@@ -520,7 +562,7 @@ export async function attachMarketFinal(
           eq(marketAnalysis.version, analysis.version),
         ),
       );
-    return { ...updated, superseded: false };
+    return { status: "attached" as const };
   });
 }
 
@@ -550,6 +592,129 @@ export async function releaseMarketFinalizationForRetry(
     )
     .returning();
   return released ?? null;
+}
+
+export async function settleMarketGenerationOperation(
+  executor: Executor,
+  workspaceId: string,
+  input: {
+    claimedBy: string;
+    expectedVersion: number;
+    operationId: string;
+    terminal: "cancelled" | "failed" | "unknown";
+  },
+) {
+  return executor.transaction(async (tx) => {
+    await withWorkspaceContext(tx, workspaceId);
+    return settleOpenMarketGeneration(tx, workspaceId, input);
+  });
+}
+
+async function settleOpenMarketGeneration(
+  tx: Transaction,
+  workspaceId: string,
+  input: {
+    claimedBy: string | null;
+    expectedVersion: number;
+    operationId: string;
+    terminal: "cancelled" | "failed" | "unknown";
+  },
+) {
+  const ownerFence =
+    input.claimedBy === null
+      ? isNull(operation.claimedBy)
+      : eq(operation.claimedBy, input.claimedBy);
+  const [current] = await tx
+    .select()
+    .from(operation)
+    .where(
+      and(
+        inWorkspace(operation, workspaceId),
+        eq(operation.id, input.operationId),
+        eq(operation.version, input.expectedVersion),
+        ownerFence,
+        inArray(operation.lifecycle, ["queued", "running", "settling"]),
+      ),
+    )
+    .for("update");
+  if (!current) return null;
+  const now = new Date();
+  const usage = await tx
+    .select({
+      attemptId: aiUsageEvent.operationAttemptId,
+      status: aiUsageEvent.status,
+    })
+    .from(aiUsageEvent)
+    .where(
+      and(
+        inWorkspace(aiUsageEvent, workspaceId),
+        eq(aiUsageEvent.operationId, input.operationId),
+      ),
+    )
+    .for("update");
+  const ambiguousAttempts = new Set(
+    usage
+      .filter((item) => item.status === "pending" || item.status === "unknown")
+      .map((item) => item.attemptId),
+  );
+  await tx
+    .update(aiUsageEvent)
+    .set({ costAuthority: "unknown", status: "unknown", updatedAt: now })
+    .where(
+      and(
+        inWorkspace(aiUsageEvent, workspaceId),
+        eq(aiUsageEvent.operationId, input.operationId),
+        eq(aiUsageEvent.status, "pending"),
+      ),
+    );
+  const openAttempts = await tx
+    .select({ id: operationAttempt.id })
+    .from(operationAttempt)
+    .where(
+      and(
+        inWorkspace(operationAttempt, workspaceId),
+        eq(operationAttempt.operationId, input.operationId),
+        isNull(operationAttempt.outcome),
+      ),
+    )
+    .for("update");
+  for (const attempt of openAttempts) {
+    const ambiguous = ambiguousAttempts.has(attempt.id);
+    await tx
+      .update(operationAttempt)
+      .set({
+        failureCode: ambiguous ? "MODEL_INVOCATION_FAILED" : null,
+        outcome: ambiguous ? "ambiguous" : "failed_terminal",
+        updatedAt: now,
+      })
+      .where(
+        and(
+          inWorkspace(operationAttempt, workspaceId),
+          eq(operationAttempt.id, attempt.id),
+          isNull(operationAttempt.outcome),
+        ),
+      );
+  }
+  const [settled] = await tx
+    .update(operation)
+    .set({
+      claimedAt: null,
+      claimedBy: null,
+      leaseExpiresAt: null,
+      lifecycle: ambiguousAttempts.size > 0 ? "unknown" : input.terminal,
+      updatedAt: now,
+      version: current.version + 1,
+    })
+    .where(
+      and(
+        inWorkspace(operation, workspaceId),
+        eq(operation.id, input.operationId),
+        eq(operation.version, current.version),
+        ownerFence,
+      ),
+    )
+    .returning();
+  return settled ?? null;
 }
 
 export async function retryMarketGenerationFinalization(
@@ -630,26 +795,6 @@ export async function listMarketGenerationUsage(
     );
 }
 
-export async function readLatestMarketGenerationAttempt(
-  executor: Executor,
-  workspaceId: string,
-  operationId: string,
-) {
-  const [attempt] = await executor
-    .select()
-    .from(operationAttempt)
-    .where(
-      and(
-        inWorkspace(operationAttempt, workspaceId),
-        eq(operationAttempt.operationId, operationId),
-        isNull(operationAttempt.outcome),
-      ),
-    )
-    .orderBy(sql`${operationAttempt.attemptNumber} desc`)
-    .limit(1);
-  return attempt ?? null;
-}
-
 export async function reconcileStaleMarketGenerations(
   executor: Executor,
   workspaceId: string,
@@ -679,6 +824,7 @@ export async function reconcileStaleMarketGenerations(
       )
       .for("update", { skipLocked: true });
     const settled: Array<{
+      actorId: string;
       lifecycle: "cancelled" | "failed" | "queued" | "succeeded" | "unknown";
       marketAnalysisId: string;
       operationId: string;
@@ -693,39 +839,43 @@ export async function reconcileStaleMarketGenerations(
             ? "succeeded"
             : "cancelled";
       } else if (candidate.generation.providerOriginalMediaAssetId) {
-        lifecycle = "queued";
+        lifecycle =
+          candidate.analysis.currentGenerationId === candidate.generation.id
+            ? "queued"
+            : "cancelled";
       } else {
-        const [ambiguous] = await tx
-          .select({ id: aiUsageEvent.id })
-          .from(aiUsageEvent)
+        lifecycle = "failed";
+      }
+      if (lifecycle === "queued" || lifecycle === "succeeded") {
+        await tx
+          .update(operation)
+          .set({
+            claimedAt: null,
+            claimedBy: null,
+            leaseExpiresAt: null,
+            lifecycle,
+            updatedAt: now,
+            version: candidate.operation.version + 1,
+          })
           .where(
             and(
-              inWorkspace(aiUsageEvent, workspaceId),
-              eq(aiUsageEvent.operationId, candidate.operation.id),
-              inArray(aiUsageEvent.status, ["pending", "unknown"]),
+              inWorkspace(operation, workspaceId),
+              eq(operation.id, candidate.operation.id),
+              eq(operation.version, candidate.operation.version),
             ),
-          )
-          .limit(1);
-        lifecycle = ambiguous ? "unknown" : "failed";
+          );
+      } else {
+        const resolved = await settleOpenMarketGeneration(tx, workspaceId, {
+          claimedBy: candidate.operation.claimedBy,
+          expectedVersion: candidate.operation.version,
+          operationId: candidate.operation.id,
+          terminal: lifecycle,
+        });
+        if (!resolved) continue;
+        if (resolved.lifecycle === "unknown") lifecycle = "unknown";
       }
-      await tx
-        .update(operation)
-        .set({
-          claimedAt: null,
-          claimedBy: null,
-          leaseExpiresAt: null,
-          lifecycle,
-          updatedAt: now,
-          version: candidate.operation.version + 1,
-        })
-        .where(
-          and(
-            inWorkspace(operation, workspaceId),
-            eq(operation.id, candidate.operation.id),
-            eq(operation.version, candidate.operation.version),
-          ),
-        );
       settled.push({
+        actorId: candidate.operation.actor,
         lifecycle,
         marketAnalysisId: candidate.generation.marketAnalysisId,
         operationId: candidate.operation.id,

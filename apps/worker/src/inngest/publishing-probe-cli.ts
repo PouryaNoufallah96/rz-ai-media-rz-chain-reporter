@@ -169,7 +169,7 @@ async function fixturePng() {
   })
     .png()
     .toBuffer();
-  return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  return new Uint8Array(buffer);
 }
 
 function formFieldType(body: RequestInit["body"], field: string) {
@@ -821,7 +821,7 @@ async function prepareBoundFixtures(input: {
   batchId: string;
   db: Executor;
   destinations: readonly TemplateDestination[];
-  readMedia(objectKey: string): Promise<Uint8Array>;
+  readMedia(objectKey: string): Promise<Uint8Array<ArrayBuffer>>;
 }) {
   const destinationKeys = input.destinations.map(
     (destination) => destination.key,
@@ -1092,7 +1092,7 @@ async function executeBoundFixture(input: {
   destination: TemplateDestination;
   fetch: typeof fetch;
   fixture: BoundFixture;
-  readMedia(objectKey: string): Promise<Uint8Array>;
+  readMedia(objectKey: string): Promise<Uint8Array<ArrayBuffer>>;
 }) {
   const now = new Date();
   const claim = await claimPublicationExecution(

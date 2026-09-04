@@ -146,7 +146,7 @@ export type PublisherRuntime = {
     request: PublishRequest,
     kind: ProviderCheckpoint["kind"],
   ): Promise<ProviderCheckpoint | null>;
-  readMedia(objectKey: string): Promise<Uint8Array>;
+  readMedia(objectKey: string): Promise<Uint8Array<ArrayBuffer>>;
   renewLease(): Promise<void>;
   run<T>(name: string, effect: () => Promise<T>): Promise<T>;
   sleep(duration: string): Promise<void>;
