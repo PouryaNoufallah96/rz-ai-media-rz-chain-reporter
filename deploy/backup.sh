@@ -56,10 +56,11 @@ running_writers() {
   compose ps --services --status running | grep -E '^(web|worker)$' || true
 }
 
+resume=""
+
 create() {
   require_running_data_services
   local staging="$APP_ROOT/backups/$(date -u +%Y%m%dT%H%M%SZ)"
-  local resume
   resume="$(running_writers)"
 
   install -d -o root -g root -m 700 "$APP_ROOT/backups" "$staging"
