@@ -15,6 +15,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
         "/*/dashboard",
         "/*/installation",
         "/*/login",
+        "/*/market-analysis",
         "/*/saved",
         "/*/schedule",
         "/*/sources",

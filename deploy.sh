@@ -248,6 +248,10 @@ assert_env_files() {
   assert_matching_env_values cache-invalidation "$ENV_DIR/web.env" CACHE_INVALIDATION_WEBHOOK_SECRET "$ENV_DIR/reconcile.env" CACHE_INVALIDATION_WEBHOOK_SECRET
   assert_matching_env_values inngest-signing "$ENV_DIR/web.env" INNGEST_SIGNING_KEY "$ENV_DIR/worker.env" INNGEST_SIGNING_KEY
   assert_matching_env_values openrouter "$ENV_DIR/web.env" OPENROUTER_API_KEY "$ENV_DIR/worker.env" OPENROUTER_API_KEY
+  # Server actions are encrypted at build and decrypted at runtime. A divergence
+  # here builds and starts cleanly, then fails every form submission with an
+  # opaque "failed to find server action".
+  assert_matching_env_values server-actions-key "$ENV_DIR/build.env" NEXT_SERVER_ACTIONS_ENCRYPTION_KEY "$ENV_DIR/web.env" NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 }
 
 assert_env_file_modes() {

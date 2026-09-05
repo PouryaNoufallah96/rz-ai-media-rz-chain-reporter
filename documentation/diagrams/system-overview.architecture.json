@@ -1,0 +1,319 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ChainReporter system overview",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1220,
+      580
+    ],
+    "legend": {
+      "mode": "auto"
+    },
+    "views": [
+      {
+        "id": "request-path",
+        "label": "Request path",
+        "focus": [
+          "operator",
+          "proxy",
+          "web",
+          "postgres"
+        ],
+        "note": "The operator reaches the web app through the proxy. A short mutation writes its intent and its work item in one transaction."
+      },
+      {
+        "id": "durable-work",
+        "label": "Durable work",
+        "focus": [
+          "postgres",
+          "worker",
+          "inngest",
+          "gateway",
+          "models"
+        ],
+        "note": "The worker claims work from the outbox and runs it as a retryable durable function. Every model call resolves through one gateway."
+      },
+      {
+        "id": "outside-world",
+        "label": "Outside world",
+        "focus": [
+          "worker",
+          "sources",
+          "platforms",
+          "minio"
+        ],
+        "note": "Every outbound call leaves from the worker through one request guard. Object bytes reach the browser only through authenticated routes."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "operator",
+      "type": "external",
+      "label": "Operator",
+      "sublabel": "Browser",
+      "pos": [
+        30,
+        250
+      ],
+      "size": [
+        138,
+        68
+      ]
+    },
+    {
+      "id": "proxy",
+      "type": "security",
+      "label": "Reverse Proxy",
+      "sublabel": "TLS and limits",
+      "pos": [
+        220,
+        250
+      ],
+      "size": [
+        138,
+        68
+      ]
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "Web App",
+      "sublabel": "Reads and commands",
+      "pos": [
+        410,
+        250
+      ],
+      "size": [
+        138,
+        68
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "State and outbox",
+      "brand": "postgresql",
+      "pos": [
+        600,
+        250
+      ],
+      "size": [
+        138,
+        68
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "Worker",
+      "sublabel": "Durable operations",
+      "pos": [
+        790,
+        250
+      ],
+      "size": [
+        138,
+        68
+      ]
+    },
+    {
+      "id": "inngest",
+      "type": "messagebus",
+      "label": "Durable Execution",
+      "sublabel": "Retries and realtime",
+      "pos": [
+        790,
+        80
+      ],
+      "size": [
+        138,
+        68
+      ]
+    },
+    {
+      "id": "sources",
+      "type": "external",
+      "label": "News Sources",
+      "sublabel": "Feeds, pages, market data",
+      "pos": [
+        1030,
+        250
+      ],
+      "size": [
+        138,
+        68
+      ]
+    },
+    {
+      "id": "gateway",
+      "type": "security",
+      "label": "ModelGateway",
+      "sublabel": "One model seam",
+      "pos": [
+        600,
+        420
+      ],
+      "size": [
+        138,
+        68
+      ]
+    },
+    {
+      "id": "models",
+      "type": "external",
+      "label": "Model Providers",
+      "sublabel": "Remote and on-host",
+      "pos": [
+        410,
+        420
+      ],
+      "size": [
+        138,
+        68
+      ]
+    },
+    {
+      "id": "minio",
+      "type": "database",
+      "label": "MinIO",
+      "sublabel": "Object bytes",
+      "pos": [
+        790,
+        420
+      ],
+      "size": [
+        138,
+        68
+      ]
+    },
+    {
+      "id": "platforms",
+      "type": "external",
+      "label": "Social Platforms",
+      "sublabel": "Telegram, X, Instagram",
+      "pos": [
+        1030,
+        420
+      ],
+      "size": [
+        138,
+        68
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "operator-proxy",
+      "from": "operator",
+      "to": "proxy",
+      "label": "HTTPS",
+      "variant": "emphasis",
+      "labelDy": 58
+    },
+    {
+      "id": "proxy-web",
+      "from": "proxy",
+      "to": "web",
+      "label": "HTTP",
+      "labelDy": 58
+    },
+    {
+      "id": "web-postgres",
+      "from": "web",
+      "to": "postgres",
+      "label": "reads and outbox",
+      "variant": "emphasis",
+      "labelDy": -30
+    },
+    {
+      "id": "worker-postgres",
+      "from": "worker",
+      "to": "postgres",
+      "label": "claims work",
+      "labelDy": -30
+    },
+    {
+      "id": "inngest-worker",
+      "from": "inngest",
+      "to": "worker",
+      "label": "invokes functions",
+      "labelDy": 24
+    },
+    {
+      "id": "worker-sources",
+      "from": "worker",
+      "to": "sources",
+      "label": "fetch and read"
+    },
+    {
+      "id": "worker-platforms",
+      "from": "worker",
+      "to": "platforms",
+      "label": "publish",
+      "variant": "emphasis",
+      "labelDy": 40,
+      "labelDx": 0
+    },
+    {
+      "id": "worker-minio",
+      "from": "worker",
+      "to": "minio",
+      "label": "store objects",
+      "labelDy": 34
+    },
+    {
+      "id": "worker-gateway",
+      "from": "worker",
+      "to": "gateway",
+      "label": "named task",
+      "labelDy": 40
+    },
+    {
+      "id": "web-gateway",
+      "from": "web",
+      "to": "gateway",
+      "label": "assistant turn",
+      "variant": "dashed",
+      "labelDy": 34,
+      "labelDx": -70
+    },
+    {
+      "id": "gateway-models",
+      "from": "gateway",
+      "to": "models",
+      "label": "resolved route",
+      "labelDy": 58
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "One customer per deployment",
+      "items": [
+        "Own host, database, storage and credentials",
+        "No public signup and no shared control plane"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Short requests, durable work",
+      "items": [
+        "Intent and work item commit in one transaction",
+        "Effectful work runs where it can be retried"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "One seam per boundary",
+      "items": [
+        "Every model call resolves through one gateway",
+        "Every outbound fetch passes one request guard",
+        "The browser never talks to object storage"
+      ]
+    }
+  ]
+}

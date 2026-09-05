@@ -7,7 +7,10 @@ import { appRouter } from "@/server/rpc/routers/index";
 // Fixed title: openapi.json must not vary per customer.
 const API_TITLE = "ChainReporter API";
 
-const target = new URL("../../../docs/api/openapi.json", import.meta.url);
+const target = new URL(
+  "../../../documentation/reference/openapi.json",
+  import.meta.url,
+);
 
 const generator = new OpenAPIGenerator({
   schemaConverters: [new ZodToJsonSchemaConverter()],
@@ -39,8 +42,8 @@ async function checkSnapshot() {
   process.exitCode = 1;
   console.error(
     committed === null
-      ? "openapi:check failed: docs/api/openapi.json is missing."
-      : "openapi:check failed: docs/api/openapi.json no longer matches the router.",
+      ? "openapi:check failed: documentation/reference/openapi.json is missing."
+      : "openapi:check failed: documentation/reference/openapi.json no longer matches the router.",
   );
   console.error(
     "Run `pnpm --filter web openapi:generate` and review the diff.",
