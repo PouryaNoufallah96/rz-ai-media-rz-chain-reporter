@@ -60,3 +60,28 @@ export function resolveBoardPresentation(
     ),
   };
 }
+
+// D6 precedes D4: an all-failed acquisition explains the empty zone, so the
+// "no candidate passed" notice must not replace it.
+export function telegramZoneNotice(
+  head: {
+    completedAt: Date | null;
+    kind: RunConfiguration["kind"];
+    telegramAcquisition: {
+      acquiredChannels: number;
+      failures: readonly unknown[];
+      totalChannels: number;
+    };
+  },
+  laneCount: number,
+): "acquisition_failed" | "no_candidates" | null {
+  const { acquiredChannels, failures, totalChannels } =
+    head.telegramAcquisition;
+
+  if (head.completedAt === null || totalChannels === 0) return null;
+  if (acquiredChannels === 0 && failures.length === totalChannels) {
+    return "acquisition_failed";
+  }
+
+  return head.kind === "promo" || laneCount > 0 ? null : "no_candidates";
+}

@@ -1,13 +1,22 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
+import {
+  IMAGE_SELECTION_PROMPT_RESERVE,
+  IMAGE_SELECTION_SOURCE_MAX_CHARS,
+  MODEL_PROMPT_MAX_LENGTH,
+} from "@rz-chain-reporter/contracts/editorial";
 import { z } from "zod";
 
 import {
   type CustomerTemplateReference,
   computeCustomerTemplateFingerprint,
 } from "./fingerprint";
-import { imageProfileSchema } from "./image-profile";
+import {
+  type ImageProfile,
+  imageProfileSchema,
+  imageSelectionPromptPayload,
+} from "./image-profile";
 import {
   CUSTOMER_TEMPLATE_SCHEMA_VERSION,
   type CustomerTemplate,
@@ -32,6 +41,7 @@ const CUSTOMER_TEMPLATE_ERROR_CODES = [
   "REFERENCE_ESCAPES_ROOT",
   "IMAGE_PROFILE_INVALID",
   "BRAND_LOGO_INVALID",
+  "BRAND_LOGO_GEOMETRY_INVALID",
   "MARKET_COMPOSITION_INVALID",
   "MARKET_INSTRUMENT_PROFILE_INVALID",
   "MARKET_RASTER_INVALID",
@@ -411,13 +421,18 @@ function readDeclaredReferences(
       : []),
   ];
 
-  return declared
+  const profilesByPath = new Map<string, ImageProfile>();
+
+  const references = declared
     .sort((left, right) => (left.path < right.path ? -1 : 1))
     .map((reference) => {
       const bytes = readReference(customerDir, reference.path);
 
       if (reference.kind === "image-profile") {
-        assertImageProfile(reference.path, bytes);
+        profilesByPath.set(
+          reference.path,
+          assertImageProfile(reference.path, bytes),
+        );
       } else if (reference.kind === "brand-logo") {
         assertStaticRaster(
           reference.path,
@@ -450,6 +465,39 @@ function readDeclaredReferences(
         sha256: createHash("sha256").update(bytes).digest("hex"),
       };
     });
+
+  assertLogoGeometry(template, profilesByPath);
+
+  return references;
+}
+
+// Mirrors the assembler: the resized logo plus its inset must land inside the canvas.
+function assertLogoGeometry(
+  template: CustomerTemplate,
+  profilesByPath: ReadonlyMap<string, ImageProfile>,
+) {
+  for (const brand of template.mediaBrands) {
+    const profile = brand.imageProfile
+      ? profilesByPath.get(brand.imageProfile)
+      : undefined;
+
+    if (!profile || !brand.brandLogo) continue;
+
+    const { height, width } = profile.output;
+    const shortSide = Math.min(width, height);
+    const logoWidth = Math.round(profile.logo.widthShortSideRatio * shortSide);
+    const inset = Math.round(profile.logo.insetShortSideRatio * shortSide);
+    const logoHeight = Math.round(
+      (logoWidth * brand.brandLogo.pixelHeight) / brand.brandLogo.pixelWidth,
+    );
+
+    if (inset + logoWidth > width || inset + logoHeight > height) {
+      throw new CustomerTemplateError(
+        "BRAND_LOGO_GEOMETRY_INVALID",
+        `Media brand "${brand.key}" places a ${logoWidth}x${logoHeight} logo at inset ${inset} on a ${width}x${height} canvas, which does not fit`,
+      );
+    }
+  }
 }
 
 function readReference(customerDir: string, path: string) {
@@ -574,6 +622,21 @@ function assertImageProfile(path: string, bytes: Buffer) {
       `Image profile "${path}" is not a valid image profile:\n${z.prettifyError(validated.error)}`,
     );
   }
+
+  const budget =
+    MODEL_PROMPT_MAX_LENGTH -
+    IMAGE_SELECTION_PROMPT_RESERVE -
+    IMAGE_SELECTION_SOURCE_MAX_CHARS;
+  const payload = imageSelectionPromptPayload(validated.data).length;
+
+  if (payload > budget) {
+    throw new CustomerTemplateError(
+      "IMAGE_PROFILE_INVALID",
+      `Image profile "${path}" serialises to ${payload} characters of selection prompt, over the ${budget} the model gateway leaves for it`,
+    );
+  }
+
+  return validated.data;
 }
 
 // Packaging globs cannot compute the declared set; the loader refuses undeclared files.

@@ -109,6 +109,7 @@ const COMMITTED_USAGE_FIRST = sql`(${aiUsageEvent.status} = 'succeeded')`;
 
 const DUPLICATE_BRAND_ID = "00000000-0000-0000-0000-000000000000";
 
+const importSource = alias(sourceImportSource, "import_source");
 const sourcePresentation = alias(
   editorialPresentationLocalization,
   "source_presentation",
@@ -184,13 +185,13 @@ export async function readEditorialWorkspace(
 
   const [modelLanes, telegram, progress] = await Promise.all([
     readModelLanes(executor, workspaceId, head.id, presentationLocale),
-    readTelegramLanes(
-      executor,
-      workspaceId,
-      head.id,
-      head.sourceImportId,
+    readTelegramLanes(executor, workspaceId, {
+      analysisRunId: head.id,
       presentationLocale,
-    ),
+      sourceImportId: head.sourceImportId,
+      sourceIds:
+        head.configuration.kind === "news" ? head.configuration.sourceIds : [],
+    }),
     analysisRunProgress(executor, workspaceId, [head.id]),
   ]);
 
@@ -1965,6 +1966,18 @@ async function readModelLanes(
         sourceOrigin: source.origin,
         publishedAt: sourceItem.publishedAt,
         presentationReady: selectionBundleReady,
+        duplicateTelegramCount: sql<number>`(
+          select count(*)::int
+          from ${analysisRunItem} as duplicate_item
+          join ${sourceItem} as duplicate_source_item
+            on duplicate_source_item.id = duplicate_item.source_item_id
+          join ${source} as duplicate_source
+            on duplicate_source.id = duplicate_source_item.source_id
+          where duplicate_item.workspace_id = ${workspaceId}
+            and duplicate_item.analysis_run_id = ${analysisRunId}
+            and duplicate_item.duplicate_of_source_item_id = ${editorialSelection.sourceItemId}
+            and duplicate_source.origin = 'telegram_public'
+        )`,
       })
       .from(editorialSelection)
       .innerJoin(
@@ -2071,13 +2084,20 @@ async function readModelLanes(
   return [...lanes.values()];
 }
 
+// A bound import may cover more channels than the run selected, so acquisition
+// counts only the channels this run asked for.
 async function readTelegramLanes(
   executor: Executor,
   workspaceId: string,
-  analysisRunId: string,
-  sourceImportId: string | null,
-  presentationLocale: ContentLocale,
+  input: {
+    analysisRunId: string;
+    presentationLocale: ContentLocale;
+    sourceImportId: string | null;
+    sourceIds: readonly string[];
+  },
 ): Promise<{ acquisition: TelegramAcquisition; lanes: TelegramLane[] }> {
+  const { analysisRunId, presentationLocale, sourceImportId } = input;
+
   if (sourceImportId === null) {
     return {
       acquisition: { acquiredChannels: 0, failures: [], totalChannels: 0 },
@@ -2110,6 +2130,7 @@ async function readTelegramLanes(
       where import_source.workspace_id = ${workspaceId}
         and import_source.source_import_id = ${sourceImportId}
         and telegram_source.origin = 'telegram_public'
+        and ${inArray(importSource.sourceId, [...input.sourceIds])}
     ),
     acquisition as (
       select

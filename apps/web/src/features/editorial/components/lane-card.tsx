@@ -265,6 +265,13 @@ export function SelectionLaneCard({
         {degraded ? (
           <MutedTag>{t("semantic.deterministicOrder")}</MutedTag>
         ) : null}
+        {card.duplicateTelegramCount > 0 ? (
+          <MutedTag>
+            {t("telegram.duplicateTelegram", {
+              n: card.duplicateTelegramCount,
+            })}
+          </MutedTag>
+        ) : null}
       </ProvenanceLine>
     </LaneCard>
   );

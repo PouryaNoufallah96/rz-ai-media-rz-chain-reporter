@@ -1574,6 +1574,7 @@ export function createAnalysisRunFunctions(
                 {
                   analysisRunId,
                   sourceImportId: resolved.sourceImportId,
+                  sourceIds: configuration.sourceIds,
                   windowStart: new Date(
                     Date.parse(claim.startedAt) -
                       configuration.windowHours * 3_600_000,

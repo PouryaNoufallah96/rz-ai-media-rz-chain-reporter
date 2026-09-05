@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  CONTENT_LOCALES,
   closestSupportedAspectRatio,
   creativeImageBriefSchema,
   type InvocationKey,
@@ -14,11 +15,16 @@ import {
   referenceImageMimeTypeSchema,
   type TemplateSelection,
 } from "@rz-chain-reporter/contracts";
+import {
+  IMAGE_SELECTION_PROMPT_RESERVE,
+  IMAGE_SELECTION_SOURCE_MAX_CHARS,
+} from "@rz-chain-reporter/contracts/editorial";
 import { computeBrandPolicyFingerprint } from "@rz-chain-reporter/customer-template/fingerprint";
 import {
   IMAGE_GENERATION_TASK_PREFIX,
   type ImageProfile,
   imageProfileSchema,
+  imageSelectionPromptPayload,
   modelTaskKeySchema,
 } from "@rz-chain-reporter/customer-template/schema";
 import { findCopyExecutionContext } from "@rz-chain-reporter/db/repositories/copy-generation";
@@ -41,6 +47,7 @@ import {
   persistClaimedImageCreativeBrief,
   persistClaimedImageCreativeFailure,
   persistClaimedImageSelectionCompletion,
+  persistClaimedImageSelectionRejection,
   persistImageCreativeBrief,
   persistImageCreativeStructuredFailure,
   persistImageSelectionCompletionInTransaction,
@@ -202,29 +209,72 @@ function loadArtifacts(
   };
 }
 
+const SELECTION_INSTRUCTIONS = [
+  "Select exactly one declared family and one allowed value for every declared axis; use null only for an axis whose response schema allows it.",
+  "The selection must satisfy every declared restriction clause.",
+] as const;
+
+// The template validator sizes image profiles against the reserve, so this text
+// must fit inside it or a profile it admits overflows the gateway at runtime.
+const SELECTION_INSTRUCTION_LENGTH = Math.max(
+  ...CONTENT_LOCALES.map(
+    (locale) =>
+      [
+        ...SELECTION_INSTRUCTIONS,
+        imageTextLanguageInstruction(locale),
+        "",
+        "",
+      ].join("\n\n").length,
+  ),
+);
+
+if (SELECTION_INSTRUCTION_LENGTH > IMAGE_SELECTION_PROMPT_RESERVE) {
+  throw new Error(
+    "image selection instructions exceed the reserved prompt budget",
+  );
+}
+
 function selectionPrompt(
   source: Awaited<ReturnType<typeof loadAuthorizedImageSource>>,
   artifacts: ImageArtifacts,
 ) {
   if (!source) throw new NonRetriableError("NOT_FOUND");
   return [
-    "Select exactly one declared family and one allowed value for every declared axis; use null only for an axis whose response schema allows it.",
-    "The selection must satisfy every declared restriction clause.",
+    ...SELECTION_INSTRUCTIONS,
     imageTextLanguageInstruction(source.context.contentLocale),
-    JSON.stringify({
-      families: artifacts.profile.families,
-      axes: artifacts.profile.axes,
-      restrictions: {
-        antiRepetition: artifacts.profile.restrictions.antiRepetition,
-        moodAccentDefault: artifacts.profile.restrictions.moodAccentDefault,
-        moodAccentRestricted:
-          artifacts.profile.restrictions.moodAccentRestricted,
-        environmentRestricted:
-          artifacts.profile.restrictions.environmentRestricted,
-      },
-    }),
-    JSON.stringify(source.source),
+    imageSelectionPromptPayload(artifacts.profile),
+    selectionSourcePayload(source.source),
   ].join("\n\n");
+}
+
+// The gateway rejects an over-long prompt before it writes a usage row.
+export function selectionSourcePayload(
+  source: NonNullable<
+    Awaited<ReturnType<typeof loadAuthorizedImageSource>>
+  >["source"],
+) {
+  const head =
+    source.kind === "promo"
+      ? { angle: source.angle, title: source.title }
+      : { attribution: source.attribution };
+  let content = source.kind === "promo" ? source.description : source.content;
+  let payload = JSON.stringify({ ...head, content });
+
+  while (
+    payload.length > IMAGE_SELECTION_SOURCE_MAX_CHARS &&
+    content.length > 0
+  ) {
+    content = content.slice(
+      0,
+      Math.max(
+        0,
+        content.length - (payload.length - IMAGE_SELECTION_SOURCE_MAX_CHARS),
+      ),
+    );
+    payload = JSON.stringify({ ...head, content });
+  }
+
+  return payload;
 }
 
 function creativePrompt(
@@ -527,6 +577,17 @@ async function reconcileImageGatewayError(
   error: ModelGatewayInvocationError,
   expectedVersion?: number,
 ) {
+  // Advancing without a usage row is only safe where the loop steps by slot
+  // index; the provider loop steps by usage row and would re-select this slot.
+  if (error.reason === "invocation-bounds" && stage !== "provider") {
+    workerLogger.warn("image.invocation.bounds", {
+      attemptId,
+      invocationKey,
+      operationId: input.operationId,
+      reason: `invocation-bounds:${stage}`,
+    });
+    return "skipped" as const;
+  }
   if (error.usageEventId === null) throw error;
   const usage = await listImageStageUsage(
     runtime.db,
@@ -839,6 +900,20 @@ export async function executeImageSelection(
         error,
         renewed.version,
       );
+      if (resolution === "skipped" && !rejected) {
+        await persistClaimedImageSelectionRejection(
+          runtime.db,
+          input.workspaceId,
+          {
+            attemptId: claimed.attempt.id,
+            claimedBy: input.token,
+            expectedVersion: renewed.version,
+            imageBriefId: briefId,
+            operationId: input.operationId,
+            rejection: { code: error.code, invocationKey },
+          },
+        );
+      }
       if (resolution === "waiting") {
         return { operationId: input.operationId, status: "waiting" } as const;
       }

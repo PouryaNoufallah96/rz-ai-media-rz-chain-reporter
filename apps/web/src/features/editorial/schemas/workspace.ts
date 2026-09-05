@@ -192,6 +192,7 @@ export type SelectionCard = {
   publishedAt: Date | null;
   presentationReady: boolean;
   presentationTranslation: PresentationTranslationStatus | null;
+  duplicateTelegramCount: number;
 };
 
 export type PromoIdeaCard = {

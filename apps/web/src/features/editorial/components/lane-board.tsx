@@ -32,6 +32,7 @@ import { EDITORIAL_NAMESPACE } from "../constants";
 import {
   type BoardPresentation,
   resolveBoardPresentation,
+  telegramZoneNotice,
 } from "../lib/board-presentation";
 import type { PlatformDraftLane } from "../schemas/drafts";
 import type {
@@ -178,7 +179,12 @@ export function LaneBoard({
       >
         <PlatformLanes lanes={platformDraftLanes} onOpenCard={onOpenCard}>
           <div className="grid min-w-0 gap-3">
-            {head ? <TelegramAcquisitionNotice head={head} /> : null}
+            {head ? (
+              <TelegramAcquisitionNotice
+                head={head}
+                laneCount={telegramLanes.length}
+              />
+            ) : null}
             {selectedBrands.length === 0 ? (
               <Empty className="rounded-xl border border-border bg-card/60 py-10">
                 <EmptyHeader>
@@ -384,53 +390,84 @@ function BrandRail({
   );
 }
 
-function TelegramAcquisitionNotice({ head }: { head: RunHead }) {
+function TelegramAcquisitionNotice({
+  head,
+  laneCount,
+}: {
+  head: RunHead;
+  laneCount: number;
+}) {
   const t = useTranslations(EDITORIAL_NAMESPACE);
   const { telegramAcquisition } = head;
-  const allFailed =
-    head.completedAt !== null &&
-    telegramAcquisition.totalChannels > 0 &&
-    telegramAcquisition.acquiredChannels === 0 &&
-    telegramAcquisition.failures.length === telegramAcquisition.totalChannels;
+  const notice = telegramZoneNotice(head, laneCount);
 
-  if (allFailed) {
+  if (notice === "acquisition_failed") {
     return (
-      <Empty className="w-full border border-border p-4">
-        <EmptyHeader>
-          <EmptyTitle className="text-sm">
-            {t("telegram.acquisition.failed")}
-          </EmptyTitle>
-        </EmptyHeader>
-        <EmptyContent className="items-start">
-          <ul className="grid gap-2 text-sm">
-            {telegramAcquisition.failures.map((failure) => (
-              <li
-                className="flex flex-wrap items-center gap-2"
-                key={`${failure.channelHandle}:${failure.code}`}
-              >
-                <ChannelPlate handle={failure.channelHandle} />
-                <code
-                  className="text-muted-foreground"
-                  dir="ltr"
-                  translate="no"
-                >
-                  {failure.code}
-                </code>
-              </li>
-            ))}
-          </ul>
-          <Link
-            className="text-sm underline underline-offset-4"
-            href="/sources"
-          >
-            {t("telegram.acquisition.openSources")}
-          </Link>
-        </EmptyContent>
-      </Empty>
+      <TelegramZoneEmpty title={t("telegram.acquisition.failed")}>
+        <ul className="grid gap-2 text-sm">
+          {telegramAcquisition.failures.map((failure) => (
+            <li
+              className="flex flex-wrap items-center gap-2"
+              key={`${failure.channelHandle}:${failure.code}`}
+            >
+              <ChannelPlate handle={failure.channelHandle} />
+              <code className="text-muted-foreground" dir="ltr" translate="no">
+                {failure.code}
+              </code>
+            </li>
+          ))}
+        </ul>
+        <TelegramZoneLink href="/sources">
+          {t("telegram.acquisition.openSources")}
+        </TelegramZoneLink>
+      </TelegramZoneEmpty>
+    );
+  }
+
+  if (notice === "no_candidates") {
+    return (
+      <TelegramZoneEmpty title={t("telegram.empty")}>
+        <TelegramZoneLink
+          href={`/dashboard/runs/${head.id}/report?disposition=no_media_fit`}
+        >
+          {t("report.link")}
+        </TelegramZoneLink>
+      </TelegramZoneEmpty>
     );
   }
 
   return null;
+}
+
+function TelegramZoneEmpty({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title: string;
+}) {
+  return (
+    <Empty className="w-full border border-border p-4">
+      <EmptyHeader>
+        <EmptyTitle className="text-sm">{title}</EmptyTitle>
+      </EmptyHeader>
+      <EmptyContent className="items-start">{children}</EmptyContent>
+    </Empty>
+  );
+}
+
+function TelegramZoneLink({
+  children,
+  href,
+}: {
+  children: ReactNode;
+  href: string;
+}) {
+  return (
+    <Link className="text-sm underline underline-offset-4" href={href}>
+      {children}
+    </Link>
+  );
 }
 
 function modelSlots(
@@ -518,13 +555,9 @@ function telegramAnnouncements(
   const partial =
     telegramAcquisition.acquiredChannels > 0 &&
     telegramAcquisition.acquiredChannels < telegramAcquisition.totalChannels;
-  const allFailed =
-    head.completedAt !== null &&
-    telegramAcquisition.totalChannels > 0 &&
-    telegramAcquisition.acquiredChannels === 0 &&
-    telegramAcquisition.failures.length === telegramAcquisition.totalChannels;
+  const notice = telegramZoneNotice(head, lanes.length);
 
-  if (allFailed) {
+  if (notice === "acquisition_failed") {
     return [t("telegram.acquisition.failedAnnouncement")];
   }
 
@@ -538,9 +571,9 @@ function telegramAnnouncements(
     : [];
 
   if (lanes.length === 0) {
-    return head.completedAt === null
-      ? messages
-      : [...messages, t("telegram.none")];
+    return notice === "no_candidates"
+      ? [...messages, t("telegram.none")]
+      : messages;
   }
 
   return [

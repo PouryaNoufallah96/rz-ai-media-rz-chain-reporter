@@ -31,12 +31,6 @@ export function CopyVariantTranslationButton({
         unknown: t("copyVariantTranslation.unknown", { title }),
         retry: t("copyVariantTranslation.retry", { title }),
         text: t("copyVariantTranslation.text"),
-        hint: {
-          translate: t("copyVariantTranslation.hint.translate"),
-          queueing: t("copyVariantTranslation.hint.queueing"),
-          translating: t("copyVariantTranslation.hint.translating"),
-          retry: t("copyVariantTranslation.hint.retry"),
-        },
       }}
       isActionPending={action.isPending}
       onTranslate={async () => {

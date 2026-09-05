@@ -287,6 +287,20 @@ export const imageProfileSchema = z
 
 export type ImageProfile = z.infer<typeof imageProfileSchema>;
 
+// The worker sends this and the load-time size guard measures it: one owner.
+export function imageSelectionPromptPayload(profile: ImageProfile) {
+  return JSON.stringify({
+    families: profile.families,
+    axes: profile.axes,
+    restrictions: {
+      antiRepetition: profile.restrictions.antiRepetition,
+      moodAccentDefault: profile.restrictions.moodAccentDefault,
+      moodAccentRestricted: profile.restrictions.moodAccentRestricted,
+      environmentRestricted: profile.restrictions.environmentRestricted,
+    },
+  });
+}
+
 function reportUnknownFamilies(
   ctx: z.RefinementCtx,
   familyKeys: ReadonlySet<string>,

@@ -16,6 +16,8 @@
     "operator:reset-password": "node --conditions=react-server --import tsx scripts/reset-operator-password.ts",
     "probe:editorial-presentation": "node --import tsx scripts/editorial-presentation-probe.ts",
     "probe:editorial-freshness": "node --import tsx scripts/editorial-freshness-probe.ts",
+    "probe:editorial-duplicate-tag": "node --import tsx scripts/editorial-duplicate-tag-probe.ts",
+    "probe:telegram-zone-notice": "node --import tsx scripts/telegram-zone-notice-probe.ts",
     "probe:report-policy": "node --import tsx scripts/report-policy-probe.ts",
     "probe:revision-editor-state": "node --import tsx scripts/revision-editor-state-probe.ts",
     "probe:run-configuration": "node --import tsx scripts/run-configuration-probe.ts",

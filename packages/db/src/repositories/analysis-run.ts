@@ -243,11 +243,13 @@ export async function findAnalysisRunTopicSnapshot(
 type LoadAnalysisRunCandidatesInput = {
   analysisRunId: string;
   sourceImportId: string;
+  sourceIds: readonly string[];
   windowStart: Date;
 };
 
 // Candidate loading owns eligibility and the pinned revision; filter-and-score
-// exclusively owns scored fields and the duplicate transition.
+// exclusively owns scored fields and the duplicate transition. A bound import
+// may cover more sources than the run selected, so sourceIds is the gate.
 export async function loadAnalysisRunCandidates(
   executor: Executor,
   workspaceId: string,
@@ -275,6 +277,7 @@ export async function loadAnalysisRunCandidates(
       where ${sourceImportItem.workspaceId} = ${workspaceId}::uuid
         and ${sourceImportItem.sourceImportId} = ${input.sourceImportId}::uuid
         and ${sourceImportItem.admission} = 'admitted'
+        and ${inArray(sourceItem.sourceId, [...input.sourceIds])}
       on conflict (workspace_id, analysis_run_id, source_item_id) do nothing
     `);
 
@@ -291,17 +294,19 @@ export async function loadAnalysisRunCandidates(
     const [expected] = await tx
       .select({ items: count() })
       .from(sourceImportItem)
+      .innerJoin(sourceItem, eq(sourceItem.id, sourceImportItem.sourceItemId))
       .where(
         and(
           inWorkspace(sourceImportItem, workspaceId),
           eq(sourceImportItem.sourceImportId, input.sourceImportId),
           eq(sourceImportItem.admission, "admitted"),
+          inArray(sourceItem.sourceId, [...input.sourceIds]),
         ),
       );
 
     if (!loaded || !expected || loaded.items !== expected.items) {
       throw new Error(
-        `analysis run candidate load covered ${loaded?.items ?? 0} of ${expected?.items ?? 0} admitted source import items`,
+        `analysis run candidate load covered ${loaded?.items ?? 0} of ${expected?.items ?? 0} admitted source import items for the selected sources`,
       );
     }
 

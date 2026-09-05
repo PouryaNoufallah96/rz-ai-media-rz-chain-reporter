@@ -2,7 +2,6 @@
 
 import { isOperationInProgress } from "@rz-chain-reporter/contracts";
 import { Button } from "@rz-chain-reporter/ui/components/button";
-import { Hint } from "@rz-chain-reporter/ui/components/hint";
 import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
 import type { TranslationStatus } from "../schemas/workspace";
 
@@ -13,12 +12,6 @@ type TranslationActionCopy = {
   unknown: string;
   retry: string;
   text: string;
-  hint: {
-    translate: string;
-    queueing: string;
-    translating: string;
-    retry: string;
-  };
 };
 
 export function TranslationActionButton({
@@ -36,32 +29,30 @@ export function TranslationActionButton({
 }) {
   if (available) return null;
 
-  const { failed, hint, label, pending } = resolveTranslationAction(
+  const { failed, label, pending } = resolveTranslationAction(
     copy,
     isActionPending,
     status,
   );
 
   return (
-    <Hint label={hint}>
-      <Button
-        aria-busy={pending || undefined}
-        aria-label={label}
-        className={
-          failed
-            ? "px-1.5 text-destructive max-compact:min-h-11"
-            : "px-1.5 max-compact:min-h-11"
-        }
-        disabled={pending}
-        onClick={onTranslate}
-        size="xs"
-        type="button"
-        variant="ghost"
-      >
-        {pending ? <Spinner label={label} /> : null}
-        {copy.text}
-      </Button>
-    </Hint>
+    <Button
+      aria-busy={pending || undefined}
+      aria-label={label}
+      className={
+        failed
+          ? "px-1.5 text-destructive max-compact:min-h-11"
+          : "px-1.5 max-compact:min-h-11"
+      }
+      disabled={pending}
+      onClick={onTranslate}
+      size="xs"
+      type="button"
+      variant="ghost"
+    >
+      {pending ? <Spinner label={label} /> : null}
+      {copy.text}
+    </Button>
   );
 }
 
@@ -78,7 +69,6 @@ function resolveTranslationAction(
   if (isActionPending) {
     return {
       failed,
-      hint: copy.hint.queueing,
       label: copy.queueing,
       pending: true,
     };
@@ -86,7 +76,6 @@ function resolveTranslationAction(
   if (translating) {
     return {
       failed,
-      hint: copy.hint.translating,
       label: copy.translating,
       pending: true,
     };
@@ -94,7 +83,6 @@ function resolveTranslationAction(
   if (status?.lifecycle === "unknown") {
     return {
       failed,
-      hint: copy.hint.retry,
       label: copy.unknown,
       pending: false,
     };
@@ -102,7 +90,6 @@ function resolveTranslationAction(
 
   return {
     failed,
-    hint: failed ? copy.hint.retry : copy.hint.translate,
     label: failed ? copy.retry : copy.translate,
     pending: false,
   };

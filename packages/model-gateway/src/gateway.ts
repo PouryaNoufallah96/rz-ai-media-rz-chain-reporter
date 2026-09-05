@@ -4,7 +4,10 @@ import {
   type UsageProviderGateway,
   type UsageStatus,
 } from "@rz-chain-reporter/contracts";
-import { MAX_EMBEDDING_VALUES } from "@rz-chain-reporter/contracts/editorial";
+import {
+  MAX_EMBEDDING_VALUES,
+  MODEL_PROMPT_MAX_LENGTH,
+} from "@rz-chain-reporter/contracts/editorial";
 import type { CustomerTemplate } from "@rz-chain-reporter/customer-template/schema";
 import { IMAGE_GENERATION_TASK_PREFIX } from "@rz-chain-reporter/customer-template/schema";
 import type { Executor } from "@rz-chain-reporter/db/executor";
@@ -47,7 +50,6 @@ const MAX_EMBEDDING_VALUE_LENGTH = 500;
 const MAX_INSTRUCTIONS_LENGTH = 24_000;
 const MAX_IMAGE_PROMPT_LENGTH = 48_000;
 export const MAX_OUTPUT_TOKENS = 8_192;
-const MAX_PROMPT_LENGTH = 24_000;
 
 export type TextStreamModelResult = {
   textStream: AsyncIterable<string>;
@@ -709,7 +711,7 @@ export function createModelGateway(options: {
 function assertSynthesisBounds(input: TextStreamModelInvocation) {
   if (
     input.prompt.length === 0 ||
-    input.prompt.length > MAX_PROMPT_LENGTH ||
+    input.prompt.length > MODEL_PROMPT_MAX_LENGTH ||
     input.instructions.length === 0 ||
     input.instructions.length > MAX_INSTRUCTIONS_LENGTH ||
     !Number.isInteger(input.maxOutputTokens) ||
@@ -847,7 +849,7 @@ function assertInvocationBounds<TOutput>(
 ) {
   if (
     input.prompt.length === 0 ||
-    input.prompt.length > MAX_PROMPT_LENGTH ||
+    input.prompt.length > MODEL_PROMPT_MAX_LENGTH ||
     (input.instructions?.length ?? 0) > MAX_INSTRUCTIONS_LENGTH ||
     !Number.isInteger(input.maxOutputTokens) ||
     input.maxOutputTokens < 1 ||

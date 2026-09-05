@@ -1131,6 +1131,20 @@ export async function persistImageSelectionRejection(
   if (!updated) throw new Error("image selection rejection lost its brief");
 }
 
+export async function persistClaimedImageSelectionRejection(
+  executor: Executor,
+  workspaceId: string,
+  input: ImageClaimFence & Parameters<typeof persistImageSelectionRejection>[2],
+) {
+  return executor.transaction(async (tx) => {
+    await withWorkspaceContext(tx, workspaceId);
+    const current = await lockImageClaim(tx, workspaceId, input);
+    if (current?.generation.imageBriefId !== input.imageBriefId) return false;
+    await persistImageSelectionRejection(tx, workspaceId, input);
+    return true;
+  });
+}
+
 export async function persistImageCreativeStructuredFailure(
   tx: Transaction,
   workspaceId: string,

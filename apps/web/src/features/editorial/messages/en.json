@@ -25,12 +25,6 @@
       "unknown": "Translation outcome is unknown. Retry {title}",
       "retry": "Translation failed. Retry {title}",
       "text": "Translation",
-      "hint": {
-        "translate": "Translate",
-        "queueing": "Queueing translation…",
-        "translating": "Translating…",
-        "retry": "Retry translation"
-      },
       "queued": "Translation queued",
       "available": "Translation is already available",
       "notFound": "This card is no longer available.",
@@ -45,12 +39,6 @@
       "unknown": "Translation outcome is unknown. Retry variation {title}",
       "retry": "Translation failed. Retry variation {title}",
       "text": "Translation",
-      "hint": {
-        "translate": "Translate variation",
-        "queueing": "Queueing translation…",
-        "translating": "Translating…",
-        "retry": "Retry translation"
-      },
       "queued": "Variation translation queued",
       "available": "This variation is already available in your language",
       "notFound": "This variation is no longer available.",
@@ -584,7 +572,8 @@
         "perSource": "source rank {n, number} within {channel}",
         "report": "Imported source · source order rank {n, number}"
       },
-      "topics": "Topics"
+      "topics": "Topics",
+      "duplicateTelegram": "{n, plural, one {duplicate of # Telegram post} other {duplicate of # Telegram posts}}"
     },
     "transport": {
       "asOf": "as of {time}",

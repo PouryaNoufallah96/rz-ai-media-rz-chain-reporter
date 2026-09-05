@@ -104,6 +104,15 @@ export const analysisRunWindowHoursSchema = z.literal(
 // Gateway capacity bound; the v3 template validator cannot import the worker.
 export const MAX_EMBEDDING_VALUES = 400;
 
+// Gateway bound; the template validator sizes image-profile prompts against it.
+export const MODEL_PROMPT_MAX_LENGTH = 24_000;
+
+// Serialised bound on the source projection the image selection prompt carries.
+export const IMAGE_SELECTION_SOURCE_MAX_CHARS = 3_000;
+
+// Covers the selection prompt's fixed instruction lines and their separators.
+export const IMAGE_SELECTION_PROMPT_RESERVE = 512;
+
 export type RunConfigurationBounds = {
   brandKeys: readonly string[];
   modelKeys: readonly string[];
@@ -287,12 +296,24 @@ export const PLATFORM_COPY_HARD_MAX: Record<Platform, number> = {
   x: 280,
 };
 
+// Telegram caps a photo caption far below a plain message.
+export const TELEGRAM_MEDIA_COPY_HARD_MAX = 1_024;
+
 export const INLINE_HASHTAG_TOKEN = /(?:^|\s)#[^\s#]+/gu;
 
 export const TELEGRAM_READ_MORE_LABEL: Record<ContentLocale, string> = {
   en: "Read full story",
   fa: "مطالعه کامل خبر",
 };
+
+// The assembled copy must still leave room for the appended read-more line.
+export const TELEGRAM_READ_MORE_RESERVE =
+  2 +
+  Math.max(
+    ...Object.values(TELEGRAM_READ_MORE_LABEL).map(
+      (label) => Array.from(label).length,
+    ),
+  );
 
 export function assemblePublishPayload(input: {
   contentLocale: ContentLocale;
@@ -315,7 +336,7 @@ export function assemblePublishPayload(input: {
         : "post";
   const maximum =
     input.platform === "telegram" && input.hasMedia
-      ? 1_024
+      ? TELEGRAM_MEDIA_COPY_HARD_MAX
       : PLATFORM_COPY_HARD_MAX[input.platform];
   if (!input.draft) {
     return { status: "missing" as const, method, length: 0, maximum };

@@ -14,9 +14,15 @@ import {
   templateSelectionSchema,
 } from "@rz-chain-reporter/contracts";
 import {
+  IMAGE_SELECTION_PROMPT_RESERVE,
+  IMAGE_SELECTION_SOURCE_MAX_CHARS,
+  MODEL_PROMPT_MAX_LENGTH,
+} from "@rz-chain-reporter/contracts/editorial";
+import {
   type CustomerTemplate,
   type ImageProfile,
   imageProfileSchema,
+  imageSelectionPromptPayload,
 } from "@rz-chain-reporter/customer-template/schema";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import {
@@ -137,6 +143,7 @@ import {
   IMAGE_STAGE_INVOKE_TIMEOUT,
   IMAGE_STAGE_QUIESCENCE_PASSES,
   IMAGE_STAGE_RETRIES,
+  selectionSourcePayload,
 } from "./image-generation";
 import {
   compensateProviderOriginal,
@@ -221,6 +228,7 @@ async function mainLocal() {
       template: fixture.template,
     });
     proveImagePromptProfileBounds(opened.template);
+    proveSelectionSourceBounds(opened.template);
     await proveGatewayBounds(gateway, adapter);
     const gatewayMatrixFixture = await createFixture(
       opened.database.db,
@@ -5524,6 +5532,99 @@ function proveImagePromptProfileBounds(template: CustomerTemplate) {
   );
 }
 
+function proveSelectionSourceBounds(template: CustomerTemplate) {
+  const extract = Array.from(
+    { length: 400 },
+    (_, index) => `Segment ${index} said "risk" and used a \\ before\n`,
+  )
+    .join("")
+    .slice(0, 8_000);
+  assert.equal(extract.length, 8_000);
+  assert.equal(
+    JSON.stringify({
+      attribution: "Probe Wire",
+      content: extract.slice(0, IMAGE_SELECTION_SOURCE_MAX_CHARS),
+    }).length > IMAGE_SELECTION_SOURCE_MAX_CHARS,
+    true,
+  );
+
+  const rssPayload = selectionSourcePayload({
+    attribution: "Probe Wire",
+    canonicalUrl: "https://probe.invalid/article",
+    content: extract,
+    contentHash: FIXTURE_PREFIX,
+    kind: "rss",
+    limited: false,
+    pageContentHash: null,
+    sourceItemEnrichmentId: null,
+    sourceItemRevisionId: randomUUID(),
+  });
+  assert.equal(rssPayload.length <= IMAGE_SELECTION_SOURCE_MAX_CHARS, true);
+  const rss = z
+    .strictObject({ attribution: z.string(), content: z.string() })
+    .parse(JSON.parse(rssPayload));
+  assert.equal(rss.attribution, "Probe Wire");
+  assert.equal(rss.content.length > 0, true);
+  assert.equal(extract.startsWith(rss.content), true);
+
+  const promoPayload = selectionSourcePayload({
+    angle: 'Angle with "quotes"',
+    description: extract,
+    kind: "promo",
+    promoIdeaId: randomUUID(),
+    title: "Title with \\ backslash",
+  });
+  assert.equal(promoPayload.length <= IMAGE_SELECTION_SOURCE_MAX_CHARS, true);
+  const promo = z
+    .strictObject({ angle: z.string(), content: z.string(), title: z.string() })
+    .parse(JSON.parse(promoPayload));
+  assert.equal(promo.content.length > 0, true);
+  assert.equal(extract.startsWith(promo.content), true);
+
+  const oversizedHead = selectionSourcePayload({
+    attribution: "a".repeat(IMAGE_SELECTION_SOURCE_MAX_CHARS),
+    canonicalUrl: "https://probe.invalid/channel",
+    content: extract,
+    contentHash: FIXTURE_PREFIX,
+    kind: "telegram",
+    sourceItemRevisionId: randomUUID(),
+  });
+  assert.equal(
+    z
+      .strictObject({ attribution: z.string(), content: z.string() })
+      .parse(JSON.parse(oversizedHead)).content,
+    "",
+  );
+
+  const sourceBound = Math.max(promoPayload.length, rssPayload.length);
+  const customerRoot = resolve(
+    resolveArtifactRoot(import.meta.url),
+    "customer-templates",
+    template.customer.key,
+  );
+  const payloads = template.mediaBrands.flatMap((brand) => {
+    if (!brand.imageProfile) return [];
+    return [
+      imageSelectionPromptPayload(
+        imageProfileSchema.parse(
+          JSON.parse(
+            readFileSync(resolve(customerRoot, brand.imageProfile), "utf8"),
+          ),
+        ),
+      ).length,
+    ];
+  });
+  assert.equal(payloads.length > 0, true);
+  assert.equal(
+    payloads.every(
+      (payload) =>
+        IMAGE_SELECTION_PROMPT_RESERVE + payload + sourceBound <=
+        MODEL_PROMPT_MAX_LENGTH,
+    ),
+    true,
+  );
+}
+
 async function proveGatewayBounds(
   gateway: ReturnType<typeof createWorkerModelGateway>,
   adapter: DeterministicImageAdapter,
@@ -5601,7 +5702,8 @@ type GatewayMatrixScript =
         | "selection-accepted"
         | "selection-rejection";
     }
-  | { kind: "absent" };
+  | { kind: "absent" }
+  | { kind: "bounds" };
 
 class GatewayMatrix implements ModelGateway {
   imageCalls = 0;
@@ -5644,6 +5746,11 @@ class GatewayMatrix implements ModelGateway {
     if (script.kind === "absent") {
       throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
         usageEventId: randomUUID(),
+      });
+    }
+    if (script.kind === "bounds") {
+      throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+        reason: "invocation-bounds",
       });
     }
     if (script.kind === "legacy-selection") {
@@ -6145,6 +6252,123 @@ async function proveGatewayErrorSlotMatrix(
     outcome: "failed_terminal",
   });
   await cancelGatewayMatrixOperation(db, fixture, selectionAdvance.operationId);
+
+  const boundsFallback = await beginGatewayMatrixOperation(
+    db,
+    runtime,
+    fixture,
+    "selection-invocation-bounds-fallback",
+    "selection",
+  );
+  const boundsFallbackGateway = new GatewayMatrix(db, [
+    { kind: "bounds" },
+    { kind: "bounds" },
+    { kind: "bounds" },
+  ]);
+  await assertGatewayMatrixSucceeded({
+    actualStatus: (
+      await executeImageSelection(
+        runtime,
+        boundsFallbackGateway,
+        boundsFallback,
+      )
+    ).status,
+    branch: "same-call-deterministic-fallback",
+    db,
+    gatewayCallCount: boundsFallbackGateway.structuredCalls,
+    operation: boundsFallback,
+    scenario: "selection-invocation-bounds-fallback",
+  });
+  assert.equal(boundsFallbackGateway.structuredCalls, 3);
+  const boundsFallbackTruth = await loadImageProviderInput(
+    db,
+    fixture.workspaceId,
+    boundsFallback.operationId,
+  );
+  assert.equal(boundsFallbackTruth?.brief.deterministicFallback, true);
+  assert.deepEqual(
+    boundsFallbackTruth?.brief.selectionRejections.map((item) => [
+      item.invocationKey,
+      item.code,
+    ]),
+    [
+      ["primary", "MODEL_INVOCATION_FAILED"],
+      ["retry-1", "MODEL_INVOCATION_FAILED"],
+      ["fallback", "MODEL_INVOCATION_FAILED"],
+    ],
+  );
+  assert.equal(
+    (
+      await listImageStageUsage(
+        db,
+        fixture.workspaceId,
+        stableImageIdentity(boundsFallback.operationId, "selection"),
+      )
+    ).length,
+    0,
+  );
+  const [boundsFallbackAttempt] = await db
+    .select({
+      failureCode: operationAttempt.failureCode,
+      outcome: operationAttempt.outcome,
+    })
+    .from(operationAttempt)
+    .where(
+      eq(
+        operationAttempt.id,
+        stableImageIdentity(boundsFallback.operationId, "selection"),
+      ),
+    );
+  assert.deepEqual(boundsFallbackAttempt, {
+    failureCode: "VALIDATION_FAILED",
+    outcome: "failed_terminal",
+  });
+  await cancelGatewayMatrixOperation(db, fixture, boundsFallback.operationId);
+
+  const boundsProvider = await beginGatewayMatrixOperation(
+    db,
+    runtime,
+    fixture,
+    "provider-invocation-bounds-terminal",
+    "provider",
+  );
+  const boundsProviderAdapter = new DeterministicImageAdapter(
+    fixture.fallback,
+    "accepted",
+  );
+  const boundsProviderStages = createWorkerModelGateway({
+    adapters: { local: boundsProviderAdapter, remote: boundsProviderAdapter },
+    bindings: {},
+    executor: db,
+    identity: runtime.identity,
+    template: runtime.template,
+  });
+  assert.equal(
+    (await executeImageSelection(runtime, boundsProviderStages, boundsProvider))
+      .status,
+    "succeeded",
+  );
+  assert.equal(
+    (
+      await executeImageCreativeBrief(
+        runtime,
+        boundsProviderStages,
+        boundsProvider,
+      )
+    ).status,
+    "succeeded",
+  );
+  // The provider loop advances by usage row, so a bounds error must stay
+  // terminal; advancing would re-select this slot forever.
+  const boundsProviderGateway = new GatewayMatrix(db, [{ kind: "bounds" }]);
+  await assert.rejects(
+    executeImageProvider(runtime, boundsProviderGateway, boundsProvider),
+    (error: unknown) =>
+      error instanceof ModelGatewayInvocationError &&
+      error.reason === "invocation-bounds",
+  );
+  assert.equal(boundsProviderGateway.imageCalls, 1);
+  await cancelGatewayMatrixOperation(db, fixture, boundsProvider.operationId);
 
   const acceptedAcknowledgementLoss = await beginGatewayMatrixOperation(
     db,

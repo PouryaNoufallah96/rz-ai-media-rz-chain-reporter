@@ -37,12 +37,6 @@ export function PresentationTranslationButton({
         unknown: t("presentationTranslation.unknown", { title }),
         retry: t("presentationTranslation.retry", { title }),
         text: t("presentationTranslation.text"),
-        hint: {
-          translate: t("presentationTranslation.hint.translate"),
-          queueing: t("presentationTranslation.hint.queueing"),
-          translating: t("presentationTranslation.hint.translating"),
-          retry: t("presentationTranslation.hint.retry"),
-        },
       }}
       isActionPending={action.isPending}
       onTranslate={async () => {

@@ -18,6 +18,8 @@ import {
   type Platform,
   platformSchema,
   type SourceOrigin,
+  TELEGRAM_MEDIA_COPY_HARD_MAX,
+  TELEGRAM_READ_MORE_RESERVE,
   telegramOrderingModeSchema,
 } from "@rz-chain-reporter/contracts";
 import { z } from "zod";
@@ -26,7 +28,10 @@ import { frozenStyleSchema } from "./image-profile";
 import { stableKeySchema } from "./stable-key";
 
 export type { ImageProfile } from "./image-profile";
-export { imageProfileSchema } from "./image-profile";
+export {
+  imageProfileSchema,
+  imageSelectionPromptPayload,
+} from "./image-profile";
 
 // Bump only when a previously valid customer template no longer loads.
 export const CUSTOMER_TEMPLATE_SCHEMA_VERSION = 12;
@@ -1258,6 +1263,27 @@ function reportDraftingIssues(
           message: "DRAFTING_RANGE_REVERSED",
         });
       }
+    }
+
+    // Copy generation always assumes a photo, so the caption ceiling binds.
+    if (
+      policy.platform === "telegram" &&
+      policy.assembledCharacters.max >
+        TELEGRAM_MEDIA_COPY_HARD_MAX - TELEGRAM_READ_MORE_RESERVE
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: [
+          "editorial",
+          "drafting",
+          "copy",
+          "platforms",
+          index,
+          "assembledCharacters",
+          "max",
+        ],
+        message: "DRAFTING_TELEGRAM_MAX_ABOVE_CAPTION_LIMIT",
+      });
     }
   }
 

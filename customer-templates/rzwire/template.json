@@ -1639,8 +1639,134 @@
       },
       "editorial": {
         "mediaFitThreshold": 0,
-        "strongTerms": [],
-        "weakTerms": [],
+        "strongTerms": [
+          {
+            "term": "industrial token",
+            "weight": 32
+          },
+          {
+            "term": "industrial.game",
+            "weight": 32
+          },
+          {
+            "term": "industrial ecosystem",
+            "weight": 28
+          },
+          {
+            "term": "industrial blockchain",
+            "weight": 26
+          },
+          {
+            "term": "industry 4.0",
+            "weight": 26
+          },
+          {
+            "term": "smart factory",
+            "weight": 24
+          },
+          {
+            "term": "industrial automation",
+            "weight": 24
+          },
+          {
+            "term": "digital twin",
+            "weight": 24
+          },
+          {
+            "term": "supply chain traceability",
+            "weight": 24
+          },
+          {
+            "term": "gamified industrial marketing",
+            "weight": 24
+          },
+          {
+            "term": "supply chain transparency",
+            "weight": 22
+          },
+          {
+            "term": "industrial iot",
+            "weight": 22
+          },
+          {
+            "term": "manufacturing technology",
+            "weight": 22
+          },
+          {
+            "term": "industrial simulation",
+            "weight": 22
+          },
+          {
+            "term": "industrial logistics",
+            "weight": 20
+          },
+          {
+            "term": "industrial challenge",
+            "weight": 20
+          },
+          {
+            "term": "sustainability incentive",
+            "weight": 20
+          },
+          {
+            "term": "clean energy manufacturing",
+            "weight": 20
+          },
+          {
+            "term": "sustainable industry",
+            "weight": 18
+          },
+          {
+            "term": "carbon footprint",
+            "weight": 16
+          },
+          {
+            "term": "eco-certification",
+            "weight": 16
+          },
+          {
+            "term": "robotics",
+            "weight": 16
+          },
+          {
+            "term": "bnb smart chain",
+            "weight": 16
+          },
+          {
+            "term": "bep-20",
+            "weight": 16
+          },
+          {
+            "term": "bep20",
+            "weight": 16
+          },
+          {
+            "term": "industrial",
+            "weight": 14
+          }
+        ],
+        "weakTerms": [
+          {
+            "term": "bitcoin etf",
+            "weight": -10
+          },
+          {
+            "term": "federal reserve",
+            "weight": -10
+          },
+          {
+            "term": "macro",
+            "weight": -8
+          },
+          {
+            "term": "guaranteed return",
+            "weight": -20
+          },
+          {
+            "term": "price prediction",
+            "weight": -10
+          }
+        ],
         "aliases": [
           {
             "canonical": "industrial token",
@@ -1702,8 +1828,134 @@
       },
       "editorial": {
         "mediaFitThreshold": 0,
-        "strongTerms": [],
-        "weakTerms": [],
+        "strongTerms": [
+          {
+            "term": "real estate token",
+            "weight": 32
+          },
+          {
+            "term": "real-estate.game",
+            "weight": 32
+          },
+          {
+            "term": "realestate token",
+            "weight": 30
+          },
+          {
+            "term": "real estate crypto token",
+            "weight": 30
+          },
+          {
+            "term": "tokenized real estate",
+            "weight": 28
+          },
+          {
+            "term": "real estate tokenization",
+            "weight": 28
+          },
+          {
+            "term": "property tokenization",
+            "weight": 26
+          },
+          {
+            "term": "tokenized property",
+            "weight": 26
+          },
+          {
+            "term": "fractional property ownership",
+            "weight": 26
+          },
+          {
+            "term": "digital real estate",
+            "weight": 24
+          },
+          {
+            "term": "fractional ownership",
+            "weight": 22
+          },
+          {
+            "term": "property blockchain",
+            "weight": 22
+          },
+          {
+            "term": "on-chain title",
+            "weight": 22
+          },
+          {
+            "term": "real estate crowdfunding",
+            "weight": 22
+          },
+          {
+            "term": "proptech",
+            "weight": 22
+          },
+          {
+            "term": "smart property contract",
+            "weight": 20
+          },
+          {
+            "term": "property provenance",
+            "weight": 20
+          },
+          {
+            "term": "gamified real estate",
+            "weight": 20
+          },
+          {
+            "term": "sustainable real estate",
+            "weight": 18
+          },
+          {
+            "term": "real estate analytics",
+            "weight": 18
+          },
+          {
+            "term": "property investment",
+            "weight": 18
+          },
+          {
+            "term": "real estate investment",
+            "weight": 18
+          },
+          {
+            "term": "rental income",
+            "weight": 16
+          },
+          {
+            "term": "property market",
+            "weight": 16
+          },
+          {
+            "term": "small-capital investor",
+            "weight": 16
+          },
+          {
+            "term": "real estate",
+            "weight": 14
+          }
+        ],
+        "weakTerms": [
+          {
+            "term": "bitcoin etf",
+            "weight": -12
+          },
+          {
+            "term": "federal reserve",
+            "weight": -10
+          },
+          {
+            "term": "macro",
+            "weight": -8
+          },
+          {
+            "term": "guaranteed return",
+            "weight": -20
+          },
+          {
+            "term": "defi exploit",
+            "weight": -10
+          }
+        ],
         "aliases": [
           {
             "canonical": "real estate token",
@@ -1763,8 +2015,134 @@
       },
       "editorial": {
         "mediaFitThreshold": 0,
-        "strongTerms": [],
-        "weakTerms": [],
+        "strongTerms": [
+          {
+            "term": "trip token",
+            "weight": 32
+          },
+          {
+            "term": "trip.game",
+            "weight": 32
+          },
+          {
+            "term": "trip travel token",
+            "weight": 30
+          },
+          {
+            "term": "travel blockchain",
+            "weight": 28
+          },
+          {
+            "term": "tourism blockchain",
+            "weight": 28
+          },
+          {
+            "term": "tourism token",
+            "weight": 26
+          },
+          {
+            "term": "travel technology",
+            "weight": 24
+          },
+          {
+            "term": "tourism technology",
+            "weight": 24
+          },
+          {
+            "term": "smart tourism",
+            "weight": 24
+          },
+          {
+            "term": "digital travel identity",
+            "weight": 22
+          },
+          {
+            "term": "travel loyalty",
+            "weight": 22
+          },
+          {
+            "term": "tourism rewards",
+            "weight": 22
+          },
+          {
+            "term": "connected travel",
+            "weight": 22
+          },
+          {
+            "term": "connected journey",
+            "weight": 20
+          },
+          {
+            "term": "ticket transparency",
+            "weight": 20
+          },
+          {
+            "term": "hotel technology",
+            "weight": 20
+          },
+          {
+            "term": "travel insurance technology",
+            "weight": 20
+          },
+          {
+            "term": "ecotourism",
+            "weight": 20
+          },
+          {
+            "term": "responsible tourism",
+            "weight": 20
+          },
+          {
+            "term": "travel records",
+            "weight": 18
+          },
+          {
+            "term": "sustainable tourism",
+            "weight": 18
+          },
+          {
+            "term": "cultural tourism",
+            "weight": 18
+          },
+          {
+            "term": "bnb smart chain",
+            "weight": 16
+          },
+          {
+            "term": "bep-20",
+            "weight": 16
+          },
+          {
+            "term": "bep20",
+            "weight": 16
+          },
+          {
+            "term": "tourism",
+            "weight": 14
+          }
+        ],
+        "weakTerms": [
+          {
+            "term": "bitcoin etf",
+            "weight": -10
+          },
+          {
+            "term": "federal reserve",
+            "weight": -10
+          },
+          {
+            "term": "macro",
+            "weight": -8
+          },
+          {
+            "term": "guaranteed return",
+            "weight": -20
+          },
+          {
+            "term": "defi exploit",
+            "weight": -10
+          }
+        ],
         "aliases": [
           {
             "canonical": "trip token",
@@ -2027,7 +2405,7 @@
       "origin": "telegram_public",
       "endpoint": "CoinMarketCap",
       "name": "CoinMarketCap",
-      "enabled": true,
+      "enabled": false,
       "contentLocale": "en"
     },
     {
