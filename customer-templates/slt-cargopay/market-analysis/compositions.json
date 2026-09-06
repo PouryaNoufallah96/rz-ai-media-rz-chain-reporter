@@ -1,0 +1,425 @@
+{
+  "schemaVersion": 1,
+  "families": [
+    {
+      "key": "phone",
+      "displayName": "Phone Market View",
+      "enabled": true,
+      "variants": [
+        {
+          "key": "phone-centered",
+          "displayName": "Centered phone",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "A premium phone carries the complete approved market view.",
+            "geometry": "Keep the device dominant and preserve its screen as the protected chart area.",
+            "hierarchy": "Approved Story first, factual chart second, exact results third, footer rail last.",
+            "typography": "Use large editorial display type and restrained supporting labels.",
+            "spacing": "Maintain generous outer negative space and a clear device silhouette.",
+            "materials": "Use refined device glass, metal edges, and instrument-owned atmosphere.",
+            "lighting": "Use controlled cinematic rim light without reducing chart contrast."
+          },
+          "fallbackDirection": "Centered full-height phone, bold header above, restrained side callouts, generous instrument-colored negative space.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.1,
+          "sample": {"path": "market-analysis/compositions/phone-a.png", "mimeType": "image/png", "byteLength": 595017, "pixelWidth": 491, "pixelHeight": 886, "sha256": "c39cc3f37b0fcf5cb4cab9295fe8df36b43a60aa7c1f51b083177486fc8cd2d9"}
+        },
+        {
+          "key": "phone-split-stat",
+          "displayName": "Split-stat phone",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "An angled phone pairs the approved chart with exact performance callouts.",
+            "geometry": "Keep the device screen intact and place callouts outside the protected chart area.",
+            "hierarchy": "Performance statement first, approved chart second, exact callouts third, footer rail last.",
+            "typography": "Use one oversized verified outcome with compact supporting labels.",
+            "spacing": "Balance asymmetric callouts with open instrument-owned atmosphere.",
+            "materials": "Use refined device glass, metal edges, and restrained editorial surfaces.",
+            "lighting": "Use directional cinematic light while keeping the chart fully legible."
+          },
+          "fallbackDirection": "Angled editorial phone, large performance statement, asymmetric side statistics, cinematic instrument atmosphere.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.1,
+          "sample": {"path": "market-analysis/compositions/phone-b.png", "mimeType": "image/png", "byteLength": 613765, "pixelWidth": 495, "pixelHeight": 886, "sha256": "5a8afd10d428c5f4416f8160189609d90300498cc52e32d14c88804ef633ef2a"}
+        },
+        {
+          "key": "phone-editorial",
+          "displayName": "Compact editorial phone",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "A close dramatic phone creates a fast-reading market editorial.",
+            "geometry": "Crop around the device without cropping or redrawing the protected chart.",
+            "hierarchy": "Approved headline first, phone chart second, comparison labels third, footer rail last.",
+            "typography": "Use oversized editorial type with compact factual labels.",
+            "spacing": "Keep the crop deliberate and preserve clear separation around factual regions.",
+            "materials": "Use premium device glass and instrument-owned environmental detail.",
+            "lighting": "Use high-impact controlled light without glare over chart facts."
+          },
+          "fallbackDirection": "Tight cropped phone, oversized market headline, compact comparison labels, high-impact mobile editorial composition.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.1,
+          "sample": {"path": "market-analysis/compositions/phone-c.png", "mimeType": "image/png", "byteLength": 558712, "pixelWidth": 491, "pixelHeight": 886, "sha256": "c022e1f2c8981b47cec967b3f0a13a3b2503deadd05379e3f8b2688e4f54d95e"}
+        }
+      ]
+    },
+    {
+      "key": "laptop",
+      "displayName": "Laptop Dashboard",
+      "enabled": true,
+      "variants": [
+        {
+          "key": "laptop-cinematic",
+          "displayName": "Cinematic laptop",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "A frontal laptop anchors a dramatic chart-focused stage.",
+            "geometry": "Keep the laptop screen dominant and reserve it entirely for the approved chart.",
+            "hierarchy": "Approved Story above, chart-led device center, verified strip below, footer rail last.",
+            "typography": "Use strong editorial display type with a small exact-data strip.",
+            "spacing": "Center the device with balanced margins and an uncluttered stage.",
+            "materials": "Use premium metal, clean screen glass, and instrument-owned environmental surfaces.",
+            "lighting": "Use cinematic stage light while preserving screen contrast."
+          },
+          "fallbackDirection": "Centered frontal laptop, premium atmospheric stage, strong headline above, small verified data strip below.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.11,
+          "sample": {"path": "market-analysis/compositions/desktop-a.png", "mimeType": "image/png", "byteLength": 567177, "pixelWidth": 541, "pixelHeight": 811, "sha256": "bbf9d3645627af4456920111ddb99075521dc01d537c52bb35c35442e0848323"}
+        },
+        {
+          "key": "laptop-editorial",
+          "displayName": "Editorial laptop",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "An angled laptop sits within calm editorial spacing.",
+            "geometry": "Preserve the complete screen as the protected approved-chart area.",
+            "hierarchy": "Approved Story and device share the field; the chart remains visually dominant.",
+            "typography": "Use restrained editorial type with crisp factual support.",
+            "spacing": "Maintain generous asymmetric negative space around the angled device.",
+            "materials": "Use premium metal, clean glass, and instrument-owned atmospheric depth.",
+            "lighting": "Use soft directional environmental light without screen reflections."
+          },
+          "fallbackDirection": "Angled laptop, spacious editorial hierarchy, atmospheric instrument environment, chart dominant inside the screen.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.11,
+          "sample": {"path": "market-analysis/compositions/desktop-b.png", "mimeType": "image/png", "byteLength": 611211, "pixelWidth": 528, "pixelHeight": 811, "sha256": "3deba5dc89b35f36707a33357d5d8c0644aa28918469f75bf3f475fde76dd653"}
+        },
+        {
+          "key": "laptop-wide",
+          "displayName": "Wide dashboard laptop",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "A desk-set laptop presents a wide multi-series market view.",
+            "geometry": "Give the screen maximum width and keep the approved chart complete.",
+            "hierarchy": "Wide chart first, approved Story second, environmental context third, footer rail last.",
+            "typography": "Use a restrained header and small factual support around the screen.",
+            "spacing": "Keep the desk environment sparse and the device edges readable.",
+            "materials": "Use realistic desk, metal, and screen materials without decorative interfaces.",
+            "lighting": "Use soft environmental lighting that preserves factual contrast."
+          },
+          "fallbackDirection": "Laptop on a realistic editorial desk, wide chart screen, soft environmental lighting and restrained header and footer.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.11,
+          "sample": {"path": "market-analysis/compositions/desktop-c.png", "mimeType": "image/png", "byteLength": 570108, "pixelWidth": 536, "pixelHeight": 811, "sha256": "7ece017a9ce99348c6d3ed891414623eff9d1ccb31eee754fd337ace62ae10e9"}
+        }
+      ]
+    },
+    {
+      "key": "growth",
+      "displayName": "Growth Spotlight",
+      "enabled": true,
+      "variants": [
+        {
+          "key": "growth-card",
+          "displayName": "Cinematic performance card",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "A cinematic owner-specific scene frames a compact protected chart.",
+            "geometry": "Reserve one exact chart panel and two factual result strips.",
+            "hierarchy": "Approved headline first, chart second, exact result strips third, footer rail last.",
+            "typography": "Use concise bold editorial text with tabular factual callouts.",
+            "spacing": "Keep generous atmosphere around the compact chart and result strips.",
+            "materials": "Use instrument-owned motifs and premium editorial surfaces.",
+            "lighting": "Use cinematic depth while keeping all factual panels crisp."
+          },
+          "fallbackDirection": "Dramatic owner-specific background scene, compact protected chart, concise editorial headline, exact result strips, and crisp hierarchy.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.12,
+          "sample": {"path": "market-analysis/compositions/growth-a.png", "mimeType": "image/png", "byteLength": 519653, "pixelWidth": 576, "pixelHeight": 783, "sha256": "803b8bd44c0d31eec4e000a62ec3e3d5c79cfdf5f1df5b40ed51b6f0b3b8b979"}
+        },
+        {
+          "key": "growth-hero",
+          "displayName": "Growth hero",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "An oversized verified outcome leads a dominant protected chart.",
+            "geometry": "Keep the percentage and chart in separate clear regions.",
+            "hierarchy": "Verified outcome first, chart second, approved Story support third, footer rail last.",
+            "typography": "Use one oversized exact number and restrained supporting copy.",
+            "spacing": "Balance the large outcome with a generous uninterrupted chart area.",
+            "materials": "Use refined instrument-owned atmosphere without decorative data graphics.",
+            "lighting": "Use energetic controlled light while preserving chart readability."
+          },
+          "fallbackDirection": "Oversized verified percentage, large protected chart, energetic but refined instrument palette and compact footer.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.12,
+          "sample": {"path": "market-analysis/compositions/growth-b.png", "mimeType": "image/png", "byteLength": 561429, "pixelWidth": 578, "pixelHeight": 783, "sha256": "a2b8fbfbfe360320063067357b54b10315052f6670dbb626cf15725fabb8398b"}
+        },
+        {
+          "key": "growth-milestone",
+          "displayName": "Milestone result",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "A refined milestone chart supports a spacious editorial headline.",
+            "geometry": "Keep the protected chart panel broad and free of overlapping prose.",
+            "hierarchy": "Approved Story first, milestone chart second, exact outcome third, footer rail last.",
+            "typography": "Use refined display and sans contrast with restrained factual labels.",
+            "spacing": "Preserve luxury-scale negative space around the chart panel.",
+            "materials": "Use premium instrument-owned surfaces with minimal ornament.",
+            "lighting": "Use soft focused light and stable chart contrast."
+          },
+          "fallbackDirection": "Editorial headline, premium display and sans contrast, protected chart panel, spacious luxury financial composition.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.12,
+          "sample": {"path": "market-analysis/compositions/growth-c.png", "mimeType": "image/png", "byteLength": 628226, "pixelWidth": 578, "pixelHeight": 783, "sha256": "44faa42054657d3b7cc63230746c5e642cef927bc902d03386e58a03f21dfe96"}
+        }
+      ]
+    },
+    {
+      "key": "contrast",
+      "displayName": "Performance Contrast",
+      "enabled": true,
+      "variants": [
+        {
+          "key": "contrast-duel",
+          "displayName": "Winner / loser duel",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "Separate result panels contrast selected instruments without inventing a contest.",
+            "geometry": "Keep panels balanced and reserve exact factual areas in each.",
+            "hierarchy": "Approved outcome headline first, result panels second, exact callouts third, footer rail last.",
+            "typography": "Use strong contrast labels and tabular start and end values.",
+            "spacing": "Keep clear separation between result panels and the protected factual regions.",
+            "materials": "Use instrument-owned surfaces with controlled contrast lighting.",
+            "lighting": "Use dramatic but factual separation without hue-only meaning."
+          },
+          "fallbackDirection": "Stacked winner and loser panels, exact start and end callouts, dramatic contrast lighting and strong outcome headline.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.11,
+          "sample": {"path": "market-analysis/compositions/contrast-a.png", "mimeType": "image/png", "byteLength": 405384, "pixelWidth": 567, "pixelHeight": 749, "sha256": "e2cfbc3a8379f217977c450e09ec73d129f6df40da2d08f6de5598f78ef43a5e"}
+        },
+        {
+          "key": "contrast-intersecting",
+          "displayName": "Intersecting comparison",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "One protected combined chart carries exact contrasted outcomes.",
+            "geometry": "Keep the approved chart intact and place endpoint callouts outside it.",
+            "hierarchy": "Outcome headline first, combined chart second, endpoint callouts third, footer rail last.",
+            "typography": "Use bold outcome language and compact exact values.",
+            "spacing": "Maintain a broad chart area with uncluttered callout margins.",
+            "materials": "Use clean instrument-owned framing around the factual chart.",
+            "lighting": "Use controlled contrast without obscuring line geometry."
+          },
+          "fallbackDirection": "One protected combined chart, endpoint callouts, bold outcome headline and clean instrument-owned framing.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.11,
+          "sample": {"path": "market-analysis/compositions/contrast-b.png", "mimeType": "image/png", "byteLength": 358849, "pixelWidth": 568, "pixelHeight": 749, "sha256": "ea259e96c913e088e4826e8d381ddf9c9999d850e869f41044dbd8251ca72ff3"}
+        },
+        {
+          "key": "contrast-scoreboard",
+          "displayName": "Ranked scoreboard",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "A cinematic scoreboard ranks exact observed outcomes.",
+            "geometry": "Keep the compact approved chart separate from ranked result modules.",
+            "hierarchy": "Approved headline first, ranked outcomes second, chart third, footer rail last.",
+            "typography": "Use strong ordered labels and exact signed values.",
+            "spacing": "Keep each rank visually separate and the chart unobstructed.",
+            "materials": "Use premium scoreboard surfaces within the instrument visual system.",
+            "lighting": "Use dramatic focused light without decorative result fabrication."
+          },
+          "fallbackDirection": "Cinematic market duel, ranked outcome hierarchy, compact protected chart, dramatic but factual result storytelling.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.11,
+          "sample": {"path": "market-analysis/compositions/contrast-c.png", "mimeType": "image/png", "byteLength": 580644, "pixelWidth": 567, "pixelHeight": 749, "sha256": "9fcd87cb18b28ab69112b1ec4e7f1fdefd62d042e66bf4b55dcb29f173b50553"}
+        }
+      ]
+    },
+    {
+      "key": "separated",
+      "displayName": "Separated Performance",
+      "enabled": true,
+      "variants": [
+        {
+          "key": "separated-grid",
+          "displayName": "Responsive grid",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "Each selected instrument receives one clear factual module.",
+            "geometry": "Arrange modules in a balanced grid without changing their approved chart content.",
+            "hierarchy": "Approved Story first, instrument modules second, exact results third, footer rail last.",
+            "typography": "Use consistent module labels and exact tabular values.",
+            "spacing": "Maintain equal gutters and enough room for every selected series.",
+            "materials": "Use coherent instrument-owned card surfaces and restrained borders.",
+            "lighting": "Use even editorial light so no module appears factually privileged by decoration."
+          },
+          "fallbackDirection": "Individual verified asset cards arranged in a clear responsive grid with one instrument-owned editorial headline.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.11,
+          "sample": {"path": "market-analysis/compositions/cards-a.png", "mimeType": "image/png", "byteLength": 501530, "pixelWidth": 520, "pixelHeight": 835, "sha256": "d2e6fb8bd98c3cf5e8304d8cdde546ec225a42ee42411580599175c7c0e19318"}
+        },
+        {
+          "key": "separated-stacked",
+          "displayName": "Stacked cards",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "Offset factual cards connect multiple selected instruments into one story.",
+            "geometry": "Stack modules without covering any chart, label, or exact result.",
+            "hierarchy": "Approved Story first, stacked modules second, exact mini charts third, footer rail last.",
+            "typography": "Use consistent compact labels and exact values across every card.",
+            "spacing": "Keep offsets deliberate and preserve readable separation between layers.",
+            "materials": "Use premium instrument-owned cards with restrained connecting cues.",
+            "lighting": "Use calm dimensional light without obscuring factual surfaces."
+          },
+          "fallbackDirection": "Offset stacked cards with visual connections, exact mini charts and a calm premium background.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.11,
+          "sample": {"path": "market-analysis/compositions/cards-b.png", "mimeType": "image/png", "byteLength": 524231, "pixelWidth": 563, "pixelHeight": 835, "sha256": "c7a1fd8be3fec1b7ae0ef01d114a1a480227ff94325b291f23222cc0b105a188"}
+        },
+        {
+          "key": "separated-orbiting",
+          "displayName": "Orbiting cards",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "Dynamic factual modules orbit a shared approved market story.",
+            "geometry": "Keep every module upright, readable, and clear of the protected chart content.",
+            "hierarchy": "Shared Story first, modular outcomes second, exact series facts third, footer rail last.",
+            "typography": "Use one shared display voice and consistent factual module labels.",
+            "spacing": "Balance dynamic placement with generous safe space between modules.",
+            "materials": "Use coherent instrument-owned module surfaces and subtle depth cues.",
+            "lighting": "Use directional depth without turning factual order into decorative ranking."
+          },
+          "fallbackDirection": "Dynamic modular cards around a central market story, balanced spacing, exact per-asset values and lines.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.11,
+          "sample": {"path": "market-analysis/compositions/cards-c.png", "mimeType": "image/png", "byteLength": 523021, "pixelWidth": 545, "pixelHeight": 835, "sha256": "4144d94f811816bd7d6e24261e73f500fd9fcb47821c43f54786c4b5f303db64"}
+        }
+      ]
+    },
+    {
+      "key": "combined",
+      "displayName": "Combined Performance",
+      "enabled": true,
+      "variants": [
+        {
+          "key": "combined-rounded",
+          "displayName": "Rounded chart",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "A generous rounded stage contains one protected multi-series chart.",
+            "geometry": "Preserve the complete chart inside the arched frame and keep callouts external.",
+            "hierarchy": "Approved Story first, combined chart second, exact callouts third, footer rail last.",
+            "typography": "Use restrained futuristic display type and compact exact labels.",
+            "spacing": "Keep broad chart margins and uncluttered callout positions.",
+            "materials": "Use refined instrument-owned framing with subtle horizon depth.",
+            "lighting": "Use controlled atmospheric light without changing chart contrast."
+          },
+          "fallbackDirection": "Large arched combined chart, horizon-like depth, exact callouts and refined futuristic financial atmosphere.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.11,
+          "sample": {"path": "market-analysis/compositions/combined-a.png", "mimeType": "image/png", "byteLength": 548466, "pixelWidth": 570, "pixelHeight": 809, "sha256": "6f40d77801dfe1b3c5c3c8a2785779de9373f720b6a2e1ac553d7f87e64b7d89"}
+        },
+        {
+          "key": "combined-minimal",
+          "displayName": "Minimal chart",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "A quiet spotlight gives one protected combined chart exceptional focus.",
+            "geometry": "Center the chart with a simple rounded boundary and no overlapping modules.",
+            "hierarchy": "Combined chart first, approved Story second, clean legend third, footer rail last.",
+            "typography": "Use minimal high-contrast type and a compact factual legend.",
+            "spacing": "Preserve exceptional negative space around the chart.",
+            "materials": "Use quiet premium surfaces with almost no ornament.",
+            "lighting": "Use one soft spotlight and stable factual contrast."
+          },
+          "fallbackDirection": "Round spotlight chart, minimal typography, restrained light, clean legend and exceptional negative space.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.11,
+          "sample": {"path": "market-analysis/compositions/combined-b.png", "mimeType": "image/png", "byteLength": 652638, "pixelWidth": 575, "pixelHeight": 809, "sha256": "282c14bac44af33bcb78f7b5eaece4106e6fa1362b6768ad73997a46e54c177b"}
+        },
+        {
+          "key": "combined-editorial",
+          "displayName": "Editorial chart with callouts",
+          "enabled": true,
+          "formats": ["portrait", "square", "story", "landscape"],
+          "minSeries": 1,
+          "maxSeries": 6,
+          "direction": {
+            "composition": "Typography and one protected multi-line chart form a single editorial field.",
+            "geometry": "Keep the complete chart separate from endpoint callouts and approved prose.",
+            "hierarchy": "Approved Story first, chart second, exact endpoint callouts third, footer rail last.",
+            "typography": "Use typography-forward hierarchy with compact exact factual labels.",
+            "spacing": "Balance the headline block against a broad unobstructed chart.",
+            "materials": "Use crisp instrument-owned editorial surfaces and restrained rules.",
+            "lighting": "Use calm directional light without reducing line distinction."
+          },
+          "fallbackDirection": "Typography-forward editorial composition, protected multi-line chart, exact endpoint callouts and compact instrument footer.",
+          "chartScaleRule": {"allowedScales": ["relative", "absolute"], "preferredScale": "relative"},
+          "footerRailHeightRatio": 0.11,
+          "sample": {"path": "market-analysis/compositions/combined-c.png", "mimeType": "image/png", "byteLength": 498155, "pixelWidth": 571, "pixelHeight": 809, "sha256": "81a0f15116e8f31492c692adcc9598aab53d3fdda4a8b701e4639cab2f35f93a"}
+        }
+      ]
+    }
+  ]
+}

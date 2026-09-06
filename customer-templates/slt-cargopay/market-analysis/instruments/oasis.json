@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "theme": {
+    "background": "#060708",
+    "backgroundAlt": "#20242a",
+    "surface": "#12151a",
+    "surfaceAlt": "#1d2229",
+    "text": "#f5f6f7",
+    "muted": "#9ba2aa",
+    "positive": "#28c890",
+    "negative": "#df6d69",
+    "accent": "#aeb8c4",
+    "accentAlt": "#4d8f7c",
+    "border": "#454c55"
+  },
+  "motifs": [
+    "lunar silver arc",
+    "graphite city grid",
+    "emerald data pulse",
+    "orbital precision"
+  ],
+  "scenes": [
+    "A colossal silver lunar body rising behind a black graphite ridge, with one emerald crescent accent, hard rim light, deep space atmosphere, and a quiet editorial field for typography.",
+    "A futuristic graphite lunar outpost at blue hour, precise monolithic towers fading into haze, a restrained emerald horizon glow, and expansive institutional negative space.",
+    "An orbital view over a shadowed moon surface with a distant silver sunrise, subtle emerald navigation light, premium cinematic scale, no literal coin, no text, and no chart-like graphics."
+  ],
+  "artDirection": "Cinematic black and graphite Oasis market editorial with monumental lunar scenery, silver rim light, restrained emerald accents, atmospheric depth, and institutional clarity.",
+  "defaultChartColor": "#739e90",
+  "frozenStyle": {
+    "format": "market editorial poster with a protected factual chart and centered footer rail",
+    "palette": "graphite black, lunar silver, and a restrained emerald signal accent",
+    "materials": "brushed graphite, silver orbital surfaces, clean glass, and precise navigation light",
+    "rendering": "institutional cinematic space editorial with hard rim light, quiet depth, and crisp chart separation",
+    "backgroundVocab": "lunar ridges, orbital horizons, monolithic outposts, and sparse emerald navigation signals",
+    "headlineZone": "keep an expansive quiet field in the upper third for the approved Story",
+    "never": "never invent chart facts, tickers, logos, domains, slogans, coins, or sample text; never disturb the protected chart or footer rail"
+  }
+}

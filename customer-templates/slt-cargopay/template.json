@@ -1,0 +1,2010 @@
+{
+  "schemaVersion": 12,
+  "customer": {
+    "key": "slt-cargopay",
+    "productName": "SLT CargoPay",
+    "timeZone": "Asia/Tehran"
+  },
+  "workspace": {
+    "name": "SLT CargoPay"
+  },
+  "models": {
+    "tasks": {
+      "generation-probe": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4.1-nano"
+        }
+      },
+      "keyword-embedding": {
+        "backend": "remote",
+        "model": "openai/text-embedding-3-small"
+      },
+      "text-translation": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4.1-nano"
+        }
+      },
+      "enrichment-brief": {
+        "backend": "remote",
+        "model": "openai/gpt-4.1-nano",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4.1-mini"
+        }
+      },
+      "editorial-selection:gpt": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4.1-nano"
+        }
+      },
+      "promo-ideas:gpt": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini"
+      },
+      "copy-generation:gpt": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4.1-mini"
+        }
+      },
+      "editorial-selection:gemini": {
+        "backend": "remote",
+        "model": "google/gemini-2.5-flash",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        }
+      },
+      "promo-ideas:gemini": {
+        "backend": "remote",
+        "model": "google/gemini-2.5-flash"
+      },
+      "copy-generation:gemini": {
+        "backend": "remote",
+        "model": "google/gemini-2.5-flash",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        }
+      },
+      "editorial-selection:claude": {
+        "backend": "remote",
+        "model": "anthropic/claude-sonnet-4.5",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        }
+      },
+      "promo-ideas:claude": {
+        "backend": "remote",
+        "model": "anthropic/claude-sonnet-4.5"
+      },
+      "copy-generation:claude": {
+        "backend": "remote",
+        "model": "anthropic/claude-sonnet-4.5",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        }
+      },
+      "editorial-selection:deepseek": {
+        "backend": "remote",
+        "model": "deepseek/deepseek-v4-flash",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        }
+      },
+      "promo-ideas:deepseek": {
+        "backend": "remote",
+        "model": "deepseek/deepseek-v4-flash"
+      },
+      "copy-generation:deepseek": {
+        "backend": "remote",
+        "model": "deepseek/deepseek-v4-flash",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        }
+      },
+      "image-template-selection": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini",
+        "fallback": {
+          "backend": "remote",
+          "model": "google/gemini-2.5-flash"
+        }
+      },
+      "image-creative-brief": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini",
+        "fallback": {
+          "backend": "remote",
+          "model": "google/gemini-2.5-flash"
+        }
+      },
+      "image-generation:gpt-image": {
+        "backend": "remote",
+        "model": "openai/gpt-5.4-image-2",
+        "fallback": {
+          "backend": "remote",
+          "model": "google/gemini-3.1-flash-image"
+        }
+      },
+      "image-generation:gemini-flash-image": {
+        "backend": "remote",
+        "model": "google/gemini-3.1-flash-image",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-5.4-image-2"
+        }
+      },
+      "image-generation:gemini-pro-image": {
+        "backend": "remote",
+        "model": "google/gemini-3-pro-image",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-5.4-image-2"
+        }
+      },
+      "image-generation:recraft-v4-pro": {
+        "backend": "remote",
+        "model": "recraft/recraft-v4-pro",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-5.4-image-2"
+        }
+      },
+      "assistant-synthesis": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini"
+      },
+      "market-art-director-brief": {
+        "backend": "remote",
+        "model": "openai/gpt-4o-mini",
+        "fallback": {
+          "backend": "remote",
+          "model": "google/gemini-2.5-flash"
+        }
+      }
+    }
+  },
+  "editorial": {
+    "models": [
+      {
+        "key": "gpt",
+        "name": "GPT"
+      },
+      {
+        "key": "gemini",
+        "name": "Gemini"
+      },
+      {
+        "key": "claude",
+        "name": "Claude"
+      },
+      {
+        "key": "deepseek",
+        "name": "DeepSeek"
+      }
+    ],
+    "platforms": [
+      "telegram",
+      "x"
+    ],
+    "topicAliases": [
+      {
+        "canonical": "btc",
+        "surfaces": [
+          "bitcoin"
+        ]
+      },
+      {
+        "canonical": "eth",
+        "surfaces": [
+          "ethereum"
+        ]
+      },
+      {
+        "canonical": "wallet security",
+        "surfaces": [
+          "wallet safety",
+          "secure wallet",
+          "wallet protection"
+        ]
+      }
+    ],
+    "defaults": {
+      "brands": [
+        "slt-cargopay",
+        "coin-bank",
+        "coin-factory"
+      ],
+      "models": [
+        "gpt",
+        "gemini",
+        "claude",
+        "deepseek"
+      ],
+      "platforms": [
+        "x",
+        "telegram"
+      ],
+      "windowHours": 24,
+      "enrichment": true
+    },
+    "shortlistCap": 20,
+    "selectionCap": 20,
+    "importReuseMinutes": 30,
+    "fanOut": {
+      "maxUnits": 16,
+      "unitConcurrency": 4
+    },
+    "promo": {
+      "ideaCount": 4,
+      "promptMaxChars": 1200
+    },
+    "drafting": {
+      "copy": {
+        "fetchMinimumChars": 2000,
+        "modelMaxChars": 8000,
+        "platforms": [
+          {
+            "platform": "x",
+            "variants": [
+              {
+                "key": "breaking",
+                "instruction": "Lead with the newest high-impact fact and make the consequence immediate."
+              },
+              {
+                "key": "question",
+                "instruction": "Frame the central tension as a direct question and answer it with the strongest available fact."
+              },
+              {
+                "key": "take",
+                "instruction": "State a clear evidence-backed point of view without inventing certainty."
+              }
+            ],
+            "assembledCharacters": {
+              "min": 180,
+              "max": 260
+            },
+            "hashtags": {
+              "min": 2,
+              "max": 3
+            },
+            "emojiGraphemeCap": 0
+          },
+          {
+            "platform": "telegram",
+            "variants": [
+              {
+                "key": "viral",
+                "instruction": "Open with the most shareable verified angle, then explain why it matters."
+              },
+              {
+                "key": "analysis",
+                "instruction": "Explain the key facts, context, and likely consequence in a compact analysis."
+              },
+              {
+                "key": "to_the_point",
+                "instruction": "Deliver the essential verified update directly with no decorative preamble."
+              }
+            ],
+            "assembledCharacters": {
+              "min": 300,
+              "max": 600
+            },
+            "hashtags": {
+              "min": 3,
+              "max": 5
+            },
+            "emojiGraphemeCap": 3
+          }
+        ]
+      },
+      "image": {
+        "models": [
+          {
+            "key": "gpt-image",
+            "name": "GPT-5.4 Image 2",
+            "enabled": true
+          },
+          {
+            "key": "gemini-flash-image",
+            "name": "Gemini 3.1 Flash Image",
+            "enabled": true
+          },
+          {
+            "key": "gemini-pro-image",
+            "name": "Gemini 3 Pro Image",
+            "enabled": true
+          },
+          {
+            "key": "recraft-v4-pro",
+            "name": "Recraft V4 Pro",
+            "enabled": false
+          }
+        ],
+        "defaultModelKey": "gpt-image"
+      }
+    },
+    "semantic": {
+      "maxCandidates": 250,
+      "maxTopics": 10,
+      "maxAnchorsPerBrand": 20,
+      "maxChars": 500,
+      "dedupThreshold": 0.92,
+      "brandWeight": 0.15,
+      "topicWeight": 0.15
+    },
+    "policy": {
+      "weights": {
+        "withTopics": {
+          "mediaFit": 0.2,
+          "lexicalTopic": 0.5,
+          "virality": 0.1,
+          "freshness": 0.08,
+          "authority": 0.05,
+          "sourcePreference": 0.035,
+          "diversity": 0.035
+        },
+        "withoutTopics": {
+          "mediaFit": 0.43,
+          "virality": 0.24,
+          "freshness": 0.16,
+          "authority": 0.09,
+          "sourcePreference": 0.04,
+          "diversity": 0.04
+        }
+      },
+      "thresholds": {
+        "policyScore": 0,
+        "lexicalTopicScore": 1
+      },
+      "freshnessLadder": [
+        {
+          "maxAgeHours": 1,
+          "score": 100
+        },
+        {
+          "maxAgeHours": 2,
+          "score": 95
+        },
+        {
+          "maxAgeHours": 4,
+          "score": 88
+        },
+        {
+          "maxAgeHours": 6,
+          "score": 80
+        },
+        {
+          "maxAgeHours": 12,
+          "score": 68
+        },
+        {
+          "maxAgeHours": 24,
+          "score": 50
+        },
+        {
+          "maxAgeHours": 36,
+          "score": 32
+        },
+        {
+          "maxAgeHours": 48,
+          "score": 20
+        },
+        {
+          "maxAgeHours": 8760,
+          "score": 8
+        }
+      ],
+      "futureDateNeutralScore": 50,
+      "virality": {
+        "powerTerms": [
+          {
+            "term": "breaking",
+            "weight": 20
+          },
+          {
+            "term": "urgent",
+            "weight": 18
+          },
+          {
+            "term": "alert",
+            "weight": 16
+          },
+          {
+            "term": "crash",
+            "weight": 22
+          },
+          {
+            "term": "surges",
+            "weight": 18
+          },
+          {
+            "term": "explodes",
+            "weight": 20
+          },
+          {
+            "term": "collapses",
+            "weight": 22
+          },
+          {
+            "term": "massive",
+            "weight": 15
+          },
+          {
+            "term": "historic",
+            "weight": 18
+          },
+          {
+            "term": "record",
+            "weight": 14
+          },
+          {
+            "term": "first ever",
+            "weight": 18
+          },
+          {
+            "term": "all-time high",
+            "weight": 22
+          },
+          {
+            "term": "ath",
+            "weight": 16
+          },
+          {
+            "term": "all-time low",
+            "weight": 22
+          },
+          {
+            "term": "atl",
+            "weight": 16
+          },
+          {
+            "term": "billions",
+            "weight": 14
+          },
+          {
+            "term": "trillion",
+            "weight": 18
+          },
+          {
+            "term": "emergency",
+            "weight": 20
+          },
+          {
+            "term": "warning",
+            "weight": 16
+          },
+          {
+            "term": "critical",
+            "weight": 15
+          },
+          {
+            "term": "catastrophic",
+            "weight": 20
+          },
+          {
+            "term": "shocking",
+            "weight": 16
+          },
+          {
+            "term": "unprecedented",
+            "weight": 18
+          },
+          {
+            "term": "exclusive",
+            "weight": 12
+          },
+          {
+            "term": "leaked",
+            "weight": 18
+          },
+          {
+            "term": "confirmed",
+            "weight": 12
+          },
+          {
+            "term": "just in",
+            "weight": 18
+          },
+          {
+            "term": "developing",
+            "weight": 14
+          },
+          {
+            "term": "soars",
+            "weight": 16
+          },
+          {
+            "term": "plunges",
+            "weight": 16
+          },
+          {
+            "term": "free fall",
+            "weight": 18
+          },
+          {
+            "term": "skyrockets",
+            "weight": 18
+          },
+          {
+            "term": "rallies",
+            "weight": 14
+          },
+          {
+            "term": "dumps",
+            "weight": 16
+          },
+          {
+            "term": "major",
+            "weight": 10
+          }
+        ],
+        "entityTerms": [
+          {
+            "term": "bitcoin",
+            "weight": 15
+          },
+          {
+            "term": "blackrock",
+            "weight": 14
+          },
+          {
+            "term": "sec",
+            "weight": 14
+          },
+          {
+            "term": "trump",
+            "weight": 16
+          },
+          {
+            "term": "binance",
+            "weight": 12
+          },
+          {
+            "term": "coinbase",
+            "weight": 10
+          },
+          {
+            "term": "federal reserve",
+            "weight": 12
+          },
+          {
+            "term": "elon musk",
+            "weight": 16
+          },
+          {
+            "term": "michael saylor",
+            "weight": 12
+          },
+          {
+            "term": "vitalik",
+            "weight": 10
+          },
+          {
+            "term": "satoshi",
+            "weight": 12
+          },
+          {
+            "term": "imf",
+            "weight": 10
+          },
+          {
+            "term": "fed",
+            "weight": 10
+          }
+        ],
+        "titleMultiplier": 1.5,
+        "bodyMultiplier": 0.4,
+        "numericSignalWeights": {
+          "number": 6,
+          "percentage": 12,
+          "currencyAmount": 10,
+          "magnitudeAmount": 14
+        }
+      },
+      "unknownSourceAuthority": 50,
+      "sourceAuthority": {
+        "the-block-rss": 92,
+        "coindesk-rss": 90,
+        "cointelegraph-rss": 88,
+        "blockworks-rss": 86,
+        "decrypt-rss": 84,
+        "bitcoin-magazine-rss": 82,
+        "chainalysis-blog-rss": 82,
+        "the-defiant-rss": 80,
+        "beincrypto-rss": 74,
+        "dl-news-rss": 74,
+        "crypto-news-rss": 70,
+        "cryptoslate-rss": 72,
+        "cryptopotato-rss": 66,
+        "newsbtc-rss": 64,
+        "u-today-rss": 60,
+        "ambcrypto-rss": 52
+      }
+    }
+  },
+  "marketAnalysis": {
+    "enabled": true,
+    "comparisonProvider": "binance",
+    "instruments": [
+      {
+        "key": "mgc",
+        "name": "MGC Coin",
+        "symbol": "MGC",
+        "enabled": true,
+        "providerMappings": [
+          {
+            "kind": "coinmarketcap_public_kline",
+            "provider": "coinmarketcap_public",
+            "platform": "bsc",
+            "address": "0xbb73BB2505AC4643d5C0a99c2A1F34B3DfD09D11",
+            "fallback": false
+          }
+        ],
+        "visualProfile": "market-analysis/instruments/mgc.json",
+        "selectorIcon": {
+          "path": "market-analysis/icons/mgc.png",
+          "mimeType": "image/png",
+          "byteLength": 498979,
+          "pixelWidth": 640,
+          "pixelHeight": 640,
+          "sha256": "2b637ce01a15693c8161f0ad85ffdd99dcae69275eb85c929af0714303f13761"
+        },
+        "footerLockup": {
+          "path": "market-analysis/lockups/mgc.png",
+          "mimeType": "image/png",
+          "byteLength": 35374,
+          "pixelWidth": 2987,
+          "pixelHeight": 480,
+          "sha256": "94bb1c6abd16d338a6f1f59903b88c78300cf91d7545b9ae2f78ed5dd2586ba1"
+        }
+      },
+      {
+        "key": "oasis",
+        "name": "Oasis Coin",
+        "symbol": "OASIS",
+        "enabled": true,
+        "providerMappings": [
+          {
+            "kind": "coinmarketcap_public_kline",
+            "provider": "coinmarketcap_public",
+            "platform": "bsc",
+            "address": "0x1a4D41219C547f3A0EE36cf3d9E68F80699cF283",
+            "fallback": false
+          }
+        ],
+        "visualProfile": "market-analysis/instruments/oasis.json",
+        "selectorIcon": {
+          "path": "market-analysis/icons/oasis.png",
+          "mimeType": "image/png",
+          "byteLength": 131806,
+          "pixelWidth": 572,
+          "pixelHeight": 572,
+          "sha256": "f197c3215b201f19dcf805b02a8bea50cd6d0512f8a0142c8b217a1c4cd80f1c"
+        },
+        "footerLockup": {
+          "path": "market-analysis/lockups/oasis.png",
+          "mimeType": "image/png",
+          "byteLength": 43619,
+          "pixelWidth": 2533,
+          "pixelHeight": 933,
+          "sha256": "177111b25b6f6cc6a1e6daa4c3b25ed7984e521efc258c6c6662e1cdbbd4ee00"
+        }
+      },
+      {
+        "key": "jewelry",
+        "name": "Jewelry Coin",
+        "symbol": "JEWELRY",
+        "enabled": true,
+        "providerMappings": [
+          {
+            "kind": "coinmarketcap_public_kline",
+            "provider": "coinmarketcap_public",
+            "platform": "bsc",
+            "address": "0xf04FaB6Dda66261eaBfD65e92A6b81dDaF6a950a",
+            "fallback": false
+          }
+        ],
+        "visualProfile": "market-analysis/instruments/jewelry.json",
+        "selectorIcon": {
+          "path": "market-analysis/icons/jewelry.png",
+          "mimeType": "image/png",
+          "byteLength": 358714,
+          "pixelWidth": 640,
+          "pixelHeight": 640,
+          "sha256": "27232dafc19fd3020db264069757a9deafc4fb8e848a0c96f6ecb83f368f8c5a"
+        },
+        "footerLockup": {
+          "path": "market-analysis/lockups/jewelry.png",
+          "mimeType": "image/png",
+          "byteLength": 30323,
+          "pixelWidth": 2667,
+          "pixelHeight": 640,
+          "sha256": "8afaf8f49c3141e97d29a3726b50cc629a6c5fd352b72e3376b6dcbbc72417cd"
+        }
+      },
+      {
+        "key": "industrial",
+        "name": "Industrial Token",
+        "symbol": "INDUSTRIAL",
+        "enabled": true,
+        "providerMappings": [
+          {
+            "kind": "coinmarketcap_public_kline",
+            "provider": "coinmarketcap_public",
+            "platform": "bsc",
+            "address": "0x9e06e1203bdc3747ee3ab5fa9488619bcf2a2666",
+            "fallback": false
+          }
+        ],
+        "visualProfile": "market-analysis/instruments/industrial.json",
+        "selectorIcon": {
+          "path": "market-analysis/icons/industrial.png",
+          "mimeType": "image/png",
+          "byteLength": 327276,
+          "pixelWidth": 640,
+          "pixelHeight": 640,
+          "sha256": "e8b5e6b22369e873369a6f4e75a2fab6efe8797a268006d3e06d06988869be49"
+        },
+        "footerLockup": {
+          "path": "market-analysis/lockups/industrial.png",
+          "mimeType": "image/png",
+          "byteLength": 135812,
+          "pixelWidth": 1713,
+          "pixelHeight": 402,
+          "sha256": "93202c8c9fe0854d4c158f532dd10b16cc44de832f9bf0dc3ab1636915489c05"
+        }
+      },
+      {
+        "key": "real-estate",
+        "name": "Real Estate Token",
+        "symbol": "REALESTATE",
+        "enabled": true,
+        "providerMappings": [
+          {
+            "kind": "coinmarketcap_public_kline",
+            "provider": "coinmarketcap_public",
+            "platform": "bsc",
+            "address": "0x32477cf0e324f9a9cb49e8803fa4de9f80f8d0d4",
+            "fallback": false
+          }
+        ],
+        "visualProfile": "market-analysis/instruments/real-estate.json",
+        "selectorIcon": {
+          "path": "market-analysis/icons/real-estate.png",
+          "mimeType": "image/png",
+          "byteLength": 86158,
+          "pixelWidth": 418,
+          "pixelHeight": 640,
+          "sha256": "ad1a3cf1bb55f6be4e525adfb950e5ee1d05dbc1228cac9aa2590b3579715b9d"
+        },
+        "footerLockup": {
+          "path": "market-analysis/lockups/real-estate.png",
+          "mimeType": "image/png",
+          "byteLength": 19821,
+          "pixelWidth": 1493,
+          "pixelHeight": 469,
+          "sha256": "4d2a38d2cc87224a72886289b6089f428e248fb5793a4ef758186f012881f6ed"
+        }
+      },
+      {
+        "key": "trip",
+        "name": "Trip Token",
+        "symbol": "TRIP",
+        "enabled": true,
+        "providerMappings": [
+          {
+            "kind": "coinmarketcap_public_kline",
+            "provider": "coinmarketcap_public",
+            "platform": "bsc",
+            "address": "0xc9bfb93d75645c4681bb63794abf1acad44725e7",
+            "fallback": false
+          }
+        ],
+        "visualProfile": "market-analysis/instruments/trip.json",
+        "selectorIcon": {
+          "path": "market-analysis/icons/trip.png",
+          "mimeType": "image/png",
+          "byteLength": 210915,
+          "pixelWidth": 2400,
+          "pixelHeight": 2400,
+          "sha256": "9ce624f14438c8ce0878cc5a302a2ce344330570d08cf5015c571f4f477f3e05"
+        },
+        "footerLockup": {
+          "path": "market-analysis/lockups/trip.png",
+          "mimeType": "image/png",
+          "byteLength": 17283,
+          "pixelWidth": 960,
+          "pixelHeight": 533,
+          "sha256": "e725e19c97b190286fe2780155d7b5cb1ba72708248fc1fb6ab8f440c5d8c7f4"
+        }
+      }
+    ],
+    "brandInstruments": [
+      {
+        "brandKey": "coin-bank",
+        "instrumentKey": "mgc"
+      },
+      {
+        "brandKey": "coin-bank",
+        "instrumentKey": "oasis"
+      },
+      {
+        "brandKey": "coin-bank",
+        "instrumentKey": "jewelry"
+      },
+      {
+        "brandKey": "coin-bank",
+        "instrumentKey": "industrial"
+      },
+      {
+        "brandKey": "coin-bank",
+        "instrumentKey": "real-estate"
+      },
+      {
+        "brandKey": "coin-bank",
+        "instrumentKey": "trip"
+      }
+    ],
+    "compositions": "market-analysis/compositions.json",
+    "approvedImageOptionKeys": [
+      "gpt-image",
+      "gemini-flash-image",
+      "gemini-pro-image"
+    ],
+    "defaultImageOptionKey": "gpt-image",
+    "enabledPeriods": [
+      "24h",
+      "7d",
+      "30d",
+      "90d",
+      "1y"
+    ],
+    "enabledScales": [
+      "relative",
+      "absolute"
+    ],
+    "defaults": {
+      "period": "30d",
+      "scale": "relative",
+      "outputFormat": "portrait"
+    },
+    "featuredComparisonSymbols": [
+      "BTC",
+      "ETH",
+      "XRP",
+      "BNB"
+    ],
+    "defaultComparisonSymbol": "XRP"
+  },
+  "mediaBrands": [
+    {
+      "key": "slt-cargopay",
+      "name": "SLT CargoPay",
+      "brandBible": "brand-bibles/slt-cargopay.md",
+      "imageProfile": "image-profiles/slt-cargopay.json",
+      "brandLogo": {
+        "path": "brand-logos/slt-cargopay.png",
+        "mimeType": "image/png",
+        "byteLength": 25572,
+        "pixelWidth": 266,
+        "pixelHeight": 62,
+        "sha256": "282637b24831d1677bdce50dd0a76d4531908b9ab018b887d1b299ab31097357"
+      },
+      "editorial": {
+        "mediaFitThreshold": 0,
+        "strongTerms": [
+          {
+            "term": "cargo payment",
+            "weight": 25
+          },
+          {
+            "term": "logistics payment",
+            "weight": 25
+          },
+          {
+            "term": "transportation settlement",
+            "weight": 24
+          },
+          {
+            "term": "cargo invoice",
+            "weight": 24
+          },
+          {
+            "term": "freight payment",
+            "weight": 22
+          },
+          {
+            "term": "shipping payment",
+            "weight": 22
+          },
+          {
+            "term": "transportation id",
+            "weight": 24
+          },
+          {
+            "term": "payment link",
+            "weight": 22
+          },
+          {
+            "term": "on-chain settlement",
+            "weight": 24
+          },
+          {
+            "term": "wallet confirmation",
+            "weight": 22
+          },
+          {
+            "term": "smart-contract settlement",
+            "weight": 22
+          },
+          {
+            "term": "transaction hash",
+            "weight": 18
+          },
+          {
+            "term": "quick invoice",
+            "weight": 20
+          },
+          {
+            "term": "multi-stage payment",
+            "weight": 20
+          },
+          {
+            "term": "supply chain payments",
+            "weight": 18
+          },
+          {
+            "term": "trade finance",
+            "weight": 18
+          },
+          {
+            "term": "cross-border settlement",
+            "weight": 18
+          },
+          {
+            "term": "global cargo",
+            "weight": 18
+          },
+          {
+            "term": "freight forwarding",
+            "weight": 18
+          },
+          {
+            "term": "ports",
+            "weight": 14
+          },
+          {
+            "term": "logistics operators",
+            "weight": 18
+          },
+          {
+            "term": "slt cargopay",
+            "weight": 25
+          },
+          {
+            "term": "treasury program",
+            "weight": 20
+          },
+          {
+            "term": "goldgr",
+            "weight": 18
+          },
+          {
+            "term": "lusd",
+            "weight": 18
+          },
+          {
+            "term": "conditional payment",
+            "weight": 20
+          },
+          {
+            "term": "settlement history",
+            "weight": 18
+          }
+        ],
+        "weakTerms": [
+          {
+            "term": "casino",
+            "weight": -18
+          },
+          {
+            "term": "meme coin",
+            "weight": -15
+          },
+          {
+            "term": "trading",
+            "weight": -10
+          },
+          {
+            "term": "exchange",
+            "weight": -10
+          },
+          {
+            "term": "rocket",
+            "weight": -12
+          },
+          {
+            "term": "moon",
+            "weight": -12
+          },
+          {
+            "term": "guaranteed",
+            "weight": -20
+          },
+          {
+            "term": "yield",
+            "weight": -16
+          }
+        ],
+        "aliases": [
+          {
+            "canonical": "SLT CargoPay",
+            "surfaces": [
+              "SLT Cargo Pay",
+              "CargoPay",
+              "Cargo Pay",
+              "slt-cargo-pay"
+            ]
+          }
+        ],
+        "phrases": [],
+        "preferredSourceKeys": [
+          "coindesk-rss",
+          "cointelegraph-rss",
+          "the-block-rss",
+          "blockworks-rss",
+          "dl-news-rss"
+        ],
+        "semanticAnchors": [
+          "cargo invoices and Transportation IDs",
+          "wallet-confirmed cargo settlement",
+          "smart-contract settlement for freight and logistics",
+          "cross-border business payments for cargo operations",
+          "traceable on-chain payment records",
+          "multi-stage transportation payments",
+          "shipping and freight payment infrastructure",
+          "non-custodial logistics settlement",
+          "Treasury participation with GOLDGR and LUSD",
+          "conditional cargo payments and settlement history"
+        ],
+        "promoEnabled": true,
+        "canonicalHashtags": {
+          "en": "#SLTCargoPay",
+          "fa": "#اس_ال_تی_کارگو_پی"
+        }
+      }
+    },
+    {
+      "key": "coin-bank",
+      "name": "CoinBank",
+      "brandBible": "brand-bibles/coin-bank.md",
+      "imageProfile": "image-profiles/coin-bank.json",
+      "brandLogo": {
+        "path": "brand-logos/coin-bank.png",
+        "mimeType": "image/png",
+        "byteLength": 17042,
+        "pixelWidth": 217,
+        "pixelHeight": 64,
+        "sha256": "bcdc890b01242e4f4c25beed76b937284b89c57cd1414179a5bbecbc762d082d"
+      },
+      "editorial": {
+        "mediaFitThreshold": 0,
+        "strongTerms": [
+          {
+            "term": "non-custodial",
+            "weight": 25
+          },
+          {
+            "term": "self-custody",
+            "weight": 24
+          },
+          {
+            "term": "wallet-based",
+            "weight": 24
+          },
+          {
+            "term": "web3 financial hub",
+            "weight": 24
+          },
+          {
+            "term": "structured capital layer",
+            "weight": 24
+          },
+          {
+            "term": "on-chain execution",
+            "weight": 22
+          },
+          {
+            "term": "smart-contract-defined",
+            "weight": 20
+          },
+          {
+            "term": "foundation-led oversight",
+            "weight": 18
+          },
+          {
+            "term": "proof of reserves",
+            "weight": 22
+          },
+          {
+            "term": "proof dashboard",
+            "weight": 22
+          },
+          {
+            "term": "digital wealth infrastructure",
+            "weight": 20
+          },
+          {
+            "term": "structured early access",
+            "weight": 22
+          },
+          {
+            "term": "multi-chain asset flow",
+            "weight": 20
+          },
+          {
+            "term": "rwa tokenization",
+            "weight": 20
+          },
+          {
+            "term": "crypto card",
+            "weight": 18
+          },
+          {
+            "term": "on-chain credit",
+            "weight": 18
+          },
+          {
+            "term": "bnpl",
+            "weight": 18
+          },
+          {
+            "term": "ai finance",
+            "weight": 18
+          },
+          {
+            "term": "cross-chain bridge",
+            "weight": 18
+          },
+          {
+            "term": "swap",
+            "weight": 14
+          },
+          {
+            "term": "stablecoin",
+            "weight": 16
+          },
+          {
+            "term": "wallet security",
+            "weight": 20
+          },
+          {
+            "term": "capital movement",
+            "weight": 22
+          },
+          {
+            "term": "pre-sale access",
+            "weight": 20
+          },
+          {
+            "term": "capital allocation",
+            "weight": 22
+          },
+          {
+            "term": "rule-based allocation",
+            "weight": 22
+          },
+          {
+            "term": "coinbank token",
+            "weight": 24
+          },
+          {
+            "term": "debit card",
+            "weight": 18
+          },
+          {
+            "term": "wallet permission",
+            "weight": 18
+          },
+          {
+            "term": "transaction approval",
+            "weight": 18
+          },
+          {
+            "term": "coin bank",
+            "weight": 25
+          },
+          {
+            "term": "coinbank",
+            "weight": 25
+          }
+        ],
+        "weakTerms": [
+          {
+            "term": "licensed bank",
+            "weight": -20
+          },
+          {
+            "term": "deposit account",
+            "weight": -20
+          },
+          {
+            "term": "custodian",
+            "weight": -14
+          },
+          {
+            "term": "guaranteed yield",
+            "weight": -22
+          },
+          {
+            "term": "insured deposit",
+            "weight": -22
+          },
+          {
+            "term": "principal protected",
+            "weight": -22
+          }
+        ],
+        "aliases": [
+          {
+            "canonical": "CoinBank",
+            "surfaces": [
+              "Coin Bank",
+              "RZBank",
+              "RZ Bank"
+            ]
+          }
+        ],
+        "phrases": [],
+        "preferredSourceKeys": [
+          "coindesk-rss",
+          "the-block-rss",
+          "blockworks-rss",
+          "chainalysis-blog-rss",
+          "dl-news-rss"
+        ],
+        "semanticAnchors": [
+          "non-custodial Web3 financial hub and structured capital layer",
+          "wallet-controlled capital movement across blockchain networks",
+          "structured pre-sale access under smart-contract-defined rules",
+          "rule-based digital asset allocation and maturity logic",
+          "CoinBank Token access participation and ecosystem utility",
+          "digital asset debit card and real-world payment utility",
+          "informed wallet permissions and user-controlled transaction approval",
+          "foundation-led oversight public proofs and transparent reporting",
+          "stablecoin payment infrastructure with liquidity and compliance needs",
+          "RWA tokenization with legal rights redemption and liquidity limits",
+          "explainable AI finance with explicit user authorization"
+        ],
+        "promoEnabled": true,
+        "canonicalHashtags": {
+          "en": "#CoinBank",
+          "fa": "#کوین_بانک"
+        }
+      }
+    },
+    {
+      "key": "coin-factory",
+      "name": "Coin Factory",
+      "brandBible": "brand-bibles/coin-factory.md",
+      "imageProfile": "image-profiles/coin-factory.json",
+      "brandLogo": {
+        "path": "brand-logos/coin-factory.png",
+        "mimeType": "image/png",
+        "byteLength": 3055,
+        "pixelWidth": 248,
+        "pixelHeight": 62,
+        "sha256": "6740758be2ae8dcc22f4d64c8003af35f50a46e04459cc67738749d303c1c13c"
+      },
+      "editorial": {
+        "mediaFitThreshold": 0,
+        "strongTerms": [
+          {
+            "term": "tokenization strategy",
+            "weight": 25
+          },
+          {
+            "term": "asset tokenization",
+            "weight": 25
+          },
+          {
+            "term": "real-world asset tokenization",
+            "weight": 25
+          },
+          {
+            "term": "rwa",
+            "weight": 22
+          },
+          {
+            "term": "enterprise tokenization",
+            "weight": 25
+          },
+          {
+            "term": "ownership distribution",
+            "weight": 22
+          },
+          {
+            "term": "revenue stream tokenization",
+            "weight": 22
+          },
+          {
+            "term": "equity tokenization",
+            "weight": 22
+          },
+          {
+            "term": "fund tokenization",
+            "weight": 20
+          },
+          {
+            "term": "receivables tokenization",
+            "weight": 20
+          },
+          {
+            "term": "infrastructure tokenization",
+            "weight": 20
+          },
+          {
+            "term": "stablecoin tokenization",
+            "weight": 18
+          },
+          {
+            "term": "utility tokenization",
+            "weight": 18
+          },
+          {
+            "term": "governance tokenization",
+            "weight": 18
+          },
+          {
+            "term": "tokenomics design",
+            "weight": 20
+          },
+          {
+            "term": "smart contract development",
+            "weight": 18
+          },
+          {
+            "term": "token launch",
+            "weight": 16
+          },
+          {
+            "term": "security audit coordination",
+            "weight": 16
+          },
+          {
+            "term": "exchange listing support",
+            "weight": 14
+          },
+          {
+            "term": "ecosystem development",
+            "weight": 18
+          },
+          {
+            "term": "swiss innovation",
+            "weight": 20
+          },
+          {
+            "term": "institutional digital assets",
+            "weight": 22
+          },
+          {
+            "term": "capital markets",
+            "weight": 18
+          },
+          {
+            "term": "digital ownership",
+            "weight": 20
+          },
+          {
+            "term": "compliant blockchain",
+            "weight": 22
+          },
+          {
+            "term": "coin factory",
+            "weight": 25
+          },
+          {
+            "term": "coinfactory",
+            "weight": 25
+          },
+          {
+            "term": "tokenization opportunities",
+            "weight": 22
+          },
+          {
+            "term": "issuance and underwriting",
+            "weight": 22
+          },
+          {
+            "term": "venture partnership",
+            "weight": 16
+          },
+          {
+            "term": "mgc ownership",
+            "weight": 25
+          },
+          {
+            "term": "registered share",
+            "weight": 22
+          },
+          {
+            "term": "share claim",
+            "weight": 22
+          },
+          {
+            "term": "share register",
+            "weight": 20
+          },
+          {
+            "term": "equity reference value",
+            "weight": 20
+          },
+          {
+            "term": "notarised agreement",
+            "weight": 18
+          },
+          {
+            "term": "permanent token burn",
+            "weight": 18
+          }
+        ],
+        "weakTerms": [
+          {
+            "term": "meme",
+            "weight": -20
+          },
+          {
+            "term": "rocket",
+            "weight": -18
+          },
+          {
+            "term": "moon",
+            "weight": -18
+          },
+          {
+            "term": "luxury car",
+            "weight": -18
+          },
+          {
+            "term": "guaranteed",
+            "weight": -22
+          },
+          {
+            "term": "instant liquidity",
+            "weight": -20
+          },
+          {
+            "term": "casino",
+            "weight": -20
+          },
+          {
+            "term": "guaranteed listing",
+            "weight": -22
+          },
+          {
+            "term": "automatic compliance",
+            "weight": -22
+          },
+          {
+            "term": "guaranteed dividend",
+            "weight": -22
+          }
+        ],
+        "aliases": [
+          {
+            "canonical": "Coin Factory",
+            "surfaces": [
+              "CoinFactory",
+              "CoinFactory AG",
+              "Coin Factory AG"
+            ]
+          }
+        ],
+        "phrases": [],
+        "preferredSourceKeys": [
+          "coindesk-rss",
+          "cointelegraph-rss",
+          "the-block-rss",
+          "blockworks-rss",
+          "cryptoslate-rss"
+        ],
+        "semanticAnchors": [
+          "Swiss enterprise tokenization strategy and infrastructure",
+          "tokenization of real-world assets businesses rights and revenue streams",
+          "design and launch of sustainable token economies",
+          "institutional digital ownership and capital-market modernization",
+          "compliance-aware issuance governance and blockchain adoption",
+          "tokenomics smart-contract development and audit coordination",
+          "CFT issuance and underwriting platform within Coin Factory AG",
+          "MGC claim process for a registered Coin Factory AG share",
+          "identity verification permanent token burn and share-register entry",
+          "equity reference value distinct from MGC market price",
+          "Swiss corporate ownership rules and notarised undertaking",
+          "enterprise tokenization services for asset owners and institutions"
+        ],
+        "promoEnabled": true,
+        "canonicalHashtags": {
+          "en": "#CoinFactory",
+          "fa": "#کوین_فکتوری"
+        }
+      }
+    }
+  ],
+  "sources": [
+    {
+      "key": "coindesk-rss",
+      "origin": "rss",
+      "endpoint": "https://www.coindesk.com/arc/outboundfeeds/rss",
+      "name": "CoinDesk",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct_then_firecrawl"
+    },
+    {
+      "key": "cointelegraph-rss",
+      "origin": "rss",
+      "endpoint": "https://cointelegraph.com/rss",
+      "name": "Cointelegraph",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "decrypt-rss",
+      "origin": "rss",
+      "endpoint": "https://decrypt.co/feed",
+      "name": "Decrypt",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "cryptoslate-rss",
+      "origin": "rss",
+      "endpoint": "https://cryptoslate.com/feed/",
+      "name": "CryptoSlate",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "the-block-rss",
+      "origin": "rss",
+      "endpoint": "https://www.theblock.co/rss.xml",
+      "name": "The Block",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct_then_firecrawl"
+    },
+    {
+      "key": "blockworks-rss",
+      "origin": "rss",
+      "endpoint": "https://blockworks.com/feed/",
+      "name": "Blockworks",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct_then_firecrawl"
+    },
+    {
+      "key": "bitcoin-magazine-rss",
+      "origin": "rss",
+      "endpoint": "https://bitcoinmagazine.com/feed",
+      "name": "Bitcoin Magazine",
+      "enabled": false,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "beincrypto-rss",
+      "origin": "rss",
+      "endpoint": "https://beincrypto.com/feed/",
+      "name": "BeInCrypto",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct_then_firecrawl"
+    },
+    {
+      "key": "crypto-news-rss",
+      "origin": "rss",
+      "endpoint": "https://crypto.news/feed/",
+      "name": "Crypto.News",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "u-today-rss",
+      "origin": "rss",
+      "endpoint": "https://u.today/rss.php",
+      "name": "U.Today",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "newsbtc-rss",
+      "origin": "rss",
+      "endpoint": "https://www.newsbtc.com/feed/",
+      "name": "NewsBTC",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "cryptopotato-rss",
+      "origin": "rss",
+      "endpoint": "https://cryptopotato.com/feed/",
+      "name": "CryptoPotato",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "the-defiant-rss",
+      "origin": "rss",
+      "endpoint": "https://thedefiant.io/api/feed",
+      "name": "The Defiant",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct_then_firecrawl"
+    },
+    {
+      "key": "ambcrypto-rss",
+      "origin": "rss",
+      "endpoint": "https://ambcrypto.com/feed/",
+      "name": "AMBCrypto",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "dl-news-rss",
+      "origin": "rss",
+      "endpoint": "https://dlnews.com/arc/outboundfeeds/rss/",
+      "name": "DL News",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "chainalysis-blog-rss",
+      "origin": "rss",
+      "endpoint": "https://www.chainalysis.com/feed/",
+      "name": "Chainalysis Blog",
+      "enabled": true,
+      "contentLocale": "en",
+      "articleFetchMode": "direct"
+    },
+    {
+      "key": "cointelegraph-telegram",
+      "origin": "telegram_public",
+      "endpoint": "cointelegraph",
+      "name": "Cointelegraph Channel",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "coingraph-news-telegram",
+      "origin": "telegram_public",
+      "endpoint": "CoingraphNews",
+      "name": "Coingraph News",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "coindesk-global-telegram",
+      "origin": "telegram_public",
+      "endpoint": "CoinDeskGlobal",
+      "name": "CoinDesk Global",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "the-block-crypto-telegram",
+      "origin": "telegram_public",
+      "endpoint": "the_block_crypto",
+      "name": "The Block Crypto",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "decrypt-news-telegram",
+      "origin": "telegram_public",
+      "endpoint": "DecryptNews",
+      "name": "Decrypt News",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "lookonchain-telegram",
+      "origin": "telegram_public",
+      "endpoint": "lookonchainchannel",
+      "name": "Lookonchain",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "whale-alert-telegram",
+      "origin": "telegram_public",
+      "endpoint": "whale_alert_io",
+      "name": "Whale Alert",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "coinmarketcap-announcements-telegram",
+      "origin": "telegram_public",
+      "endpoint": "CoinMarketCapAnnouncements",
+      "name": "CoinMarketCap Announcements",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "coinmarketcap-telegram",
+      "origin": "telegram_public",
+      "endpoint": "CoinMarketCap",
+      "name": "CoinMarketCap",
+      "enabled": false,
+      "contentLocale": "en"
+    },
+    {
+      "key": "watcher-guru-telegram",
+      "origin": "telegram_public",
+      "endpoint": "WatcherGuru",
+      "name": "Watcher Guru",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "wu-blockchain-telegram",
+      "origin": "telegram_public",
+      "endpoint": "wublockchainenglish",
+      "name": "Wu Blockchain",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "binance-announcements-telegram",
+      "origin": "telegram_public",
+      "endpoint": "binance_announcements",
+      "name": "Binance Announcements",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "okx-announcements-telegram",
+      "origin": "telegram_public",
+      "endpoint": "OKXAnnouncements",
+      "name": "OKX Announcements",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "cryptoquant-telegram",
+      "origin": "telegram_public",
+      "endpoint": "cryptoquant_official",
+      "name": "CryptoQuant",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "glassnode-telegram",
+      "origin": "telegram_public",
+      "endpoint": "glassnode",
+      "name": "Glassnode",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "crypto-news-telegram",
+      "origin": "telegram_public",
+      "endpoint": "crypto_news",
+      "name": "Crypto News",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "cryptodiffer-telegram",
+      "origin": "telegram_public",
+      "endpoint": "cryptodiffer",
+      "name": "CryptoDiffer",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "cryptorank-news-telegram",
+      "origin": "telegram_public",
+      "endpoint": "CryptoRankNews",
+      "name": "CryptoRank News",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "dwf-labs-telegram",
+      "origin": "telegram_public",
+      "endpoint": "dwflabs",
+      "name": "DWF Labs",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "gamee-telegram",
+      "origin": "telegram_public",
+      "endpoint": "gameechannel",
+      "name": "Gamee",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "polymarket-now-telegram",
+      "origin": "telegram_public",
+      "endpoint": "polymarketnow",
+      "name": "Polymarket Now",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "innmind-telegram",
+      "origin": "telegram_public",
+      "endpoint": "innmind",
+      "name": "InnMind",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "chainalysis-telegram",
+      "origin": "telegram_public",
+      "endpoint": "chainalysisinc",
+      "name": "Chainalysis",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "hacken-telegram",
+      "origin": "telegram_public",
+      "endpoint": "hackenai",
+      "name": "Hacken",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "dhl-logistics-telegram",
+      "origin": "telegram_public",
+      "endpoint": "lotdhl",
+      "name": "DHL Logistics",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "multibank-group-telegram",
+      "origin": "telegram_public",
+      "endpoint": "MultiBankio_Announcements",
+      "name": "MultiBank Group",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "coins-ph-announcements-telegram",
+      "origin": "telegram_public",
+      "endpoint": "coinsph_announcements",
+      "name": "Coins.ph Announcements",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "gram-telegram",
+      "origin": "telegram_public",
+      "endpoint": "gram",
+      "name": "Gram",
+      "enabled": true,
+      "contentLocale": "en"
+    },
+    {
+      "key": "unfolded-telegram",
+      "origin": "telegram_public",
+      "endpoint": "unfolded",
+      "name": "Unfolded",
+      "enabled": true,
+      "contentLocale": "en"
+    }
+  ],
+  "acquisition": {
+    "defaultWindowHours": 24,
+    "maxItemsPerSource": 15,
+    "telegram": {
+      "orderingMode": "views",
+      "topN": 20
+    }
+  },
+  "enrichment": {
+    "enabled": true,
+    "maxItemsPerImport": 8,
+    "freshnessHours": 24
+  },
+  "destinationAccounts": [
+    {
+      "key": "slt-cargopay-telegram",
+      "platform": "telegram",
+      "enabled": true,
+      "metadata": {
+        "label": "SLT CargoPay Telegram",
+        "channel": "@Slt_Cargo_pay"
+      }
+    },
+    {
+      "key": "rzwire-x",
+      "platform": "x",
+      "enabled": true,
+      "metadata": {
+        "label": "RZWire X"
+      }
+    }
+  ],
+  "brandDestinations": [
+    {
+      "brandKey": "slt-cargopay",
+      "destinationKey": "slt-cargopay-telegram"
+    },
+    {
+      "brandKey": "slt-cargopay",
+      "destinationKey": "rzwire-x"
+    },
+    {
+      "brandKey": "coin-bank",
+      "destinationKey": "slt-cargopay-telegram"
+    },
+    {
+      "brandKey": "coin-bank",
+      "destinationKey": "rzwire-x"
+    },
+    {
+      "brandKey": "coin-factory",
+      "destinationKey": "slt-cargopay-telegram"
+    },
+    {
+      "brandKey": "coin-factory",
+      "destinationKey": "rzwire-x"
+    }
+  ],
+  "reviewedKnowledge": {
+    "faq": {
+      "en": "reviewed-knowledge/en/faq.json",
+      "fa": "reviewed-knowledge/fa/faq.json"
+    },
+    "workspaceOverview": {
+      "en": "reviewed-knowledge/en/workspace-overview.md",
+      "fa": "reviewed-knowledge/fa/workspace-overview.md"
+    },
+    "brandChat": {
+      "slt-cargopay": {
+        "en": "reviewed-knowledge/en/brands/slt-cargopay.md",
+        "fa": "reviewed-knowledge/fa/brands/slt-cargopay.md"
+      },
+      "coin-bank": {
+        "en": "reviewed-knowledge/en/brands/coin-bank.md",
+        "fa": "reviewed-knowledge/fa/brands/coin-bank.md"
+      },
+      "coin-factory": {
+        "en": "reviewed-knowledge/en/brands/coin-factory.md",
+        "fa": "reviewed-knowledge/fa/brands/coin-factory.md"
+      }
+    }
+  }
+}

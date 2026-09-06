@@ -4,8 +4,10 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   cacheInvalidationRequestSchema,
   operationStatusRealtimeMessageSchema,
+  platformCopyLength,
   publicationRequestedPayloadSchema,
   publishingChangedRealtimeMessageSchema,
+  TELEGRAM_MEDIA_COPY_HARD_MAX,
 } from "@rz-chain-reporter/contracts";
 import type { CustomerTemplate } from "@rz-chain-reporter/customer-template/schema";
 import {
@@ -1510,7 +1512,40 @@ async function inspectBoundDatabase(
   };
 }
 
+function provePlatformCopyLength() {
+  const rocket = "\u{1F680}";
+  assert.equal(rocket.length, 2);
+  assert.equal(Array.from(rocket).length, 1);
+
+  for (const platform of ["telegram", "instagram"] as const) {
+    assert.equal(
+      platformCopyLength(platform, `a${rocket}b`),
+      4,
+      `${platform} must bill a non-BMP character the way the provider does`,
+    );
+  }
+
+  assert.equal(
+    platformCopyLength("x", `a${rocket}b`),
+    4,
+    "X keeps its own weighted rule: a non-BMP character weighs 2",
+  );
+  assert.equal(
+    platformCopyLength("x", "https://example.com/a-very-long-path"),
+    23,
+    "X still bills any URL as 23",
+  );
+
+  const caption = `${rocket.repeat(TELEGRAM_MEDIA_COPY_HARD_MAX / 2)}`;
+  assert.equal(
+    platformCopyLength("telegram", caption),
+    TELEGRAM_MEDIA_COPY_HARD_MAX,
+    "an all-emoji caption reaches the caption ceiling at half the code points",
+  );
+}
+
 async function runZeroKey() {
+  provePlatformCopyLength();
   assert.deepEqual(
     publishingEffectInputSchema.parse({
       _inngest: { correlation_id: "opaque-platform-metadata" },

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "theme": {
+    "background": "#042b46",
+    "backgroundAlt": "#075b7a",
+    "surface": "#073a58",
+    "surfaceAlt": "#0b6d86",
+    "text": "#f5fcfd",
+    "muted": "#b9d7df",
+    "positive": "#45d09c",
+    "negative": "#ef716f",
+    "accent": "#24c4d8",
+    "accentAlt": "#75dae8",
+    "border": "#25859d"
+  },
+  "motifs": [
+    "connected journey path",
+    "terminal architecture",
+    "destination horizon",
+    "transparent travel records"
+  ],
+  "scenes": [
+    "A premium contemporary airport terminal in deep journey navy and clear aqua daylight, with one traveler moving through credible architecture, restrained connected-journey guidance, cinematic depth, and broad quiet editorial space.",
+    "An authentic coastal destination at sunrise with ocean-blue atmosphere, natural hospitality details, a broad open horizon, subtle aqua travel continuity, and no logos, booking interfaces, prices, or landmark collage.",
+    "A refined pearl-white travel planning environment where diverse adults study one physical route beside ordered translucent journey layers, travel silver details, clear human collaboration, and uncluttered editorial hierarchy."
+  ],
+  "artDirection": "Premium Trip Token market editorial with credible travel environments, deep journey navy, ocean blue, clear aqua, pearl white, cinematic destination light, and restrained connected-travel infrastructure.",
+  "defaultChartColor": "#24c4d8",
+  "frozenStyle": {
+    "format": "market editorial poster with a protected factual chart and centered footer rail",
+    "palette": "deep journey navy, ocean blue, clear aqua, pearl white, travel silver, and restrained outcome accents",
+    "materials": "contemporary terminal architecture, translucent journey layers, clean glass, and natural destination textures",
+    "rendering": "credible cinematic travel editorial with authentic environments, clear human scale, and factual hierarchy",
+    "backgroundVocab": "airport terminals, coastal horizons, travel-planning tables, connected routes, and calm destination light",
+    "headlineZone": "preserve broad quiet editorial space in the upper third for the approved Story",
+    "never": "never invent chart facts, tickers, logos, domains, slogans, booking interfaces, prices, or sample text; never disturb the protected chart or footer rail"
+  }
+}

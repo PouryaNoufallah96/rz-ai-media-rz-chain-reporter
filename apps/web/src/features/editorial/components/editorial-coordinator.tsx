@@ -97,6 +97,9 @@ export function EditorialCoordinator({
     initialPresentation(workspace.head, options, templatePlatforms),
   );
   const [finalFocus, setFinalFocus] = useState<HTMLElement | null>(null);
+  const telegramSourceIds = sources.flatMap((entry) =>
+    entry.origin === "telegram_public" ? [entry.id] : [],
+  );
   const { pinCard, setBrandKeys } = useAssistant();
 
   useEffect(() => {
@@ -255,6 +258,7 @@ export function EditorialCoordinator({
               }}
               platformDraftLanes={platformDraftLanes}
               presentation={presentation}
+              telegramSourceIds={telegramSourceIds}
               templatePlatforms={templatePlatforms}
               telegramLanes={workspace.telegramLanes}
             />

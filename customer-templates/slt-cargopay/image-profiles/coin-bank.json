@@ -1,0 +1,334 @@
+{
+  "families": {
+    "liquidity_bridge": {
+      "name": "LIQUIDITY BRIDGE",
+      "skeleton": "A divided midnight financial city is joined by one monumental transparent glass bridge. Several narrow electric-blue routes enter independently, cross the architectural gap, and merge into a calm controlled path.",
+      "textPolicy": "Headline and short subtitle; optionally add no more than two large route facts grounded in the article.",
+      "defaultAxes": {
+        "environment": "divided_city",
+        "camera": "diagonal_bridge",
+        "energy": "frictionless_flow",
+        "accent": "electric_blue",
+        "headline_layout": "huge_top",
+        "spatial_grammar": "bridge_crossing"
+      },
+      "dataBudget": 2
+    },
+    "programmable_treasury": {
+      "name": "PROGRAMMABLE TREASURY",
+      "skeleton": "Three or four transparent ledger planes float in an exploded stack above a heavy brushed-silver base. Sparse circuits, rule gates, approvals, and pale-gold checkpoints align around one precise vertical blue beam.",
+      "textPolicy": "Headline and short subtitle; optionally show up to three large treasury facts such as Rules, Approvals, or Execution.",
+      "defaultAxes": {
+        "environment": "layered_studio",
+        "camera": "exploded_three_quarter",
+        "energy": "rule_bound_precision",
+        "accent": "blue_gold",
+        "headline_layout": "upper_left",
+        "spatial_grammar": "exploded_layers"
+      },
+      "dataBudget": 3
+    },
+    "asset_tokenization_gateway": {
+      "name": "ASSET TOKENIZATION GATEWAY",
+      "skeleton": "Article-relevant physical assets travel on separate rails through a thick transparent scanning arch and emerge as an ordered grid of luminous glass blocks, making the before-and-after transformation unmistakable.",
+      "textPolicy": "Headline and short subtitle; use up to three asset-type markers only when they clarify the article.",
+      "defaultAxes": {
+        "environment": "tokenization_chamber",
+        "camera": "process_perspective",
+        "energy": "physical_to_digital",
+        "accent": "blue_white",
+        "headline_layout": "huge_top",
+        "spatial_grammar": "before_after_translation"
+      },
+      "dataBudget": 3
+    },
+    "everyday_settlement": {
+      "name": "EVERYDAY SETTLEMENT",
+      "skeleton": "A premium unbranded midnight-blue card or wallet meets a realistic contactless terminal in a credible blue-hour daily setting. One fine blue network ribbon settles into a clean payment pulse at the device.",
+      "textPolicy": "Headline and short subtitle; at most two practical article facts. Keep all card surfaces free of invented writing.",
+      "defaultAxes": {
+        "environment": "everyday_cafe",
+        "camera": "product_close",
+        "energy": "practical_access",
+        "accent": "dawn_blue",
+        "headline_layout": "upper_left",
+        "spatial_grammar": "grounded_handoff"
+      },
+      "dataBudget": 2
+    },
+    "convergence_portal": {
+      "name": "CONVERGENCE PORTAL",
+      "skeleton": "Multiple article-specific routes approach a tall transparent architectural threshold from different depths, pass through it, and continue as one legible route across a restrained future city. The threshold is never a shrine.",
+      "textPolicy": "Headline and subtitle plus up to three short path facts. Avoid generic One Hub wording unless supported by the copy.",
+      "defaultAxes": {
+        "environment": "glass_threshold",
+        "camera": "low_portal",
+        "energy": "unified_access",
+        "accent": "electric_blue",
+        "headline_layout": "split_stack",
+        "spatial_grammar": "converging_paths"
+      },
+      "dataBudget": 3
+    },
+    "chain_constellation": {
+      "name": "CHAIN CONSTELLATION",
+      "skeleton": "Three to five named network nodes form an asymmetric deep-space constellation connected by blue, restrained gold, and violet trajectories. The arrangement has no central coin, circular badge, or perfect radial symmetry.",
+      "textPolicy": "Headline and short subtitle plus only the networks or asset rails explicitly named in the article.",
+      "defaultAxes": {
+        "environment": "orbital_field",
+        "camera": "asymmetric_orbit",
+        "energy": "cross_chain_motion",
+        "accent": "blue_violet",
+        "headline_layout": "centered_top",
+        "spatial_grammar": "asymmetric_orbit"
+      },
+      "dataBudget": 5
+    },
+    "transparent_rails": {
+      "name": "TRANSPARENT RAILS",
+      "skeleton": "A macro-scale bent sheet of architectural glass reveals three luminous routes traveling across its surface and through visible checkpoints. The camera celebrates thickness, refraction, precision, and uninterrupted flow.",
+      "textPolicy": "Headline and subtitle; optionally integrate up to three short process facts beside the routes.",
+      "defaultAxes": {
+        "environment": "transparent_rail_lab",
+        "camera": "macro_surface",
+        "energy": "transparent_control",
+        "accent": "steel_cyan",
+        "headline_layout": "upper_left",
+        "spatial_grammar": "continuous_ribbon"
+      },
+      "dataBudget": 3
+    },
+    "global_value_corridor": {
+      "name": "GLOBAL VALUE CORRIDOR",
+      "skeleton": "A dark topographic world surface or horizon-scale city map carries a few precise luminous corridors between article-specific countries, cities, or markets. It feels like infrastructure, not a glowing globe stock image.",
+      "textPolicy": "Headline and subtitle plus up to four short place or corridor facts taken directly from the article.",
+      "defaultAxes": {
+        "environment": "global_map_room",
+        "camera": "topographic_wide",
+        "energy": "global_reach",
+        "accent": "blue_gold",
+        "headline_layout": "wide_header",
+        "spatial_grammar": "mapped_corridors"
+      },
+      "dataBudget": 4
+    },
+    "institutional_control_room": {
+      "name": "INSTITUTIONAL CONTROL ROOM",
+      "skeleton": "A clean architectural cutaway reveals a serious treasury or access system in operation: one main route, a few large control stations, and visible boundaries. Avoid walls of screens and generic exchange dashboards.",
+      "textPolicy": "Headline and subtitle plus no more than four large operational facts grounded in the article.",
+      "defaultAxes": {
+        "environment": "control_room",
+        "camera": "cutaway_room",
+        "energy": "operational_clarity",
+        "accent": "blue_white",
+        "headline_layout": "upper_right",
+        "spatial_grammar": "transparent_cutaway"
+      },
+      "dataBudget": 4
+    },
+    "security_envelope": {
+      "name": "SECURITY ENVELOPE",
+      "skeleton": "A wallet, access key, or article-specific asset rests inside offset nested transparent envelopes with visible boundaries and a calm blue control path. Security is communicated through structure, not locks everywhere.",
+      "textPolicy": "Headline and subtitle plus up to three concrete controls supported by the article; make no absolute safety claims.",
+      "defaultAxes": {
+        "environment": "protective_chamber",
+        "camera": "protective_close",
+        "energy": "secure_composure",
+        "accent": "steel_cyan",
+        "headline_layout": "split_stack",
+        "spatial_grammar": "protective_shells"
+      },
+      "dataBudget": 3
+    },
+    "partnership_confluence": {
+      "name": "PARTNERSHIP CONFLUENCE",
+      "skeleton": "Two visually distinct infrastructure streams approach from different directions and join inside one precise transparent confluence chamber, then continue as a stronger unified route. Keep the composition asymmetric.",
+      "textPolicy": "Headline and subtitle plus the two named parties or capabilities only when the article states them.",
+      "defaultAxes": {
+        "environment": "confluence_chamber",
+        "camera": "dual_convergence",
+        "energy": "partnership_momentum",
+        "accent": "blue_gold",
+        "headline_layout": "upper_left",
+        "spatial_grammar": "dual_stream_merge"
+      },
+      "dataBudget": 3
+    },
+    "ecosystem_exploded_view": {
+      "name": "ECOSYSTEM EXPLODED VIEW",
+      "skeleton": "A wide exploded system separates wallet, treasury, asset, access, network, and payment modules in depth, then reconnects them with one disciplined luminous route. Each module has a distinct silhouette, not a repeated tile.",
+      "textPolicy": "Headline and subtitle plus four to six short ecosystem facts; keep every item large and spatially separated.",
+      "defaultAxes": {
+        "environment": "modular_stage",
+        "camera": "wide_exploded",
+        "energy": "premium_announcement",
+        "accent": "blue_violet",
+        "headline_layout": "wide_header",
+        "spatial_grammar": "modular_explosion"
+      },
+      "dataBudget": 6
+    },
+    "editorial_object_hero": {
+      "name": "EDITORIAL OBJECT HERO",
+      "skeleton": "One concrete object or place named in the article becomes the oversized hero. A single precise blue gesture passes through, wraps, scans, bridges, or activates it so the story is specific even before the headline is read.",
+      "textPolicy": "Headline and subtitle plus at most two concrete article facts. Never substitute a generic crypto symbol for the article object.",
+      "defaultAxes": {
+        "environment": "editorial_stage",
+        "camera": "object_hero_close",
+        "energy": "story_specific_focus",
+        "accent": "electric_blue",
+        "headline_layout": "upper_right",
+        "spatial_grammar": "single_object_transformation"
+      },
+      "dataBudget": 2
+    }
+  },
+  "axes": {
+    "environment": {
+      "divided_city": "Environment: midnight financial city split by a deep architectural channel, restrained skyline, dark glass structures.",
+      "layered_studio": "Environment: precision midnight-navy product studio with a heavy brushed-silver foundation and no skyline.",
+      "tokenization_chamber": "Environment: dark architectural conversion chamber with separate physical input rails and an ordered output zone.",
+      "everyday_cafe": "Environment: believable premium café or merchant counter at blue hour with tactile real-world props and soft city depth.",
+      "glass_threshold": "Environment: monumental transparent access threshold embedded in a sparse future-city route system.",
+      "orbital_field": "Environment: deep asymmetric orbital field with sparse stars, long trajectories, and no central planet or coin.",
+      "transparent_rail_lab": "Environment: close architectural-material laboratory built around one thick transparent data surface.",
+      "global_map_room": "Environment: dark topographic world-route room with horizon depth and a few exact luminous corridors.",
+      "control_room": "Environment: architectural institutional cutaway with a handful of large control stations and visible system boundaries.",
+      "protective_chamber": "Environment: quiet gunmetal chamber built from offset transparent protective layers and controlled blue edge light.",
+      "confluence_chamber": "Environment: wide glass-and-metal chamber where two distinct infrastructure streams can meet without radial symmetry.",
+      "modular_stage": "Environment: deep cinematic stage with modules distributed across foreground, middle depth, and far depth.",
+      "editorial_stage": "Environment: restrained navy editorial stage derived from the article's real location or object, with minimal supporting architecture."
+    },
+    "camera": {
+      "diagonal_bridge": "Composition: high three-quarter city view with a strong diagonal bridge and routes entering from an off-center foreground.",
+      "exploded_three_quarter": "Composition: close three-quarter exploded product view with clearly separated layers and visible material thickness.",
+      "process_perspective": "Composition: low process-line perspective that makes inputs, threshold, and transformed outputs readable in one frame.",
+      "product_close": "Composition: credible close product photograph with shallow depth of field and the device below an open headline zone.",
+      "low_portal": "Composition: low architectural view through an off-center threshold, with foreground paths creating depth rather than symmetry.",
+      "asymmetric_orbit": "Composition: offset orbital composition with unequal node sizes, open negative space, and no perfect ring.",
+      "macro_surface": "Composition: macro oblique view across a transparent surface, emphasizing refraction, thickness, and directional flow.",
+      "topographic_wide": "Composition: elevated wide view across a map-like horizon with routes traveling laterally through depth.",
+      "cutaway_room": "Composition: wide three-quarter architectural cutaway with one dominant route and only a few large stations.",
+      "protective_close": "Composition: intimate off-center close-up through nested transparent layers, with clean space around the protected subject.",
+      "dual_convergence": "Composition: two-sided perspective with streams entering from unequal depths and meeting away from the center.",
+      "wide_exploded": "Composition: wide exploded view with varied module silhouettes staggered across three depth planes.",
+      "object_hero_close": "Composition: one article-specific object fills most of the frame from an unexpected but credible angle, with one infrastructure gesture."
+    },
+    "energy": {
+      "frictionless_flow": "Energy: continuous forward movement, multiple routes resolving cleanly without speed-line chaos.",
+      "rule_bound_precision": "Energy: measured, programmable, disciplined, and visibly governed by checkpoints.",
+      "physical_to_digital": "Energy: clear transformation from tangible value into structured digital representation.",
+      "practical_access": "Energy: calm usefulness and believable movement from network value into daily activity.",
+      "unified_access": "Energy: clarity and consolidation as independent paths pass through one controlled access layer.",
+      "cross_chain_motion": "Energy: directional relay between named networks, active but never speculative or explosive.",
+      "transparent_control": "Energy: calm visibility, with the complete route and its checkpoints understandable at a glance.",
+      "global_reach": "Energy: long-distance connection and institutional scale, restrained and credible.",
+      "operational_clarity": "Energy: serious infrastructure already working, with visible responsibilities and clean boundaries.",
+      "secure_composure": "Energy: protected ownership and controlled access without fear cues or absolute promises.",
+      "partnership_momentum": "Energy: two capabilities combining into a useful forward route, not a ceremonial handshake.",
+      "premium_announcement": "Energy: confident system reveal with sharp hierarchy and controlled cinematic presence.",
+      "story_specific_focus": "Energy: editorial specificity; the article's real object or location carries the meaning before brand decoration."
+    },
+    "accent": {
+      "electric_blue": "Accent: electric blue and cyan dominate, with white headline and subtle gold subtitle.",
+      "blue_gold": "Accent: electric-blue primary routes with a few pale-gold rule nodes and warm subtitle accents.",
+      "blue_violet": "Accent: blue directional light with restrained violet depth and tiny pale-gold highlights.",
+      "blue_white": "Accent: blue-white precision lighting, brushed silver, minimal gold, very clean institutional tone.",
+      "dawn_blue": "Accent: midnight blue technology balanced by natural dawn or blue-hour warmth in a real setting.",
+      "steel_cyan": "Accent: cool steel, transparent cyan edges, white highlights, and almost no violet."
+    },
+    "headline_layout": {
+      "huge_top": "Place the headline huge across the top quarter; keep most words white and only the decisive phrase electric blue.",
+      "upper_left": "Stack the headline in the upper-left with generous line spacing and a short gold subtitle directly below.",
+      "upper_right": "Use a compact upper-right headline block to counterbalance an off-center subject on the left or lower frame.",
+      "split_stack": "Break the headline into two deliberate blocks with one white statement and one electric-blue conclusion.",
+      "centered_top": "Center only the headline and subtitle at the top; keep the artwork below asymmetric and avoid a central badge.",
+      "wide_header": "Run a wide spaced headline across the upper third while leaving strong horizontal depth beneath it."
+    },
+    "spatial_grammar": {
+      "bridge_crossing": "Spatial grammar: create a clear gap, crossing structure, entry routes, and one resolved exit path.",
+      "exploded_layers": "Spatial grammar: separate functional layers vertically with readable air gaps and one alignment beam.",
+      "before_after_translation": "Spatial grammar: show tangible inputs before a threshold and structured outputs after it in one continuous view.",
+      "grounded_handoff": "Spatial grammar: connect an abstract network ribbon to one credible physical device at a grounded human scale.",
+      "converging_paths": "Spatial grammar: let paths approach from varied depths, pass through one threshold, and continue without radial symmetry.",
+      "asymmetric_orbit": "Spatial grammar: distribute unequal nodes along directional arcs with a clearly open side and no circular badge.",
+      "continuous_ribbon": "Spatial grammar: use one bent transparent surface carrying uninterrupted parallel flows through visible checkpoints.",
+      "mapped_corridors": "Spatial grammar: use a few long lateral corridors across a topographic field, emphasizing origin, destination, and distance.",
+      "transparent_cutaway": "Spatial grammar: reveal the inside of a working system through one clean architectural section rather than floating panels.",
+      "protective_shells": "Spatial grammar: offset nested transparent boundaries around one subject, with the access path visibly controlled.",
+      "dual_stream_merge": "Spatial grammar: bring two different streams together off-center and send one stronger route onward.",
+      "modular_explosion": "Spatial grammar: stagger distinct modules across foreground, middle, and far depth, then reconnect them once.",
+      "single_object_transformation": "Spatial grammar: keep one article object dominant and apply only one scan, bridge, wrap, activation, or route gesture."
+    }
+  },
+  "frozenStyle": {
+    "format": "vertical 3:4 editorial poster, 1080x1440, adapted from the legacy format instruction (vertical 4:5 premium editorial campaign poster, 1080x1350 by default; preserve the hierarchy when adapting to square or wide platform crops); preserve the legacy 1080x1350-safe content hierarchy inside the supported canvas",
+    "palette": "deep black and midnight navy base (#020611-#071733), electric cyan and vivid blue as controlled edge light and data flow (#18B8FF-#2F74FF), crisp white headline typography, soft pale-gold subtitle accents (#E7BE73), brushed-silver highlights, and occasional restrained violet only for cross-chain depth",
+    "materials": "architectural glass, thick transparent scanning gates, layered ledger planes, bent glass data surfaces, brushed aluminum and polished gunmetal bases, midnight-blue card surfaces, realistic terminals and physical asset miniatures, precise illuminated rails, sparse pale-gold rule nodes, and tactile real-world props",
+    "rendering": "premium cinematic 3D financial-infrastructure campaign blended with credible product photography, physically believable reflections and depth, disciplined blue luminance, controlled bloom, crisp material edges, and a single immediately legible metaphor. Serious and engineered, never noisy speculative crypto art",
+    "backgroundVocab": "divided midnight cities, precision dark studios, tokenization chambers, blue-hour cafés and merchant counters, transparent access thresholds, asymmetric orbital fields, macro glass surfaces, topographic global route rooms, institutional cutaways, protective glass envelopes, dual-stream confluences, and modular ecosystem stages",
+    "headlineZone": "reserve a calm 22-32% region for a huge wide geometric sans-serif headline; keep most words white and use an electric-blue gradient on only the decisive phrase. A short pale-gold subtitle may sit directly below",
+    "never": "no casino or meme-token imagery, no rockets, moons, luxury cars, cash showers, floating coins, coin piles, generic trader screens, aggressive price charts, tiny microtext, excessive glass tiles, excessive bloom, unsupported profit or safety claims, APY, risk-free language, bank-custody guarantees, or third-party marks unless a named article context genuinely requires them. Never default to a circular emblem on a glowing pedestal"
+  },
+  "restrictions": {
+    "antiRepetition": "HARD DIVERSITY CONTRACT: the last three families are unavailable. Also avoid the spatial_grammar used in the previous two briefs and avoid the immediately previous camera. Never produce two consecutive centered, symmetrical, orbital, vault, pedestal, or card-terminal compositions. Alternate architectural scale, product scale, macro material detail, mapped space, and real-world scenes. Choose one concrete article anchor first (an asset, route, device, building, document, country, company action, or named network) and build a new physical metaphor around it. Do not make a generic glowing hub, circular badge, portal, or dashboard merely because the story mentions Web3. Change the dominant silhouette, direction of movement, depth structure, and focal position from recent work. The artwork must explain this article at a glance, not just repeat the brand. Start with the article's concrete event, then choose the least recently used eligible family. Use liquidity_bridge for fragmentation, liquidity routes, access gaps, interoperability, or friction. Use programmable_treasury for rules, governance, approvals, execution, smart contracts, or treasury policy. Use asset_tokenization_gateway for real estate, commodities, invoices, logistics assets, securities, rights, and physical-to-digital conversion. Use everyday_settlement for cards, wallets, merchant use, consumer payments, and daily spending. Use convergence_portal for one-layer, unified-access, or multiple-path stories only when a threshold metaphor genuinely fits. Use chain_constellation only for articles that name multiple chains or networks. Use transparent_rails for transparency, traceability, settlement rails, visible execution, and process clarity. Use global_value_corridor for countries, corridors, remittance, cross-border value, regions, and market access. Use institutional_control_room for enterprise operations, treasury teams, infrastructure management, and complex product capabilities. Use security_envelope for wallet control, permissions, custody boundaries, ownership, identity, and access security. Use partnership_confluence for integrations, partnerships, mergers of capabilities, or two named systems connecting. Use ecosystem_exploded_view for broad product overviews, launches, roadmaps, or stories spanning at least four capabilities. Use editorial_object_hero whenever the story has a strong concrete object, place, company action, product, or event that would be more memorable than an abstract Web3 diagram. Never route broad crypto vocabulary automatically to an orbit, vault, or portal.",
+    "moodAccentDefault": "electric_blue",
+    "moodAccentRestricted": {},
+    "bannedSubjectTerms": [
+      "casino",
+      "gambling",
+      "slot machine",
+      "meme coin",
+      "rocket",
+      "luxury car",
+      "cash rain",
+      "money shower",
+      "guaranteed",
+      "risk-free",
+      "passive income",
+      "investment return",
+      "number go up",
+      "central coin",
+      "giant coin",
+      "central monogram",
+      "floating banknote"
+    ]
+  },
+  "textPolicy": {
+    "rules": "Brand image premise: a premium on-chain finance access layer that turns digital assets, stable assets, tokenized markets, treasury rules, cross-chain movement, and everyday card use into clear, credible financial infrastructure\n\nPoster copy is desired but sparse. Write one article-specific headline of no more than seven words and an optional subtitle of no more than nine words. The headline should make a precise claim supported by the approved copy; it must not default to One Hub, Web3 Finance, The Future of Finance, or Beyond Coins. Use the subtitle to explain the concrete mechanism or benefit. Keep the lower-left naturally quiet and free of writing or symbols. Data elements must be few, large, and physically integrated into the scene rather than repeated glass UI tiles. Reuse named countries, companies, networks, asset types, products, or actions only when present in the article. Avoid profit, yield, guaranteed, risk-free, APY, passive income, investment return, specific unsupported rates, and all invented claims.\n\nLegacy family routing contract: Start with the article's concrete event, then choose the least recently used eligible family. Use liquidity_bridge for fragmentation, liquidity routes, access gaps, interoperability, or friction. Use programmable_treasury for rules, governance, approvals, execution, smart contracts, or treasury policy. Use asset_tokenization_gateway for real estate, commodities, invoices, logistics assets, securities, rights, and physical-to-digital conversion. Use everyday_settlement for cards, wallets, merchant use, consumer payments, and daily spending. Use convergence_portal for one-layer, unified-access, or multiple-path stories only when a threshold metaphor genuinely fits. Use chain_constellation only for articles that name multiple chains or networks. Use transparent_rails for transparency, traceability, settlement rails, visible execution, and process clarity. Use global_value_corridor for countries, corridors, remittance, cross-border value, regions, and market access. Use institutional_control_room for enterprise operations, treasury teams, infrastructure management, and complex product capabilities. Use security_envelope for wallet control, permissions, custody boundaries, ownership, identity, and access security. Use partnership_confluence for integrations, partnerships, mergers of capabilities, or two named systems connecting. Use ecosystem_exploded_view for broad product overviews, launches, roadmaps, or stories spanning at least four capabilities. Use editorial_object_hero whenever the story has a strong concrete object, place, company action, product, or event that would be more memorable than an abstract Web3 diagram. Never route broad crypto vocabulary automatically to an orbit, vault, or portal.\n\nLegacy diversity contract: HARD DIVERSITY CONTRACT: the last three families are unavailable. Also avoid the spatial_grammar used in the previous two briefs and avoid the immediately previous camera. Never produce two consecutive centered, symmetrical, orbital, vault, pedestal, or card-terminal compositions. Alternate architectural scale, product scale, macro material detail, mapped space, and real-world scenes. Choose one concrete article anchor first (an asset, route, device, building, document, country, company action, or named network) and build a new physical metaphor around it. Do not make a generic glowing hub, circular badge, portal, or dashboard merely because the story mentions Web3. Change the dominant silhouette, direction of movement, depth structure, and focal position from recent work. The artwork must explain this article at a glance, not just repeat the brand.\n\nApproved visual metaphor vocabulary: frictionless value movement: separate luminous routes cross a transparent bridge and resolve into one controlled path programmable treasury: exploded transparent ledger planes align rules, permissions, approvals, and execution around one vertical beam real-world asset tokenization: recognizable physical assets pass through a scanning threshold and emerge as ordered glass blocks everyday settlement: a restrained blue data ribbon reaches a real card or contactless terminal in a credible daily setting one access layer: independent routes enter one architectural threshold and continue without becoming a radial badge cross-chain access: named network nodes form an asymmetric constellation or relay path, not a ring around a central coin transparent control: a bent glass ledger or architectural cutaway reveals the exact route and checkpoints inside global movement: luminous corridors cross a dark topographic world surface between article-specific locations security and ownership: nested transparent envelopes protect a wallet or asset core while leaving its boundaries visible partnership or integration: two materially distinct streams meet inside one precise glass confluence chamber ecosystem breadth: modules separate in an exploded view, each with a distinct function and clear physical spacing article-specific event: one concrete object or location from the article becomes the hero and is transformed by a single blue infrastructure gesture\n\nLegacy subtitle contract: <= 9 words grounded in the approved article or copy; empty string is allowed; maximum 9 words. Place it immediately below the headline in smaller pale-gold geometric sans-serif type; keep it on one or two short lines with generous tracking and exact spelling. The current bounded brief has no separate subtitle field; when a subtitle is essential, express it as a short supporting data element or in the scene instruction without displacing the headline.\n\nLegacy post-processing logo geometry: bottom-left; width ratio 0.25; left inset ratio 0.052; bottom inset ratio 0.035. The current compositor has one shared inset field, so the active template uses the legacy left inset and preserves the exact bottom inset here as authoritative migration metadata.\n\nThe headline must be 7 words or fewer. Use uppercase Latin headline styling.",
+    "headlineMaxWords": 7,
+    "headlineUppercase": true,
+    "legibilityLine": "All visible wording must be large, exact, and readable: one bold headline, at most one short supporting subtitle, and only the few article-specific information markers requested by the brief.",
+    "dataElementTemplate": "a restrained physically integrated information marker reading \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " with the short supporting caption \"{label}\""
+  },
+  "output": {
+    "width": 1080,
+    "height": 1440,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.25,
+    "insetShortSideRatio": 0.052
+  },
+  "fallbackBrief": {
+    "selection": {
+      "family": "liquidity_bridge",
+      "axes": {
+        "environment": "divided_city",
+        "camera": "diagonal_bridge",
+        "energy": "frictionless_flow",
+        "accent": "electric_blue",
+        "headline_layout": "huge_top",
+        "spatial_grammar": "bridge_crossing"
+      }
+    },
+    "brief": {
+      "headline": "VALUE SHOULD MOVE WITHOUT FRICTION",
+      "subjectScene": "A divided midnight financial city is joined by a monumental transparent bridge as several electric-blue routes merge into one controlled path across the gap. Supporting subtitle text: \"One access layer. Many financial paths.\".",
+      "dataElements": []
+    }
+  },
+  "briefExamples": "Example:\n{\"family\": \"liquidity_bridge\", \"headline\": \"VALUE SHOULD MOVE WITHOUT FRICTION\", \"subtitle\": \"One access layer. Many financial paths.\", \"data_elements\": [], \"environment\": \"divided_city\", \"camera\": \"diagonal_bridge\", \"energy\": \"frictionless_flow\", \"accent\": \"electric_blue\", \"headline_layout\": \"huge_top\", \"spatial_grammar\": \"bridge_crossing\", \"subject_scene\": \"A transparent architectural bridge spans a deep channel between two midnight financial districts as five narrow blue routes merge into one calm path across it.\"}\n\nExample:\n{\"family\": \"programmable_treasury\", \"headline\": \"TREASURY, MADE PROGRAMMABLE\", \"subtitle\": \"Rules visible. Movement verifiable.\", \"data_elements\": [{\"value\": \"Approvals\", \"label\": \"Defined\"}, {\"value\": \"Execution\", \"label\": \"On-Chain\"}], \"environment\": \"layered_studio\", \"camera\": \"exploded_three_quarter\", \"energy\": \"rule_bound_precision\", \"accent\": \"blue_gold\", \"headline_layout\": \"upper_left\", \"spatial_grammar\": \"exploded_layers\", \"subject_scene\": \"Four transparent ledger planes float above a brushed-silver base while a vertical blue beam aligns rule gates and restrained gold approval points.\"}\n\nExample:\n{\"family\": \"asset_tokenization_gateway\", \"headline\": \"REAL ASSETS. ON-CHAIN ACCESS.\", \"subtitle\": \"Structured for a connected economy.\", \"data_elements\": [{\"value\": \"Property\", \"label\": \"Structured\"}, {\"value\": \"Trade Assets\", \"label\": \"Connected\"}], \"environment\": \"tokenization_chamber\", \"camera\": \"process_perspective\", \"energy\": \"physical_to_digital\", \"accent\": \"blue_white\", \"headline_layout\": \"huge_top\", \"spatial_grammar\": \"before_after_translation\", \"subject_scene\": \"A modern building model and sealed logistics container pass through a thick transparent scanning arch and emerge as ordered luminous blocks.\"}\n\nExample:\n{\"family\": \"everyday_settlement\", \"headline\": \"DIGITAL VALUE. EVERYDAY USE.\", \"subtitle\": \"Access that moves with you.\", \"data_elements\": [], \"environment\": \"everyday_cafe\", \"camera\": \"product_close\", \"energy\": \"practical_access\", \"accent\": \"dawn_blue\", \"headline_layout\": \"upper_left\", \"spatial_grammar\": \"grounded_handoff\", \"subject_scene\": \"A premium midnight-blue payment card hovers above a brushed-silver contactless terminal on a real café counter while a fine blue network ribbon settles into the device.\"}\n\nExample:\n{\"family\": \"transparent_rails\", \"headline\": \"MOVEMENT YOU CAN VERIFY\", \"subtitle\": \"Every checkpoint remains visible.\", \"data_elements\": [{\"value\": \"Access\", \"label\": \"Defined\"}, {\"value\": \"Movement\", \"label\": \"Visible\"}], \"environment\": \"transparent_rail_lab\", \"camera\": \"macro_surface\", \"energy\": \"transparent_control\", \"accent\": \"steel_cyan\", \"headline_layout\": \"upper_right\", \"spatial_grammar\": \"continuous_ribbon\", \"subject_scene\": \"Three precise blue routes travel across a thick bent glass ledger surface, crossing a small number of visible checkpoints without interruption.\"}\n\nExample:\n{\"family\": \"global_value_corridor\", \"headline\": \"VALUE MOVES ACROSS BORDERS\", \"subtitle\": \"Built for connected market access.\", \"data_elements\": [{\"value\": \"Singapore\", \"label\": \"Origin\"}, {\"value\": \"Zurich\", \"label\": \"Destination\"}], \"environment\": \"global_map_room\", \"camera\": \"topographic_wide\", \"energy\": \"global_reach\", \"accent\": \"blue_gold\", \"headline_layout\": \"wide_header\", \"spatial_grammar\": \"mapped_corridors\", \"subject_scene\": \"A precise blue-and-gold corridor crosses a dark topographic world surface between Singapore and Zurich with horizon-scale depth.\"}\n\nExample:\n{\"family\": \"partnership_confluence\", \"headline\": \"TWO SYSTEMS. ONE CLEAR PATH.\", \"subtitle\": \"Integration that strengthens access.\", \"data_elements\": [{\"value\": \"Treasury\", \"label\": \"System One\"}, {\"value\": \"Settlement\", \"label\": \"System Two\"}], \"environment\": \"confluence_chamber\", \"camera\": \"dual_convergence\", \"energy\": \"partnership_momentum\", \"accent\": \"blue_gold\", \"headline_layout\": \"split_stack\", \"spatial_grammar\": \"dual_stream_merge\", \"subject_scene\": \"A structured blue treasury stream and a pale-gold settlement stream enter from unequal depths, join inside a transparent confluence chamber, and continue as one route.\"}\n\nExample:\n{\"family\": \"editorial_object_hero\", \"headline\": \"INVOICES BECOME WORKING ASSETS\", \"subtitle\": \"From business document to structured access.\", \"data_elements\": [{\"value\": \"Invoice\", \"label\": \"Article Asset\"}], \"environment\": \"editorial_stage\", \"camera\": \"object_hero_close\", \"energy\": \"story_specific_focus\", \"accent\": \"electric_blue\", \"headline_layout\": \"upper_right\", \"spatial_grammar\": \"single_object_transformation\", \"subject_scene\": \"One oversized physical invoice sheet with simple blank linework folds through a precise blue scanning plane and becomes a structured transparent asset block.\"}\n\nLEGACY ROTATING FALLBACK BRIEFS (preserved verbatim as migration reference):\n[\n  {\n    \"family\": \"liquidity_bridge\",\n    \"headline\": \"VALUE SHOULD MOVE WITHOUT FRICTION\",\n    \"subtitle\": \"One access layer. Many financial paths.\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"divided_city\",\n    \"camera\": \"diagonal_bridge\",\n    \"energy\": \"frictionless_flow\",\n    \"accent\": \"electric_blue\",\n    \"headline_layout\": \"huge_top\",\n    \"spatial_grammar\": \"bridge_crossing\",\n    \"subject_scene\": \"A divided midnight financial city is joined by a monumental transparent bridge as several electric-blue routes merge into one controlled path across the gap.\"\n  },\n  {\n    \"family\": \"programmable_treasury\",\n    \"headline\": \"TREASURY, MADE PROGRAMMABLE\",\n    \"subtitle\": \"Rules visible. Movement verifiable.\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"layered_studio\",\n    \"camera\": \"exploded_three_quarter\",\n    \"energy\": \"rule_bound_precision\",\n    \"accent\": \"blue_gold\",\n    \"headline_layout\": \"upper_left\",\n    \"spatial_grammar\": \"exploded_layers\",\n    \"subject_scene\": \"Four transparent ledger planes float above a brushed-silver base, aligned by one blue beam with sparse gold approval checkpoints.\"\n  },\n  {\n    \"family\": \"asset_tokenization_gateway\",\n    \"headline\": \"REAL ASSETS. ON-CHAIN ACCESS.\",\n    \"subtitle\": \"Structured for a connected economy.\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"tokenization_chamber\",\n    \"camera\": \"process_perspective\",\n    \"energy\": \"physical_to_digital\",\n    \"accent\": \"blue_white\",\n    \"headline_layout\": \"huge_top\",\n    \"spatial_grammar\": \"before_after_translation\",\n    \"subject_scene\": \"A building model, sealed logistics container, and blank document plaque cross a transparent scanning arch and emerge as ordered luminous glass blocks.\"\n  },\n  {\n    \"family\": \"everyday_settlement\",\n    \"headline\": \"DIGITAL VALUE. EVERYDAY USE.\",\n    \"subtitle\": \"Access that moves with you.\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"everyday_cafe\",\n    \"camera\": \"product_close\",\n    \"energy\": \"practical_access\",\n    \"accent\": \"dawn_blue\",\n    \"headline_layout\": \"upper_left\",\n    \"spatial_grammar\": \"grounded_handoff\",\n    \"subject_scene\": \"A premium midnight-blue payment card hovers above a brushed-silver contactless terminal as one fine blue network ribbon settles into a clean payment pulse.\"\n  }\n]\n\nLEGACY PROFILE METADATA (preserved verbatim in structured form):\n{\n  \"brand_name\": \"CoinBank\",\n  \"brand_tagline\": \"a premium on-chain finance access layer that turns digital assets, stable assets, tokenized markets, treasury rules, cross-chain movement, and everyday card use into clear, credible financial infrastructure\",\n  \"headline_max_words\": 7,\n  \"headline_uppercase\": true,\n  \"core_axes\": [\n    \"environment\",\n    \"camera\",\n    \"energy\",\n    \"accent\"\n  ],\n  \"mood_accent_default\": \"electric_blue\",\n  \"family_cooldown\": 3,\n  \"axis_inject_after_data\": [\n    \"spatial_grammar\"\n  ],\n  \"passthrough_fields\": [\n    \"subtitle\"\n  ],\n  \"passthrough_field_schema\": {\n    \"subtitle\": \"<= 9 words grounded in the approved article or copy; empty string is allowed\"\n  },\n  \"passthrough_max_words\": {\n    \"subtitle\": 9\n  },\n  \"subtitle_style\": \"Place it immediately below the headline in smaller pale-gold geometric sans-serif type; keep it on one or two short lines with generous tracking and exact spelling.\",\n  \"extra_banned_subject_terms\": [\n    \"casino\",\n    \"gambling\",\n    \"slot machine\",\n    \"meme coin\",\n    \"moon\",\n    \"rocket\",\n    \"luxury car\",\n    \"cash rain\",\n    \"money shower\",\n    \"guaranteed\",\n    \"risk-free\",\n    \"apy\",\n    \"passive income\",\n    \"investment return\",\n    \"number go up\",\n    \"central coin\",\n    \"giant coin\",\n    \"central monogram\",\n    \"floating banknote\"\n  ],\n  \"anti_repetition_rules\": \"HARD DIVERSITY CONTRACT: the last three families are unavailable. Also avoid the spatial_grammar used in the previous two briefs and avoid the immediately previous camera. Never produce two consecutive centered, symmetrical, orbital, vault, pedestal, or card-terminal compositions. Alternate architectural scale, product scale, macro material detail, mapped space, and real-world scenes. Choose one concrete article anchor first (an asset, route, device, building, document, country, company action, or named network) and build a new physical metaphor around it. Do not make a generic glowing hub, circular badge, portal, or dashboard merely because the story mentions Web3. Change the dominant silhouette, direction of movement, depth structure, and focal position from recent work. The artwork must explain this article at a glance, not just repeat the brand.\",\n  \"routing_table\": \"Start with the article's concrete event, then choose the least recently used eligible family. Use liquidity_bridge for fragmentation, liquidity routes, access gaps, interoperability, or friction. Use programmable_treasury for rules, governance, approvals, execution, smart contracts, or treasury policy. Use asset_tokenization_gateway for real estate, commodities, invoices, logistics assets, securities, rights, and physical-to-digital conversion. Use everyday_settlement for cards, wallets, merchant use, consumer payments, and daily spending. Use convergence_portal for one-layer, unified-access, or multiple-path stories only when a threshold metaphor genuinely fits. Use chain_constellation only for articles that name multiple chains or networks. Use transparent_rails for transparency, traceability, settlement rails, visible execution, and process clarity. Use global_value_corridor for countries, corridors, remittance, cross-border value, regions, and market access. Use institutional_control_room for enterprise operations, treasury teams, infrastructure management, and complex product capabilities. Use security_envelope for wallet control, permissions, custody boundaries, ownership, identity, and access security. Use partnership_confluence for integrations, partnerships, mergers of capabilities, or two named systems connecting. Use ecosystem_exploded_view for broad product overviews, launches, roadmaps, or stories spanning at least four capabilities. Use editorial_object_hero whenever the story has a strong concrete object, place, company action, product, or event that would be more memorable than an abstract Web3 diagram. Never route broad crypto vocabulary automatically to an orbit, vault, or portal.\",\n  \"metaphors\": {\n    \"frictionless value movement\": \"separate luminous routes cross a transparent bridge and resolve into one controlled path\",\n    \"programmable treasury\": \"exploded transparent ledger planes align rules, permissions, approvals, and execution around one vertical beam\",\n    \"real-world asset tokenization\": \"recognizable physical assets pass through a scanning threshold and emerge as ordered glass blocks\",\n    \"everyday settlement\": \"a restrained blue data ribbon reaches a real card or contactless terminal in a credible daily setting\",\n    \"one access layer\": \"independent routes enter one architectural threshold and continue without becoming a radial badge\",\n    \"cross-chain access\": \"named network nodes form an asymmetric constellation or relay path, not a ring around a central coin\",\n    \"transparent control\": \"a bent glass ledger or architectural cutaway reveals the exact route and checkpoints inside\",\n    \"global movement\": \"luminous corridors cross a dark topographic world surface between article-specific locations\",\n    \"security and ownership\": \"nested transparent envelopes protect a wallet or asset core while leaving its boundaries visible\",\n    \"partnership or integration\": \"two materially distinct streams meet inside one precise glass confluence chamber\",\n    \"ecosystem breadth\": \"modules separate in an exploded view, each with a distinct function and clear physical spacing\",\n    \"article-specific event\": \"one concrete object or location from the article becomes the hero and is transformed by a single blue infrastructure gesture\"\n  }\n}"
+}

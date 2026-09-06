@@ -1,0 +1,337 @@
+{
+  "families": {
+    "global_routes": {
+      "name": "GLOBAL ROUTES",
+      "skeleton": "A dark world map fills the background with golden route arcs crossing continents. Cargo ships, planes, trucks, port cranes, and container stacks sit along the routes. A central cargo-payment dashboard or payment rail connects global cargo movement to on-chain settlement.",
+      "textPolicy": "Headline plus up to 5 large labels or UI values. Good labels include Transportation ID, Cargo Invoice, Wallet Confirmed, On-Chain Settlement, Global Cargo.",
+      "defaultAxes": {
+        "environment": "world_map",
+        "camera": "wide_map",
+        "energy": "global_scale",
+        "accent": "gold_cyan",
+        "headline_layout": "two_line_gold_keyword",
+        "spatial_grammar": "distributed_route"
+      },
+      "dataBudget": 5
+    },
+    "logistics_flow": {
+      "name": "LOGISTICS FLOW",
+      "skeleton": "A step-by-step premium process diagram shows cargo invoice creation flowing into Transportation ID, payment link, wallet confirmation, and on-chain settlement. Glowing arrows, rails, and nodes connect each panel across a dark logistics operating surface.",
+      "textPolicy": "Headline plus 3-5 large step labels. Prefer Create Cargo Invoice, Generate Transportation ID, Share Payment Link, Wallet Confirmed, On-Chain Settlement.",
+      "defaultAxes": {
+        "environment": "cargo_hub",
+        "camera": "isometric_high",
+        "energy": "verified_settlement",
+        "accent": "gold_green",
+        "headline_layout": "huge_top",
+        "spatial_grammar": "layered_operating_plane"
+      },
+      "dataBudget": 5
+    },
+    "split_infrastructure": {
+      "name": "SPLIT INFRASTRUCTURE",
+      "skeleton": "The frame is split between physical logistics infrastructure and blockchain settlement. One side shows ports, cranes, containers, trucks, rail or road networks; the other side shows wallet confirmation, smart contracts, on-chain verification, and transparent payment rails. The two halves meet at a central verified payment node.",
+      "textPolicy": "Headline plus up to 4 large labels comparing physical logistics with blockchain settlement and verification. Keep labels short and dashboard-like.",
+      "defaultAxes": {
+        "environment": "port_terminal",
+        "camera": "front_poster",
+        "energy": "operational_flow",
+        "accent": "gold_cyan",
+        "headline_layout": "huge_top",
+        "spatial_grammar": "asymmetric_confluence"
+      },
+      "dataBudget": 4
+    },
+    "dashboard_poster": {
+      "name": "DASHBOARD POSTER",
+      "skeleton": "A large central cargo-payment dashboard card dominates the frame, showing cargo invoice details, Transportation ID, status, settlement route, and wallet confirmation. Cargo ships, containers, route lines, and settlement asset badges may surround the dashboard.",
+      "textPolicy": "Headline plus up to 6 readable dashboard fields or values. Use short status words such as Payment Pending, Wallet Confirmed, On-Chain, Settled, Cargo Invoice, TID.",
+      "defaultAxes": {
+        "environment": "dark_dashboard",
+        "camera": "centered_dashboard",
+        "energy": "verified_settlement",
+        "accent": "gold_blue",
+        "headline_layout": "brand_top_left",
+        "spatial_grammar": "layered_operating_plane"
+      },
+      "dataBudget": 6
+    },
+    "circular_process": {
+      "name": "CIRCULAR PROCESS",
+      "skeleton": "A luminous gold circular process ring sits around a central payment-infrastructure hub icon. The ring is divided into workflow segments for invoice, Transportation ID, payment link, and wallet confirmation. Small logistics and blockchain icons orbit the ring.",
+      "textPolicy": "Headline plus 4 large ring-segment labels. Keep ring labels short: Create Cargo Invoice, Generate Transportation ID, Share Payment Link, Wallet Confirm.",
+      "defaultAxes": {
+        "environment": "dark_dashboard",
+        "camera": "circular_topdown",
+        "energy": "premium_launch",
+        "accent": "treasury_gold",
+        "headline_layout": "huge_top",
+        "spatial_grammar": "distributed_route"
+      },
+      "dataBudget": 4
+    },
+    "invoice_macro": {
+      "name": "INVOICE MACRO",
+      "skeleton": "An extreme close-up turns one article-specific cargo document, payment link, shipping seal, or Transportation ID into a tactile hero object. Security fibers, embossed fields, scanner light, and one precise settlement trace reveal how the document becomes verifiable payment infrastructure.",
+      "textPolicy": "Headline, optional short subtitle, and at most 3 large document fields grounded in the story. Avoid decorative microtext and generic dashboard grids.",
+      "defaultAxes": {
+        "environment": "document_lab",
+        "camera": "extreme_macro",
+        "energy": "forensic_precision",
+        "accent": "gold_cyan",
+        "headline_layout": "asymmetric_editorial",
+        "spatial_grammar": "macro_crop"
+      },
+      "dataBudget": 3
+    },
+    "multimodal_corridor": {
+      "name": "MULTIMODAL CORRIDOR",
+      "skeleton": "A single continuous settlement signal travels through a sharply staged sequence of sea, air, rail, and road environments. The article's actual transport mode dominates; other modes appear only when relevant. The payment path changes material as it crosses each operational handoff.",
+      "textPolicy": "Headline plus up to 4 short mode, handoff, or settlement labels. Use the article's named route, country, or operational milestone when available.",
+      "defaultAxes": {
+        "environment": "multimodal_terminal",
+        "camera": "diagonal_corridor",
+        "energy": "forward_momentum",
+        "accent": "gold_blue",
+        "headline_layout": "side_stack",
+        "spatial_grammar": "deep_corridor"
+      },
+      "dataBudget": 4
+    },
+    "customs_checkpoint": {
+      "name": "CUSTOMS CHECKPOINT",
+      "skeleton": "A monumental inspection or border threshold frames one cargo unit, document, or payment state. Layered scanner planes expose identity, invoice, compliance, and settlement proof as the shipment passes from uncertainty into a clearly approved operating lane.",
+      "textPolicy": "Headline plus up to 4 large clearance or verification markers. Keep the composition architectural, with no generic shield icon and no invented legal claims.",
+      "defaultAxes": {
+        "environment": "border_threshold",
+        "camera": "ground_level",
+        "energy": "clearance_transition",
+        "accent": "gold_green",
+        "headline_layout": "upper_corner",
+        "spatial_grammar": "threshold_frame"
+      },
+      "dataBudget": 4
+    },
+    "proof_of_delivery": {
+      "name": "PROOF OF DELIVERY",
+      "skeleton": "A real operational handoff is the hero: a scanned seal, handheld terminal, signed delivery record, or cargo release mechanism. A restrained gold payment trace reaches completion only at the verified handoff, connecting physical delivery evidence to settlement.",
+      "textPolicy": "Headline, optional subtitle, and up to 3 decisive status markers such as Delivered, Verified, or Settled, only when supported by the article.",
+      "defaultAxes": {
+        "environment": "loading_bay",
+        "camera": "operational_closeup",
+        "energy": "verified_settlement",
+        "accent": "gold_green",
+        "headline_layout": "negative_space_top",
+        "spatial_grammar": "off_center_handoff"
+      },
+      "dataBudget": 3
+    },
+    "exception_recovery": {
+      "name": "EXCEPTION RECOVERY",
+      "skeleton": "An interrupted shipment or payment route becomes a visual before-and-after inside one continuous scene. An amber fractured path, delayed document, mismatch, or blocked handoff is diagnosed and resolved into an ordered verified route without relying on a generic split-screen template.",
+      "textPolicy": "Headline plus up to 3 concrete problem/resolution markers taken from the story. Do not invent a failure, guarantee, or performance result.",
+      "defaultAxes": {
+        "environment": "operations_floor",
+        "camera": "oblique_cutaway",
+        "energy": "recovery_sequence",
+        "accent": "amber_to_green",
+        "headline_layout": "side_stack",
+        "spatial_grammar": "broken_to_resolved"
+      },
+      "dataBudget": 3
+    },
+    "partnership_confluence": {
+      "name": "PARTNERSHIP CONFLUENCE",
+      "skeleton": "Two visibly different operational worlds approach from unequal directions and meet through a transparent settlement interface. Each side is grounded in the named partner, market, country, or capability from the article; the confluence is asymmetric and physically credible.",
+      "textPolicy": "Headline, optional subtitle, and at most 3 article-grounded partner or capability labels. Never invent company marks, endorsements, or relationship claims.",
+      "defaultAxes": {
+        "environment": "confluence_space",
+        "camera": "offset_wide",
+        "energy": "coordinated_exchange",
+        "accent": "gold_cyan",
+        "headline_layout": "upper_corner",
+        "spatial_grammar": "asymmetric_confluence"
+      },
+      "dataBudget": 3
+    },
+    "editorial_object_hero": {
+      "name": "EDITORIAL OBJECT HERO",
+      "skeleton": "One unexpected but article-specific physical object becomes the editorial metaphor: for example a cargo seal, pallet tag, aircraft container, rail switch, loading manifest, scanner, payment terminal, or chain-of-custody case. Stage it like a premium industrial product, with one restrained data signal revealing the payment or settlement meaning.",
+      "textPolicy": "Headline, optional subtitle, and no more than 2 supporting markers. Let the object and silhouette carry the idea; do not surround it with generic icons.",
+      "defaultAxes": {
+        "environment": "industrial_studio",
+        "camera": "asymmetric_product",
+        "energy": "editorial_tension",
+        "accent": "gold_cyan",
+        "headline_layout": "negative_space_top",
+        "spatial_grammar": "single_object_field"
+      },
+      "dataBudget": 2
+    },
+    "treasury_safe": {
+      "name": "TREASURY SAFE",
+      "skeleton": "A secure luminous Treasury Program scene shows a transparent vault cube or dashboard connected to GOLDGR and LUSD utility badges by gold and cyan rails. The visual emphasizes wallet-based participation, smart-contract coordination, on-chain transparency, and participation-term choices without promising returns.",
+      "textPolicy": "Headline plus up to 6 safe labels. Allowed phrases include Treasury Program, Wallet-Based Participation, Smart Contract Coordination, On-Chain Transparency, Choose Participation Term, GOLDGR, and LUSD. Never use profit, yield, guaranteed, risk-free, APY, passive income, investment return, or rates.",
+      "defaultAxes": {
+        "environment": "treasury_vault",
+        "camera": "centered_dashboard",
+        "energy": "treasury_secure",
+        "accent": "treasury_gold",
+        "headline_layout": "brand_top_left",
+        "spatial_grammar": "layered_operating_plane"
+      },
+      "dataBudget": 6
+    }
+  },
+  "axes": {
+    "environment": {
+      "world_map": "Environment: a dark global map at night with glowing city points, golden cargo route arcs, ships at sea, planes in flight, trucks on routes, and port lights along the edges.",
+      "port_terminal": "Environment: a premium night port terminal with cranes, container stacks, cargo ships, dark water, gold/cyan rails, and settlement panels hovering above the logistics infrastructure.",
+      "rail_yard": "Environment: a dark rail yard and container transfer zone with parallel tracks, cargo containers, glowing route lines, and invoice/payment nodes placed along the rails.",
+      "cargo_hub": "Environment: a black logistics control surface with cargo containers, small trucks, cranes, route lanes, glass invoice panels, and verified payment nodes.",
+      "dark_dashboard": "Environment: a deep black product-dashboard stage with floating dark glass UI cards, gold rails, cyan data traces, route particles, and subtle cargo silhouettes.",
+      "treasury_vault": "Environment: a secure black-and-gold Treasury Program stage with a transparent luminous vault cube, utility asset badges, dashboard cards, and smart-contract coordination rails.",
+      "document_lab": "Environment: a dark forensic document-inspection table with tactile paper or polymer surfaces, security fibers, embossed shipment fields, scanner light, and one restrained settlement trace.",
+      "multimodal_terminal": "Environment: a cinematic logistics interchange where only article-relevant sea, air, rail, or road segments connect through a continuous operational corridor at blue hour or night.",
+      "border_threshold": "Environment: a monumental customs or compliance threshold with layered transparent scanning planes, physical cargo texture, inspection light, and a clearly resolved passage beyond.",
+      "loading_bay": "Environment: a credible loading bay or delivery handoff zone with one scanner, seal, terminal, document, or release mechanism as the focal evidence object.",
+      "operations_floor": "Environment: an enterprise cargo operations floor visualized as layered physical routes, exception markers, diagnostic light, and a repaired settlement path rather than a generic software dashboard.",
+      "confluence_space": "Environment: two unequal article-specific logistics or payment environments joining through one transparent interface, with different material language on each side and open negative space.",
+      "industrial_studio": "Environment: a minimal midnight industrial product studio with a brushed-metal surface, controlled gold rim light, deep navy falloff, and one article-specific logistics object as the hero."
+    },
+    "camera": {
+      "isometric_high": "Composition: high isometric view like a premium logistics board, with readable panels and rails.",
+      "front_poster": "Composition: frontal poster layout with a strong centered concept and large headline above.",
+      "wide_map": "Composition: wide global map view, route arcs spanning the frame beneath the headline.",
+      "centered_dashboard": "Composition: central product dashboard card or vault cube, balanced supporting panels around it.",
+      "circular_topdown": "Composition: top-down or near top-down circular process diagram with the ring as the hero.",
+      "extreme_macro": "Composition: extreme tactile macro crop with shallow depth, oblique light, and only part of the hero document or object visible.",
+      "diagonal_corridor": "Composition: deep diagonal corridor moving from lower foreground to distant upper frame, with staggered operational handoffs.",
+      "ground_level": "Composition: low ground-level architectural view through a threshold, with strong scale and off-center cargo evidence.",
+      "operational_closeup": "Composition: close documentary-style operational view focused on hands, scanner, seal, terminal, or handoff evidence without showing identifiable faces.",
+      "oblique_cutaway": "Composition: oblique sectional cutaway revealing cause, transition, and resolution across layered depth.",
+      "offset_wide": "Composition: asymmetrical wide scene with two unequal source zones meeting away from center.",
+      "asymmetric_product": "Composition: premium off-center product portrait with dramatic negative space and a distinctive silhouette."
+    },
+    "energy": {
+      "operational_flow": "Energy: calm operational movement, rails flowing in ordered paths, enterprise-grade clarity.",
+      "global_scale": "Energy: global scale and movement, many route arcs and cargo paths converging into settlement rails.",
+      "verified_settlement": "Energy: trust and completion, green checkmarks, settled status, wallet confirmation, and clear audit trail.",
+      "premium_launch": "Energy: polished launch-poster confidence, brighter gold glow, bold typography, clean product focus.",
+      "treasury_secure": "Energy: secure, structured, and compliance-minded, with vault-like stability and quiet gold light.",
+      "forensic_precision": "Energy: investigative precision, restrained scanner movement, crisp evidence, and quiet technical confidence.",
+      "forward_momentum": "Energy: decisive directional motion through successive handoffs, with controlled speed and no chaotic light trails.",
+      "clearance_transition": "Energy: tension resolving into permission and passage, moving from amber inspection light to verified green-gold clarity.",
+      "recovery_sequence": "Energy: a visible operational problem becoming ordered and actionable, with measured before-to-after progression.",
+      "coordinated_exchange": "Energy: two systems synchronizing with balanced trust, controlled transfer, and no explosive convergence effect.",
+      "editorial_tension": "Energy: quiet visual tension, sculptural restraint, and campaign-level confidence carried by one strong object."
+    },
+    "accent": {
+      "gold_cyan": "Accent: SLT gold rails dominate, cyan/blue data rails support the blockchain layer, white headline.",
+      "gold_green": "Accent: SLT gold with green verification checks and settled-status glow.",
+      "gold_blue": "Accent: gold payment paths with blue dashboard and route highlights.",
+      "treasury_gold": "Accent: rich gold lighting, subtle cyan utility rails, dark premium Treasury Program atmosphere.",
+      "amber_to_green": "Accent: restrained amber indicates the exception or inspection state, resolving into SLT gold and minimal verified green.",
+      "silver_gold": "Accent: brushed silver and graphite materials with precise SLT-gold edge light and almost no cyan."
+    },
+    "headline_layout": {
+      "huge_top": "Place the headline huge across the top 25-35% of the frame; one key word or line may be gold.",
+      "two_line_gold_keyword": "Use a two-line headline with the first line white and the most important keyword or second line in SLT gold.",
+      "brand_top_left": "Keep the lower-left naturally quiet and free of writing or symbols; place the main headline centered above the concept.",
+      "dashboard_header": "Set the headline as a bold dashboard-style header above the central UI composition.",
+      "asymmetric_editorial": "Place the headline in a clean upper side block balanced against the macro focal object; avoid centered type.",
+      "side_stack": "Stack the headline and subtitle vertically along one side while the movement path occupies the opposite diagonal.",
+      "upper_corner": "Anchor the headline in one upper corner with disciplined negative space and no full-width centered banner.",
+      "negative_space_top": "Use the natural dark negative space above or beside the hero object for the headline, keeping the object unobstructed."
+    },
+    "spatial_grammar": {
+      "macro_crop": "Spatial grammar: cropped macro field; the subject extends beyond frame edges and information is embedded into its material surface.",
+      "deep_corridor": "Spatial grammar: long directional depth with staggered handoffs and a clear near-to-far journey; no central hub.",
+      "threshold_frame": "Spatial grammar: foreground architectural frame, middle inspection plane, and open destination beyond.",
+      "off_center_handoff": "Spatial grammar: decisive handoff occurs off-center between a close foreground tool and a distant cargo context.",
+      "broken_to_resolved": "Spatial grammar: one continuous path changes from fractured and amber to ordered and verified across the frame.",
+      "asymmetric_confluence": "Spatial grammar: unequal flows meet away from center, then continue as one calmer route with open negative space.",
+      "single_object_field": "Spatial grammar: one sculptural object occupies one-third to one-half of the frame; surrounding space stays intentionally sparse.",
+      "layered_operating_plane": "Spatial grammar: offset stacked planes reveal physical cargo, payment logic, and settlement evidence at distinct depths.",
+      "distributed_route": "Spatial grammar: several small article-specific moments form a directional route without orbiting a central badge."
+    }
+  },
+  "frozenStyle": {
+    "format": "vertical 3:4 editorial poster, 1080x1440, adapted from the legacy format instruction (vertical 4:5 editorial poster, 1080x1350); preserve the legacy 1080x1350-safe content hierarchy inside the supported canvas",
+    "palette": "near-black and deep navy base (#03060B-#07111F), with SLT gold/yellow as the primary accent (#F6B21A-#FFD24A). Electric cyan/blue lines (#27B7FF-#39D6FF) act as secondary data and blockchain rails. Green appears only for verified status, checkmarks, and settled confirmations. Typography is bold white, with one key word or phrase allowed in solid SLT gold.",
+    "materials": "dark glass UI cards, transparent glass rails, glowing payment conduits, polished black metal, brushed aluminum, shipping documents, security seals, scanners, handheld terminals, warehouse surfaces, cargo textures, route-map arcs, holographic invoice panels, wallet-confirmation cards, smart-contract nodes, and luminous blockchain settlement structures. Select only the materials needed by the article.",
+    "rendering": "premium cinematic logistics-finance campaign imagery combining credible product photography, precise architectural 3D, tactile macro detail, and restrained data visualization. Use physically believable materials, controlled gold/cyan illumination, clean hierarchy, and one instantly legible article metaphor. The scene feels dark, precise, expensive, and infrastructure-led, never like generic crypto artwork.",
+    "backgroundVocab": "night ports and cargo architecture, border and customs thresholds, aircraft holds, rail corridors, warehouse aisles, dispatch desks, document-inspection surfaces, loading bays, dark product studios, abstract settlement spaces, and occasional global maps. Real operational context comes first; payment and blockchain signals are integrated only where they clarify the story.",
+    "headlineZone": "reserve the top 25-35% of the frame for a large poster headline in bold white sans-serif; one important word or line may be SLT gold. The headline must be readable from a distance.",
+    "never": "no casino imagery, no trading screens, no meme-token style, no rockets, no moons, no luxury cars, no token showers, no number-go-up charts, no bank-vault metaphor, no unsupported financial claims, no tiny unreadable microtext, no third-party brand marks, no wallet addresses (0x...). Treasury visuals must never imply profit, yield, APY, guaranteed return, passive income, or risk-free investment."
+  },
+  "restrictions": {
+    "antiRepetition": "Enforce the legacy three-family cooldown. Avoid recent spatial grammar and camera choices. Choose the least-recent eligible family from the article's concrete anchor; vary scale, silhouette, focal position, movement, foreground, and depth. The image must explain the specific article. ROUTE BY THE ARTICLE'S MOST CONCRETE VISUAL ANCHOR, NOT BY GENERIC CARGO KEYWORDS. Use invoice_macro when a document, invoice, Transportation ID, bill, payment link, seal, or record is the clearest evidence. Use customs_checkpoint for borders, customs, screening, compliance, sanctions, inspection, clearance, or permission. Use proof_of_delivery for delivery, release, receiving, scanning, custody handoff, confirmation, and milestone-triggered payment. Use multimodal_corridor when the story genuinely connects sea, air, rail, road, or several operational handoffs; let the named transport mode dominate. Use exception_recovery for delays, disputes, mismatches, blocked payments, reconciliation, risk events, or operational repair. Use partnership_confluence for a named partnership, integration, market connection, country pair, or two capabilities joining. Use editorial_object_hero when one physical article object can carry the whole idea more powerfully than a system diagram. Use global_routes only when geography or a named corridor is essential; a world map is forbidden for merely international-sounding copy. Use logistics_flow only for an actual ordered how-it-works sequence. Use split_infrastructure only for a meaningful physical-versus-digital contrast. Use dashboard_poster only when product UI, tracking fields, or transaction status is itself the story. Use circular_process only when the copy explicitly teaches a closed repeating workflow with three or more steps. Use treasury_safe only for Treasury Program, GOLDGR, LUSD, participation terms, or treasury coordination. When several families could fit, choose the least recently used family and the one with the most surprising truthful article anchor.",
+    "moodAccentDefault": "gold_cyan",
+    "moodAccentRestricted": {},
+    "bannedSubjectTerms": [
+      "casino",
+      "exchange",
+      "trading platform",
+      "meme coin",
+      "rocket",
+      "bank vault",
+      "profit",
+      "yield",
+      "guaranteed",
+      "risk-free",
+      "passive income",
+      "investment return"
+    ]
+  },
+  "textPolicy": {
+    "rules": "Brand image premise: premium non-custodial Web3 payment and settlement infrastructure for cargo transportation: cargo invoices, Transportation IDs, payment links, wallet confirmations, and on-chain settlement shown as dark logistics-tech poster systems\n\nUse one bold article-specific headline and, when it materially sharpens the meaning, one short subtitle. Add zero to four large information markers only when the chosen family needs them; object-led and documentary scenes should usually use zero to two. Do not automatically repeat Cargo Invoice, Transportation ID, Wallet Confirmed, or On-Chain Settlement: use those phrases only when supported by the article or approved social copy. Prefer a named route, country, transport mode, shipment event, company action, document type, or payment state from the current story. Keep the lower-left naturally quiet and free of writing or symbols. Treasury-safe wording includes Treasury Program, Wallet-Based Participation, Smart Contract Coordination, On-Chain Transparency, Choose Participation Term, GOLDGR, and LUSD. Never use profit, yield, guaranteed, risk-free, APY, passive income, investment return, invented rates, invented compliance outcomes, invented partnerships, or unsupported delivery claims.\n\nLegacy family routing contract: ROUTE BY THE ARTICLE'S MOST CONCRETE VISUAL ANCHOR, NOT BY GENERIC CARGO KEYWORDS. Use invoice_macro when a document, invoice, Transportation ID, bill, payment link, seal, or record is the clearest evidence. Use customs_checkpoint for borders, customs, screening, compliance, sanctions, inspection, clearance, or permission. Use proof_of_delivery for delivery, release, receiving, scanning, custody handoff, confirmation, and milestone-triggered payment. Use multimodal_corridor when the story genuinely connects sea, air, rail, road, or several operational handoffs; let the named transport mode dominate. Use exception_recovery for delays, disputes, mismatches, blocked payments, reconciliation, risk events, or operational repair. Use partnership_confluence for a named partnership, integration, market connection, country pair, or two capabilities joining. Use editorial_object_hero when one physical article object can carry the whole idea more powerfully than a system diagram. Use global_routes only when geography or a named corridor is essential; a world map is forbidden for merely international-sounding copy. Use logistics_flow only for an actual ordered how-it-works sequence. Use split_infrastructure only for a meaningful physical-versus-digital contrast. Use dashboard_poster only when product UI, tracking fields, or transaction status is itself the story. Use circular_process only when the copy explicitly teaches a closed repeating workflow with three or more steps. Use treasury_safe only for Treasury Program, GOLDGR, LUSD, participation terms, or treasury coordination. When several families could fit, choose the least recently used family and the one with the most surprising truthful article anchor.\n\nLegacy diversity contract: HARD DIVERSITY CONTRACT: the last three visual families are unavailable. Avoid the spatial_grammar used in the previous two briefs and avoid the immediately previous camera. Never create two consecutive world maps, ports, centered dashboards, circular workflows, glowing hubs, or symmetrical hero objects. First identify one concrete article anchor: a document, shipment event, transport mode, border action, payment state, company decision, named corridor, country, device, or operational problem. Build the composition around that anchor rather than decorating a generic cargo scene. Rotate between architectural scale, human operational scale, product close-up, macro material detail, documentary scene, diagrammatic space, and abstract infrastructure. Change the dominant silhouette, focal position, movement direction, foreground object, and depth structure from recent work. Trucks, ships, cranes, containers, maps, gold route arcs, floating glass cards, and central nodes are optional vocabulary, never mandatory ingredients. Use no more than two familiar logistics symbols in one poster. Treasury Program visuals are allowed only when the article or copy explicitly concerns treasury, GOLDGR, LUSD, participation terms, or treasury coordination. The final image must communicate this specific article at a glance, not merely repeat the SLT CargoPay brand world.\n\nApproved visual metaphor vocabulary: cargo invoice: dark glass document card with gold border, cargo icon, invoice fields, and a route reference Transportation ID: large ID badge or dashboard field carrying a short TID code, connected to cargo routes payment link: glowing gold link node bridging invoice and wallet confirmation wallet confirmation: wallet card with a green checkmark and verified status on-chain settlement: cyan/gold settlement cube, transaction panel, or blockchain node grid global cargo: world map with ships, planes, trucks, ports, and golden cross-border route arcs smart contracts: transparent black-and-gold logic panels, connected nodes, and rule blocks Treasury Program: secure luminous vault cube, GOLDGR/LUSD utility badges, and compliance-safe dashboard panels proof of delivery: a scanned cargo seal, signed delivery record, or verified handoff marker completing a payment rail customs and compliance: a physical inspection threshold with document layers, scanner light, and an approved clearance state payment exception: a broken amber route repaired into a clean green verified settlement path multimodal transport: a continuous payment signal changing form across sea, air, rail, and road segments partnership: two distinct operating systems or physical corridors joining through one transparent settlement interface\n\nLegacy subtitle contract: <= 10 words, concrete and grounded in the approved article or copy; empty string is allowed; maximum 10 words. Place it directly below the headline in smaller warm-gold geometric sans-serif type, on one or two short lines with generous tracking and exact spelling. The current bounded brief has no separate subtitle field; when a subtitle is essential, express it as a short supporting data element or in the scene instruction without displacing the headline.\n\nLegacy post-processing logo geometry: bottom-left; width ratio 0.26; left inset ratio 0.052; bottom inset ratio 0.035. The current compositor has one shared inset field, so the active template uses the legacy left inset and preserves the exact bottom inset here as authoritative migration metadata.\n\nThe headline must be 8 words or fewer. Do not force uppercase styling.",
+    "headlineMaxWords": 8,
+    "headlineUppercase": false,
+    "legibilityLine": "All visible words are large, bold, crisp, and professionally typeset; UI words appear on separate dark glass panels with high contrast.",
+    "dataElementTemplate": "a large premium dark UI card displaying \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " with the small supporting caption \"{label}\""
+  },
+  "output": {
+    "width": 1080,
+    "height": 1440,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.26,
+    "insetShortSideRatio": 0.052
+  },
+  "fallbackBrief": {
+    "selection": {
+      "family": "logistics_flow",
+      "axes": {
+        "environment": "cargo_hub",
+        "camera": "isometric_high",
+        "energy": "verified_settlement",
+        "accent": "gold_cyan",
+        "headline_layout": "huge_top",
+        "spatial_grammar": "layered_operating_plane"
+      }
+    },
+    "brief": {
+      "headline": "Payments Become Infrastructure",
+      "subjectScene": "A dark premium cargo hub shows glowing gold payment rails connecting a cargo invoice panel, a wallet confirmation card with a green checkmark, and an on-chain settlement node, with containers and cranes visible around the operating surface.",
+      "dataElements": [
+        {
+          "value": "Cargo Invoice",
+          "label": "Step 1"
+        },
+        {
+          "value": "Wallet Confirmed",
+          "label": "Verified"
+        },
+        {
+          "value": "On-Chain Settlement",
+          "label": "Final"
+        }
+      ]
+    }
+  },
+  "briefExamples": "Example:\n{\"family\": \"invoice_macro\", \"headline\": \"Every Shipment Has A Financial Identity\", \"subtitle\": \"From cargo document to verified settlement.\", \"data_elements\": [], \"environment\": \"document_lab\", \"camera\": \"extreme_macro\", \"energy\": \"forensic_precision\", \"accent\": \"gold_cyan\", \"headline_layout\": \"asymmetric_editorial\", \"spatial_grammar\": \"macro_crop\", \"subject_scene\": \"An extreme oblique macro of an article-specific cargo document with embossed shipment fields, security fibers, scanner light, and one precise gold-to-cyan settlement trace embedded in its surface.\"}\n\nExample:\n{\"family\": \"customs_checkpoint\", \"headline\": \"Clearance Meets Settlement\", \"subtitle\": \"One verified path across the border.\", \"data_elements\": [], \"environment\": \"border_threshold\", \"camera\": \"ground_level\", \"energy\": \"clearance_transition\", \"accent\": \"gold_green\", \"headline_layout\": \"upper_corner\", \"spatial_grammar\": \"threshold_frame\", \"subject_scene\": \"A single article-specific cargo unit passes through monumental transparent inspection planes as amber scanner light resolves into a clean gold route and restrained verified green beyond the threshold.\"}\n\nExample:\n{\"family\": \"proof_of_delivery\", \"headline\": \"Delivered. Verified. Settled.\", \"subtitle\": \"Physical handoff becomes payment proof.\", \"data_elements\": [], \"environment\": \"loading_bay\", \"camera\": \"operational_closeup\", \"energy\": \"verified_settlement\", \"accent\": \"gold_green\", \"headline_layout\": \"negative_space_top\", \"spatial_grammar\": \"off_center_handoff\", \"subject_scene\": \"A gloved operator scans a tamper-evident cargo seal with a rugged handheld terminal at a dark loading bay; a restrained gold signal reaches completion at the handoff.\"}\n\nExample:\n{\"family\": \"multimodal_corridor\", \"headline\": \"One Payment Path. Every Mode.\", \"subtitle\": \"Settlement moves with the cargo.\", \"data_elements\": [], \"environment\": \"multimodal_terminal\", \"camera\": \"diagonal_corridor\", \"energy\": \"forward_momentum\", \"accent\": \"gold_blue\", \"headline_layout\": \"side_stack\", \"spatial_grammar\": \"deep_corridor\", \"subject_scene\": \"A continuous gold settlement signal moves through a deep diagonal sequence of article-relevant cargo handoffs without a map, hub, or collage.\"}\n\nExample:\n{\"family\": \"exception_recovery\", \"headline\": \"Turn Delays Into Clear Action\", \"subtitle\": \"See the exception. Restore the flow.\", \"data_elements\": [], \"environment\": \"operations_floor\", \"camera\": \"oblique_cutaway\", \"energy\": \"recovery_sequence\", \"accent\": \"amber_to_green\", \"headline_layout\": \"side_stack\", \"spatial_grammar\": \"broken_to_resolved\", \"subject_scene\": \"A mismatched shipment record fractures an amber transparent route in the foreground; layered diagnostic paths repair it into ordered gold rails and a restrained verified endpoint.\"}\n\nExample:\n{\"family\": \"editorial_object_hero\", \"headline\": \"Trust Starts With Proof\", \"subtitle\": \"Cargo evidence, connected to settlement.\", \"data_elements\": [], \"environment\": \"industrial_studio\", \"camera\": \"asymmetric_product\", \"energy\": \"editorial_tension\", \"accent\": \"silver_gold\", \"headline_layout\": \"negative_space_top\", \"spatial_grammar\": \"single_object_field\", \"subject_scene\": \"One sculptural black-metal cargo seal with a translucent gold security core sits off-center on brushed gunmetal as a cyan trace enters and exits as an ordered gold settlement line.\"}\n\nLEGACY ROTATING FALLBACK BRIEFS (preserved verbatim as migration reference):\n[\n  {\n    \"family\": \"invoice_macro\",\n    \"headline\": \"Every Shipment Has A Financial Identity\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"document_lab\",\n    \"camera\": \"extreme_macro\",\n    \"energy\": \"forensic_precision\",\n    \"accent\": \"gold_cyan\",\n    \"headline_layout\": \"asymmetric_editorial\",\n    \"spatial_grammar\": \"macro_crop\",\n    \"subtitle\": \"From cargo document to verified settlement.\",\n    \"subject_scene\": \"An extreme oblique macro of a tactile cargo document with embossed shipment fields, security fibers, scanner light, and one precise gold-to-cyan settlement trace embedded in its surface.\"\n  },\n  {\n    \"family\": \"customs_checkpoint\",\n    \"headline\": \"Clearance Meets Settlement\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"border_threshold\",\n    \"camera\": \"ground_level\",\n    \"energy\": \"clearance_transition\",\n    \"accent\": \"gold_green\",\n    \"headline_layout\": \"upper_corner\",\n    \"spatial_grammar\": \"threshold_frame\",\n    \"subtitle\": \"One verified path across the border.\",\n    \"subject_scene\": \"A single cargo unit passes through monumental transparent inspection planes as amber scanning light resolves into a clean gold route and restrained verified green beyond the threshold.\"\n  },\n  {\n    \"family\": \"proof_of_delivery\",\n    \"headline\": \"Delivered. Verified. Settled.\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"loading_bay\",\n    \"camera\": \"operational_closeup\",\n    \"energy\": \"verified_settlement\",\n    \"accent\": \"gold_green\",\n    \"headline_layout\": \"negative_space_top\",\n    \"spatial_grammar\": \"off_center_handoff\",\n    \"subtitle\": \"Physical handoff becomes payment proof.\",\n    \"subject_scene\": \"A gloved operator scans a tamper-evident cargo seal with a rugged handheld terminal at a dark loading bay; a restrained gold signal reaches completion at the physical handoff.\"\n  },\n  {\n    \"family\": \"multimodal_corridor\",\n    \"headline\": \"One Payment Path. Every Mode.\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"multimodal_terminal\",\n    \"camera\": \"diagonal_corridor\",\n    \"energy\": \"forward_momentum\",\n    \"accent\": \"gold_blue\",\n    \"headline_layout\": \"side_stack\",\n    \"spatial_grammar\": \"deep_corridor\",\n    \"subtitle\": \"Settlement moves with the cargo.\",\n    \"subject_scene\": \"A continuous SLT-gold payment signal moves through a deep diagonal interchange of article-relevant air, rail, and road cargo handoffs, changing material at each transition.\"\n  },\n  {\n    \"family\": \"exception_recovery\",\n    \"headline\": \"Turn Delays Into Clear Action\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"operations_floor\",\n    \"camera\": \"oblique_cutaway\",\n    \"energy\": \"recovery_sequence\",\n    \"accent\": \"amber_to_green\",\n    \"headline_layout\": \"side_stack\",\n    \"spatial_grammar\": \"broken_to_resolved\",\n    \"subtitle\": \"See the exception. Restore the flow.\",\n    \"subject_scene\": \"A mismatched shipment record fractures an amber transparent route in the foreground; layered diagnostic paths repair it into ordered gold rails and a restrained verified endpoint.\"\n  },\n  {\n    \"family\": \"editorial_object_hero\",\n    \"headline\": \"Trust Starts With Proof\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"industrial_studio\",\n    \"camera\": \"asymmetric_product\",\n    \"energy\": \"editorial_tension\",\n    \"accent\": \"silver_gold\",\n    \"headline_layout\": \"negative_space_top\",\n    \"spatial_grammar\": \"single_object_field\",\n    \"subtitle\": \"Cargo evidence, connected to settlement.\",\n    \"subject_scene\": \"One sculptural black-metal tamper-evident cargo seal with a translucent gold security core sits off-center on brushed gunmetal as a cyan trace enters and exits as an ordered gold settlement line.\"\n  }\n]\n\nLEGACY PROFILE METADATA (preserved verbatim in structured form):\n{\n  \"brand_name\": \"SLT Cargo Pay\",\n  \"brand_tagline\": \"premium non-custodial Web3 payment and settlement infrastructure for cargo transportation: cargo invoices, Transportation IDs, payment links, wallet confirmations, and on-chain settlement shown as dark logistics-tech poster systems\",\n  \"headline_max_words\": 8,\n  \"headline_uppercase\": false,\n  \"core_axes\": [\n    \"environment\",\n    \"camera\",\n    \"energy\",\n    \"accent\"\n  ],\n  \"mood_accent_default\": \"gold_cyan\",\n  \"family_cooldown\": 3,\n  \"axis_inject_after_data\": [\n    \"spatial_grammar\"\n  ],\n  \"passthrough_fields\": [\n    \"subtitle\"\n  ],\n  \"passthrough_field_schema\": {\n    \"subtitle\": \"<= 10 words, concrete and grounded in the approved article or copy; empty string is allowed\"\n  },\n  \"passthrough_max_words\": {\n    \"subtitle\": 10\n  },\n  \"subtitle_style\": \"Place it directly below the headline in smaller warm-gold geometric sans-serif type, on one or two short lines with generous tracking and exact spelling.\",\n  \"extra_banned_subject_terms\": [\n    \"casino\",\n    \"exchange\",\n    \"trading platform\",\n    \"meme coin\",\n    \"moon\",\n    \"rocket\",\n    \"bank vault\",\n    \"profit\",\n    \"yield\",\n    \"guaranteed\",\n    \"risk-free\",\n    \"apy\",\n    \"passive income\",\n    \"investment return\"\n  ],\n  \"anti_repetition_rules\": \"HARD DIVERSITY CONTRACT: the last three visual families are unavailable. Avoid the spatial_grammar used in the previous two briefs and avoid the immediately previous camera. Never create two consecutive world maps, ports, centered dashboards, circular workflows, glowing hubs, or symmetrical hero objects. First identify one concrete article anchor: a document, shipment event, transport mode, border action, payment state, company decision, named corridor, country, device, or operational problem. Build the composition around that anchor rather than decorating a generic cargo scene. Rotate between architectural scale, human operational scale, product close-up, macro material detail, documentary scene, diagrammatic space, and abstract infrastructure. Change the dominant silhouette, focal position, movement direction, foreground object, and depth structure from recent work. Trucks, ships, cranes, containers, maps, gold route arcs, floating glass cards, and central nodes are optional vocabulary, never mandatory ingredients. Use no more than two familiar logistics symbols in one poster. Treasury Program visuals are allowed only when the article or copy explicitly concerns treasury, GOLDGR, LUSD, participation terms, or treasury coordination. The final image must communicate this specific article at a glance, not merely repeat the SLT CargoPay brand world.\",\n  \"routing_table\": \"ROUTE BY THE ARTICLE'S MOST CONCRETE VISUAL ANCHOR, NOT BY GENERIC CARGO KEYWORDS. Use invoice_macro when a document, invoice, Transportation ID, bill, payment link, seal, or record is the clearest evidence. Use customs_checkpoint for borders, customs, screening, compliance, sanctions, inspection, clearance, or permission. Use proof_of_delivery for delivery, release, receiving, scanning, custody handoff, confirmation, and milestone-triggered payment. Use multimodal_corridor when the story genuinely connects sea, air, rail, road, or several operational handoffs; let the named transport mode dominate. Use exception_recovery for delays, disputes, mismatches, blocked payments, reconciliation, risk events, or operational repair. Use partnership_confluence for a named partnership, integration, market connection, country pair, or two capabilities joining. Use editorial_object_hero when one physical article object can carry the whole idea more powerfully than a system diagram. Use global_routes only when geography or a named corridor is essential; a world map is forbidden for merely international-sounding copy. Use logistics_flow only for an actual ordered how-it-works sequence. Use split_infrastructure only for a meaningful physical-versus-digital contrast. Use dashboard_poster only when product UI, tracking fields, or transaction status is itself the story. Use circular_process only when the copy explicitly teaches a closed repeating workflow with three or more steps. Use treasury_safe only for Treasury Program, GOLDGR, LUSD, participation terms, or treasury coordination. When several families could fit, choose the least recently used family and the one with the most surprising truthful article anchor.\",\n  \"metaphors\": {\n    \"cargo invoice\": \"dark glass document card with gold border, cargo icon, invoice fields, and a route reference\",\n    \"Transportation ID\": \"large ID badge or dashboard field carrying a short TID code, connected to cargo routes\",\n    \"payment link\": \"glowing gold link node bridging invoice and wallet confirmation\",\n    \"wallet confirmation\": \"wallet card with a green checkmark and verified status\",\n    \"on-chain settlement\": \"cyan/gold settlement cube, transaction panel, or blockchain node grid\",\n    \"global cargo\": \"world map with ships, planes, trucks, ports, and golden cross-border route arcs\",\n    \"smart contracts\": \"transparent black-and-gold logic panels, connected nodes, and rule blocks\",\n    \"Treasury Program\": \"secure luminous vault cube, GOLDGR/LUSD utility badges, and compliance-safe dashboard panels\",\n    \"proof of delivery\": \"a scanned cargo seal, signed delivery record, or verified handoff marker completing a payment rail\",\n    \"customs and compliance\": \"a physical inspection threshold with document layers, scanner light, and an approved clearance state\",\n    \"payment exception\": \"a broken amber route repaired into a clean green verified settlement path\",\n    \"multimodal transport\": \"a continuous payment signal changing form across sea, air, rail, and road segments\",\n    \"partnership\": \"two distinct operating systems or physical corridors joining through one transparent settlement interface\"\n  }\n}"
+}

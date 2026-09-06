@@ -1,0 +1,218 @@
+[
+  {
+    "key": "workspace_purpose",
+    "question": "What is this workspace for?",
+    "aliases": ["What does this editorial workspace do?"],
+    "keywords": ["workspace", "editorial desk", "purpose", "content studio"],
+    "answer": "It imports English news sources, ranks stories for three brands, creates copy and images, supports approval and scheduling, and publishes approved work to Telegram or X.",
+    "priority": 900
+  },
+  {
+    "key": "news_brands",
+    "question": "Which brands are available for news creation?",
+    "aliases": ["What are the three media brands?"],
+    "keywords": ["brands", "news brands", "SLT CargoPay", "CoinBank", "Coin Factory"],
+    "answer": "News creation has exactly three brands: SLT CargoPay, CoinBank, and Coin Factory. Market instruments are separate and do not appear in the news-brand list.",
+    "priority": 900
+  },
+  {
+    "key": "normal_workflow",
+    "question": "What is the normal workflow from source to publication?",
+    "aliases": ["How do I create and publish a post?"],
+    "keywords": ["workflow", "import", "review", "approve", "schedule", "publish"],
+    "answer": "Choose sources and run settings, import and enrich items, review ranked selections, create or edit copy and images, approve the result, then save, schedule, or publish it.",
+    "priority": 900
+  },
+  {
+    "key": "ranking_not_filtering",
+    "question": "Does the news desk filter stories out?",
+    "aliases": ["Why can I still see weak matches?"],
+    "keywords": ["rank", "ranking", "filter", "filtering", "weak match"],
+    "answer": "The desk ranks rather than filters. Admission thresholds are set to their ranking-safe minimums so operators can see the available items and make the final editorial decision.",
+    "priority": 700
+  },
+  {
+    "key": "source_inventory",
+    "question": "Which source types does the workspace use?",
+    "aliases": ["Where do the stories come from?"],
+    "keywords": ["sources", "RSS", "Telegram", "feeds", "channels"],
+    "answer": "The active source set contains 15 verified RSS feeds and 29 public Telegram channels. All acquired source content is configured as English.",
+    "priority": 700
+  },
+  {
+    "key": "telegram_ordering",
+    "question": "How are Telegram source posts ordered?",
+    "aliases": ["Why are highly viewed Telegram posts shown first?"],
+    "keywords": ["Telegram", "views", "most viewed", "latest", "ordering"],
+    "answer": "Telegram defaults to most viewed within the selected time window. Operators can also choose newest, per-source views, per-source newest, or keyword ordering.",
+    "priority": 500
+  },
+  {
+    "key": "time_windows",
+    "question": "Which source time windows are available?",
+    "aliases": ["How far back can an import look?"],
+    "keywords": ["window", "hours", "6", "12", "24", "48"],
+    "answer": "A normal run defaults to 24 hours. The supported choices are 6, 12, 24, and 48 hours.",
+    "priority": 500
+  },
+  {
+    "key": "enrichment",
+    "question": "What does enrichment do?",
+    "aliases": ["Why does the system read the full article?"],
+    "keywords": ["enrichment", "article", "brief", "Firecrawl", "full text"],
+    "answer": "Enrichment fetches article text and writes a short factual brief for up to eight items per import. Direct fetching is tried first, with Firecrawl as the fallback.",
+    "priority": 500
+  },
+  {
+    "key": "editor_options",
+    "question": "Which AI editors can I choose?",
+    "aliases": ["What models are available for editorial selection?"],
+    "keywords": ["AI editors", "GPT", "Gemini", "Claude", "DeepSeek", "models"],
+    "answer": "The selectable editors are GPT, Gemini, Claude, and DeepSeek. A full run across all three brands and all four editors creates twelve editorial-selection units.",
+    "priority": 500
+  },
+  {
+    "key": "editorial_caps",
+    "question": "How many candidates and results can a run produce?",
+    "aliases": ["What are the shortlist and selection limits?"],
+    "keywords": ["candidates", "shortlist", "results", "cap", "20"],
+    "answer": "Each editor may see up to 20 candidates per brand, and the normal run has a ceiling of 20 final results.",
+    "priority": 500
+  },
+  {
+    "key": "copy_policies",
+    "question": "What copy formats are generated for X and Telegram?",
+    "aliases": ["How long are the social drafts?"],
+    "keywords": ["copy", "X", "Telegram", "characters", "hashtags", "emoji"],
+    "answer": "X receives three 180–260 character variants with 2–3 hashtags and no emoji. Telegram receives three 300–600 character variants with 3–5 hashtags and up to three emoji.",
+    "priority": 700
+  },
+  {
+    "key": "destinations",
+    "question": "Where can approved posts be published?",
+    "aliases": ["Which destination accounts are enabled?"],
+    "keywords": ["destination", "publish", "Telegram", "X", "account", "channel"],
+    "answer": "All three news brands can publish to the shared SLT CargoPay Telegram channel and the shared RZWire X account. Instagram is not enabled.",
+    "priority": 700
+  },
+  {
+    "key": "slt_scope",
+    "question": "What belongs to SLT CargoPay?",
+    "aliases": ["Which stories fit the SLT CargoPay brand?"],
+    "keywords": ["SLT CargoPay", "cargo", "freight", "invoice", "Transportation ID", "settlement", "Treasury Program", "GOLDGR", "LUSD"],
+    "answer": "Use SLT CargoPay for cargo and logistics stories that clearly connect to business payments, invoices, Transportation IDs, wallet confirmation, smart contracts, or traceable settlement records. Approved product education also includes the Treasury Program and the documented roles of GOLDGR and LUSD.",
+    "priority": 700
+  },
+  {
+    "key": "slt_guardrails",
+    "question": "What must SLT CargoPay content avoid?",
+    "aliases": ["Which SLT CargoPay claims are unsafe?"],
+    "keywords": ["SLT guardrails", "custody", "bank", "exchange", "guaranteed", "claims"],
+    "answer": "Do not call it a bank, exchange, custodian, insurer, escrow service, or investment product. Do not quote conflicting Treasury rates or durations, state that no KYC is required, or invent additional networks, assets, addresses, legal status, partners, reserves, redemption terms, audits, or guaranteed outcomes. On-chain payment evidence does not by itself prove a physical cargo event.",
+    "priority": 900
+  },
+  {
+    "key": "coinbank_scope",
+    "question": "What belongs to CoinBank?",
+    "aliases": ["Which stories fit the CoinBank brand?"],
+    "keywords": ["CoinBank", "self-custody", "wallet", "cross-chain", "Web3 capital", "early access", "allocation", "payments"],
+    "answer": "Use CoinBank for wallet-controlled Web3 capital infrastructure, capital movement, structured early access, rule-based allocation, CoinBank Token utility, informed wallet permissions, and practical digital-asset payment or card infrastructure.",
+    "priority": 700
+  },
+  {
+    "key": "coinbank_guardrails",
+    "question": "What must CoinBank content avoid?",
+    "aliases": ["Which CoinBank claims require verification?"],
+    "keywords": ["CoinBank guardrails", "license", "returns", "audit", "reserves", "card"],
+    "answer": "Do not call CoinBank a licensed bank, custodian, exchange, broker, insurer, lender, or financial adviser. Do not invent product availability, rates, returns, audits, reserves, card acceptance, supported chains, partnerships, KYC exemptions, or regulatory approvals. Keep wallet consent and remaining risks explicit.",
+    "priority": 900
+  },
+  {
+    "key": "coinbank_current_products",
+    "question": "Which CoinBank products are current in the official material?",
+    "aliases": ["What does CoinBank currently offer?"],
+    "keywords": ["CoinBank products", "capital movement", "early access", "allocation", "CoinBank Token", "debit card"],
+    "answer": "The current official website centers on wallet-controlled capital movement, structured early access, rule-based capital allocation, CoinBank Token, the CoinBank Debit Card proposition, and RZ ecosystem connections. Exact routes, assets, rates, maturity terms, and card availability still require current verification.",
+    "priority": 800
+  },
+  {
+    "key": "coinbank_roadmap_status",
+    "question": "Which CoinBank features must be described as roadmap items?",
+    "aliases": ["Are RWA, AI credit, and smart investment accounts live?"],
+    "keywords": ["CoinBank roadmap", "RWA", "AI credit", "BNPL", "smart investment account", "AI Copilot", "protection"],
+    "answer": "Treat Smart Investment Accounts, RWA tokenization, AI Credit/BNPL, integrated protection or cover, AI Copilot, rewards, institutional expansion, and future licensing as planned, designed, or roadmap features unless a current official product page proves they are live.",
+    "priority": 900
+  },
+  {
+    "key": "coinbank_token_conflicts",
+    "question": "What token facts can be stated safely for CoinBank?",
+    "aliases": ["Can I quote CoinBank Token supply or price?"],
+    "keywords": ["CoinBank Token", "COINBANK", "RZBank", "supply", "price", "contract", "BEP-20"],
+    "answer": "Use CoinBank Token or COINBANK as the current name and treat RZBank as a conflicting legacy label. Do not quote supply, price, contract, market cap, holders, exchange availability, burn amounts, or returns without current contract or approved market-data verification because the supplied sources conflict.",
+    "priority": 900
+  },
+  {
+    "key": "coinfactory_scope",
+    "question": "What belongs to Coin Factory?",
+    "aliases": ["Which stories fit the Coin Factory brand?"],
+    "keywords": ["Coin Factory", "Coin Factory AG", "tokenization", "RWA", "enterprise", "digital ownership", "tokenomics", "MGC ownership"],
+    "answer": "Use Coin Factory for enterprise tokenization strategy, real-world assets, ownership and revenue structures, tokenomics, smart contracts, issuance, institutional digital assets, compliance, Swiss corporate innovation, and the official MGC ownership framework.",
+    "priority": 700
+  },
+  {
+    "key": "coinfactory_guardrails",
+    "question": "What must Coin Factory content avoid?",
+    "aliases": ["Which Coin Factory claims require verification?"],
+    "keywords": ["Coin Factory guardrails", "liquidity", "listing", "valuation", "returns", "approval"],
+    "answer": "Do not invent clients, partnerships, licences, approvals, valuations, issuance terms, supported networks, liquidity, listings, launch dates, audits, legal rights, dividends, or returns. Do not say tokenization automatically creates ownership or compliance, audit coordination guarantees security, or listing support guarantees a listing. Explain the business purpose before the technology.",
+    "priority": 900
+  },
+  {
+    "key": "coinfactory_services",
+    "question": "Which services does Coin Factory provide?",
+    "aliases": ["What can Coin Factory do for an enterprise?"],
+    "keywords": ["Coin Factory services", "tokenization strategy", "asset tokenization", "tokenomics", "smart contracts", "audit coordination", "listing support"],
+    "answer": "Official services are tokenization strategy, asset tokenization, tokenomics design, smart-contract development, token launch and deployment, security-audit coordination, exchange-listing preparation, ecosystem development, and selected venture partnerships. These services do not guarantee legal approval, audit success, listing, liquidity, funding, or commercial performance.",
+    "priority": 800
+  },
+  {
+    "key": "coinfactory_mgc_ownership",
+    "question": "How does the MGC ownership framework work?",
+    "aliases": ["Does holding MGC make me a Coin Factory AG shareholder?"],
+    "keywords": ["MGC", "ownership", "100000", "registered share", "claim", "burn", "share register"],
+    "answer": "Holding MGC alone does not create shareholder status. The official structure gives an eligible holder of 100,000 MGC the right to submit a claim for one registered Coin Factory AG share. Completion requires identity verification, proof of wallet control, surrender and permanent burn of the tokens, approval, share availability, compliance checks, and registration in the company share register.",
+    "priority": 900
+  },
+  {
+    "key": "coinfactory_mgc_value",
+    "question": "Does the Coin Factory AG valuation guarantee the price or return of MGC?",
+    "aliases": ["Is MGC pegged to Coin Factory AG equity?"],
+    "keywords": ["MGC price", "equity reference value", "valuation", "pegged", "return", "dividend"],
+    "answer": "No. The periodic company valuation provides an equity reference value for the share relationship, but MGC is connected to the company rather than pegged to its valuation. Market price may differ, and neither token holding nor share ownership guarantees value, liquidity, dividends, distributions, or returns.",
+    "priority": 900
+  },
+  {
+    "key": "coinfactory_platform_structure",
+    "question": "Is Coin Factory AG the same as CFT or its other platforms?",
+    "aliases": ["What is the difference between Coin Factory AG and CFT?"],
+    "keywords": ["Coin Factory AG", "CFT", "platforms", "RZ Chain", "CoinBank", "SLT CargoPay"],
+    "answer": "No. Coin Factory AG is the company that owns and operates a group of platforms; CFT is its tokenization issuance and underwriting system. RZ Chain, Ranking.Game, CoinBank, RZ Prime, Meta Coin Guard, Coin Halls, SLT CargoPay, and OASIS have separate roles. Their live or launching status must be rechecked before publication.",
+    "priority": 800
+  },
+  {
+    "key": "market_analysis",
+    "question": "How is Market Analysis different from news creation?",
+    "aliases": ["Where do I create financial chart posts?"],
+    "keywords": ["Market Analysis", "financial posts", "charts", "six instruments", "price series"],
+    "answer": "Market Analysis is a separate chart-led workflow for MGC Coin, Oasis Coin, Jewelry Coin, Industrial Token, Real Estate Token, and Trip Token. Its published cards use CoinBank as the owning brand.",
+    "priority": 900
+  },
+  {
+    "key": "assistant_limits",
+    "question": "What can the assistant do?",
+    "aliases": ["Can the assistant publish or edit content?"],
+    "keywords": ["assistant", "help", "edit", "approve", "schedule", "publish"],
+    "answer": "The assistant can explain the workspace, brands, and the run or card currently open. It cannot edit, approve, schedule, publish, or perform actions for the operator.",
+    "priority": 900
+  }
+]

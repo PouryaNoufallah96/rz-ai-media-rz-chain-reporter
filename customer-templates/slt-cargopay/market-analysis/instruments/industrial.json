@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "theme": {
+    "background": "#10072d",
+    "backgroundAlt": "#291050",
+    "surface": "#191231",
+    "surfaceAlt": "#281a47",
+    "text": "#f8f5ff",
+    "muted": "#b9aed1",
+    "positive": "#41c98d",
+    "negative": "#ef6c75",
+    "accent": "#f4c224",
+    "accentAlt": "#7816d2",
+    "border": "#6c42a1"
+  },
+  "motifs": [
+    "precision gold robotics",
+    "industrial violet horizon",
+    "verified light paths",
+    "real-economy infrastructure"
+  ],
+  "scenes": [
+    "A credible advanced manufacturing floor at deep indigo hour, with one precise gold robotic arm, graphite machinery, restrained violet light paths, cinematic depth, and broad quiet editorial space.",
+    "A monumental industrial logistics landscape connecting port cranes, rail, warehouse, and clean energy infrastructure with subtle gold verification paths, violet-blue twilight, realistic scale, and calm negative space.",
+    "A premium Industry 4.0 hall where one engineer observes a translucent factory-scale digital twin above real machinery, controlled purple atmosphere, warm metallic-gold accents, and uncluttered editorial hierarchy."
+  ],
+  "artDirection": "Premium Industrial Token market editorial with deep indigo, controlled ultraviolet, metallic gold industrial machinery, realistic infrastructure, cinematic depth, and clear factual hierarchy.",
+  "defaultChartColor": "#b56ad9",
+  "frozenStyle": {
+    "format": "market editorial poster with a protected factual chart and centered footer rail",
+    "palette": "deep indigo, controlled ultraviolet, graphite, warm metallic gold, and restrained outcome accents",
+    "materials": "credible machinery, brushed graphite, metallic-gold robotics, glass digital twins, and industrial infrastructure",
+    "rendering": "realistic premium Industry 4.0 editorial with cinematic depth and uncluttered factual hierarchy",
+    "backgroundVocab": "advanced factories, logistics infrastructure, digital twins, ports, rail, and controlled violet horizons",
+    "headlineZone": "reserve broad quiet editorial space in the upper third for the approved Story",
+    "never": "never invent chart facts, tickers, logos, domains, slogans, machinery labels, or sample text; never disturb the protected chart or footer rail"
+  }
+}

@@ -41,7 +41,7 @@ paths — never credentials.
 | TLS and proxy | `TLS_CERTIFICATE`, `TLS_CERTIFICATE_KEY`, `NGINX_SITE_AVAILABLE`, `NGINX_SITE_ENABLED` |
 | Guard | `MIN_FREE_MEMORY_MB` |
 
-Tracked, secret-free examples live in `deploy/instance-examples/<hostname>/` and
+Tracked, secret-free examples live in `deploy/instance-examples/<hostname-or-ip>/` and
 `deploy/production.env.example`. The real per-host configuration is not tracked.
 
 `APP_VERSION` must be an **immutable tag**. The script rejects `dev`, `latest`,
@@ -104,7 +104,8 @@ bad deployments than any other.
 - Both TLS files exist.
 - Every file in the environment directory is mode `600`.
 - Available memory is above the configured floor.
-- `PUBLIC_HOST` resolves to `PUBLIC_IP`.
+- `PUBLIC_HOST` equals `PUBLIC_IP` for a literal IPv4 origin, or resolves to it
+  for a hostname. Literal addresses do not require reverse DNS.
 
 There is also a **legacy-collision guard**: the script refuses an application root
 that is, or sits under, one of the retired estate's paths; refuses a project name
@@ -238,7 +239,7 @@ rate-limit zones.
 
 | Property | Value |
 |---|---|
-| Port 80 | Permanent redirect to HTTPS |
+| Port 80 | ACME challenge files; permanent redirect to HTTPS for other requests |
 | Port 443 | TLS, HTTP/2, IPv4 and IPv6 |
 | Body limit | 32 MB, with a body timeout |
 | Buffering | Off in both directions, so streaming responses stream |
@@ -257,6 +258,29 @@ Routes, and why each is special:
 
 Nothing proxies the worker port, the database, or object storage — and the deploy
 script greps the rendered site to prove it before installing.
+
+### HTTPS without a domain
+
+An installation may use its public IPv4 address as `PUBLIC_HOST`, with the same
+address in `PUBLIC_IP`. Set the build and runtime public origins to
+`https://<public-ip>` and provide a trusted certificate containing that IP address.
+The certificate must exist before deployment; the script does not issue one.
+
+For [Let's Encrypt IP certificates](https://letsencrypt.org/2026/03/11/shorter-certs-certbot),
+use Certbot with IP-address webroot support, `--ip-address <public-ip>` and
+`--preferred-profile shortlived`. Before the first certificate request, create
+`/var/www/letsencrypt` and configure an HTTP-only bootstrap site to serve
+`/.well-known/acme-challenge/` from it. Keep public port 80 reachable. Request the
+certificate with `certonly --webroot --webroot-path /var/www/letsencrypt`, then
+point the deployment's TLS paths at its `fullchain.pem` and `privkey.pem`.
+The deployed site preserves that challenge path for subsequent renewals.
+
+These certificates last only 160 hours, so automatic renewal is required. Verify
+the Certbot timer checks at least twice daily and configure a successful-renewal
+deploy hook to run `nginx -t && systemctl reload nginx`. Verify the complete path
+with `certbot renew --dry-run --run-deploy-hooks`; a renewed file alone does not
+make Nginx load the new certificate. See the
+[Certbot renewal guide](https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates).
 
 ## Database roles
 

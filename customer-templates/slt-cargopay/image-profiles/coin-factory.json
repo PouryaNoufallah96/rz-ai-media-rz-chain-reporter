@@ -1,0 +1,316 @@
+{
+  "families": {
+    "asset_to_token": {
+      "name": "ASSET TO TOKEN",
+      "skeleton": "A real-world asset on a glass plinth emits a soft cyan tokenization beam into a transparent holographic coin or octagonal token above it. Fine nodes and cubes show structured ownership.",
+      "textPolicy": "Headline plus one short subtitle. Good labels: Real Asset, Digital Asset, Tokenized Economy.",
+      "defaultAxes": {
+        "environment": "swiss_lake",
+        "camera": "left_headline_product",
+        "energy": "transformation",
+        "accent": "ivory_cyan_gold",
+        "headline_layout": "left_serif",
+        "spatial_grammar": "offset_transformation"
+      },
+      "dataBudget": 3
+    },
+    "real_estate_token": {
+      "name": "REAL ESTATE TOKEN",
+      "skeleton": "A miniature premium building or institutional property model sits on a thick transparent glass base, with a cyan holographic real-estate token floating above it.",
+      "textPolicy": "Headline plus short subtitle. Good labels: Real Estate Token, Tokenizing Real Estate, Building Real Value.",
+      "defaultAxes": {
+        "environment": "pale_city",
+        "camera": "left_headline_product",
+        "energy": "proof_backed",
+        "accent": "ivory_gold",
+        "headline_layout": "left_serif",
+        "spatial_grammar": "architectural_field"
+      },
+      "dataBudget": 3
+    },
+    "tokenization_explainer": {
+      "name": "TOKENIZATION EXPLAINER",
+      "skeleton": "A clean educational poster explains tokenization as value, rights, and access becoming digital assets, using one central glass token and minimal refined annotations.",
+      "textPolicy": "Question headline plus one sentence subtitle. Optional small page count like 01 / 03 only if requested.",
+      "defaultAxes": {
+        "environment": "marble_studio",
+        "camera": "editorial_question",
+        "energy": "educational",
+        "accent": "ivory_cyan_gold",
+        "headline_layout": "left_serif_question",
+        "spatial_grammar": "editorial_diagram"
+      },
+      "dataBudget": 2
+    },
+    "process_stack": {
+      "name": "PROCESS STACK",
+      "skeleton": "An exploded vertical stack of transparent glass layers rises from a gold asset block: define, structure, program, launch. A refined token floats above the stack.",
+      "textPolicy": "Headline plus four short process words. Good labels: Define, Structure, Program, Launch.",
+      "defaultAxes": {
+        "environment": "swiss_lake",
+        "camera": "right_stack_left_text",
+        "energy": "methodical",
+        "accent": "ivory_cyan_gold",
+        "headline_layout": "left_serif_question",
+        "spatial_grammar": "layered_ascent"
+      },
+      "dataBudget": 4
+    },
+    "enterprise_architecture": {
+      "name": "ENTERPRISE ARCHITECTURE",
+      "skeleton": "A refined tokenization infrastructure diagram shows asset model, smart-contract layer, ownership rails, compliance/audit panel, and launch module as clean glass architectural components.",
+      "textPolicy": "Headline plus 3-5 large module labels. Keep the labels institutional and non-hype.",
+      "defaultAxes": {
+        "environment": "architectural_studio",
+        "camera": "symmetrical_gallery",
+        "energy": "institutional",
+        "accent": "ivory_teal",
+        "headline_layout": "center_editorial",
+        "spatial_grammar": "architectural_field"
+      },
+      "dataBudget": 5
+    },
+    "asset_economy": {
+      "name": "ASSET ECONOMY",
+      "skeleton": "Multiple real-world asset types appear as small premium models or icons on glass, all connected to a central tokenized economy node through fine cyan ownership rails.",
+      "textPolicy": "Headline plus up to 5 asset labels. Good labels: Real Estate, Gold, Funds, Revenue, Access.",
+      "defaultAxes": {
+        "environment": "pale_city",
+        "camera": "symmetrical_gallery",
+        "energy": "ecosystem",
+        "accent": "ivory_gold",
+        "headline_layout": "center_editorial",
+        "spatial_grammar": "distributed_catalog"
+      },
+      "dataBudget": 5
+    },
+    "material_provenance": {
+      "name": "MATERIAL PROVENANCE",
+      "skeleton": "An extreme macro cross-section of the article's real material or asset surface reveals origin, custody, rights, or certification as physically embedded strata. Champagne-gold material, pale stone, platinum glass, and restrained cyan scanning create a tactile proof-led image without a token symbol.",
+      "textPolicy": "Headline, optional short subtitle, and at most 3 precise provenance markers grounded in the article. Avoid generic technical microtext.",
+      "defaultAxes": {
+        "environment": "materials_lab",
+        "camera": "extreme_material_macro",
+        "energy": "forensic_proof",
+        "accent": "ivory_cyan_gold",
+        "headline_layout": "upper_left_serif",
+        "spatial_grammar": "material_crop"
+      },
+      "dataBudget": 3
+    },
+    "ownership_blueprint": {
+      "name": "OWNERSHIP BLUEPRINT",
+      "skeleton": "A real article-specific floor plan, asset drawing, or ownership diagram rises from an ivory drafting surface into transparent volumetric rights layers. Champagne-gold boundaries and restrained cyan paths make access, control, transfer, or governance legible as architecture.",
+      "textPolicy": "Headline, optional subtitle, and up to 4 large rights or structure markers supported by the story. Do not invent allocations, percentages, or legal status.",
+      "defaultAxes": {
+        "environment": "drafting_atelier",
+        "camera": "oblique_blueprint",
+        "energy": "structured_clarity",
+        "accent": "ivory_teal",
+        "headline_layout": "lower_left_serif",
+        "spatial_grammar": "rising_blueprint"
+      },
+      "dataBudget": 4
+    },
+    "compliance_aperture": {
+      "name": "COMPLIANCE APERTURE",
+      "skeleton": "An asset dossier, rights instrument, or physical asset passes through several offset platinum-glass architectural apertures. Each stage quietly represents an article-grounded identity, rights, governance, audit, or issuance requirement through restrained scan light, never fake seals.",
+      "textPolicy": "Headline, optional subtitle, and up to 4 supported stage names. Keep the scene architectural and avoid unsupported claims of approval or regulatory compliance.",
+      "defaultAxes": {
+        "environment": "compliance_gallery",
+        "camera": "deep_aperture",
+        "energy": "measured_progression",
+        "accent": "ivory_cyan_gold",
+        "headline_layout": "lower_left_serif",
+        "spatial_grammar": "staggered_thresholds"
+      },
+      "dataBudget": 4
+    },
+    "rights_archive": {
+      "name": "RIGHTS ARCHIVE",
+      "skeleton": "A precision institutional archive organizes the article's distinct rights into ivory drawers, glass sleeves, or indexed physical records. Selected compartments open at unequal depths, revealing specific access, ownership, revenue, transfer, or governance instruments linked by subtle cyan indexing light.",
+      "textPolicy": "Headline, optional subtitle, and at most 4 rights categories explicitly supported by the article. The archive carries the metaphor; do not add a central token.",
+      "defaultAxes": {
+        "environment": "rights_archive_room",
+        "camera": "asymmetric_archive",
+        "energy": "ordered_access",
+        "accent": "ivory_gold",
+        "headline_layout": "left_vertical_serif",
+        "spatial_grammar": "selective_repetition"
+      },
+      "dataBudget": 4
+    },
+    "digital_twin": {
+      "name": "DIGITAL TWIN",
+      "skeleton": "A credible real industrial, infrastructure, property, or productive asset appears beside an offset transparent technical twin. The twin reveals only article-supported ownership segments, usage rules, maintenance evidence, cash-flow logic, or programmable rights as clean layers rather than dashboard clutter.",
+      "textPolicy": "Headline, optional subtitle, and no more than 3 large technical or rights markers. Never invent metrics, allocations, maintenance records, or investor details.",
+      "defaultAxes": {
+        "environment": "industrial_gallery",
+        "camera": "offset_twin",
+        "energy": "credible_translation",
+        "accent": "ivory_teal",
+        "headline_layout": "lower_left_serif",
+        "spatial_grammar": "unequal_pair"
+      },
+      "dataBudget": 3
+    },
+    "contract_loom": {
+      "name": "CONTRACT LOOM",
+      "skeleton": "A sculptural Swiss precision mechanism made from ivory ceramic, platinum glass, and champagne-gold components weaves separate article-specific terms or rights into one ordered operational fabric. The mechanism feels physically credible, elegant, and institutional rather than like a circuit-board diagram.",
+      "textPolicy": "Headline, optional subtitle, and up to 4 short input terms grounded in the approved story, such as Ownership, Access, Revenue, Transfer, or Governance.",
+      "defaultAxes": {
+        "environment": "precision_workshop",
+        "camera": "machinery_three_quarter",
+        "energy": "programmable_order",
+        "accent": "ivory_cyan_gold",
+        "headline_layout": "upper_left_serif",
+        "spatial_grammar": "woven_flow"
+      },
+      "dataBudget": 4
+    }
+  },
+  "axes": {
+    "environment": {
+      "swiss_lake": "Environment: misty Swiss lake and mountain background with pale architecture, marble reflection, and soft daylight.",
+      "pale_city": "Environment: pale institutional financial city skyline, warm ivory haze, glass plinth, and clean negative space.",
+      "marble_studio": "Environment: quiet marble studio or gallery with soft reflections, translucent glass base, and editorial whitespace.",
+      "architectural_studio": "Environment: premium architectural model studio with glass surfaces, technical elegance, and subtle compliance/audit cues.",
+      "materials_lab": "Environment: a luminous materials laboratory with ivory negative space, tactile asset cross-sections, champagne-gold strata, platinum glass, and restrained cyan scanning light.",
+      "drafting_atelier": "Environment: an immaculate Swiss architectural drafting atelier with pale plans, limestone samples, precision tools, transparent rights film, and soft daylight.",
+      "compliance_gallery": "Environment: a bright institutional gallery formed by offset platinum-glass apertures, pale stone arches, restrained scan light, and deep architectural perspective.",
+      "rights_archive_room": "Environment: a precision ivory archive room with refined drawers, transparent sleeves, gold-edged records, subtle cyan indexing light, and museum-like calm.",
+      "industrial_gallery": "Environment: a high-ceilinged stone-and-glass industrial gallery where one credible real asset and its technical twin can be studied in soft daylight.",
+      "precision_workshop": "Environment: a quiet Swiss precision workshop with ivory ceramic mechanisms, platinum glass, champagne-gold components, pale architecture, and controlled daylight."
+    },
+    "camera": {
+      "left_headline_product": "Composition: large headline on the left, hero asset/token scene on the right or lower-right.",
+      "editorial_question": "Composition: editorial question headline in the upper-left, central tokenization object on the right.",
+      "right_stack_left_text": "Composition: process stack on the right, large serif explanation on the left.",
+      "symmetrical_gallery": "Composition: centered gallery-like product scene with balanced whitespace and refined labels.",
+      "extreme_material_macro": "Composition: extreme asymmetric material crop extending beyond the frame edges, with shallow depth and a generous editorial type field.",
+      "oblique_blueprint": "Composition: oblique top-down drafting view with rights layers rising diagonally and the main structure positioned away from center.",
+      "deep_aperture": "Composition: deep off-center architectural corridor through staggered transparent frames, with a clear near-to-far progression.",
+      "asymmetric_archive": "Composition: human-scale archive wall viewed obliquely, with selected drawers projecting at unequal depths and type balanced in open space.",
+      "offset_twin": "Composition: unequal physical and transparent forms occupy opposite diagonals, leaving broad negative space and avoiding mirror symmetry.",
+      "machinery_three_quarter": "Composition: close three-quarter precision-machinery portrait extending beyond one frame edge, with visible directional material flow."
+    },
+    "energy": {
+      "transformation": "Energy: calm transformation from physical asset to digital token, precise and optimistic.",
+      "proof_backed": "Energy: trust and real-world backing, architectural, measured, and substantial.",
+      "educational": "Energy: clear explainer tone, refined and accessible without oversimplifying.",
+      "methodical": "Energy: structured implementation process, step-by-step and professional.",
+      "institutional": "Energy: institutional-grade clarity, compliance-aware, premium, and controlled.",
+      "ecosystem": "Energy: broad asset economy formation, connected but uncluttered.",
+      "forensic_proof": "Energy: quiet material evidence, exact inspection, and confidence grounded in provenance rather than spectacle.",
+      "structured_clarity": "Energy: rights and boundaries becoming legible through calm architectural order.",
+      "measured_progression": "Energy: disciplined passage through defined requirements, with no implication of automatic legal approval.",
+      "ordered_access": "Energy: calm institutional organization, discoverability, and precise separation of distinct rights.",
+      "credible_translation": "Energy: a real asset gaining an accurate programmable counterpart without losing physical credibility.",
+      "programmable_order": "Energy: multiple terms becoming one coherent operational system through precise controlled motion."
+    },
+    "accent": {
+      "ivory_cyan_gold": "Accent: ivory/stone base, cyan tokenization beam, champagne-gold asset highlights, graphite text.",
+      "ivory_gold": "Accent: warm ivory and champagne gold dominate, with very light cyan network details.",
+      "ivory_teal": "Accent: pale institutional surface with subtle teal/cyan technical lines and graphite typography."
+    },
+    "headline_layout": {
+      "left_serif": "Use a large upper-left editorial headline; one key word may be champagne gold.",
+      "left_serif_question": "Use a large upper-left serif question headline with a short subtitle beneath.",
+      "center_editorial": "Use a centered or high editorial headline with small uppercase category text above.",
+      "upper_left_serif": "Use a large refined serif headline in the upper-left negative space with a compact subtitle directly below.",
+      "lower_left_serif": "Anchor the refined serif headline in a clean lower-left editorial field, leaving the main structure unobstructed.",
+      "left_vertical_serif": "Use a tall left-side serif headline block balanced against a detailed repeating structure on the right."
+    },
+    "spatial_grammar": {
+      "offset_transformation": "Spatial grammar: source and outcome occupy unequal off-center positions connected by one restrained transformation path, never a central token shrine.",
+      "architectural_field": "Spatial grammar: information is distributed through a credible architectural field with foreground, middle layer, and distant structure.",
+      "editorial_diagram": "Spatial grammar: one primary explanatory object with sparse surrounding evidence and generous Swiss editorial whitespace.",
+      "layered_ascent": "Spatial grammar: offset layers rise through depth in a directional sequence rather than a perfectly centered vertical stack.",
+      "distributed_catalog": "Spatial grammar: several article-specific assets form an ordered catalog without orbiting a central node.",
+      "material_crop": "Spatial grammar: the tactile subject extends beyond frame edges while provenance information is integrated into its material strata.",
+      "rising_blueprint": "Spatial grammar: a flat plan becomes transparent volumetric rights architecture across an oblique diagonal.",
+      "staggered_thresholds": "Spatial grammar: several unequal apertures create deep progression through requirements with a clear entrance and destination.",
+      "selective_repetition": "Spatial grammar: repeated archive geometry is interrupted by a small set of open article-relevant compartments at different depths.",
+      "unequal_pair": "Spatial grammar: the physical asset and its technical twin form an asymmetric pair with different scale, material, and depth.",
+      "woven_flow": "Spatial grammar: separate article-specific inputs move through precision mechanics and emerge as one ordered rights fabric."
+    }
+  },
+  "frozenStyle": {
+    "format": "vertical 3:4 editorial poster, 1080x1440, adapted from the legacy format instruction (vertical 4:5 editorial poster, 1080x1350); preserve the legacy 1080x1350-safe content hierarchy inside the supported canvas",
+    "palette": "warm ivory, cloud white, stone, platinum glass, pale champagne gold, graphite headline text, soft cyan holographic light, and very restrained teal accent lines. The page should feel bright, premium, quiet, and institutional rather than dark crypto.",
+    "materials": "platinum glass, polished limestone and marble, champagne-gold metal, archival paper, precision drawers, architectural drafting film, mineral and material cross-sections, industrial components, ceramic mechanisms, transparent rights layers, fine cyan scan lines, restrained ownership rails, and minimal compliance-grade annotations. Select only the materials required by the current article.",
+    "rendering": "luxury institutional editorial imagery combining high-end product photography, architectural visualization, tactile macro detail, precision machinery, and restrained data integration. Use soft daylight, physically credible materials, precise glass refractions, clean negative space, and Swiss design discipline. The visual must have one immediately legible article metaphor, never a generic crypto transformation effect.",
+    "backgroundVocab": "bright institutional galleries, architectural drafting tables, materials laboratories, rights archives, compliance corridors, industrial studios, precision workshops, pale financial architecture, occasional Swiss landscape haze, and quiet ownership infrastructures. Use the Swiss lake or skyline only when it adds meaning.",
+    "headlineZone": "reserve the upper-left or top-center area for a large editorial headline in graphite serif or refined modern type; one key word may be champagne gold. Keep generous whitespace.",
+    "never": "no meme design, no rockets, no moons, no casino, no trading terminal, no exchange UI, no price chart, no token shower, no hype-token launchpad look, no guaranteed-return claims, no APY, no risk-free, no tiny unreadable microtext, no fake regulatory seals, and no brand names, monograms, emblems, or corporate marks drawn by the image model."
+  },
+  "restrictions": {
+    "antiRepetition": "HARD DIVERSITY CONTRACT: the last three visual families are unavailable. Avoid the spatial_grammar used in the previous two briefs and avoid the immediately previous camera. Never create two consecutive centered, symmetrical, plinth-based, floating-token, Swiss-lake, miniature-building, or exploded-stack compositions. First identify one concrete article anchor: a material, asset, right, legal or operational document, industrial object, property feature, ownership rule, compliance stage, market event, named company, or infrastructure system. Build one truthful physical metaphor around that anchor. Rotate between macro material detail, drafting space, institutional architecture, archive systems, real industrial scale, precision machinery, documentary product scenes, and abstract rights infrastructure. Change the dominant silhouette, focal position, direction of movement, foreground object, and depth structure from recent work. Floating holographic coins, glass plinths, cyan transformation beams, mountain skylines, central nodes, miniature buildings, and stacked glass layers are optional vocabulary, never mandatory brand ingredients. Use no more than two familiar tokenization symbols in one poster. The artwork must explain this specific article at a glance, not merely repeat a generic RWA poster. ROUTE BY THE ARTICLE'S MOST CONCRETE ASSET, RIGHT, PROCESS, OR INSTITUTIONAL EVENT. Use material_provenance when origin, custody, backing, materials, certification, reserves, commodities, authenticity, or evidence is central. Use ownership_blueprint for property structure, title, allocation logic, access, control, transfer, governance, or rights design. Use compliance_aperture for KYC, identity, eligibility, jurisdiction, audit stages, issuance controls, regulatory architecture, or institutional onboarding without implying approval. Use rights_archive when the story separates several rights, claims, records, instruments, entitlements, or stakeholder roles. Use digital_twin when a specific industrial, infrastructure, productive, energy, transport, property, or technology asset is the hero. Use contract_loom for smart-contract rules, programmable terms, revenue logic, governance mechanics, transfer restrictions, or coordinated rights. Use asset_to_token only when transformation from one real asset into a digital representation is itself the story. Use real_estate_token only when a specific property or building is the core subject. Use tokenization_explainer only for genuine definitions or educational questions. Use process_stack only for an explicit ordered implementation workflow. Use enterprise_architecture only when several infrastructure modules must be shown together. Use asset_economy only for a genuinely multi-asset market or ecosystem overview. When several families fit, choose the least recently used family and the most surprising truthful physical metaphor.",
+    "moodAccentDefault": "ivory_cyan_gold",
+    "moodAccentRestricted": {},
+    "bannedSubjectTerms": [
+      "casino",
+      "meme coin",
+      "rocket",
+      "luxury car",
+      "cash rain",
+      "trading screen",
+      "exchange dashboard",
+      "guaranteed",
+      "risk-free",
+      "passive income",
+      "investment return",
+      "instant liquidity"
+    ]
+  },
+  "textPolicy": {
+    "rules": "Brand image premise: Swiss institutional tokenization infrastructure for turning real assets, rights, access, and ownership models into structured digital economies through token design, smart-contract logic, compliance-aware architecture, launch infrastructure, and asset-backed Web3 systems\n\nUse one article-specific editorial headline and, when it sharpens the meaning, one short subtitle. Add zero to four large markers only when the chosen family requires them; macro, digital-twin, and machinery scenes should usually use zero to three. Do not automatically repeat Tokenized Economy, Real Estate Token, Define, Structure, Program, Launch, Ownership Rails, or Smart Contract Layer. Prefer the current story's named asset, material, right, jurisdiction, company action, industrial system, ownership condition, or issuance event. Keep the lower-left naturally quiet and free of writing or symbols. Never invent legal approval, compliance status, allocations, percentages, asset backing, partnerships, maintenance data, investor information, revenue, performance, liquidity, APY, guaranteed outcomes, or risk-free claims.\n\nLegacy family routing contract: ROUTE BY THE ARTICLE'S MOST CONCRETE ASSET, RIGHT, PROCESS, OR INSTITUTIONAL EVENT. Use material_provenance when origin, custody, backing, materials, certification, reserves, commodities, authenticity, or evidence is central. Use ownership_blueprint for property structure, title, allocation logic, access, control, transfer, governance, or rights design. Use compliance_aperture for KYC, identity, eligibility, jurisdiction, audit stages, issuance controls, regulatory architecture, or institutional onboarding without implying approval. Use rights_archive when the story separates several rights, claims, records, instruments, entitlements, or stakeholder roles. Use digital_twin when a specific industrial, infrastructure, productive, energy, transport, property, or technology asset is the hero. Use contract_loom for smart-contract rules, programmable terms, revenue logic, governance mechanics, transfer restrictions, or coordinated rights. Use asset_to_token only when transformation from one real asset into a digital representation is itself the story. Use real_estate_token only when a specific property or building is the core subject. Use tokenization_explainer only for genuine definitions or educational questions. Use process_stack only for an explicit ordered implementation workflow. Use enterprise_architecture only when several infrastructure modules must be shown together. Use asset_economy only for a genuinely multi-asset market or ecosystem overview. When several families fit, choose the least recently used family and the most surprising truthful physical metaphor.\n\nLegacy diversity contract: HARD DIVERSITY CONTRACT: the last three visual families are unavailable. Avoid the spatial_grammar used in the previous two briefs and avoid the immediately previous camera. Never create two consecutive centered, symmetrical, plinth-based, floating-token, Swiss-lake, miniature-building, or exploded-stack compositions. First identify one concrete article anchor: a material, asset, right, legal or operational document, industrial object, property feature, ownership rule, compliance stage, market event, named company, or infrastructure system. Build one truthful physical metaphor around that anchor. Rotate between macro material detail, drafting space, institutional architecture, archive systems, real industrial scale, precision machinery, documentary product scenes, and abstract rights infrastructure. Change the dominant silhouette, focal position, direction of movement, foreground object, and depth structure from recent work. Floating holographic coins, glass plinths, cyan transformation beams, mountain skylines, central nodes, miniature buildings, and stacked glass layers are optional vocabulary, never mandatory brand ingredients. Use no more than two familiar tokenization symbols in one poster. The artwork must explain this specific article at a glance, not merely repeat a generic RWA poster.\n\nApproved visual metaphor vocabulary: tokenization: a real asset emitting a cyan data beam into a refined holographic token real estate token: a miniature institutional building on a glass plinth connected to a transparent token badge gold tokenization: a gold bar or gold asset block on glass, becoming a structured digital asset asset economy: real-world asset objects linked to clean token nodes and ownership rails process: stacked glass layers labeled define, structure, program, launch smart contracts: transparent circuit layer or glass logic board beneath an asset model compliance: quiet institutional annotation lines, audit/proof panels, no seals or legal overclaiming provenance: a tactile physical material cross-section whose origin, custody, and rights appear as precise embedded strata ownership structure: an architectural blueprint rising into distinct transparent layers for access, control, transfer, and governance rights registry: an institutional archive whose drawers and records organize different rights without reducing them to a token coin digital twin: a real industrial or infrastructure asset beside an offset transparent technical twin carrying programmable rights contract logic: a Swiss precision mechanism weaving separate terms and rights into an ordered operational structure\n\nLegacy subtitle contract: <= 10 words, concrete and grounded in the approved article or copy; empty string is allowed; maximum 10 words. Place it directly below the headline in smaller graphite modern sans-serif type, on one or two short lines with generous Swiss editorial spacing and exact spelling. The current bounded brief has no separate subtitle field; when a subtitle is essential, express it as a short supporting data element or in the scene instruction without displacing the headline.\n\nLegacy post-processing logo geometry: bottom-left; width ratio 0.25; left inset ratio 0.052; bottom inset ratio 0.035. The current compositor has one shared inset field, so the active template uses the legacy left inset and preserves the exact bottom inset here as authoritative migration metadata.\n\nThe headline must be 8 words or fewer. Do not force uppercase styling.",
+    "headlineMaxWords": 8,
+    "headlineUppercase": false,
+    "legibilityLine": "All visible text must be sparse, elegant, and readable: one large editorial headline, one short subtitle or category line, and at most a few refined labels.",
+    "dataElementTemplate": "a refined glass annotation reading \"{value}\"{label_part}",
+    "dataElementLabelTemplate": " with the small caption \"{label}\""
+  },
+  "output": {
+    "width": 1080,
+    "height": 1440,
+    "format": "png"
+  },
+  "logo": {
+    "anchor": "bottom-left",
+    "widthShortSideRatio": 0.25,
+    "insetShortSideRatio": 0.052
+  },
+  "fallbackBrief": {
+    "selection": {
+      "family": "asset_to_token",
+      "axes": {
+        "environment": "swiss_lake",
+        "camera": "left_headline_product",
+        "energy": "transformation",
+        "accent": "ivory_cyan_gold",
+        "headline_layout": "left_serif",
+        "spatial_grammar": "offset_transformation"
+      }
+    },
+    "brief": {
+      "headline": "From Asset To Tokenized Economy",
+      "subjectScene": "A gold asset block rests on a thick transparent glass plinth in a misty Swiss lake setting, sending a soft cyan tokenization beam upward into a refined transparent holographic token with fine ownership nodes.",
+      "dataElements": [
+        {
+          "value": "Real Asset",
+          "label": "Input"
+        },
+        {
+          "value": "Tokenized Economy",
+          "label": "Output"
+        },
+        {
+          "value": "Ownership Rails",
+          "label": "Structure"
+        }
+      ]
+    }
+  },
+  "briefExamples": "Example:\n{\"family\": \"material_provenance\", \"headline\": \"Value Has A Provenance\", \"subtitle\": \"Structure begins with what can be verified.\", \"data_elements\": [], \"environment\": \"materials_lab\", \"camera\": \"extreme_material_macro\", \"energy\": \"forensic_proof\", \"accent\": \"ivory_cyan_gold\", \"headline_layout\": \"upper_left_serif\", \"spatial_grammar\": \"material_crop\", \"subject_scene\": \"An extreme asymmetric cross-section of an article-specific material reveals origin, custody, and rights through restrained cyan scan lines embedded in its champagne-gold and platinum-glass strata.\"}\n\nExample:\n{\"family\": \"ownership_blueprint\", \"headline\": \"Ownership, Made Legible\", \"subtitle\": \"Rights become structured digital architecture.\", \"data_elements\": [], \"environment\": \"drafting_atelier\", \"camera\": \"oblique_blueprint\", \"energy\": \"structured_clarity\", \"accent\": \"ivory_teal\", \"headline_layout\": \"lower_left_serif\", \"spatial_grammar\": \"rising_blueprint\", \"subject_scene\": \"An article-specific architectural plan rises diagonally into transparent volumetric layers for access, control, and transfer, defined by champagne-gold boundaries and restrained cyan rights paths.\"}\n\nExample:\n{\"family\": \"compliance_aperture\", \"headline\": \"Structure Before Scale\", \"subtitle\": \"Compliance is designed into the system.\", \"data_elements\": [], \"environment\": \"compliance_gallery\", \"camera\": \"deep_aperture\", \"energy\": \"measured_progression\", \"accent\": \"ivory_cyan_gold\", \"headline_layout\": \"lower_left_serif\", \"spatial_grammar\": \"staggered_thresholds\", \"subject_scene\": \"An article-specific asset dossier passes through offset platinum-glass apertures representing supported identity, rights, governance, and issuance requirements in a luminous institutional gallery.\"}\n\nExample:\n{\"family\": \"rights_archive\", \"headline\": \"Every Right Has A Place\", \"subtitle\": \"Define access, ownership and governance clearly.\", \"data_elements\": [], \"environment\": \"rights_archive_room\", \"camera\": \"asymmetric_archive\", \"energy\": \"ordered_access\", \"accent\": \"ivory_gold\", \"headline_layout\": \"left_vertical_serif\", \"spatial_grammar\": \"selective_repetition\", \"subject_scene\": \"A precision ivory archive opens selected gold-edged drawers at unequal depths for article-supported rights instruments, linked by subtle cyan indexing light.\"}\n\nExample:\n{\"family\": \"digital_twin\", \"headline\": \"The Asset, With A Digital Twin\", \"subtitle\": \"Real-world value gains programmable structure.\", \"data_elements\": [], \"environment\": \"industrial_gallery\", \"camera\": \"offset_twin\", \"energy\": \"credible_translation\", \"accent\": \"ivory_teal\", \"headline_layout\": \"lower_left_serif\", \"spatial_grammar\": \"unequal_pair\", \"subject_scene\": \"A credible article-specific industrial asset stands beside an offset transparent technical twin revealing only supported ownership segments and programmable rights as clean restrained layers.\"}\n\nExample:\n{\"family\": \"contract_loom\", \"headline\": \"Program The Rules Of Ownership\", \"subtitle\": \"Smart contracts turn terms into infrastructure.\", \"data_elements\": [], \"environment\": \"precision_workshop\", \"camera\": \"machinery_three_quarter\", \"energy\": \"programmable_order\", \"accent\": \"ivory_cyan_gold\", \"headline_layout\": \"upper_left_serif\", \"spatial_grammar\": \"woven_flow\", \"subject_scene\": \"A Swiss precision mechanism of ivory ceramic, platinum glass, and champagne-gold mechanics weaves article-supported ownership, access, revenue, and governance ribbons into one cyan-edged operational fabric.\"}\n\nLEGACY ROTATING FALLBACK BRIEFS (preserved verbatim as migration reference):\n[\n  {\n    \"family\": \"material_provenance\",\n    \"headline\": \"Value Has A Provenance\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"materials_lab\",\n    \"camera\": \"extreme_material_macro\",\n    \"energy\": \"forensic_proof\",\n    \"accent\": \"ivory_cyan_gold\",\n    \"headline_layout\": \"upper_left_serif\",\n    \"spatial_grammar\": \"material_crop\",\n    \"subtitle\": \"Structure begins with what can be verified.\",\n    \"subject_scene\": \"An extreme asymmetric cross-section of champagne-gold mineral and translucent pale stone reveals origin, custody, and rights through restrained cyan scan lines embedded in the material.\"\n  },\n  {\n    \"family\": \"ownership_blueprint\",\n    \"headline\": \"Ownership, Made Legible\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"drafting_atelier\",\n    \"camera\": \"oblique_blueprint\",\n    \"energy\": \"structured_clarity\",\n    \"accent\": \"ivory_teal\",\n    \"headline_layout\": \"lower_left_serif\",\n    \"spatial_grammar\": \"rising_blueprint\",\n    \"subtitle\": \"Rights become structured digital architecture.\",\n    \"subject_scene\": \"An ivory architectural plan rises diagonally into transparent volumetric layers for access, control, and transfer, defined by champagne-gold boundaries and restrained cyan rights paths.\"\n  },\n  {\n    \"family\": \"compliance_aperture\",\n    \"headline\": \"Structure Before Scale\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"compliance_gallery\",\n    \"camera\": \"deep_aperture\",\n    \"energy\": \"measured_progression\",\n    \"accent\": \"ivory_cyan_gold\",\n    \"headline_layout\": \"lower_left_serif\",\n    \"spatial_grammar\": \"staggered_thresholds\",\n    \"subtitle\": \"Compliance is designed into the system.\",\n    \"subject_scene\": \"An asset dossier moves through offset platinum-glass apertures representing identity, rights, governance, and issuance requirements inside a luminous ivory institutional gallery.\"\n  },\n  {\n    \"family\": \"rights_archive\",\n    \"headline\": \"Every Right Has A Place\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"rights_archive_room\",\n    \"camera\": \"asymmetric_archive\",\n    \"energy\": \"ordered_access\",\n    \"accent\": \"ivory_gold\",\n    \"headline_layout\": \"left_vertical_serif\",\n    \"spatial_grammar\": \"selective_repetition\",\n    \"subtitle\": \"Define access, ownership and governance clearly.\",\n    \"subject_scene\": \"A precision ivory archive opens selected gold-edged drawers at unequal depths for distinct access, ownership, and governance instruments, linked by subtle cyan indexing light.\"\n  },\n  {\n    \"family\": \"digital_twin\",\n    \"headline\": \"The Asset, With A Digital Twin\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"industrial_gallery\",\n    \"camera\": \"offset_twin\",\n    \"energy\": \"credible_translation\",\n    \"accent\": \"ivory_teal\",\n    \"headline_layout\": \"lower_left_serif\",\n    \"spatial_grammar\": \"unequal_pair\",\n    \"subtitle\": \"Real-world value gains programmable structure.\",\n    \"subject_scene\": \"A credible industrial turbine component stands beside a smaller offset transparent technical twin that reveals ownership segments and programmable usage rules as clean restrained layers.\"\n  },\n  {\n    \"family\": \"contract_loom\",\n    \"headline\": \"Program The Rules Of Ownership\",\n    \"layout\": \"art_only\",\n    \"data_elements\": [],\n    \"environment\": \"precision_workshop\",\n    \"camera\": \"machinery_three_quarter\",\n    \"energy\": \"programmable_order\",\n    \"accent\": \"ivory_cyan_gold\",\n    \"headline_layout\": \"upper_left_serif\",\n    \"spatial_grammar\": \"woven_flow\",\n    \"subtitle\": \"Smart contracts turn terms into infrastructure.\",\n    \"subject_scene\": \"A Swiss precision mechanism of ivory ceramic, platinum glass, and champagne-gold mechanics weaves separate ownership, access, revenue, and governance ribbons into one cyan-edged operational fabric.\"\n  }\n]\n\nLEGACY PROFILE METADATA (preserved verbatim in structured form):\n{\n  \"brand_name\": \"CoinFactory\",\n  \"brand_tagline\": \"Swiss institutional tokenization infrastructure for turning real assets, rights, access, and ownership models into structured digital economies through token design, smart-contract logic, compliance-aware architecture, launch infrastructure, and asset-backed Web3 systems\",\n  \"headline_max_words\": 8,\n  \"headline_uppercase\": false,\n  \"core_axes\": [\n    \"environment\",\n    \"camera\",\n    \"energy\",\n    \"accent\"\n  ],\n  \"mood_accent_default\": \"ivory_cyan_gold\",\n  \"family_cooldown\": 3,\n  \"axis_inject_after_data\": [\n    \"spatial_grammar\"\n  ],\n  \"passthrough_fields\": [\n    \"subtitle\"\n  ],\n  \"passthrough_field_schema\": {\n    \"subtitle\": \"<= 10 words, concrete and grounded in the approved article or copy; empty string is allowed\"\n  },\n  \"passthrough_max_words\": {\n    \"subtitle\": 10\n  },\n  \"subtitle_style\": \"Place it directly below the headline in smaller graphite modern sans-serif type, on one or two short lines with generous Swiss editorial spacing and exact spelling.\",\n  \"extra_banned_subject_terms\": [\n    \"casino\",\n    \"meme coin\",\n    \"moon\",\n    \"rocket\",\n    \"luxury car\",\n    \"cash rain\",\n    \"trading screen\",\n    \"exchange dashboard\",\n    \"guaranteed\",\n    \"risk-free\",\n    \"apy\",\n    \"passive income\",\n    \"investment return\",\n    \"instant liquidity\"\n  ],\n  \"anti_repetition_rules\": \"HARD DIVERSITY CONTRACT: the last three visual families are unavailable. Avoid the spatial_grammar used in the previous two briefs and avoid the immediately previous camera. Never create two consecutive centered, symmetrical, plinth-based, floating-token, Swiss-lake, miniature-building, or exploded-stack compositions. First identify one concrete article anchor: a material, asset, right, legal or operational document, industrial object, property feature, ownership rule, compliance stage, market event, named company, or infrastructure system. Build one truthful physical metaphor around that anchor. Rotate between macro material detail, drafting space, institutional architecture, archive systems, real industrial scale, precision machinery, documentary product scenes, and abstract rights infrastructure. Change the dominant silhouette, focal position, direction of movement, foreground object, and depth structure from recent work. Floating holographic coins, glass plinths, cyan transformation beams, mountain skylines, central nodes, miniature buildings, and stacked glass layers are optional vocabulary, never mandatory brand ingredients. Use no more than two familiar tokenization symbols in one poster. The artwork must explain this specific article at a glance, not merely repeat a generic RWA poster.\",\n  \"routing_table\": \"ROUTE BY THE ARTICLE'S MOST CONCRETE ASSET, RIGHT, PROCESS, OR INSTITUTIONAL EVENT. Use material_provenance when origin, custody, backing, materials, certification, reserves, commodities, authenticity, or evidence is central. Use ownership_blueprint for property structure, title, allocation logic, access, control, transfer, governance, or rights design. Use compliance_aperture for KYC, identity, eligibility, jurisdiction, audit stages, issuance controls, regulatory architecture, or institutional onboarding without implying approval. Use rights_archive when the story separates several rights, claims, records, instruments, entitlements, or stakeholder roles. Use digital_twin when a specific industrial, infrastructure, productive, energy, transport, property, or technology asset is the hero. Use contract_loom for smart-contract rules, programmable terms, revenue logic, governance mechanics, transfer restrictions, or coordinated rights. Use asset_to_token only when transformation from one real asset into a digital representation is itself the story. Use real_estate_token only when a specific property or building is the core subject. Use tokenization_explainer only for genuine definitions or educational questions. Use process_stack only for an explicit ordered implementation workflow. Use enterprise_architecture only when several infrastructure modules must be shown together. Use asset_economy only for a genuinely multi-asset market or ecosystem overview. When several families fit, choose the least recently used family and the most surprising truthful physical metaphor.\",\n  \"metaphors\": {\n    \"tokenization\": \"a real asset emitting a cyan data beam into a refined holographic token\",\n    \"real estate token\": \"a miniature institutional building on a glass plinth connected to a transparent token badge\",\n    \"gold tokenization\": \"a gold bar or gold asset block on glass, becoming a structured digital asset\",\n    \"asset economy\": \"real-world asset objects linked to clean token nodes and ownership rails\",\n    \"process\": \"stacked glass layers labeled define, structure, program, launch\",\n    \"smart contracts\": \"transparent circuit layer or glass logic board beneath an asset model\",\n    \"compliance\": \"quiet institutional annotation lines, audit/proof panels, no seals or legal overclaiming\",\n    \"provenance\": \"a tactile physical material cross-section whose origin, custody, and rights appear as precise embedded strata\",\n    \"ownership structure\": \"an architectural blueprint rising into distinct transparent layers for access, control, transfer, and governance\",\n    \"rights registry\": \"an institutional archive whose drawers and records organize different rights without reducing them to a token coin\",\n    \"digital twin\": \"a real industrial or infrastructure asset beside an offset transparent technical twin carrying programmable rights\",\n    \"contract logic\": \"a Swiss precision mechanism weaving separate terms and rights into an ordered operational structure\"\n  }\n}"
+}

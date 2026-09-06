@@ -333,15 +333,15 @@ budget computed from the model prompt limit less the reserve and the source
 allowance. The worker sends that exact payload, and the loader measures that
 exact string — one owner, so the check and the use cannot diverge.
 
-## The three shipped templates
+## Included templates
 
-| | `chainreporter` | `rzwire` | `demo-sports` |
-|---|---|---|---|
-| Brands | 4 | 7 | 3 |
-| Sources | 45 | 45 | 4 |
-| Destinations | Telegram, X | Telegram, X | Telegram, X, **Instagram** |
-| Market analysis | Off | **On** | Off |
-| Time zone | Asia/Tehran | Asia/Tehran | UTC |
+| | `chainreporter` | `rzwire` | `slt-cargopay` | `demo-sports` |
+|---|---|---|---|---|
+| Brands | 4 | 7 | 3 | 3 |
+| Sources | 45 | 45 | 45 | 4 |
+| Destinations | Telegram, X | Telegram, X | Telegram, X | Telegram, X, **Instagram** |
+| Market analysis | Off | **On** | **On** | Off |
+| Time zone | Asia/Tehran | Asia/Tehran | Asia/Tehran | UTC |
 
 `demo-sports` is synthetic and it earns its place: it is a sports desk, in an
 unrelated domain, validating against the same schema. It is also the only

@@ -277,6 +277,8 @@ function SelectionLaneCards({
 
 export function TelegramLaneColumn({
   alsoIn,
+  brandKey,
+  brandName,
   degraded,
   index,
   lane,
@@ -284,9 +286,11 @@ export function TelegramLaneColumn({
   total,
 }: {
   alsoIn: ReadonlyMap<string, readonly string[]>;
+  brandKey: string;
+  brandName: string;
   degraded: boolean;
   index: number;
-  lane: TelegramLane;
+  lane: TelegramLane | null;
   topics: readonly string[];
   total: number;
 }) {
@@ -294,7 +298,7 @@ export function TelegramLaneColumn({
 
   return (
     <LaneColumn
-      count={lane.cards.length}
+      count={lane?.cards.length ?? 0}
       index={index}
       heading={t("lane.telegram.heading")}
       icon={
@@ -302,23 +306,27 @@ export function TelegramLaneColumn({
       }
       mark={null}
       status={null}
-      title={t("lane.telegram.title", { brand: lane.brandName })}
+      title={t("lane.telegram.title", { brand: brandName })}
       total={total}
     >
-      {lane.cards.map((card) => (
-        <TelegramLaneCard
-          alsoIn={
-            alsoIn
-              .get(card.sourceItemId)
-              ?.filter((brand) => brand !== lane.brandName) ?? EMPTY_BRANDS
-          }
-          brandKey={lane.brandKey}
-          card={card}
-          degraded={degraded}
-          key={card.sourceItemId}
-          topics={topics}
-        />
-      ))}
+      {lane === null ? (
+        <LaneSkeleton />
+      ) : (
+        lane.cards.map((card) => (
+          <TelegramLaneCard
+            alsoIn={
+              alsoIn
+                .get(card.sourceItemId)
+                ?.filter((brand) => brand !== brandName) ?? EMPTY_BRANDS
+            }
+            brandKey={brandKey}
+            card={card}
+            degraded={degraded}
+            key={card.sourceItemId}
+            topics={topics}
+          />
+        ))
+      )}
     </LaneColumn>
   );
 }

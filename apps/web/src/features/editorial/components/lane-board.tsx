@@ -32,6 +32,7 @@ import { EDITORIAL_NAMESPACE } from "../constants";
 import {
   type BoardPresentation,
   resolveBoardPresentation,
+  telegramLanesPending,
   telegramZoneNotice,
 } from "../lib/board-presentation";
 import type { PlatformDraftLane } from "../schemas/drafts";
@@ -105,6 +106,7 @@ export function LaneBoard({
   onOpenCard,
   platformDraftLanes,
   presentation,
+  telegramSourceIds,
   templatePlatforms,
   telegramLanes,
 }: {
@@ -121,6 +123,7 @@ export function LaneBoard({
   ) => void;
   platformDraftLanes: readonly PlatformDraftLane[];
   presentation: BoardPresentation;
+  telegramSourceIds: readonly string[];
   templatePlatforms: RunOptions["platforms"];
   telegramLanes: readonly TelegramLane[];
 }) {
@@ -143,6 +146,11 @@ export function LaneBoard({
       : [];
   const unitsPlanned =
     head !== null && (modelLanes.length > 0 || head.completedAt !== null);
+  const telegramPending = telegramLanesPending(
+    head,
+    telegramSourceIds,
+    unitsPlanned,
+  );
   const limitedGuidance = new Set(promo ? limitedGuidanceBrands : []);
   const alsoIn = brandsByItem(telegramLanes);
   const selectedBrands = board.brandKeys.flatMap((brandKey) => {
@@ -206,8 +214,10 @@ export function LaneBoard({
                   const brandSlots = slots.filter(
                     (slot) => slot.brandKey === brand.key,
                   );
+                  const telegramColumn =
+                    telegramLane !== undefined || telegramPending;
                   const railCount =
-                    (telegramLane ? 1 : 0) +
+                    (telegramColumn ? 1 : 0) +
                     brandSlots.length +
                     board.platforms.length;
 
@@ -222,12 +232,14 @@ export function LaneBoard({
                         brandName={brand.name}
                         logo={brand.logo}
                       >
-                        {telegramLane ? (
+                        {telegramColumn ? (
                           <TelegramLaneColumn
                             alsoIn={alsoIn}
+                            brandKey={brand.key}
+                            brandName={brand.name}
                             degraded={Boolean(degraded)}
                             index={0}
-                            lane={telegramLane}
+                            lane={telegramLane ?? null}
                             topics={topics}
                             total={railCount}
                           />
@@ -236,7 +248,7 @@ export function LaneBoard({
                           ? brandSlots.map((slot, index) => (
                               <ModelLaneColumn
                                 degraded={Boolean(degraded)}
-                                index={index + (telegramLane ? 1 : 0)}
+                                index={index + (telegramColumn ? 1 : 0)}
                                 key={`${slot.modelOptionKey}:${slot.brandKey}`}
                                 limitedGuidance={limitedGuidance.has(
                                   slot.brandKey,

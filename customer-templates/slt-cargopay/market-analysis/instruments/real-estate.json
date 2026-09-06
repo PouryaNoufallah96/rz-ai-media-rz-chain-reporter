@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "theme": {
+    "background": "#052f31",
+    "backgroundAlt": "#0a6668",
+    "surface": "#0b4446",
+    "surfaceAlt": "#116f72",
+    "text": "#fffdf7",
+    "muted": "#b9d5d3",
+    "positive": "#45d09c",
+    "negative": "#ef716f",
+    "accent": "#dfbd69",
+    "accentAlt": "#17aeb2",
+    "border": "#318b8c"
+  },
+  "motifs": [
+    "verified property title",
+    "architectural digital twin",
+    "champagne-gold ownership path",
+    "sustainable city grid"
+  ],
+  "scenes": [
+    "A premium contemporary residence at blue hour transitioning into an exact cyan architectural digital twin, with warm interior light, deep property teal atmosphere, and generous editorial negative space.",
+    "A realistic sustainable coastal property district at sunrise, with restrained teal verification paths integrated into streets, champagne-gold light, credible architecture, and broad calm sky for editorial hierarchy.",
+    "A refined property-title scene where a luminous architectural model rises above layered transparent ownership records, dark teal stone surfaces, subtle gold verification nodes, and institutional cinematic depth."
+  ],
+  "artDirection": "Premium Real Estate Token market editorial with credible contemporary architecture, deep property teal, champagne gold, pearl white, restrained digital ownership infrastructure, cinematic realism, and clear factual hierarchy.",
+  "defaultChartColor": "#0b8f91",
+  "frozenStyle": {
+    "format": "market editorial poster with a protected factual chart and centered footer rail",
+    "palette": "deep property teal, cyan verification light, champagne gold, pearl white, and credible warm interiors",
+    "materials": "contemporary architecture, dark teal stone, transparent ownership records, and precise digital twins",
+    "rendering": "institutional cinematic realism with credible scale, restrained infrastructure, and clear factual hierarchy",
+    "backgroundVocab": "contemporary residences, sustainable property districts, architectural models, and verified ownership paths",
+    "headlineZone": "keep broad calm sky or clean architectural tone in the upper third for the approved Story",
+    "never": "never invent chart facts, tickers, logos, domains, slogans, property claims, or sample text; never disturb the protected chart or footer rail"
+  }
+}

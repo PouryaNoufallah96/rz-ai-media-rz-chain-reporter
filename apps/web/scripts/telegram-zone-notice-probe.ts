@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import type { RunConfiguration } from "@rz-chain-reporter/contracts";
 
-import { telegramZoneNotice } from "../src/features/editorial/lib/board-presentation";
+import {
+  telegramLanesPending,
+  telegramZoneNotice,
+} from "../src/features/editorial/lib/board-presentation";
 
 const settled = new Date("2026-09-05T00:00:00.000Z");
 
@@ -90,6 +94,44 @@ assert.equal(
   ),
   null,
   "a promo run has no Telegram candidates to report",
+);
+
+const newsRun = (sourceIds: readonly string[], completedAt: Date | null) => ({
+  completedAt,
+  configuration: {
+    kind: "news" as const,
+    sourceIds,
+  } as RunConfiguration,
+});
+
+assert.equal(
+  telegramLanesPending(newsRun(["rss-1", "tg-1"], null), ["tg-1"], false),
+  true,
+  "C1: a Telegram lane placeholder holds until the zone's lanes are final",
+);
+
+assert.equal(
+  telegramLanesPending(newsRun(["rss-1", "tg-1"], null), ["tg-1"], true),
+  false,
+  "planned units mean filter-and-score already committed the Telegram routes",
+);
+
+assert.equal(
+  telegramLanesPending(newsRun(["rss-1"], null), ["tg-1"], false),
+  false,
+  "a run that selected no Telegram source has no Telegram lane to await",
+);
+
+assert.equal(
+  telegramLanesPending(newsRun(["tg-1"], settled), ["tg-1"], false),
+  false,
+  "a settled run shows its real lanes, never a placeholder",
+);
+
+assert.equal(
+  telegramLanesPending(null, ["tg-1"], false),
+  false,
+  "a fresh workspace has no run to await",
 );
 
 process.stdout.write("PASS telegram zone notice\n");

@@ -308,12 +308,7 @@ export const TELEGRAM_READ_MORE_LABEL: Record<ContentLocale, string> = {
 
 // The assembled copy must still leave room for the appended read-more line.
 export const TELEGRAM_READ_MORE_RESERVE =
-  2 +
-  Math.max(
-    ...Object.values(TELEGRAM_READ_MORE_LABEL).map(
-      (label) => Array.from(label).length,
-    ),
-  );
+  2 + Math.max(...Object.values(TELEGRAM_READ_MORE_LABEL).map((l) => l.length));
 
 export function assemblePublishPayload(input: {
   contentLocale: ContentLocale;
@@ -396,8 +391,9 @@ export function assembleCopy(
   return `${candidate.headline}${separator}${candidate.body}\n\n${candidate.hashtags.join(" ")}`;
 }
 
+// Telegram and Instagram count UTF-16 code units; only X weights code points.
 export function platformCopyLength(platform: Platform, value: string) {
-  if (platform !== "x") return Array.from(value).length;
+  if (platform !== "x") return value.length;
   const urls = value.match(/https?:\/\/\S+/gu) ?? [];
   const withoutUrls = urls.reduce(
     (remaining, url) => remaining.replace(url, ""),

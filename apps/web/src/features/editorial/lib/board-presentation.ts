@@ -85,3 +85,23 @@ export function telegramZoneNotice(
 
   return head.kind === "promo" || laneCount > 0 ? null : "no_candidates";
 }
+
+// Telegram routes commit in filter-and-score, one step before units are planned,
+// so a planned unit means the zone's lanes are final.
+export function telegramLanesPending(
+  head: {
+    completedAt: Date | null;
+    configuration: RunConfiguration;
+  } | null,
+  telegramSourceIds: readonly string[],
+  unitsPlanned: boolean,
+) {
+  if (head === null || head.completedAt !== null || unitsPlanned) return false;
+  if (head.configuration.kind !== "news") return false;
+
+  const selected = new Set(telegramSourceIds);
+
+  return head.configuration.sourceIds.some((sourceId) =>
+    selected.has(sourceId),
+  );
+}

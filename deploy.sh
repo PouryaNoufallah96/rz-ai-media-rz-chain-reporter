@@ -343,7 +343,11 @@ assert_host() {
   free_mb="$(awk '/MemAvailable/ {print int($2 / 1024)}' /proc/meminfo)"
   [ "$free_mb" -ge "$MIN_FREE_MEMORY_MB" ] \
     || fail LOW_MEMORY "$free_mb MiB available, $MIN_FREE_MEMORY_MB MiB required"
-  address="$(getent hosts "$PUBLIC_HOST" | awk '{print $1; exit}')"
+  if [ "$PUBLIC_HOST" = "$PUBLIC_IP" ]; then
+    address="$PUBLIC_IP"
+  else
+    address="$(getent hosts "$PUBLIC_HOST" | awk '{print $1; exit}')"
+  fi
   [ "$address" = "$PUBLIC_IP" ] \
     || fail DNS_MISMATCH "$PUBLIC_HOST resolves to ${address:-nothing}, expected $PUBLIC_IP"
 }
@@ -518,7 +522,7 @@ check mode does not execute host assertions; deploy modes run:
   configured TLS certificate and key exist
   every file under $ENV_DIR is mode 600
   MemAvailable >= $MIN_FREE_MEMORY_MB MiB
-  $PUBLIC_HOST resolves to $PUBLIC_IP
+  $PUBLIC_HOST equals or resolves to $PUBLIC_IP
 REPORT
 }
 
