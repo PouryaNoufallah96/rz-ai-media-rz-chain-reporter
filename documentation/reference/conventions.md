@@ -10,8 +10,8 @@ configuration files; `node_modules`, `.next`, `dist` and `.turbo` are excluded.
 
 - Two-space indentation, double-quoted strings in JavaScript and TypeScript.
 - Imports are sorted automatically by the organize-imports assist.
-- Tailwind class lists are sorted automatically, including inside `clsx`, `cva`
-  and `cn` calls.
+- Tailwind class lists are sorted automatically, including inside `cva` and `cn`
+  calls.
 - The recommended rule preset, plus a stricter `style` group: no parameter
   reassignment, `as const` where it applies, default parameters last, initialised
   enum members, self-closing elements, one declarator per `var`, no useless
