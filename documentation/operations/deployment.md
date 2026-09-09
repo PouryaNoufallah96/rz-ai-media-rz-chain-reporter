@@ -71,10 +71,11 @@ connection string must use the migration role; every runtime connection string
 must use the application role.
 
 **Required keys per file.** The web environment must carry its model provider key,
-the authentication secret, the cache-invalidation secret, the allowed origin and
-the object-storage endpoint and secret. The build environment must carry the
-server-actions encryption key. The worker environment must carry both durable
-execution keys.
+the authentication secret, the assistant approval secret, the cache-invalidation
+secret, the allowed origin and the object-storage endpoint and secret. The build
+environment must carry the server-actions encryption key and a non-secret,
+build-only assistant approval placeholder. The worker environment must carry both
+durable execution keys.
 
 **Forbidden keys.** The development-mode durable flag is refused in both the web
 and worker environments — that flag in production would silently switch the SDK
@@ -213,6 +214,11 @@ persist in image layers and are readable by anyone who can pull the image; a
 secret mount does not. Without the mount, committed non-production placeholders
 keep a local build working — they exist only to satisfy the build's environment
 validation and never reach a running container.
+
+The approval placeholder only lets the build evaluate the server environment. It
+does not sign runtime proposals. `web.env` supplies the real value when the
+container starts. Rotating it invalidates every outstanding assistant proposal;
+runs already admitted to PostgreSQL and their operations remain authoritative.
 
 The web image is built in four stages: the application build, an `admin` stage
 carrying only the bundled operator commands, a `prestart` stage that builds the

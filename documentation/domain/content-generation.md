@@ -35,11 +35,15 @@ production.
 
 ### The fallback ladder
 
-Three invocation keys, walked by the caller: **primary**, **retry-1**, and
-**fallback**.
+Three invocation keys: **primary**, **retry-1**, and **fallback**.
 
 The first two resolve to the *same* route — the second attempt is a retry of the
 same model. Only the third switches to the declared fallback.
+
+Durable workflows choose those attempts explicitly. A bounded typed UI stream
+keeps its selected invocation key across model steps and records each provider
+call with a zero-based call index. The gateway owns the tool loop, approval request
+and typed text, tool and data parts returned to the browser.
 
 **The gateway itself never retries.** Every underlying call is made with retries
 disabled. Retry is a durable-execution decision, made by the caller that knows
@@ -83,13 +87,13 @@ are limited to the operation, attempt and usage identifiers.
 **Written before the provider call, not after.**
 
 A pending row is inserted first, carrying the operation, the attempt, the
-invocation key, the task, the API kind, the backend, the gateway and the requested
-model. Then the call happens. Then the row is finalised.
+invocation key, the call index, the task, the API kind, the backend, the gateway
+and the requested model. Then the call happens. Then the row is finalised.
 
 Writing it first is what makes a crash mid-call visible. A row written afterwards
 would simply not exist, and the call would look like it never happened.
 
-### The domain write and the ledger commit together
+### Effectful domain writes and the ledger commit together
 
 The invocation takes a `persistResult` **transaction callback**. The domain write
 — the copy variants, the embeddings, the image record — happens inside the *same
@@ -98,6 +102,19 @@ transaction* that finalises the usage row.
 There is no window in which content exists without its cost recorded, or a cost is
 recorded for content that was not saved. If that transaction fails, the outcome is
 `ambiguous` with a specific reason, not a guess.
+
+A request-bound assistant stream has no domain write to commit with its model
+output. The gateway instead opens and finalises one Usage row for each model step.
+The separate signed approval path can admit only a prepared run start or new
+Market Analysis.
+
+Market creation keeps model intent and owner commands distinct. A model may name a
+configured instrument, but only the server may resolve it against fresh
+operator-owned options and construct the identifier-only command. The signed
+envelope binds the unchanged SDK input, canonical command and material
+fingerprints; approval repeats validation and resolution. Missing creation values
+remain bounded conversation state and are collected one focused question at a
+time. They are not domain state and cannot authorize an effect.
 
 ### Cost has provenance
 
@@ -162,13 +179,23 @@ Most systems would call a failed transaction a failure. Here it asks first,
 because a generated image that was stored but not recorded is an orphan nobody
 will find.
 
-### Streaming settles in a `finally`
+### Streaming settles every model step
 
-A browser can abandon a stream. A fully drained stream finalises as succeeded; one
-that threw goes through the failure path; an abandoned one finalises as unknown if
-it had produced output and cancelled if it had not.
+The gateway writes a pending Usage row before each model step and finalises it when
+that step ends. A definite provider error is failed. If a stream ends with a step
+still unsettled, that row becomes unknown; explicit cancellation makes it
+cancelled. This covers abandoned connections without pretending an uncertain
+provider outcome was free.
 
-Without that, an abandoned stream would leave a usage row pending forever.
+The web Route Handler settles the surrounding assistant operation after draining
+the stream, expires the Usage cache tag locally, and sends the browser a transient
+refresh signal. A typed error chunk keeps that surrounding operation from being
+marked successful. After a completed read or clarification tool call, one
+tool-free model step can answer the requested parts from the returned value;
+`activeTools` is empty after the first step, so it cannot chain another read or
+effect. These rules describe stream accounting and loop control, not a guarantee
+that a provider or domain effect succeeded. The operation does not describe every
+assistant step as a worker settlement.
 
 ### The startup gate
 

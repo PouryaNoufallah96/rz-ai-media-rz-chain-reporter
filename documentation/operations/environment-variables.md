@@ -53,10 +53,16 @@ database driver into a page.
 | `SENTRY_DSN` | Optional | The server-side error reporter. Absent means logs go to standard output. |
 | `INNGEST_SIGNING_KEY` | Yes in production | The web application uses it to mint realtime subscription tokens. |
 | `OPENROUTER_API_KEY` | Yes | The remote model provider. The assistant cannot start without it. |
+| `ASSISTANT_APPROVAL_SECRET` | Required for assistant operations, at least 32 characters | Signs transient approval envelopes. It is a web-runtime secret and never enters the browser. |
 | `PUBLISHING_EMERGENCY_PAUSED` | Optional | An operator brake. Only `1` or `true` pauses. |
 
 **Never set the durable event key on the web application.** It publishes no
 events; the worker does. The example file says so explicitly.
+
+The tracked build environment uses a non-secret build-only approval placeholder
+because the web build evaluates its environment. A deployed `web.env` must replace
+it with the real runtime value. Rotating the runtime value invalidates outstanding
+assistant proposals; runs already admitted to PostgreSQL remain authoritative.
 
 ## Worker
 

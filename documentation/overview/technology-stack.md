@@ -72,6 +72,7 @@ the framework into the tree.
 | `react-hook-form` + `@hookform/resolvers` | Application forms, validated by the same Zod schemas the server uses |
 | `@tanstack/react-query` | Client-owned asynchronous state, mainly around realtime channels |
 | `@tanstack/react-table` | Genuinely tabular screens |
+| `@tanstack/react-hotkeys` | Typed app command shortcuts with portable Mod bindings |
 | `@dnd-kit/react` + `@dnd-kit/dom` | Accessible lane and card reordering |
 | `lucide-react` | Icons |
 | `sonner` | Toasts |

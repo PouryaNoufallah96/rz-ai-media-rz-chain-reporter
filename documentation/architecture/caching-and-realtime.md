@@ -107,11 +107,21 @@ which a tag invalidation would never reach.
 ## 1 · In-process mutations
 
 A server action wraps a router procedure and, after it settles, expires the
-affected tags and triggers a refresh.
+affected tags and triggers a refresh. The HTTP transport cannot use that wrapper,
+so one shared mapping declares the affected cache groups for every registered
+mutation. The RPC handler applies it immediately after a successful HTTP
+mutation. The assistant approval route uses the same mapping after its only two
+commands: a run start or Market Analysis creation.
 
 Refresh failures are **swallowed into a log** rather than propagated. A mutation
 that succeeded must not be reported as failed because the subsequent refresh did
 not land — the write is the truth, and the screen will catch up.
+
+Request-bound assistant synthesis is also in-process. After its model attempts
+and operation settle, the Route Handler expires the Usage tag directly and emits
+a transient stream signal. The assistant controller turns that signal into a
+browser-local Usage refresh event; it is not persisted in conversation history
+and is not a durable realtime message.
 
 ## 2 · The out-of-process writer
 

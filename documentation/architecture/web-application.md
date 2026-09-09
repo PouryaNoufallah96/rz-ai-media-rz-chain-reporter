@@ -28,7 +28,7 @@ app/
 │   ├── login/
 │   └── (app)/             authenticated group, adds no URL segment
 │       ├── dashboard/
-│       ├── account/  saved/  schedule/  sources/  usage/  installation/
+│       ├── account/  assistant/  saved/  schedule/  sources/  usage/  installation/
 │       └── market-analysis/
 ├── api/                   route handlers, deliberately outside [locale]
 ├── global-error.tsx
@@ -80,7 +80,7 @@ database queries, cached reads, server actions, hooks and message catalogs.
 | `usage` | The usage report |
 | `installation` | A read-only view of how this deployment is configured |
 | `operations` | The always-mounted operations indicator |
-| `assistant` | The card-scoped operator assistant |
+| `assistant` | Reviewed knowledge, bounded workspace reads, run-start and Market-creation proposals, and the floating and full-page containers |
 | `auth` | Sign-in |
 | `media` | The upload boundary |
 | `landing` | The marketing home |
@@ -127,9 +127,10 @@ and therefore do not appear in the generated API document.
 - **Cross-site request forgery protection** on both ends — a handler plugin paired
   with a link plugin on the browser client.
 - **A body limit**, plus a `Content-Length` rejection *before the body is read*.
-- **One targeted invalidation**: after a successful draft-revision update, the
-  handler expires the workspace's drafts tag directly, because a server action's
-  invalidation path is not available here.
+- **One shared mutation mapping**: `editorial.startRun` expires the workspace's
+  editorial and drafts tags; `editorial.updateDraftRevision` expires drafts. The
+  HTTP handler applies that mapping directly after success, while server actions
+  retain their existing feature refresh path.
 
 Authentication is not enforced at the handler. It is enforced per procedure by
 the ladder — so a new procedure cannot accidentally inherit "public" from its
@@ -137,7 +138,7 @@ transport.
 
 ## Route handlers
 
-Eleven, and each one's guard order matters.
+Twelve, and each one's guard order matters.
 
 | Route | Purpose |
 |---|---|
@@ -152,6 +153,7 @@ Eleven, and each one's guard order matters.
 | `/api/market-analysis-instruments/[key]/icon` | A template-declared instrument icon |
 | `/api/market-analysis-compositions/[family]/[variant]` | A template-declared composition sample |
 | `/api/chat` | The assistant's streaming turn |
+| `/api/chat/approve` | Load, prepare and explicitly approve one run start or template-enabled new Market Analysis |
 
 ### Things worth knowing about specific handlers
 
@@ -171,12 +173,36 @@ object storage — and each is gated on a session, path-bounded to the customer
 directory, and verified against the template's declared byte length and digest
 before serving. Every failure is a `404`.
 
-**The assistant's guard order is deliberate**: connection, then origin (checked
-*before the body is touched*), then content type, then session, then a bounded
-body read, then parse, then schema. Every rejection is a bodyless response with no
-detail. The endpoint authorizes the claimed card against a live draft in this
-operator's own run, matching platform, brand and content locale — the identifier
-the browser supplied is untrusted.
+**The assistant endpoints share one deliberate guard order**: connection, then
+origin (checked *before the body is touched*), then content type, then session,
+then a bounded body read, then parse, then schema. Every response is private and
+no-store; a rejection is bodyless and carries no detail. Browser-supplied card,
+run, analysis and prior-result identifiers are untrusted and are resolved again
+through operator-owned reads.
+
+The streaming endpoint answers from reviewed customer knowledge and product help.
+Questions about current workspace state use one bounded read tool. Its result is a
+compact assistant card with capped facts and rows, safe authenticated media URLs
+when a verified Market artifact exists, and a clickable **Open** control for the
+owning screen. Paths in guidance replies are clickable too. These cards do not
+mount the Card Sheet, publishing desk or Market Analysis workspace inside chat.
+
+The only effect proposals are starting one News or Promo run and, when the
+template enables it, creating one new Market Analysis. The assistant collects
+missing material values and shows the complete proposal. A separate explicit
+approval sends a short-lived signed envelope bound to the operator, installation,
+validated command and stable replay identity. A replay returns the same domain
+record instead of starting another effect.
+
+Editing, routing, Card Sheet work, media changes, approval, publishing,
+scheduling and every later Market Analysis stage stay in their native desks. A
+successful assistant result links to the new run or analysis so the operator can
+continue there.
+
+The authenticated layout owns one assistant controller and one chat connection.
+Its compact, expanded and mobile floating surfaces and the `/assistant` page share
+one live conversation body. The page is only another host for that body; it does
+not create a second transcript or workflow runtime.
 
 ## Server-side composition
 
@@ -188,9 +214,9 @@ The error boundary re-throws framework control-flow errors **first**. Redirects,
 not-found signals and prerender bailouts arrive as ordinary render errors, and
 swallowing them would break navigation in ways that are very hard to diagnose.
 
-The application shell is header-first and full width. Multi Media, Account and
-Usage are always primary links; **Market Analysis is inserted only when the
-template enables it**. The flag is read on the server and passed down as a
+The application shell is header-first and full width. Multi Media, Account,
+Assistant and Usage are always primary links; **Market Analysis is inserted only
+when the template enables it**. The flag is read on the server and passed down as a
 boolean — the client never reads the template. Operations is an uncounted utility
 indicator rather than a nav link.
 

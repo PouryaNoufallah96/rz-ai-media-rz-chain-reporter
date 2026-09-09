@@ -86,8 +86,9 @@ Ownership is checked per command: the run must belong to the calling operator.
 ### `marketAnalysis`
 
 `create`, `updateMarketRequest`, `searchComparisons`, `approveChart`,
-`retryChart`, `approveStory`, `approveDesign`, `approveFinal`, `finish`,
-`preparePlatform`, `saveChartDefault`.
+`retryChart`, `saveChartDefault`, `approveStory`, `approveDesign`, `generate`,
+`retryGenerationFinalization`, `approveFinal`, `preparePlatform`,
+`retryCaptions`, `finish`.
 
 **Each stage approval is keyed by a fingerprint of the exact state it approved**,
 so an approval does not carry forward across a change.
@@ -162,7 +163,7 @@ not prose. A client switch over an action's declared codes can be exhaustive.
 
 ## Route handlers
 
-Eleven, outside the locale segment because they cannot read a root parameter.
+Twelve, outside the locale segment because they cannot read a root parameter.
 
 | Route | Method | Auth | Purpose |
 |---|---|---|---|
@@ -177,6 +178,7 @@ Eleven, outside the locale segment because they cannot read a root parameter.
 | `/api/market-analysis-instruments/[key]/icon` | GET | Session | A template-declared icon |
 | `/api/market-analysis-compositions/[family]/[variant]` | GET | Session | A template-declared sample |
 | `/api/chat` | POST | Session | The assistant's streaming turn |
+| `/api/chat/approve` | POST | Session | Load, prepare or approve one run start or template-enabled new Market Analysis |
 
 ### Health
 
@@ -238,22 +240,73 @@ digest before serving. Every failure is a `404`.
 
 ### The assistant
 
-Guard order, deliberately: connection, then **origin — checked before the body is
-touched**, then content type, then session, then a bounded body read, then parse,
-then schema.
+Both assistant endpoints use one request boundary. Its guard order is deliberately:
+connection, then **origin — checked before the body is touched**, then content
+type, then session, then a bounded body read, then parse, then schema.
 
-Every rejection is a bodyless response with no detail.
+Every rejection is a bodyless, private, no-store response with no detail. Successful
+stream and approval responses are private and no-store too.
 
 The claimed card is authorized against a live draft in **this operator's own run**,
 matching platform, brand and content locale. The identifier the browser supplied
 is untrusted.
 
-Context comes from the customer template's reviewed knowledge, not from arbitrary
-retrieval. Citations carry a synthetic document identifier and a digest — never a
-file path.
+Context comes from reviewed customer knowledge, product help, and authenticated,
+bounded reads of this operator's live workspace — never arbitrary retrieval. The
+browser may retain at most 40 messages with 24 parts each for 60 minutes, but a
+request projects only the six most recent user or assistant text turns and six
+minimal read-result referents. That strict context is capped at 12 KiB inside the
+32 KiB request limit. Referents carry only a read kind, stable identifier, title
+and owner link; the server performs a fresh owner-scoped read before returning a
+result, and restored context cannot authorize an effect. Knowledge citations carry
+a synthetic document identifier and a digest — never a file path.
 
-The model may *call* a clarification tool but never authors its payload: the
-choices are workspace-owned and re-validated before they reach the transcript.
+The model may call typed clarification and one bounded workspace read. Read output
+is a compact assistant card with capped facts and rows. Verified Market artifacts
+may use the authenticated media route; other links target the canonical owner
+screen. Each card has a clickable **Open** control, and canonical paths in guidance
+text are clickable. No read mounts a Card Sheet, publishing desk or Market
+Analysis workspace in chat.
+
+The only effect tools prepare one News or Promo run start or, when enabled by the
+customer template, one new Market Analysis. Model input is untrusted intent.
+Brand, model, source and instrument choices come from current installation owners,
+and missing material values must be resolved before a canonical command can be
+prepared. Calling a tool does not start an effect.
+
+`/api/chat/approve` loads current run options or the enabled Market Analysis
+setup choices, resolves focused values against live template bounds, and signs a
+short-lived envelope bound to the operator, installation, exact tool input,
+canonical command, material fingerprint and stable idempotency identity. Natural-
+language or focused-control changes create a new preview and envelope; only that
+preview's explicit Approve button submits it. Tampered, cross-operator, cross-
+installation, expired, stale and template-drifted proposals are refused. Lost
+responses recover the same run or Market Analysis and operation identity without
+admitting a duplicate effect.
+
+The Market tool ends after creation. Chart, Story, Design, Generate, Publish and
+every action on an existing analysis stay in the native Market Analysis
+workspace. Editorial, Card Sheet, media, approval, publishing and scheduling
+actions likewise remain in their native owners and have no assistant approval
+payload.
+
+For setup, the model schema accepts bounded instrument references separately
+from the canonical owner command's UUID-only fields. The server keeps the exact
+SDK-validated input unchanged, resolves names, symbols, keys or IDs against fresh
+operator-owned options, and signs both that input and the separately validated
+canonical command. Unknown or ambiguous references produce one current-choice
+question and never a guessed UUID. Pending answers are bounded conversation data:
+omission remains unresolved, an empty comparison list remains explicit, and
+Cancel, Clear or a result removes the pending request. Approval revalidates and
+re-resolves the signed material before admitting the effect.
+
+The bounded card read accepts either the currently open draft or one exact draft
+identifier from an owner-scoped referent. It reauthorizes that Card Sheet state
+and fails closed when the draft is malformed, missing or belongs to another
+operator; it never falls back to the latest card. Read results expose only capped
+screen-visible status and canonical owner links. Completed Market reports may
+also expose authenticated chart and final-image URLs. Those URLs are read-only;
+the assistant accepts no upload or pending browser file.
 
 Every turn opens an operation whose identity material is a **fresh opaque
 identifier** — never the question, the card text, or a content-derived hash.

@@ -167,6 +167,41 @@ Two things about it are worth stating plainly:
   forged or lost invalidation is stale reads until the entries expire on their
   own. No business state is reachable through it.
 
+## Assistant requests and approvals
+
+Both assistant POST endpoints share one request guard: exact same-origin, JSON
+content type, authenticated operator and installation, bounded body read, JSON
+parse and strict schema validation. Origin and content type are rejected before
+the body is read. Every response is private and no-store; boundary rejections are
+bodyless so they disclose no parsing, session or configuration detail.
+
+Authenticated read tools return bounded, operator-owned workspace data and cannot
+write. The assistant can prepare only a News or Promo run and, when enabled by the
+customer template, creation of one new Market Analysis. The server
+resolves either proposal through current canonical configuration, then signs a
+transient envelope binding the operator, installation, exact tool input, command,
+material hash, template fingerprint, expiry and stable idempotency identity. Only
+a separate explicit approval may submit an effect. Restored conversation or tool
+state never grants effect authority. Tampering, identity mismatch, expiry,
+configuration drift and template drift fail closed.
+
+Run recovery checks the authoritative record first, so a lost response replays
+the same run and operation even after the proposal expires. Market creation uses
+the same stable replay identity and revalidates the signed setup against current
+template choices before admission. Every Editorial, Card Sheet, publishing,
+scheduling and later Market Analysis change remains in its native owner screen and
+cannot be admitted by an assistant payload.
+
+Assistant read cards may show an existing verified Market artifact through the
+same-origin authenticated media route. They expose no object key, redirect or
+presigned URL. The assistant does not accept uploads or pending browser files and
+cannot select, generate, replace or adopt media; those changes stay in the native
+desks.
+
+`ASSISTANT_APPROVAL_SECRET` exists only in the web runtime. Rotating it invalidates
+outstanding proposals without changing runs and operations already admitted to
+PostgreSQL.
+
 ## What is never logged or transmitted
 
 - Secrets, in any form, anywhere.

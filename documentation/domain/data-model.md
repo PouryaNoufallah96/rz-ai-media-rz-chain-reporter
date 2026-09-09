@@ -386,7 +386,10 @@ reconciliations, attestations and pauses.
 
 `assistant_conversation`, `assistant_message`
 
-The card-scoped operator assistant. It owns no editorial state.
+The current assistant does not read or write these tables. Its bounded
+conversation and pending proposal state stay in browser-local history; admitted
+runs and Market analyses use their owning domain tables. The assistant owns no
+editorial state.
 
 ---
 

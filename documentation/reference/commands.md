@@ -87,6 +87,11 @@ print an explicit outcome.
 
 | Command | What it proves |
 |---|---|
+| `pnpm --filter web probe:assistant-read` | Deterministic assistant read projections, locale forwarding, strict prior-context bounds and owner-scoped read behaviour. |
+| `pnpm --filter web probe:assistant-approval` | Assistant request guards plus signed run-start and Market-create approval, expiry, drift, replay and recovery behaviour. |
+| `pnpm --filter web probe:assistant-run-start` | Typed run tooling, per-step usage settlement and shared mutation invalidation. |
+| `pnpm --filter web probe:assistant-market` | Template-conditional Market Analysis creation, strict approval transport and rejection of retired Market actions. |
+| `pnpm --filter web probe:assistant-container` | One assistant conversation moving between compact, expanded, mobile and full-page containers without remounting. |
 | `pnpm --filter web probe:editorial-presentation` | Card presentation selection, including which localized bundle is chosen. |
 | `pnpm --filter web probe:editorial-freshness` | Freshness handling in the editorial workspace. |
 | `pnpm --filter web probe:report-policy` | The filtering report's policy decisions. |
@@ -117,9 +122,11 @@ print an explicit outcome.
 
 | Command | What it proves |
 |---|---|
+| `pnpm --filter @rz-chain-reporter/db probe:assistant-run-start` | Stable run and operation identity under replay, conflict and response recovery. |
+| `pnpm --filter @rz-chain-reporter/db probe:platform-draft` | Platform routing, copy and revision replay, media verification and revision-version behaviour. |
+| `pnpm --filter @rz-chain-reporter/db probe:publishing-domain` | Saved cards, exact approval snapshots, publication and schedule replay, recovery, reconciliation, attestation and pause behaviour. |
 | `pnpm --filter @rz-chain-reporter/db probe:source-import` | Source import persistence. |
 | `pnpm --filter @rz-chain-reporter/db probe:analysis-run-candidates` | Candidate selection for an analysis run. |
-| `pnpm --filter @rz-chain-reporter/db probe:platform-draft` | Platform draft persistence. |
 | `pnpm --filter @rz-chain-reporter/db probe:presentation-localization` | Presentation localization storage. |
 | `pnpm --filter @rz-chain-reporter/db probe:presentation-translation` | The translation request aggregate. |
 | `pnpm --filter @rz-chain-reporter/db probe:copy-variant-localization` | Copy variant localization storage. |
