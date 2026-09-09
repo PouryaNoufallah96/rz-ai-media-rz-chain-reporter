@@ -116,7 +116,7 @@ destination account's platform.
 
 ## Probes
 
-Eleven under `src/probes/`. Each builds a real fixture in a real database,
+Twelve under `src/probes/`. Each builds a real fixture in a real database,
 exercises real repository functions — several with genuinely concurrent
 transactions — asserts, cleans up and prints an explicit summary.
 

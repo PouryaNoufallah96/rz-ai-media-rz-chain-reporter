@@ -25,8 +25,11 @@ fallback. An unrecognised or unconfigured key is a configuration error, not a
 runtime fallback — silently falling back would hide a misconfiguration until
 someone noticed the wrong model's voice in production.
 
-Three invocation keys are walked by the caller: **primary**, **retry-1**,
-**fallback**. The first two resolve to the *same* route; only the third switches.
+Three invocation keys are available: **primary**, **retry-1**, **fallback**. The
+first two resolve to the *same* route; only the third switches. Durable workflows
+walk them explicitly. A bounded synthesis stream keeps its selected invocation
+key for every provider call and records a separate zero-based call index while
+the gateway owns the typed tool loop and UI stream.
 
 **The gateway never retries.** Every underlying call is made with retries
 disabled. Retry is a durable-execution decision, made by the caller that knows
@@ -39,7 +42,7 @@ whether retrying is safe.
 **On-host** supports structured output and embeddings only. A template routing
 image generation locally fails at startup rather than at first use.
 
-## Every call, same lifecycle
+## Every call, same usage lifecycle
 
 1. Assert invocation bounds.
 2. Resolve the route from the template.
@@ -48,11 +51,17 @@ image generation locally fails at startup rather than at first use.
 4. Resolve the adapter.
 5. **Write a pending usage row — before the provider call.**
 6. Invoke.
-7. Finalise the usage row **in the same transaction as the domain write**.
+7. Finalise the usage row.
 
 Steps 5 and 7 are the important ones. Writing the row first makes a crash mid-call
-visible. Committing the ledger with the work means there is no window where
-content exists without its cost, or a cost exists for content that was not saved.
+visible. Effectful structured and image calls commit the ledger with their domain
+write, so content and cost cannot diverge.
+
+A synthesis stream opens one Usage row per model step. Completed steps settle
+from their observed result; an unsettled row becomes unknown when the stream ends,
+or cancelled on explicit cancellation. Its typed UI stream carries text, tool,
+approval and data parts. A later approved domain command is separate from this
+model settlement.
 
 ## Failed and unknown are different
 

@@ -6,6 +6,7 @@ import {
   check,
   foreignKey,
   index,
+  integer,
   jsonb,
   numeric,
   pgTable,
@@ -44,6 +45,7 @@ export const aiUsageEvent = pgTable(
     operationId: uuid("operation_id").notNull(),
     operationAttemptId: uuid("operation_attempt_id").notNull(),
     invocationKey: text("invocation_key").$type<InvocationKey>().notNull(),
+    callIndex: integer("call_index").default(0).notNull(),
     taskKey: text("task_key").notNull(),
     apiKind: usageApiKind("api_kind").notNull(),
     backend: modelBackend("backend").notNull(),
@@ -102,6 +104,7 @@ export const aiUsageEvent = pgTable(
       "ck_ai_usage_event_invocation_key",
       sql`${t.invocationKey} in ('primary', 'retry-1', 'fallback')`,
     ),
+    check("ck_ai_usage_event_call_index", sql`${t.callIndex} >= 0`),
     check(
       "ck_ai_usage_event_raw_usage",
       sql`${t.rawUsage} is null or (jsonb_typeof(${t.rawUsage}) = 'object' and ${t.rawUsage} - array['isByok', 'nativeFinishReason', 'route', 'routingAttempts'] = '{}'::jsonb)`,
@@ -110,9 +113,10 @@ export const aiUsageEvent = pgTable(
       "ck_ai_usage_event_failure_retryable",
       sql`${t.failureRetryable} is null or ${t.status} = 'failed'`,
     ),
-    unique("uq_ai_usage_event_operation_attempt_id_invocation_key").on(
+    unique("uq_ai_usage_event_operation_attempt_invocation_call").on(
       t.operationAttemptId,
       t.invocationKey,
+      t.callIndex,
     ),
     uniqueIndex("uq_ai_usage_event_provider_gateway_generation_id_present")
       .on(t.providerGateway, t.generationId)

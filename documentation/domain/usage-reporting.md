@@ -20,7 +20,7 @@ their own work.
 
 ## What is recorded
 
-One row per model invocation attempt:
+One row per provider call:
 
 | Field | Purpose |
 |---|---|
@@ -32,11 +32,14 @@ One row per model invocation attempt:
 | Cost | The authoritative returned figure, stored as a decimal string |
 | Cost authority | Where that figure came from |
 | Status | Pending, succeeded, failed, cancelled, unknown |
-| Task context | The task key, the invocation key, the operation and attempt |
+| Task context | The task key, invocation key, call index, operation and attempt |
 | Timestamps | When it happened |
 
-The row is keyed to an **operation attempt**, so every cost is traceable to the
-work that incurred it — which run, which draft, which brand, which operator.
+The row is keyed by **operation attempt, invocation key, and zero-based call
+index**, so every cost is traceable to the work that incurred it — which run,
+which draft, which brand, which operator. Tool-loop calls keep the same
+invocation key because that key identifies routing; the call index identifies
+their order within that route attempt.
 
 ## The three properties that make it trustworthy
 
@@ -103,11 +106,13 @@ than being left pending forever.
 provider, task and period, with cursor-based pagination.
 
 It is **operator-scoped**: an operator sees the cost of the work they ran. The
-read is cached and keyed to both the installation and the operator, and it is
-invalidated by the worker after every settlement — so the screen reflects a run
-that finished seconds ago.
+read is cached and keyed to both the installation and the operator. Durable work
+invalidates it through the worker after settlement. Request-bound assistant
+synthesis expires the tag in its web Route Handler after its steps settle.
 
-A live message on the operator's own usage channel triggers the refresh.
+A live message on the operator's own usage channel triggers the refresh for
+durable work. An assistant response carries a transient, browser-local refresh
+signal instead; it is not stored in conversation history.
 
 ## What is deliberately absent
 

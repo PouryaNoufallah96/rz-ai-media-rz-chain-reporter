@@ -28,6 +28,7 @@ export type InsertPendingUsageInput = {
   operationId: string;
   operationAttemptId: string;
   invocationKey: InvocationKey;
+  callIndex?: number;
   taskKey: string;
   apiKind: UsageApiKind;
   backend: ModelBackend;
@@ -51,6 +52,11 @@ export async function insertPendingUsage(
   workspaceId: string,
   input: InsertPendingUsageInput,
 ): Promise<InsertPendingUsageResult> {
+  const callIndex = input.callIndex ?? 0;
+  if (!Number.isInteger(callIndex) || callIndex < 0) {
+    throw new Error("usage call index must be a nonnegative integer");
+  }
+
   return executor.transaction(async (tx) => {
     await withWorkspaceContext(tx, workspaceId);
     if (input.claimFence) {
@@ -93,6 +99,7 @@ export async function insertPendingUsage(
         operationId: input.operationId,
         operationAttemptId: input.operationAttemptId,
         invocationKey: input.invocationKey,
+        callIndex,
         taskKey: input.taskKey,
         apiKind: input.apiKind,
         backend: input.backend,
@@ -101,7 +108,11 @@ export async function insertPendingUsage(
         occurredAt,
       })
       .onConflictDoNothing({
-        target: [aiUsageEvent.operationAttemptId, aiUsageEvent.invocationKey],
+        target: [
+          aiUsageEvent.operationAttemptId,
+          aiUsageEvent.invocationKey,
+          aiUsageEvent.callIndex,
+        ],
       })
       .returning();
 
@@ -117,6 +128,7 @@ export async function insertPendingUsage(
           inWorkspace(aiUsageEvent, workspaceId),
           eq(aiUsageEvent.operationAttemptId, input.operationAttemptId),
           eq(aiUsageEvent.invocationKey, input.invocationKey),
+          eq(aiUsageEvent.callIndex, callIndex),
         ),
       );
 

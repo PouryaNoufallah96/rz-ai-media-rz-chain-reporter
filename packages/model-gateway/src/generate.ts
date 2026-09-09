@@ -1,4 +1,4 @@
-import type { EmbeddingModel, LanguageModel } from "ai";
+import type { EmbeddingModel, LanguageModel, ToolSet, UIMessage } from "ai";
 import {
   APICallError,
   embedMany,
@@ -9,7 +9,8 @@ import {
   NoObjectGeneratedError,
   NoOutputGeneratedError,
   Output,
-  streamText,
+  ToolLoopAgent,
+  toUIMessageStream,
 } from "ai";
 
 import { AdapterInvocationError } from "./errors";
@@ -19,12 +20,12 @@ import type {
   ImageAdapterInput,
   ImageAdapterResult,
   ModelCallObservation,
-  ModelToolCall,
   ObservedModelStep,
   StructuredAdapterInput,
   StructuredAdapterResult,
   TextStreamAdapterInput,
   TextStreamAdapterResult,
+  TextStreamAgentBaseSettings,
 } from "./types";
 import { diagnoseProviderCall, recordProviderFailure } from "./usage";
 
@@ -213,27 +214,28 @@ export async function generateStructured<TOutput>(
   }
 }
 
-export function streamSynthesis(
+export async function streamSynthesis<
+  TOOLS extends ToolSet,
+  UI_MESSAGE extends UIMessage,
+>(
   model: LanguageModel,
-  input: TextStreamAdapterInput,
-  emptyObservation: ModelCallObservation,
+  input: TextStreamAdapterInput<TOOLS>,
   observe: (step: ObservedModelStep) => ModelCallObservation,
-): TextStreamAdapterResult {
-  let observation = emptyObservation;
-  let failure: unknown;
-  let toolCalls: readonly ModelToolCall[] = [];
-
-  const result = streamText({
+): Promise<TextStreamAdapterResult<UI_MESSAGE>> {
+  type RuntimeContext = TextStreamAdapterInput<TOOLS>["telemetry"];
+  const baseSettings = {
+    activeTools: input.activeTools,
+    experimental_toolApprovalSecret: input.toolApprovalSecret,
+    id: "model-gateway-synthesis",
     model,
     instructions: input.instructions,
-    prompt: input.prompt,
     maxOutputTokens: input.maxOutputTokens,
     maxRetries: 0,
+    prepareStep: input.prepareStep,
     stopWhen: input.stopWhen,
     timeout: { totalMs: input.deadlineMs },
-    abortSignal: input.abortSignal,
     toolChoice: input.toolChoice,
-    tools: input.tools,
+    toolApproval: input.toolApproval,
     runtimeContext: input.telemetry,
     telemetry: {
       functionId: "model-gateway.stream-synthesis",
@@ -245,11 +247,11 @@ export function streamSynthesis(
       recordInputs: false,
       recordOutputs: false,
     },
-    onError({ error }) {
-      failure ??= error;
+    onStepStart({ stepNumber }) {
+      return input.onStepStart(stepNumber);
     },
     onStepEnd(step) {
-      observation = observe({
+      const observation = observe({
         finishReason: step.finishReason,
         modelId: step.model.modelId,
         providerMetadata: step.providerMetadata,
@@ -257,33 +259,24 @@ export function streamSynthesis(
         response: step.response,
         usage: step.usage,
       });
+      return input.onStepEnd(step.stepNumber, observation);
     },
+  } satisfies TextStreamAgentBaseSettings<TOOLS>;
+  const settings = Object.assign(
+    input.bindAgentTools(baseSettings),
+    baseSettings,
+  );
+  const agent = new ToolLoopAgent<never, TOOLS, RuntimeContext>(settings);
+  const result = await agent.stream({
+    abortSignal: input.abortSignal,
+    prompt: input.prompt,
   });
 
-  async function* readTextStream() {
-    try {
-      for await (const delta of result.textStream) {
-        yield delta;
-      }
-
-      toolCalls = (await result.toolResults).map((call) => ({
-        output: call.output,
-        toolCallId: call.toolCallId,
-        toolName: call.toolName,
-      }));
-    } catch (error) {
-      failure ??= error;
-    }
-
-    if (failure !== undefined) {
-      throw toAdapterError(failure, input.abortSignal, observation, "unknown");
-    }
-  }
-
   return {
-    observation: () => observation,
-    textStream: readTextStream(),
-    toolCalls: () => toolCalls,
+    uiStream: toUIMessageStream<TOOLS, UI_MESSAGE>({
+      stream: result.stream,
+      tools: agent.tools,
+    }),
   };
 }
 

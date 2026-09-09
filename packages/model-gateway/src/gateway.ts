@@ -17,6 +17,7 @@ import {
   finalizeUsageWithResult,
   insertPendingUsage,
 } from "@rz-chain-reporter/db/repositories/ai-usage-event";
+import type { InferUIMessageChunk, ToolSet, UIMessage } from "ai";
 
 import {
   AdapterInvocationError,
@@ -35,13 +36,13 @@ import type {
   ModelAdapter,
   ModelBindings,
   ModelCallObservation,
-  ModelToolCall,
   PreparedImageResult,
   RemoteModelAdapter,
   StructuredAdapterResult,
   StructuredModelInvocation,
   StructuredModelResult,
   TextStreamModelInvocation,
+  TextStreamUIMessage,
 } from "./types";
 import { readProviderFailure } from "./usage";
 
@@ -50,11 +51,11 @@ const MAX_EMBEDDING_VALUE_LENGTH = 500;
 const MAX_INSTRUCTIONS_LENGTH = 24_000;
 const MAX_IMAGE_PROMPT_LENGTH = 48_000;
 export const MAX_OUTPUT_TOKENS = 8_192;
+const MAX_SYNTHESIS_STEPS = 3;
 
-export type TextStreamModelResult = {
-  textStream: AsyncIterable<string>;
-  toolCalls: () => readonly ModelToolCall[];
-  usageEventId: string;
+export type TextStreamModelResult<UI_MESSAGE extends UIMessage> = {
+  uiStream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>;
+  usageEventIds: () => readonly string[];
 };
 
 export type ModelGatewayLogger = {
@@ -67,9 +68,12 @@ export type ModelGateway = {
   invokeStructured<TOutput>(
     input: StructuredModelInvocation<TOutput>,
   ): Promise<StructuredModelResult<TOutput>>;
-  streamSynthesis?: (
-    input: TextStreamModelInvocation,
-  ) => Promise<TextStreamModelResult>;
+  streamSynthesis?: <
+    TOOLS extends ToolSet,
+    UI_MESSAGE extends UIMessage = TextStreamUIMessage<TOOLS>,
+  >(
+    input: TextStreamModelInvocation<TOOLS>,
+  ) => Promise<TextStreamModelResult<UI_MESSAGE>>;
 };
 
 // Consumers hold `ModelGateway`, whose optional members let probe fixtures stay partial.
@@ -576,7 +580,10 @@ export function createModelGateway(options: {
       return { output: generated.output, usageEventId: pending.event.id };
     },
 
-    async streamSynthesis(input) {
+    async streamSynthesis<
+      TOOLS extends ToolSet,
+      UI_MESSAGE extends UIMessage = TextStreamUIMessage<TOOLS>,
+    >(input: TextStreamModelInvocation<TOOLS>) {
       assertSynthesisBounds(input);
       const { route, taskKey } = resolveModelTask(
         options.template,
@@ -600,115 +607,148 @@ export function createModelGateway(options: {
         );
       }
 
-      const streamAdapterText = remoteAdapter.streamText.bind(remoteAdapter);
-      const pending = await insertPendingUsage(
-        options.executor,
-        input.workspaceId,
-        {
-          apiKind: "chat",
-          backend: route.backend,
-          invocationKey: input.invocationKey,
-          operationAttemptId: input.operationAttemptId,
-          operationId: input.operationId,
-          providerGateway: "openrouter",
-          requestedModel: route.model,
-          taskKey,
-        },
-      );
-
-      if (!pending.inserted) {
-        const replayStatus = await resolveReplayStatus(
-          options.executor,
-          input.workspaceId,
-          pending.event,
-          input.deadlineMs,
-        );
-        throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
-          ambiguous: replayStatus === "pending" || replayStatus === "unknown",
-          reason: "usage-slot-replayed",
-          usageEventId: pending.event.id,
-        });
-      }
-
-      const streamed = streamAdapterText({
+      const attempts = new Map<number, { id: string; settled: boolean }>();
+      const streamed = await remoteAdapter.streamText<TOOLS, UI_MESSAGE>({
+        activeTools: input.activeTools,
+        bindAgentTools: input.bindAgentTools,
         abortSignal: input.abortSignal,
         deadlineMs: input.deadlineMs,
         instructions: input.instructions,
         maxOutputTokens: input.maxOutputTokens,
         model: route.model,
-        prompt: input.prompt,
-        stopWhen: input.stopWhen,
-        toolChoice: input.toolChoice,
-        tools: input.tools,
-        telemetry: {
-          operationAttemptId: input.operationAttemptId,
-          operationId: input.operationId,
-          usageEventId: pending.event.id,
-        },
-      });
-
-      // A cancelled response returns the generator early, so `finally` settles
-      // the row; otherwise an abandoned stream would leave usage pending forever.
-      async function* settleWhileStreaming() {
-        let drained = false;
-        let ledgerSettled = false;
-
-        try {
-          yield* streamed.textStream;
-          drained = true;
-
+        onStepEnd: async (stepNumber, observation) => {
+          const attempt = attempts.get(stepNumber);
+          if (!attempt) {
+            throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+              reason: "unexpected-error",
+            });
+          }
           const finalized = await finalizeUsage(
             options.executor,
             input.workspaceId,
             {
-              id: pending.event.id,
-              status: "succeeded",
-              ...streamed.observation(),
+              id: attempt.id,
+              status:
+                observation.finishReason === "error" ? "failed" : "succeeded",
+              ...observation,
             },
           );
-          ledgerSettled = true;
-
+          attempt.settled = true;
           if (finalized.status !== "updated") {
             throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
-              ambiguous: true,
               reason: "usage-finalization-lost",
+              usageEventId: attempt.id,
+            });
+          }
+        },
+        onStepStart: async (stepNumber) => {
+          if (stepNumber < 0 || stepNumber >= MAX_SYNTHESIS_STEPS) {
+            throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+              reason: "invocation-bounds",
+            });
+          }
+          const pending = await insertPendingUsage(
+            options.executor,
+            input.workspaceId,
+            {
+              apiKind: "chat",
+              backend: route.backend,
+              callIndex: stepNumber,
+              invocationKey: input.invocationKey,
+              operationAttemptId: input.operationAttemptId,
+              operationId: input.operationId,
+              providerGateway: "openrouter",
+              requestedModel: route.model,
+              taskKey,
+            },
+          );
+          if (!pending.inserted) {
+            throw new ModelGatewayInvocationError("MODEL_INVOCATION_FAILED", {
+              reason: "usage-slot-replayed",
               usageEventId: pending.event.id,
             });
           }
-        } catch (error) {
-          if (ledgerSettled) {
-            throw error;
-          }
-
-          ledgerSettled = true;
-          await failInvocation(
-            options.executor,
-            input.workspaceId,
-            pending.event.id,
-            error,
-          );
-        } finally {
-          if (!ledgerSettled) {
-            ledgerSettled = true;
-            await finalizeUsage(options.executor, input.workspaceId, {
-              id: pending.event.id,
-              status: drained ? "unknown" : "cancelled",
-              ...streamed.observation(),
-            });
-          }
-        }
-      }
+          attempts.set(stepNumber, { id: pending.event.id, settled: false });
+        },
+        prepareStep: input.prepareStep,
+        prompt: input.prompt,
+        stopWhen: input.stopWhen,
+        toolApproval: input.toolApproval,
+        toolApprovalSecret: input.toolApprovalSecret,
+        toolChoice: input.toolChoice,
+        telemetry: {
+          operationAttemptId: input.operationAttemptId,
+          operationId: input.operationId,
+          usageEventId: "per-step",
+        },
+      });
 
       return {
-        textStream: settleWhileStreaming(),
-        toolCalls: () => streamed.toolCalls(),
-        usageEventId: pending.event.id,
+        uiStream: settleSynthesisStream(
+          streamed.uiStream,
+          input.abortSignal,
+          async (status) => {
+            await Promise.all(
+              [...attempts.values()].map(async (attempt) => {
+                if (attempt.settled) return;
+                attempt.settled = true;
+                await finalizeUsage(options.executor, input.workspaceId, {
+                  id: attempt.id,
+                  status,
+                  costAuthority: "unknown",
+                });
+              }),
+            );
+          },
+        ),
+        usageEventIds: () =>
+          [...attempts.values()].map((attempt) => attempt.id),
       };
     },
   };
 }
 
-function assertSynthesisBounds(input: TextStreamModelInvocation) {
+function settleSynthesisStream<T>(
+  source: ReadableStream<T>,
+  abortSignal: AbortSignal | undefined,
+  settle: (status: "cancelled" | "unknown") => Promise<void>,
+) {
+  const reader = source.getReader();
+  let settled = false;
+  const settleOnce = async (status: "cancelled" | "unknown") => {
+    if (settled) return;
+    settled = true;
+    await settle(status);
+  };
+
+  return new ReadableStream<T>({
+    async pull(controller) {
+      try {
+        const next = await reader.read();
+        if (next.done) {
+          await settleOnce("unknown");
+          controller.close();
+          return;
+        }
+        controller.enqueue(next.value);
+      } catch (error) {
+        await settleOnce(abortSignal?.aborted ? "cancelled" : "unknown");
+        controller.error(error);
+      }
+    },
+    async cancel(reason) {
+      try {
+        await reader.cancel(reason);
+      } finally {
+        await settleOnce("cancelled");
+      }
+    },
+  });
+}
+
+function assertSynthesisBounds<TOOLS extends ToolSet>(
+  input: TextStreamModelInvocation<TOOLS>,
+) {
   if (
     input.prompt.length === 0 ||
     input.prompt.length > MODEL_PROMPT_MAX_LENGTH ||

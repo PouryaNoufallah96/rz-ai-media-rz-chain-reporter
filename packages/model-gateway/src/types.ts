@@ -6,11 +6,24 @@ import type { ModelTaskKey } from "@rz-chain-reporter/customer-template/schema";
 import type { Transaction } from "@rz-chain-reporter/db/executor";
 import type { FinalizeUsageInput } from "@rz-chain-reporter/db/repositories/ai-usage-event";
 import type {
+  ActiveTools,
+  GenerateTextOnStepEndCallback,
+  GenerateTextOnStepStartCallback,
+  InferUIMessageChunk,
+  InferUITools,
+  Instructions,
+  LanguageModel,
   LanguageModelResponseMetadata,
   LanguageModelUsage,
+  PrepareStepFunction,
   StopCondition,
+  TelemetryOptions,
+  TimeoutConfiguration,
+  ToolApprovalConfiguration,
   ToolChoice,
+  ToolLoopAgentSettings,
   ToolSet,
+  UIMessage,
 } from "ai";
 import type { z } from "zod";
 
@@ -23,6 +36,12 @@ export type ModelCallObservation = Omit<
   FinalizeUsageInput,
   "claimFence" | "finalizedAt" | "id" | "status"
 >;
+
+export type ModelTelemetryContext = {
+  operationAttemptId: string;
+  operationId: string;
+  usageEventId: string;
+};
 
 export type ObservedModelStep = {
   finishReason: string;
@@ -54,36 +73,65 @@ export type StructuredAdapterResult<TOutput> = {
   output: TOutput;
 };
 
-export type ModelToolCall = {
-  output: unknown;
-  toolCallId: string;
-  toolName: string;
+export type TextStreamAgentBaseSettings<TOOLS extends ToolSet> = {
+  activeTools?: ActiveTools<TOOLS>;
+  experimental_toolApprovalSecret?: string | Uint8Array;
+  id?: string;
+  instructions?: Instructions;
+  maxOutputTokens?: number;
+  maxRetries?: number;
+  model: LanguageModel;
+  onStepEnd?: GenerateTextOnStepEndCallback<TOOLS, ModelTelemetryContext>;
+  onStepStart?: GenerateTextOnStepStartCallback<
+    TOOLS,
+    ModelTelemetryContext,
+    never
+  >;
+  prepareStep?: PrepareStepFunction<TOOLS, ModelTelemetryContext>;
+  runtimeContext?: ModelTelemetryContext;
+  stopWhen?: StopCondition<TOOLS, ModelTelemetryContext>;
+  telemetry?: TelemetryOptions<ModelTelemetryContext, TOOLS>;
+  timeout?: TimeoutConfiguration<TOOLS>;
+  toolApproval?: ToolApprovalConfiguration<TOOLS, ModelTelemetryContext>;
+  toolChoice?: ToolChoice<TOOLS>;
 };
 
-export type TextStreamToolOptions = {
-  stopWhen?: StopCondition<ToolSet>;
-  toolChoice?: ToolChoice<ToolSet>;
-  tools?: ToolSet;
+export type TextStreamToolOptions<TOOLS extends ToolSet> = {
+  activeTools?: ActiveTools<TOOLS>;
+  bindAgentTools: (
+    settings: TextStreamAgentBaseSettings<TOOLS>,
+  ) => ToolLoopAgentSettings<never, TOOLS, ModelTelemetryContext>;
+  prepareStep?: PrepareStepFunction<TOOLS, ModelTelemetryContext>;
+  stopWhen?: StopCondition<TOOLS, ModelTelemetryContext>;
+  toolApproval?: ToolApprovalConfiguration<TOOLS, ModelTelemetryContext>;
+  toolApprovalSecret?: string;
+  toolChoice?: ToolChoice<TOOLS>;
 };
 
-export type TextStreamAdapterInput = TextStreamToolOptions & {
-  abortSignal?: AbortSignal;
-  deadlineMs: number;
-  instructions: string;
-  maxOutputTokens: number;
-  model: string;
-  prompt: string;
-  telemetry: {
-    operationAttemptId: string;
-    operationId: string;
-    usageEventId: string;
+export type TextStreamAdapterInput<TOOLS extends ToolSet> =
+  TextStreamToolOptions<TOOLS> & {
+    abortSignal?: AbortSignal;
+    deadlineMs: number;
+    instructions: string;
+    maxOutputTokens: number;
+    model: string;
+    prompt: string;
+    telemetry: ModelTelemetryContext;
+    onStepEnd: (
+      stepNumber: number,
+      observation: ModelCallObservation,
+    ) => Promise<void>;
+    onStepStart: (stepNumber: number) => Promise<void>;
   };
-};
 
-export type TextStreamAdapterResult = {
-  observation: () => ModelCallObservation;
-  textStream: AsyncIterable<string>;
-  toolCalls: () => readonly ModelToolCall[];
+export type TextStreamUIMessage<TOOLS extends ToolSet> = UIMessage<
+  never,
+  never,
+  InferUITools<TOOLS>
+>;
+
+export type TextStreamAdapterResult<UI_MESSAGE extends UIMessage> = {
+  uiStream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>;
 };
 
 export type EmbeddingAdapterInput = {
@@ -130,7 +178,12 @@ export interface ModelAdapter {
 export interface RemoteModelAdapter extends ModelAdapter {
   embedMany(input: EmbeddingAdapterInput): Promise<EmbeddingAdapterResult>;
   generateImage(input: ImageAdapterInput): Promise<ImageAdapterResult>;
-  streamText?(input: TextStreamAdapterInput): TextStreamAdapterResult;
+  streamText?<
+    TOOLS extends ToolSet,
+    UI_MESSAGE extends UIMessage = TextStreamUIMessage<TOOLS>,
+  >(
+    input: TextStreamAdapterInput<TOOLS>,
+  ): Promise<TextStreamAdapterResult<UI_MESSAGE>>;
 }
 
 export type StructuredModelInvocation<TOutput> = {
@@ -181,18 +234,19 @@ export type EmbeddingModelInvocation = {
   workspaceId: string;
 };
 
-export type TextStreamModelInvocation = TextStreamToolOptions & {
-  abortSignal?: AbortSignal;
-  deadlineMs: number;
-  instructions: string;
-  invocationKey: InvocationKey;
-  maxOutputTokens: number;
-  operationAttemptId: string;
-  operationId: string;
-  prompt: string;
-  taskKey: ModelTaskKey;
-  workspaceId: string;
-};
+export type TextStreamModelInvocation<TOOLS extends ToolSet> =
+  TextStreamToolOptions<TOOLS> & {
+    abortSignal?: AbortSignal;
+    deadlineMs: number;
+    instructions: string;
+    invocationKey: InvocationKey;
+    maxOutputTokens: number;
+    operationAttemptId: string;
+    operationId: string;
+    prompt: string;
+    taskKey: ModelTaskKey;
+    workspaceId: string;
+  };
 
 export type EmbeddingModelResult = {
   embeddings: number[][];

@@ -160,9 +160,11 @@ export function createOpenRouterAdapter(
 
     streamText(input) {
       return streamSynthesis(
-        getProvider().chat(input.model, { usage: { include: true } }),
+        getProvider().chat(input.model, {
+          provider: { require_parameters: true },
+          usage: { include: true },
+        }),
         input,
-        emptyObservation(),
         observeOpenRouterStep,
       );
     },

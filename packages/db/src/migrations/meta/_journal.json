@@ -316,6 +316,13 @@
       "when": 1788467452560,
       "tag": "0044_market_generation_footer_lockup_pin",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1788948786131,
+      "tag": "0045_futuristic_blackheart",
+      "breakpoints": true
     }
   ]
 }
