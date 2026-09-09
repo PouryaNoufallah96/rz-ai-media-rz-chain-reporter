@@ -187,6 +187,41 @@ export async function findAnalysisRunByOperationId(
   return row;
 }
 
+export async function findAnalysisRunByIdempotencyKey(
+  executor: Executor,
+  workspaceId: string,
+  actor: string,
+  idempotencyKey: string,
+) {
+  const [row] = await executor
+    .select({
+      analysisRunId: analysisRun.id,
+      operationId: operation.id,
+      requestHash: operation.requestHash,
+    })
+    .from(operation)
+    .innerJoin(
+      analysisRun,
+      and(
+        eq(analysisRun.workspaceId, operation.workspaceId),
+        eq(analysisRun.operationId, operation.id),
+      ),
+    )
+    .where(
+      and(
+        inWorkspace(operation, workspaceId),
+        eq(operation.actor, actor),
+        eq(operation.commandType, ANALYSIS_RUN_COMMAND_TYPE),
+        eq(
+          operation.idempotencyKey,
+          `${ANALYSIS_RUN_COMMAND_TYPE}:${idempotencyKey}`,
+        ),
+      ),
+    );
+
+  return row ?? null;
+}
+
 type BindAnalysisRunSourceImportInput = {
   analysisRunId: string;
   sourceImportId: string;

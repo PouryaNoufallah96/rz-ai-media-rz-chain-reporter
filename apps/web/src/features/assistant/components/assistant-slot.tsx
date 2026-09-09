@@ -1,18 +1,12 @@
-import { getSession } from "@/features/auth/api/server/session";
-import { rpcDb } from "@/server/rpc/db";
-import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
+import { readAssistantIdentity } from "../api/server/assistant-identity";
 import { AssistantWidget } from "./assistant-widget";
 
 export async function AssistantSlot() {
-  const session = await getSession();
+  const identity = await readAssistantIdentity();
 
-  if (!session?.user) {
+  if (!identity) {
     return null;
   }
 
-  const workspaceId = await resolveInstallationWorkspaceId(rpcDb());
-
-  return (
-    <AssistantWidget identity={{ operatorId: session.user.id, workspaceId }} />
-  );
+  return <AssistantWidget identity={identity} />;
 }

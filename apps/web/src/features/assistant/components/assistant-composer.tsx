@@ -1,7 +1,12 @@
 "use client";
 
-import { Button } from "@rz-chain-reporter/ui/components/button";
-import { Textarea } from "@rz-chain-reporter/ui/components/textarea";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupText,
+  InputGroupTextarea,
+} from "@rz-chain-reporter/ui/components/input-group";
 import { useTranslations } from "next-intl";
 import { type RefObject, useRef, useState } from "react";
 
@@ -36,66 +41,62 @@ export function AssistantComposer({
 
   return (
     <form
-      className="grid gap-2"
       onSubmit={(event) => {
         event.preventDefault();
         submit();
       }}
     >
-      <Textarea
-        aria-label={t("composer.label")}
-        className="min-h-16 resize-none"
-        maxLength={MAX_QUESTION_CHARS}
-        onChange={(event) => setText(event.target.value)}
-        onCompositionEnd={() => {
-          composing.current = false;
-        }}
-        onCompositionStart={() => {
-          composing.current = true;
-        }}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter" || event.shiftKey || composing.current) {
-            return;
-          }
+      <InputGroup>
+        <InputGroupTextarea
+          aria-label={t("composer.label")}
+          className="min-h-14"
+          maxLength={MAX_QUESTION_CHARS}
+          onChange={(event) => setText(event.target.value)}
+          onCompositionEnd={() => {
+            composing.current = false;
+          }}
+          onCompositionStart={() => {
+            composing.current = true;
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" || event.shiftKey || composing.current) {
+              return;
+            }
 
-          event.preventDefault();
-          submit();
-        }}
-        placeholder={t("composer.placeholder")}
-        ref={ref}
-        value={text}
-      />
-
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-2xs text-muted-foreground tabular-nums">
-          {t("composer.counter", {
-            length: trimmed.length,
-            limit: MAX_QUESTION_CHARS,
-          })}
-        </span>
-
-        <div className="flex items-center gap-1.5">
-          <Button
-            disabled={busy}
-            onClick={onClear}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            {t("composer.clear")}
-          </Button>
-
-          {busy ? (
-            <Button onClick={onStop} size="sm" type="button" variant="outline">
-              {t("composer.stop")}
-            </Button>
-          ) : (
-            <Button disabled={trimmed.length === 0} size="sm" type="submit">
-              {t("composer.send")}
-            </Button>
-          )}
-        </div>
-      </div>
+            event.preventDefault();
+            submit();
+          }}
+          placeholder={t("composer.placeholder")}
+          ref={ref}
+          value={text}
+        />
+        <InputGroupAddon align="block-end" className="justify-between">
+          <InputGroupText className="tabular-nums">
+            {t("composer.counter", {
+              length: trimmed.length,
+              limit: MAX_QUESTION_CHARS,
+            })}
+          </InputGroupText>
+          <div className="flex items-center gap-1">
+            <InputGroupButton disabled={busy} onClick={onClear}>
+              {t("composer.clear")}
+            </InputGroupButton>
+            {busy ? (
+              <InputGroupButton onClick={onStop} variant="outline">
+                {t("composer.stop")}
+              </InputGroupButton>
+            ) : (
+              <InputGroupButton
+                disabled={trimmed.length === 0}
+                type="submit"
+                variant="default"
+              >
+                {t("composer.send")}
+              </InputGroupButton>
+            )}
+          </div>
+        </InputGroupAddon>
+      </InputGroup>
     </form>
   );
 }

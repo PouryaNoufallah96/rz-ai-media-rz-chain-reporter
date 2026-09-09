@@ -2,7 +2,7 @@
 
 RZWire is an AI-powered, multi-brand social publishing workspace. It accepts a
 topic or source feed, routes material across seven distinct projects, and prepares
-brand-aware copy and images for Telegram, X/Twitter, and Instagram drafts.
+brand-aware copy and images for Telegram and X/Twitter drafts.
 
 RZWire also includes Market Analysis. Its main page opens one complete setup
 workspace: select one to three RZWire tokens, optionally find up to three live
@@ -27,17 +27,27 @@ The configured brands include:
   tourism participation, transparent records, and traveler-focused services.
 
 Workspace flow:
-1. In the sidebar, enter a topic or import RSS, choose platforms, media brands,
-   sources, and editorial models, then select Analyze.
-2. Analyze scores and routes stories to the most suitable brand and platform.
+1. In the Editorial Workspace, configure a News Run or Promo Run with the
+   required sources, topics, media brands, platforms, and editorial models, then
+   select Start run.
+2. A News Run scores and routes stories to the most suitable brand and platform;
+   a Promo Run prepares source-free promotional ideas.
 3. Cards can generate platform-specific copy and a promotional image.
 4. The Card Sheet can edit copy, regenerate variants or images, and save
    approved work. Configured Telegram and X destinations support direct and
-   scheduled publishing; Instagram remains an editorial target without a
-   configured RZWire destination account. Every prepared platform starts with
-   exactly three caption choices.
+   scheduled publishing. Instagram is not an editorial platform or configured
+   destination for this RZWire installation. Every prepared platform starts
+   with exactly three caption choices.
 5. The Account page shows activity, saved cards, scheduled posts, and stats.
-6. The Usage and Operations surfaces report provider work and durable execution.
+6. On Sources, choose enabled feeds or channels and import options, start one import, then review per-source outcomes, the catalog and the imported-item stream. Sources is guidance-only in chat; source records and imports stay in that desk.
+7. The Usage and Operations surfaces report provider work and durable execution.
 
-The assistant explains documented features and current card context. It cannot
-click controls, publish, schedule, edit, or otherwise act for the user.
+The assistant explains documented features and reads one bounded view of workspace
+or operator records at a time. A read appears as a compact chat card with safe media previews
+where available and an Open link to the native desk; it does not embed Card Sheet or
+Market Analysis workspaces. It can prepare one News or Promo run or one new Market
+Analysis at a time. Only the proposal's explicit Approve control can start the run or
+create the analysis. All Editorial and Card Sheet changes, content approval,
+publishing, scheduling, and later Market stages stay in their native desks. The
+assistant cannot perform those desk actions, run multi-item writes, or replace
+operator review.

@@ -21,6 +21,11 @@
     "probe:report-policy": "node --import tsx scripts/report-policy-probe.ts",
     "probe:revision-editor-state": "node --import tsx scripts/revision-editor-state-probe.ts",
     "probe:run-configuration": "node --import tsx scripts/run-configuration-probe.ts",
+    "probe:assistant-approval": "node --import tsx scripts/assistant-approval-probe.ts",
+    "probe:assistant-run-start": "node --conditions=react-server --import tsx scripts/assistant-run-start-probe.ts",
+    "probe:assistant-read": "node --import tsx scripts/assistant-read-probe.ts",
+    "probe:assistant-market": "node --experimental-test-module-mocks --conditions=react-server --import tsx scripts/assistant-market-probe.ts",
+    "probe:assistant-container": "node --import tsx scripts/assistant-container-probe.ts",
     "start": "next start"
   },
   "dependencies": {
@@ -47,6 +52,7 @@
     "@rz-chain-reporter/ui": "workspace:*",
     "@sentry/nextjs": "catalog:",
     "@swc/helpers": "0.5.23",
+    "@tanstack/react-hotkeys": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-table": "catalog:",
     "ai": "catalog:",

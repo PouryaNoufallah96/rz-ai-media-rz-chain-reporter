@@ -24,6 +24,10 @@ export default {
         files: ["src/features/auth/components/light-rays.tsx"],
         rules: ["react-doctor/three-prefer-set-animation-loop"],
       },
+      {
+        files: ["src/features/assistant/components/assistant-orb.tsx"],
+        rules: ["react-doctor/three-prefer-set-animation-loop"],
+      },
     ],
   },
 } satisfies ReactDoctorConfig;

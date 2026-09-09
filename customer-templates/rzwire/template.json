@@ -168,7 +168,7 @@
       },
       "assistant-synthesis": {
         "backend": "remote",
-        "model": "openai/gpt-4o-mini"
+        "model": "anthropic/claude-sonnet-4.5"
       },
       "market-art-director-brief": {
         "backend": "remote",

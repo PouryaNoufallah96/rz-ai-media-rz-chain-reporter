@@ -6,7 +6,14 @@
     "panel": {
       "title": "Workspace assistant",
       "description": "Ask about this workspace, your media brands, or the open card.",
-      "close": "Close the assistant"
+      "close": "Close the assistant",
+      "resize": "Resize the assistant",
+      "openPage": "Open the assistant page"
+    },
+    "page": {
+      "title": "Workspace assistant",
+      "description": "Ask about your workspace or prepare one reviewed run or new Market Analysis.",
+      "workspaceLabel": "Assistant conversation"
     },
     "starters": {
       "run": "What is in the current run?",
@@ -31,6 +38,10 @@
       "error": "The assistant could not answer. Try again."
     },
     "fallback": "I do not have an answer for that in this workspace. Ask about this run, the open card, or one of your media brands.",
+    "deferral": {
+      "singleRun": "I can prepare one run at a time. Which run should I prepare first?",
+      "singleAction": "I can prepare one run or new Market Analysis at a time. Which one should I prepare first?"
+    },
     "askUser": {
       "progress": "Question {current, number} of {total, number}",
       "progressLabel": "Brand question progress",
@@ -48,6 +59,39 @@
       "next": "Next",
       "submit": "Continue"
     },
+    "runQuestion": {
+      "required": "Choose a value to continue.",
+      "continue": "Continue",
+      "review": "Review run",
+      "kind": {
+        "title": "Which run do you want to prepare?",
+        "news": "News",
+        "promo": "Promo"
+      },
+      "promoBrands": {
+        "title": "Choose a Promo-enabled media brand",
+        "description": "A selected media brand is not enabled for Promo. Choose an eligible replacement; other valid selections stay unchanged."
+      },
+      "sources": {
+        "title": "Which live sources should this run use?",
+        "description": "These groups come from the current enabled source catalog.",
+        "ownerDefaults": "Configured defaults",
+        "all": "All enabled sources",
+        "rss": "Enabled RSS sources",
+        "telegram": "Enabled Telegram sources",
+        "count": "{count, number} sources"
+      },
+      "promoText": {
+        "title": "What should the Promo run develop?",
+        "description": "Enter the required direction for the selected media brands.",
+        "placeholder": "Promo direction"
+      },
+      "topics": {
+        "title": "Which topics should keyword ordering use?",
+        "description": "Separate topics with commas.",
+        "placeholder": "Topic one, topic two"
+      }
+    },
     "composer": {
       "label": "Your question",
       "placeholder": "Ask a question",
@@ -55,6 +99,359 @@
       "send": "Send",
       "stop": "Stop",
       "clear": "Clear"
+    },
+    "proposal": {
+      "title": "Review run start",
+      "kind": "Run",
+      "kindValue": {
+        "news": "News",
+        "promo": "Promo"
+      },
+      "brands": "Media brands",
+      "models": "Models",
+      "platforms": "Platforms",
+      "sources": "Sources",
+      "sourceCount": "{count, number} selected",
+      "window": "Window",
+      "hours": "{count, number} hours",
+      "enrichment": "Enrichment",
+      "telegramOnly": "Telegram only",
+      "ordering": "Ordering",
+      "topN": "Shortlist",
+      "topics": "Topics",
+      "none": "None",
+      "promoText": "Promo direction",
+      "showPromoText": "Show text",
+      "boolean": {
+        "true": "Yes",
+        "false": "No"
+      },
+      "consequence": "Approval creates one run and queues its durable operation. Closing this assistant does not cancel admitted work.",
+      "loading": "Loading the current run configuration…",
+      "preparing": "Validating the run preview…",
+      "loadError": "The current run configuration could not be loaded.",
+      "review": "Review run",
+      "approve": "Approve",
+      "approving": "Approving…",
+      "edit": "Edit",
+      "cancel": "Cancel",
+      "superseded": "This preview is no longer actionable. Review the latest values before approving.",
+      "invalid": "This approval is invalid. Prepare the run again.",
+      "error": {
+        "expired": "This approval expired. Review the current values again.",
+        "stale": "The run inputs changed. Review the current values again.",
+        "template_drift": "The installed customer template changed. Refresh before preparing this run.",
+        "invalid_configuration": "Correct the highlighted run values and review again.",
+        "rejected": "The run could not be admitted. Review the current values and try again."
+      },
+      "result": {
+        "created": "Run admitted",
+        "replayed": "Existing run recovered",
+        "description": "The durable operation owns progress even if this assistant closes.",
+        "open": "Open run"
+      }
+    },
+    "market": {
+      "noneComparisons": "No comparison",
+      "question": {
+        "primaryInstrumentIds": "Choose the primary instrument",
+        "comparisonCatalogIdentities": "Choose one live comparison or none",
+        "period": "Choose the period",
+        "scale": "Choose the price scale",
+        "outputFormat": "Choose the output format",
+        "contentLocale": "Choose the content language",
+        "error": "Choose one option to continue."
+      },
+      "action": {
+        "create": "Create Market Analysis"
+      },
+      "field": {
+        "primaries": "Primary instruments, up to three",
+        "branding": "Branding instrument",
+        "comparisons": "Live Binance comparisons, up to three",
+        "period": "Period",
+        "scale": "Scale",
+        "format": "Output format",
+        "locale": "Content language"
+      },
+      "period": {
+        "24h": "24 hours",
+        "7d": "7 days",
+        "30d": "30 days",
+        "90d": "90 days",
+        "1y": "1 year"
+      },
+      "scale": {
+        "relative": "Relative change",
+        "absolute": "Absolute price"
+      },
+      "format": {
+        "portrait": "Portrait",
+        "square": "Square",
+        "story": "Story",
+        "landscape": "Landscape"
+      },
+      "locale": {
+        "en": "English",
+        "fa": "Persian"
+      },
+      "preview": {
+        "title": "Review Market Analysis action"
+      },
+      "consequence": {
+        "create": "Creates one analysis and fetches the selected market data."
+      },
+      "error": {
+        "disabled": "Market Analysis is disabled for this installation.",
+        "expired": "This approval expired. Review current values again.",
+        "invalid": "The Market Analysis values are incomplete or invalid.",
+        "not_ready": "The setup is incomplete or no longer available. Review the current values and try again.",
+        "stale": "The Market Analysis state changed. Review current values again.",
+        "template_drift": "The installed customer template changed. Refresh before preparing this action.",
+        "rejected": "The Market Analysis action could not be admitted. Review current values and try again."
+      },
+      "result": {
+        "completed": "Market Analysis action completed",
+        "queued": "Market Analysis operation queued",
+        "replayed": "Existing Market Analysis operation recovered",
+        "description": {
+          "create": "The new analysis is ready to continue in Market Analysis."
+        },
+        "open": "Open Market Analysis"
+      },
+      "review": "Review action",
+      "loading": "Loading current Market Analysis state…",
+      "loadError": "Current Market Analysis state could not be loaded.",
+      "invalid": "This Market Analysis request is invalid."
+    },
+    "read": {
+      "title": {
+        "installation": "Installation",
+        "runs": "Editorial runs",
+        "run": "Run details",
+        "runReport": "Filtering report",
+        "card": "Open card",
+        "account": "Account summary",
+        "activity": "Recent activity",
+        "activityLedger": "Activity ledger",
+        "topics": "Recent topics",
+        "saved": "Saved cards",
+        "publishing": "Publishing history",
+        "usage": "Usage",
+        "marketOptions": "Market Analysis options",
+        "marketCatalog": "Market comparison catalog",
+        "marketHistory": "Market Analysis history",
+        "marketAnalysis": "Market Analysis",
+        "marketReport": "Completed Market report"
+      },
+      "notice": {
+        "currentRunRequired": "No run is pinned on this page.",
+        "cardRequired": "No card is open in the assistant.",
+        "notFound": "The requested record is not available to this operator.",
+        "marketDisabled": "Market Analysis is disabled for this installation."
+      },
+      "fact": {
+        "workspace": "Workspace",
+        "template": "Template",
+        "timeZone": "Time zone",
+        "brands": "Media brands",
+        "sources": "Sources",
+        "enabledSources": "Enabled sources",
+        "destinations": "Destinations",
+        "marketAnalysis": "Market Analysis",
+        "profile": "Profile",
+        "email": "Email",
+        "createdAt": "Created",
+        "generatedDrafts": "Generated drafts",
+        "scheduled": "Scheduled",
+        "saved": "Saved",
+        "kind": "Kind",
+        "lifecycle": "Lifecycle",
+        "startedAt": "Started",
+        "modelLanes": "Model lanes",
+        "telegramCards": "Telegram cards",
+        "candidates": "Candidates",
+        "promoIdeas": "Promo ideas",
+        "selections": "Selections",
+        "fetched": "Fetched",
+        "admitted": "Admitted",
+        "output": "Output lane",
+        "period": "Period",
+        "scale": "Scale",
+        "requestedModel": "Requested model",
+        "resolvedModel": "Resolved model",
+        "backend": "Backend",
+        "provider": "Provider",
+        "task": "Task",
+        "invocationKey": "Invocation",
+        "status": "Status",
+        "invocations": "Invocations",
+        "recordedInvocations": "Recorded invocations",
+        "promptTokens": "Prompt tokens",
+        "completionTokens": "Completion tokens",
+        "totalTokens": "Total tokens",
+        "recordedCost": "Recorded cost",
+        "costAuthority": "Cost authority",
+        "models": "Models",
+        "returned": "Shown",
+        "pendingCount": "Pending",
+        "unknownCount": "Unknown cost",
+        "instruments": "Instruments",
+        "comparisons": "Comparisons",
+        "periods": "Periods",
+        "scales": "Scales",
+        "outputFormat": "Output format",
+        "analyses": "Analyses",
+        "stage": "Stage",
+        "contentLocale": "Content language",
+        "linkedDrafts": "Linked drafts",
+        "media": "Media",
+        "activeRevision": "Active revision",
+        "copyPreview": "Copy preview",
+        "image": "Image",
+        "approval": "Approval",
+        "publication": "Publication",
+        "schedule": "Schedule",
+        "updatedAt": "Updated",
+        "items": "Items"
+      },
+      "boolean": {
+        "true": "Enabled",
+        "false": "Disabled"
+      },
+      "value": {
+        "backend": {
+          "remote": "Remote",
+          "local": "Local"
+        },
+        "contentLocale": {
+          "en": "English",
+          "fa": "Persian"
+        },
+        "costAuthority": {
+          "billedOpenrouter": "OpenRouter billed cost",
+          "estimatedOpenrouter": "OpenRouter estimated cost",
+          "local": "Local — no provider charge",
+          "unknown": "Unknown"
+        },
+        "invocation": {
+          "primary": "Primary",
+          "retry": "Retry 1",
+          "fallback": "Fallback"
+        },
+        "kind": {
+          "news": "News",
+          "promo": "Promo",
+          "market": "Market",
+          "rss": "RSS",
+          "telegram": "Telegram",
+          "selection": "Selection",
+          "candidate": "Candidate",
+          "revision": "Revision",
+          "chart": "Chart",
+          "final": "Final"
+        },
+        "outputFormat": {
+          "portrait": "Portrait",
+          "square": "Square",
+          "story": "Story",
+          "landscape": "Landscape"
+        },
+        "period": {
+          "24h": "24 hours",
+          "7d": "7 days",
+          "30d": "30 days",
+          "90d": "90 days",
+          "1y": "1 year",
+          "all": "All time"
+        },
+        "scale": {
+          "relative": "Relative change",
+          "absolute": "Absolute value"
+        },
+        "stage": {
+          "market": "Market",
+          "chart": "Chart",
+          "story": "Story",
+          "design": "Design",
+          "generate": "Generate",
+          "publish": "Publish",
+          "final": "Final"
+        },
+        "status": {
+          "active": "Active",
+          "all": "All",
+          "approved": "Approved",
+          "available": "Available",
+          "bound": "Bound",
+          "briefing": "Preparing brief",
+          "bytesRemoved": "File removed",
+          "cancelled": "Cancelled",
+          "capExceeded": "Selection cap exceeded",
+          "completed": "Completed",
+          "confirmed": "Confirmed",
+          "deliveryUnknown": "Delivery unknown",
+          "disabled": "Disabled",
+          "disabledByTemplate": "Disabled by template",
+          "discarded": "Discarded",
+          "effectClaimed": "Effect claimed",
+          "enabled": "Enabled",
+          "failed": "Failed",
+          "finalizing": "Finalizing",
+          "generating": "Generating",
+          "inProgress": "In progress",
+          "integrityMismatch": "Needs verification",
+          "lowScore": "Low score",
+          "missedRequiresConfirmation": "Missed — confirmation required",
+          "noMediaFit": "No media fit",
+          "pending": "Pending",
+          "published": "Published",
+          "queued": "Queued",
+          "ready": "Ready",
+          "reconciliation": "Reconciliation",
+          "reconciliationRequired": "Reconciliation required",
+          "reserved": "Reserved",
+          "rescheduled": "Rescheduled",
+          "retired": "Retired",
+          "running": "Running",
+          "scheduled": "Scheduled",
+          "settling": "Settling",
+          "shortlisted": "Shortlisted",
+          "succeeded": "Succeeded",
+          "superseded": "Superseded",
+          "telegramLane": "Telegram lane",
+          "temporarilyUnavailable": "Temporarily unavailable",
+          "unbound": "Unbound",
+          "unchecked": "Not checked",
+          "unknown": "Unknown",
+          "approvalGranted": "Approved a draft",
+          "publicationConfirmed": "Confirmed publication",
+          "publicationDeliveryUnknown": "Publication delivery is unknown",
+          "publicationFailed": "Publication failed",
+          "publicationReconciledDelivered": "Reconciled as delivered",
+          "publicationReconciledNotDelivered": "Reconciled as not delivered",
+          "publicationRequested": "Requested publication",
+          "publicationTelegramAttestedDelivered": "Attested Telegram delivery",
+          "publicationTelegramAttestedNotDelivered": "Attested Telegram non-delivery",
+          "publishingPaused": "Paused publishing",
+          "publishingResumed": "Resumed publishing",
+          "savedCardDiscarded": "Discarded a saved card",
+          "savedCardRestored": "Restored a saved card",
+          "savedCardSaved": "Saved a card",
+          "scheduleCancelled": "Cancelled a schedule",
+          "scheduleCreated": "Created a schedule",
+          "scheduleMissed": "Recorded a missed schedule",
+          "scheduleRescheduled": "Rescheduled a publication"
+        },
+        "summary": {
+          "none": "None",
+          "notApproved": "Not approved",
+          "approved": "Approved",
+          "selected": "Selected"
+        }
+      },
+      "observedAt": "Checked {date}",
+      "open": "Open in workspace"
     },
     "askAboutCard": "Ask chatbot about story"
   }

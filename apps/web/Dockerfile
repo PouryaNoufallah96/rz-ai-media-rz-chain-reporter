@@ -58,6 +58,7 @@ RUN --mount=type=secret,id=web_build \
     BETTER_AUTH_SECRET="${BETTER_AUTH_SECRET:-build-only-placeholder-secret-32-chars}" \
     BETTER_AUTH_URL="${BETTER_AUTH_URL:-http://localhost:3001}" \
     APP_URL="${APP_URL:-http://localhost:3001}" \
+    ASSISTANT_APPROVAL_SECRET="${ASSISTANT_APPROVAL_SECRET:-build-only-assistant-approval-secret-32-chars}" \
     pnpm --dir apps/web run build
 # standalone output excludes public/; ensure it exists so the runner copy never fails
 RUN mkdir -p apps/web/public

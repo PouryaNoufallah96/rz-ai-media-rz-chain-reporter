@@ -6,27 +6,132 @@ settings:
 
 catalogs:
   default:
+    '@ai-sdk/openai-compatible':
+      specifier: 3.0.43
+      version: 3.0.43
+    '@ai-sdk/otel':
+      specifier: 1.0.91
+      version: 1.0.91
+    '@ai-sdk/react':
+      specifier: 4.0.94
+      version: 4.0.94
+    '@aws-sdk/client-s3':
+      specifier: 3.1125.0
+      version: 3.1125.0
+    '@aws-sdk/s3-request-presigner':
+      specifier: 3.1125.0
+      version: 3.1125.0
+    '@dnd-kit/dom':
+      specifier: 0.5.0
+      version: 0.5.0
+    '@dnd-kit/react':
+      specifier: 0.5.0
+      version: 0.5.0
+    '@formatjs/icu-messageformat-parser':
+      specifier: 3.5.17
+      version: 3.5.17
+    '@hookform/resolvers':
+      specifier: 5.9.1
+      version: 5.9.1
+    '@openrouter/ai-sdk-provider':
+      specifier: 3.0.0
+      version: 3.0.0
+    '@opentelemetry/api':
+      specifier: 1.9.1
+      version: 1.9.1
+    '@opentelemetry/sdk-trace-node':
+      specifier: 2.11.0
+      version: 2.11.0
+    '@orpc/client':
+      specifier: 1.15.0
+      version: 1.15.0
+    '@orpc/openapi':
+      specifier: 1.15.0
+      version: 1.15.0
+    '@orpc/server':
+      specifier: 1.15.0
+      version: 1.15.0
+    '@orpc/tanstack-query':
+      specifier: 1.15.0
+      version: 1.15.0
+    '@orpc/zod':
+      specifier: 1.15.0
+      version: 1.15.0
+    '@sentry/nextjs':
+      specifier: 10.73.0
+      version: 10.73.0
+    '@sentry/node':
+      specifier: 10.73.0
+      version: 10.73.0
     '@tailwindcss/postcss':
       specifier: 4.3.3
       version: 4.3.3
+    '@tanstack/react-hotkeys':
+      specifier: 0.10.0
+      version: 0.10.0
+    '@tanstack/react-query':
+      specifier: 5.102.8
+      version: 5.102.8
+    '@tanstack/react-table':
+      specifier: 9.2.4
+      version: 9.2.4
+    '@types/node':
+      specifier: 26.4.1
+      version: 26.4.1
     '@types/react':
       specifier: 19.2.18
       version: 19.2.18
     '@types/react-dom':
       specifier: 19.2.7
       version: 19.2.7
+    ai:
+      specifier: 7.0.91
+      version: 7.0.91
+    better-auth:
+      specifier: 1.7.2
+      version: 1.7.2
+    dotenv:
+      specifier: 17.4.2
+      version: 17.4.2
+    drizzle-orm:
+      specifier: 0.45.2
+      version: 0.45.2
+    fast-xml-parser:
+      specifier: 5.11.1
+      version: 5.11.1
+    firecrawl:
+      specifier: 4.38.0
+      version: 4.38.0
+    htmlparser2:
+      specifier: 12.0.0
+      version: 12.0.0
+    inngest:
+      specifier: 4.19.0
+      version: 4.19.0
     lucide-react:
       specifier: 1.40.0
       version: 1.40.0
+    next-intl:
+      specifier: 4.14.2
+      version: 4.14.2
     next-themes:
       specifier: 0.4.6
       version: 0.4.6
+    nuqs:
+      specifier: 2.10.1
+      version: 2.10.1
     react:
       specifier: 19.2.8
       version: 19.2.8
     react-dom:
       specifier: 19.2.8
       version: 19.2.8
+    react-hook-form:
+      specifier: 7.87.0
+      version: 7.87.0
+    sharp:
+      specifier: 0.35.4
+      version: 0.35.4
     sonner:
       specifier: 2.0.8
       version: 2.0.8
@@ -36,6 +141,12 @@ catalogs:
     typescript:
       specifier: 7.0.2
       version: 7.0.2
+    undici:
+      specifier: 8.10.1
+      version: 8.10.1
+    zod:
+      specifier: 4.5.4
+      version: 4.5.4
 
 overrides:
   next: 16.3.4
@@ -135,6 +246,9 @@ importers:
       '@swc/helpers':
         specifier: 0.5.23
         version: 0.5.23
+      '@tanstack/react-hotkeys':
+        specifier: 'catalog:'
+        version: 0.10.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.102.8(react@19.2.8)
@@ -3287,8 +3401,19 @@ packages:
   '@tailwindcss/postcss@4.3.3':
     resolution: {integrity: sha512-JTSZZGQi1AyKirbLN3azmjVzef92tcX7h+iSqPdaeStyFpGpDlKvvpxeOE8njhbUanbRwr3z8DyzhICWnMtQeg==}
 
+  '@tanstack/hotkeys@0.8.0':
+    resolution: {integrity: sha512-vqH7X9nb0MTJ/O08++dB5bP9jgj4+BIPOUu/U+6myG86lDsirZSVSobpq5UQpE7nBuk62i8eIYeOhd+OMl/UrA==}
+    engines: {node: '>=18'}
+
   '@tanstack/query-core@5.102.8':
     resolution: {integrity: sha512-ZNjkJ33CqvPNec/6lZBnHqLc3EVGPZ9ySLhYahU9TcuRFdmwXewuj0c4hwSWcGHqEUwcSrKeZ+oGcvPBqXcQcg==}
+
+  '@tanstack/react-hotkeys@0.10.0':
+    resolution: {integrity: sha512-GwOSndI5j3qBVYTmgP1mYyRTnlxb2MS17cwGlsavSxMQPSnmDf+m3LzMIpRMs+3zzQMjg3cYhHsFYizYlFI2tw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
 
   '@tanstack/react-query@5.102.8':
     resolution: {integrity: sha512-TYBea4OuXWD7MhaSHq069TWbFe7rcwWN6kzT7JF0OKi1K6c1gTv2IzD6A6ExJsCMozdkqBWeuIUZmu4KQg0O5A==}
@@ -8508,7 +8633,18 @@ snapshots:
       postcss: 8.5.27
       tailwindcss: 4.3.3
 
+  '@tanstack/hotkeys@0.8.0':
+    dependencies:
+      '@tanstack/store': 0.11.1
+
   '@tanstack/query-core@5.102.8': {}
+
+  '@tanstack/react-hotkeys@0.10.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@tanstack/hotkeys': 0.8.0
+      '@tanstack/react-store': 0.11.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
 
   '@tanstack/react-query@5.102.8(react@19.2.8)':
     dependencies:

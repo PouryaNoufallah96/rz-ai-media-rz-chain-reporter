@@ -127,14 +127,15 @@
     "aliases": [
       "market analysis",
       "price analysis",
-      "market history"
+      "market history",
+      "How do I set up a Market Analysis and move it through Market, Chart, Story, Design, Generate, and Publish?"
     ],
     "keywords": [
       "market analysis",
       "verified prices",
       "binance comparisons"
     ],
-    "answer": "Open Market Analysis to configure one complete request: choose one to three RZWire tokens, optionally add up to three live Binance comparisons, set the period, scale, one of all four visible output formats, and content language, review the summary, and fetch verified prices. Use View history for earlier analyses. The analysis then continues through Market, Chart, Story, Design, Generate, and Publish.",
+    "answer": "RZWire enables Market Analysis for its six configured token instruments. Configure one to three primaries, zero to three live Binance comparisons, period, scale, one of all four visible output formats, and content language, then review the summary and fetch verified prices. Continue the same analysis through verified Market data, Chart approval, Story approval, Design approval, final generation and approval. In Publish, choose Telegram or X and an editorial model, press Generate 3 caption options, choose or edit one, prepare its draft, and then save, schedule, or publish it.",
     "priority": 100
   },
   {
@@ -158,7 +159,7 @@
       "telegram sources",
       "news sources"
     ],
-    "answer": "RZWire keeps the curated RSS websites and Telegram news sources configured in the Multimedia sidebar.",
+    "answer": "RZWire uses configured RSS websites and public Telegram channels. On Sources, choose enabled feeds or channels and import options, start one import, then review its per-source outcomes, the catalog and the imported-item stream. Sources is guidance-only in chat; the assistant does not read source records or start imports.",
     "priority": 90
   },
   {
@@ -171,8 +172,24 @@
       "disabled",
       "local"
     ],
-    "answer": "RZWire can publish directly or on schedule to configured Telegram and X destinations. Instagram copy can be prepared, but this template does not configure an Instagram destination account.",
+    "answer": "RZWire can publish directly or on schedule to configured Telegram and X destinations. Instagram is not an editorial platform or configured destination for this RZWire installation.",
     "priority": 120
+  },
+  {
+    "key": "usage",
+    "question": "How do I review recent model costs and tokens in Usage?",
+    "aliases": [
+      "How do I inspect the last 7 days of Usage?",
+      "چطور هزینه و توکن‌های ۷ روز گذشته را در بخش مصرف بررسی کنم؟"
+    ],
+    "keywords": [
+      "usage",
+      "7 days",
+      "cost tokens",
+      "هزینه توکن مصرف"
+    ],
+    "answer": "RZWire Usage reports the current operator's model work. Choose the rolling 24-hour, 7-day, 30-day, or all-time period and optional model, backend, provider, task, or status filters; use the summary for invocations, tokens, recorded cost, pending or unknown counts and model breakdown, and the ledger for individual calls. Calendar-day ranges and budgets are not available.",
+    "priority": 100
   },
   {
     "key": "account",
@@ -185,5 +202,20 @@
     ],
     "answer": "Account shows local activity, saved cards, and scheduled items for the current user.",
     "priority": 80
+  },
+  {
+    "key": "assistant_limits",
+    "question": "What can the assistant do?",
+    "aliases": [
+      "Can the assistant publish or edit content?"
+    ],
+    "keywords": [
+      "assistant",
+      "help",
+      "show open",
+      "edit approve schedule publish"
+    ],
+    "answer": "The assistant explains this workspace and reads one bounded view of workspace or operator records at a time. Reads appear as compact chat cards with safe media previews where available and an Open link to the native desk; chat does not embed Card Sheet or Market Analysis workspaces. It can prepare one News or Promo run or one new Market Analysis at a time. Only the proposal's explicit Approve control can start the run or create the analysis. Sources is guidance-only in chat. All Editorial and Card Sheet changes, content approval, publishing, scheduling, and later Market stages stay in their native desks. It cannot perform those desk actions, run multi-item writes, or replace operator review.",
+    "priority": 130
   }
 ]

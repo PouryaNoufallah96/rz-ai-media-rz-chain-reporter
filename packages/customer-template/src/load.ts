@@ -82,6 +82,12 @@ export type LoadedReviewedKnowledge = {
   faqByLocale: Partial<
     Record<ReviewedKnowledgeLocale, readonly ReviewedKnowledgeFaqRow[]>
   >;
+  faqSourceByLocale: Partial<
+    Record<
+      ReviewedKnowledgeLocale,
+      { locale: ReviewedKnowledgeLocale; sha256: string; title: string }
+    >
+  >;
   documents: readonly ReviewedKnowledgeDocument[];
   brandBibles: readonly BrandBibleDocument[];
 };
@@ -265,7 +271,12 @@ function buildReviewedKnowledge(
   const reviewed = template.reviewedKnowledge;
 
   if (!reviewed) {
-    return { faqByLocale: {}, documents: [], brandBibles };
+    return {
+      faqByLocale: {},
+      faqSourceByLocale: {},
+      documents: [],
+      brandBibles,
+    };
   }
 
   const read = (path: string) => {
@@ -282,9 +293,16 @@ function buildReviewedKnowledge(
   };
 
   const faqByLocale: LoadedReviewedKnowledge["faqByLocale"] = {};
+  const faqSourceByLocale: LoadedReviewedKnowledge["faqSourceByLocale"] = {};
 
   for (const [locale, path] of localeEntries(reviewed.faq)) {
-    faqByLocale[locale] = parseReviewedFaq(path, read(path).bytes);
+    const source = read(path);
+    faqByLocale[locale] = parseReviewedFaq(path, source.bytes);
+    faqSourceByLocale[locale] = {
+      locale,
+      sha256: source.sha256,
+      title: `${template.customer.productName} reviewed FAQ`,
+    };
   }
 
   const documents = [
@@ -309,7 +327,7 @@ function buildReviewedKnowledge(
     ),
   ];
 
-  return { faqByLocale, documents, brandBibles };
+  return { faqByLocale, faqSourceByLocale, documents, brandBibles };
 }
 
 function localeEntries(

@@ -26,6 +26,7 @@ export type Brand = { key: string; name: string };
 
 export type AssistantKnowledge = {
   faq: readonly ReviewedKnowledgeFaqRow[];
+  faqSource: KnowledgeExcerpt | null;
   overview: readonly KnowledgeExcerpt[];
   matches: readonly KnowledgeExcerpt[];
   bibles: readonly KnowledgeExcerpt[];
@@ -102,9 +103,7 @@ function rankFaq(rows: readonly ReviewedKnowledgeFaqRow[], question: string) {
   for (const { row } of ranked) {
     const length = row.question.length + row.answer.length + 1;
 
-    if (length > budget) {
-      break;
-    }
+    if (length > budget) continue;
 
     selected.push(row);
     budget -= length;
@@ -170,9 +169,8 @@ function fill(
     score: _score,
     ...candidate
   } of candidates) {
-    if (selected.length === maxCount || candidate.text.length > budget) {
-      break;
-    }
+    if (selected.length === maxCount) break;
+    if (candidate.text.length > budget) continue;
 
     selected.push(candidate);
     budget -= candidate.text.length;
@@ -195,6 +193,19 @@ function sectionsOf(
     text: section.body,
     score: overlap(asked, tokens(`${section.heading ?? ""} ${section.body}`)),
   }));
+}
+
+function preferredDocuments(
+  documents: readonly ReviewedKnowledgeDocument[],
+  locale: Locale,
+  predicate: (document: ReviewedKnowledgeDocument) => boolean,
+) {
+  const matching = documents.filter(predicate);
+  const localized = matching.filter((document) => document.locale === locale);
+
+  return localized.length > 0
+    ? localized
+    : matching.filter((document) => document.locale === "en");
 }
 
 // `normalizeQuestion` turns a zero-width joiner into a space, so a Persian
@@ -271,38 +282,35 @@ export function selectKnowledge(input: {
   const namedByKey = new Map(named.map((brand) => [brand.key, brand]));
   const namedKeys = new Set(namedByKey.keys());
 
-  const inLocale = input.knowledge.documents.filter(
-    (document) => document.locale === input.locale,
+  const overviewDocuments = preferredDocuments(
+    input.knowledge.documents,
+    input.locale,
+    (document) => document.kind === "workspace-overview",
+  );
+  const brandDocuments = input.brands.flatMap((brand) =>
+    preferredDocuments(
+      input.knowledge.documents,
+      input.locale,
+      (document) =>
+        document.kind === "brand-chat" && document.brandKey === brand.key,
+    ),
   );
 
-  const overview: KnowledgeExcerpt[] = [];
-  let overviewBudget = MAX_OVERVIEW_CHARS;
-
-  for (const document of inLocale) {
-    if (document.brandKey !== null) {
-      continue;
-    }
-
-    if (document.text.length > overviewBudget) {
-      break;
-    }
-
-    overview.push({
-      title: documentTitle(document.text, document.id),
-      section: null,
-      locale: document.locale,
-      sha256: document.sha256,
-      text: document.text,
-    });
-    overviewBudget -= document.text.length;
-  }
+  const rankedOverview = overviewDocuments.flatMap((document) =>
+    sectionsOf(document, asked).map((section) => ({
+      ...section,
+      brandKey: "workspace",
+    })),
+  );
+  rankedOverview.sort((left, right) => right.score - left.score);
+  const overview = fill(rankedOverview, MAX_OVERVIEW_CHARS, MAX_EXCERPTS);
 
   const rankedMatches: (KnowledgeExcerpt & {
     brandKey: string;
     score: number;
   })[] = [];
 
-  for (const document of inLocale) {
+  for (const document of brandDocuments) {
     const { brandKey } = document;
 
     if (
@@ -359,12 +367,32 @@ export function selectKnowledge(input: {
   const bibles = fill(rankedBibles, MAX_BIBLE_CHARS, MAX_EXCERPTS);
 
   const choices = brandOptions(input.brands, input.brandKeys);
+  const faqLocale =
+    (input.knowledge.faqByLocale[input.locale]?.length ?? 0) > 0
+      ? input.locale
+      : (input.knowledge.faqByLocale.en?.length ?? 0) > 0
+        ? "en"
+        : null;
+  const faq = rankFaq(
+    faqLocale ? (input.knowledge.faqByLocale[faqLocale] ?? []) : [],
+    input.question,
+  );
+  const faqSource = faqLocale
+    ? input.knowledge.faqSourceByLocale[faqLocale]
+    : undefined;
 
   return {
-    faq: rankFaq(
-      input.knowledge.faqByLocale[input.locale] ?? [],
-      input.question,
-    ),
+    faq,
+    faqSource:
+      faq.length > 0 && faqSource
+        ? {
+            title: faqSource.title,
+            section: null,
+            locale: faqSource.locale,
+            sha256: faqSource.sha256,
+            text: "",
+          }
+        : null,
     overview,
     matches,
     bibles,

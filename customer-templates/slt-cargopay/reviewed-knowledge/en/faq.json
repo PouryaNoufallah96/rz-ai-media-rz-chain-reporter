@@ -20,7 +20,7 @@
     "question": "What is the normal workflow from source to publication?",
     "aliases": ["How do I create and publish a post?"],
     "keywords": ["workflow", "import", "review", "approve", "schedule", "publish"],
-    "answer": "Choose sources and run settings, import and enrich items, review ranked selections, create or edit copy and images, approve the result, then save, schedule, or publish it.",
+    "answer": "For this SLT installation, choose sources and run settings, review the ranked origin cards for SLT CargoPay, CoinBank, or Coin Factory, and route one to Telegram or X. In its Card Sheet, choose or regenerate copy, create or select a revision, optionally prepare an image, approve the active revision, then save it or send it to the configured shared Telegram or X destination immediately or on a schedule.",
     "priority": 900
   },
   {
@@ -36,7 +36,7 @@
     "question": "Which source types does the workspace use?",
     "aliases": ["Where do the stories come from?"],
     "keywords": ["sources", "RSS", "Telegram", "feeds", "channels"],
-    "answer": "The active source set contains 15 verified RSS feeds and 29 public Telegram channels. All acquired source content is configured as English.",
+    "answer": "The active source set contains 15 verified RSS feeds and 28 public Telegram channels, all configured as English. On Sources, choose enabled feeds or channels and import options, start one import, then review per-source outcomes, the catalog and the imported-item stream. Sources is guidance-only in chat; the assistant does not read source records or start imports.",
     "priority": 700
   },
   {
@@ -212,7 +212,7 @@
     "question": "What can the assistant do?",
     "aliases": ["Can the assistant publish or edit content?"],
     "keywords": ["assistant", "help", "edit", "approve", "schedule", "publish"],
-    "answer": "The assistant can explain the workspace, brands, and the run or card currently open. It cannot edit, approve, schedule, publish, or perform actions for the operator.",
+    "answer": "The assistant explains this workspace and reads one bounded view of workspace or operator records at a time. Reads appear as compact chat cards with safe media previews where available and an Open link to the native desk; chat does not embed Card Sheet or Market Analysis workspaces. It can prepare one News or Promo run or one new Market Analysis at a time. Only the proposal's explicit Approve control can start the run or create the analysis. Sources is guidance-only in chat. All Editorial and Card Sheet changes, content approval, publishing, scheduling, and later Market stages stay in their native desks. It cannot perform those desk actions, run multi-item writes, or replace operator review.",
     "priority": 900
   }
 ]

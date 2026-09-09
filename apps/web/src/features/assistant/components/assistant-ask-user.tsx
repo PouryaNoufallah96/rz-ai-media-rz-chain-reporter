@@ -1,6 +1,7 @@
 "use client";
 
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
+import { Card, CardContent } from "@rz-chain-reporter/ui/components/card";
 import {
   Questionnaire,
   QuestionnaireActions,
@@ -10,24 +11,25 @@ import {
   QuestionnaireError,
   QuestionnaireInput,
   QuestionnaireItem,
-  QuestionnaireNext,
-  QuestionnairePrevious,
-  QuestionnaireProgress,
-  QuestionnaireSkip,
   QuestionnaireSubmit,
   QuestionnaireTitle,
 } from "@rz-chain-reporter/ui/components/questionnaire";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
 import { ASSISTANT_NAMESPACE } from "../constants";
 import type { AssistantAskUser as AskUserInput } from "../schemas/ui-message";
 
-const BRAND = "brand";
-const DETAIL = "detail";
-const ORDER = [BRAND, DETAIL];
-
 export type AssistantAnswer = { choiceId: string; detail: string };
+
+export type AssistantFocusedQuestion = {
+  choices?: readonly { id: string; label: string; description?: string }[];
+  description?: string;
+  error: string;
+  input?: { maxLength: number; placeholder: string };
+  name: string;
+  submitLabel: string;
+  title: string;
+};
 
 export function AssistantAskUser({
   input,
@@ -37,72 +39,84 @@ export function AssistantAskUser({
   onAnswer: (answer: AssistantAnswer) => void;
 }) {
   const t = useTranslations(ASSISTANT_NAMESPACE);
-  const [item, setItem] = useState(BRAND);
-
-  const progress = t("askUser.progress", {
-    current: ORDER.indexOf(item) + 1,
-    total: ORDER.length,
-  });
 
   return (
-    <Questionnaire
-      item={item}
-      items={[
-        {
-          name: BRAND,
-          choices: input.choices.map((choice) => ({ value: choice.id })),
-          required: true,
-        },
-        { name: DETAIL },
-      ]}
-      onItemChange={setItem}
-      onSubmit={(event) => {
-        event.preventDefault();
-        const answered = new FormData(event.currentTarget);
-        const chosen = answered.get(BRAND);
-        const detail = answered.get(DETAIL);
-
-        if (typeof chosen === "string") {
-          onAnswer({
-            choiceId: chosen,
-            detail: typeof detail === "string" ? detail : "",
-          });
-        }
+    <AssistantQuestion
+      onAnswer={(value) => onAnswer({ choiceId: value, detail: "" })}
+      question={{
+        choices: input.choices,
+        error: t("askUser.brand.error"),
+        name: "brand",
+        submitLabel: t("askUser.submit"),
+        title: t("askUser.brand.title"),
       }}
-    >
-      <QuestionnaireProgress
-        aria-label={t("askUser.progressLabel")}
-        aria-valuetext={progress}
-      >
-        {progress}
-      </QuestionnaireProgress>
+    />
+  );
+}
 
-      <QuestionnaireItem name={BRAND} required>
-        <QuestionnaireTitle>{t("askUser.brand.title")}</QuestionnaireTitle>
-        <QuestionnaireChoices>
-          {input.choices.map((choice) => (
-            <QuestionnaireChoice key={choice.id} value={choice.id}>
-              <Bdi>{choice.label}</Bdi>
-            </QuestionnaireChoice>
-          ))}
-        </QuestionnaireChoices>
-        <QuestionnaireError>{t("askUser.brand.error")}</QuestionnaireError>
-      </QuestionnaireItem>
-
-      <QuestionnaireItem name={DETAIL}>
-        <QuestionnaireTitle>{t("askUser.detail.title")}</QuestionnaireTitle>
-        <QuestionnaireDescription>
-          {t("askUser.detail.description")}
-        </QuestionnaireDescription>
-        <QuestionnaireInput placeholder={t("askUser.detail.placeholder")} />
-      </QuestionnaireItem>
-
-      <QuestionnaireActions>
-        <QuestionnairePrevious>{t("askUser.previous")}</QuestionnairePrevious>
-        <QuestionnaireSkip>{t("askUser.skip")}</QuestionnaireSkip>
-        <QuestionnaireNext>{t("askUser.next")}</QuestionnaireNext>
-        <QuestionnaireSubmit>{t("askUser.submit")}</QuestionnaireSubmit>
-      </QuestionnaireActions>
-    </Questionnaire>
+export function AssistantQuestion({
+  onAnswer,
+  question,
+}: {
+  onAnswer: (value: string) => void;
+  question: AssistantFocusedQuestion;
+}) {
+  return (
+    <Card data-assistant-question size="sm">
+      <CardContent>
+        <Questionnaire
+          item={question.name}
+          items={[
+            {
+              name: question.name,
+              choices: question.choices?.map((choice) => ({
+                value: choice.id,
+              })),
+              required: true,
+            },
+          ]}
+          onSubmit={(event) => {
+            event.preventDefault();
+            const answer = new FormData(event.currentTarget).get(question.name);
+            if (typeof answer === "string" && answer.trim()) {
+              onAnswer(answer.trim());
+            }
+          }}
+        >
+          <QuestionnaireItem name={question.name} required>
+            <QuestionnaireTitle>{question.title}</QuestionnaireTitle>
+            {question.description ? (
+              <QuestionnaireDescription>
+                {question.description}
+              </QuestionnaireDescription>
+            ) : null}
+            {question.choices ? (
+              <QuestionnaireChoices>
+                {question.choices.map((choice) => (
+                  <QuestionnaireChoice key={choice.id} value={choice.id}>
+                    <Bdi>{choice.label}</Bdi>
+                    {choice.description ? (
+                      <span className="text-muted-foreground">
+                        <Bdi>{choice.description}</Bdi>
+                      </span>
+                    ) : null}
+                  </QuestionnaireChoice>
+                ))}
+              </QuestionnaireChoices>
+            ) : null}
+            {question.input ? (
+              <QuestionnaireInput
+                maxLength={question.input.maxLength}
+                placeholder={question.input.placeholder}
+              />
+            ) : null}
+            <QuestionnaireError>{question.error}</QuestionnaireError>
+          </QuestionnaireItem>
+          <QuestionnaireActions>
+            <QuestionnaireSubmit>{question.submitLabel}</QuestionnaireSubmit>
+          </QuestionnaireActions>
+        </Questionnaire>
+      </CardContent>
+    </Card>
   );
 }

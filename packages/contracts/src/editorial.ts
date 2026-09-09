@@ -161,6 +161,36 @@ export const runConfigurationTransportSchema = z.discriminatedUnion("kind", [
   transportPromo,
 ]);
 
+export type RunConfigurationTransport = z.input<
+  typeof runConfigurationTransportSchema
+>;
+
+export function canonicalRunConfiguration(
+  configuration: RunConfigurationTransport,
+) {
+  return canonicalJson(configuration);
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value
+      .map((entry) => (entry === undefined ? "null" : canonicalJson(entry)))
+      .join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value)
+      .filter(([, entry]) => entry !== undefined)
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
+      .join(",")}}`;
+  }
+  const encoded = JSON.stringify(value);
+  if (encoded === undefined) {
+    throw new TypeError("run configuration contains a non-JSON value");
+  }
+  return encoded;
+}
+
 export function runConfigurationSchema(
   bounds: RunConfigurationBounds,
   sourceConstraints?: RunConfigurationSourceConstraints,

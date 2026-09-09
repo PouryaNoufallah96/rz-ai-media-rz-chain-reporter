@@ -8,6 +8,7 @@ import { deploymentEnv, inngestDev, storageEnv } from "./schema";
 export const env = createEnv({
   server: {
     ...deploymentEnv,
+    ASSISTANT_APPROVAL_SECRET: z.string().min(32),
     CACHE_INVALIDATION_WEBHOOK_SECRET: z.string().min(32).optional(),
     INNGEST_DEV: inngestDev,
     INNGEST_SIGNING_KEY: z.string().min(1).optional(),

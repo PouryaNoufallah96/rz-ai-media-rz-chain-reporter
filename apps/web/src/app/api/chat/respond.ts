@@ -1,6 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+
 import { workspaceCacheTag } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import { matchesAppliedCustomerTemplate } from "@rz-chain-reporter/db/repositories/customer-template-identity";
@@ -12,7 +13,6 @@ import {
   createUIMessageStream,
   createUIMessageStreamResponse,
   isStepCount,
-  type ToolSet,
 } from "ai";
 import { revalidateTag } from "next/cache";
 import {
@@ -21,9 +21,11 @@ import {
   SYNTHESIS_MAX_OUTPUT_TOKENS,
 } from "@/features/assistant/constants";
 import {
+  type AssistantMarketPromptContext,
   chatInstructions,
   chatPrompt,
 } from "@/features/assistant/lib/chat-prompt";
+import { assistantReadContext } from "@/features/assistant/lib/read-context.server";
 import {
   brandOptions,
   type KnowledgeExcerpt,
@@ -33,16 +35,28 @@ import {
   brandName,
   readRunContext,
 } from "@/features/assistant/lib/run-context";
-import type { AssistantUIMessage } from "@/features/assistant/schemas/assistant-message";
+import {
+  ASK_USER_TOOL,
+  askUserTool,
+  assistantToolRegistry,
+} from "@/features/assistant/lib/tool-registry.server";
+import {
+  ASSISTANT_READ_TOOL_NAMES,
+  assistantReadTools,
+} from "@/features/assistant/lib/tools/read-tools.server";
+import { MARKET_ACTION_TOOL } from "@/features/assistant/schemas/approval";
 import type {
   AssistantActiveCard,
   AssistantChatRequest,
 } from "@/features/assistant/schemas/chat-request";
 import {
-  type AssistantAskUser,
   type AssistantCitation,
-  assistantAskUserSchema,
+  type AssistantUIMessage,
+  isAssistantNativeToolError,
 } from "@/features/assistant/schemas/ui-message";
+import { getMarketAnalysisCatalog } from "@/features/market-analysis/api/server/get-catalog";
+import { getMarketAnalysisOptions } from "@/features/market-analysis/api/server/get-options";
+import { marketTemplate } from "@/features/market-analysis/lib/template";
 import {
   customerEditorial,
   customerReviewedKnowledge,
@@ -50,8 +64,6 @@ import {
   customerTemplateFingerprint,
 } from "@/lib/customer-template.server";
 import { rpcDb } from "@/server/rpc/db";
-import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
-import { ASK_USER_TOOL, askUserTool } from "./clarify-tool";
 import {
   closeSynthesisOperation,
   openSynthesisOperation,
@@ -62,22 +74,21 @@ const SHORT_FINGERPRINT = customerTemplateFingerprint.slice(0, 16);
 export async function respondToAssistantTurn(
   request: AssistantChatRequest,
   userId: string,
+  workspaceId: string,
   abortSignal: AbortSignal,
 ) {
   const question = request.message.parts[0]?.text ?? "";
   const executor = rpcDb();
-  const workspaceId = await resolveInstallationWorkspaceId(executor);
   // Quote only a live draft from this operator's origin run with matching
-  // platform, brand, and content locale; the browser-supplied ID is untrusted.
-  const card = request.card
-    ? await authorizedCard(executor, workspaceId, userId, request)
-    : null;
-  const run = await readRunContext(
-    executor,
-    workspaceId,
-    userId,
-    request.runId,
-  );
+  // platform and brand; the browser-supplied ID is untrusted.
+  const [card, run, market] = await Promise.all([
+    request.card
+      ? authorizedCard(executor, workspaceId, userId, request)
+      : Promise.resolve(null),
+    readRunContext(request.runId, request.locale),
+    readMarketPromptContext(),
+  ]);
+  const readContext = assistantReadContext(request.locale);
   const knowledge = selectKnowledge({
     brandKeys: request.brandKeys,
     brands: customerEditorial.brands,
@@ -96,31 +107,47 @@ export async function respondToAssistantTurn(
       return "ASSISTANT_UNAVAILABLE";
     },
     execute: async ({ writer }) => {
-      writer.write({ type: "start" });
-
-      const answer = await streamAnswer(writer, {
+      const answered = await streamAnswer(writer, {
         abortSignal,
         executor,
         instructions: chatInstructions({
           brandChoice: knowledge.brandChoice !== null,
           clarifyTool: clarifiable,
           locale: request.locale,
+          pendingMarket: request.pendingMarket !== null,
+          pendingRun: request.pendingRun !== null,
         }),
+        locale: request.locale,
         prompt: chatPrompt({
-          brandNames: request.brandKeys.map(brandName),
+          brandChoices: request.brandKeys.map((key) => ({
+            key,
+            name: brandName(key),
+          })),
           card: card?.card ?? null,
+          context: request.context,
           knowledge,
+          modelChoices: customerEditorial.models,
+          market,
+          marketAnalysisId: request.marketAnalysisId,
+          pendingMarket: request.pendingMarket,
+          pendingRun: request.pendingRun,
+          platforms: customerEditorial.platforms,
+          promoBrandChoices: customerEditorial.brands.filter(
+            (brand) => brand.promoEnabled,
+          ),
           question,
+          readContext,
           run,
         }),
-        tools: clarifiable
-          ? { [ASK_USER_TOOL]: askUserTool(options.map(choiceOf)) }
-          : undefined,
+        askUser: clarifiable ? askUserTool(options.map(choiceOf)) : undefined,
+        currentDraftId: card?.card.draftId ?? null,
+        currentMarketAnalysisId: request.marketAnalysisId,
+        currentRunId: run?.id ?? null,
         userId,
         workspaceId,
       });
 
-      if (answer.answered) {
+      if (answered) {
         for (const note of sourceNotes(knowledge)) {
           writer.write({ type: "data-citation", data: note });
         }
@@ -131,21 +158,21 @@ export async function respondToAssistantTurn(
             input: { choices: knowledge.brandChoice.map(choiceOf) },
             toolCallId: randomUUID(),
           }
-        : answer.ask;
+        : null;
 
       if (chooser) {
         writer.write({
           type: "tool-input-available",
           toolCallId: chooser.toolCallId,
           toolName: ASK_USER_TOOL,
-          input: chooser.input,
+          input: {},
+        });
+        writer.write({
+          type: "tool-output-available",
+          toolCallId: chooser.toolCallId,
+          output: chooser.input,
         });
       }
-
-      writer.write({
-        type: "finish",
-        messageMetadata: { createdAt: Date.now() },
-      });
     },
   });
 
@@ -167,11 +194,18 @@ function choiceOf(brand: { key: string; name: string }) {
 
 function sourceNotes(knowledge: {
   bibles: readonly KnowledgeExcerpt[];
+  faqSource: KnowledgeExcerpt | null;
   matches: readonly KnowledgeExcerpt[];
+  overview: readonly KnowledgeExcerpt[];
 }) {
   const notes = new Map<string, AssistantCitation>();
 
-  for (const excerpt of [...knowledge.matches, ...knowledge.bibles]) {
+  for (const excerpt of [
+    ...(knowledge.faqSource ? [knowledge.faqSource] : []),
+    ...knowledge.overview,
+    ...knowledge.matches,
+    ...knowledge.bibles,
+  ]) {
     const sourceId = excerpt.sha256.slice(0, 16);
 
     if (!notes.has(sourceId)) {
@@ -190,18 +224,19 @@ function sourceNotes(knowledge: {
 async function streamAnswer(
   writer: Writer,
   context: {
+    askUser?: ReturnType<typeof askUserTool>;
     abortSignal: AbortSignal;
     executor: Executor;
     instructions: string;
+    locale: AssistantChatRequest["locale"];
     prompt: string;
-    tools: ToolSet | undefined;
+    currentDraftId: string | null;
+    currentMarketAnalysisId: string | null;
+    currentRunId: string | null;
     userId: string;
     workspaceId: string;
   },
-): Promise<{
-  answered: boolean;
-  ask: { input: AssistantAskUser; toolCallId: string } | null;
-}> {
+): Promise<boolean> {
   const { abortSignal, executor, workspaceId } = context;
   const operation = await openSynthesisOperation(
     executor,
@@ -227,11 +262,39 @@ async function streamAnswer(
     template: customerTemplate,
   });
 
-  const textId = randomUUID();
   let succeeded = false;
 
   try {
-    const synthesis = await gateway.streamSynthesis({
+    const tools = {
+      ...assistantToolRegistry({
+        askUser: context.askUser,
+        marketEnabled: marketTemplate.enabled,
+      }),
+      ...assistantReadTools({
+        currentDraftId: context.currentDraftId,
+        currentMarketAnalysisId: context.currentMarketAnalysisId,
+        currentRunId: context.currentRunId,
+        locale: context.locale,
+      }),
+    };
+    const activeTools = context.askUser
+      ? ([
+          "start_run",
+          ...(marketTemplate.enabled ? [MARKET_ACTION_TOOL] : []),
+          ASK_USER_TOOL,
+          ...ASSISTANT_READ_TOOL_NAMES,
+        ] as const)
+      : ([
+          "start_run",
+          ...(marketTemplate.enabled ? [MARKET_ACTION_TOOL] : []),
+          ...ASSISTANT_READ_TOOL_NAMES,
+        ] as const);
+    const synthesis = await gateway.streamSynthesis<
+      typeof tools,
+      AssistantUIMessage
+    >({
+      activeTools,
+      bindAgentTools: (settings) => ({ ...settings, tools }),
       abortSignal,
       deadlineMs: REQUEST_DEADLINE_MS,
       instructions: context.instructions,
@@ -239,46 +302,54 @@ async function streamAnswer(
       maxOutputTokens: SYNTHESIS_MAX_OUTPUT_TOKENS,
       operationAttemptId: operation.attemptId,
       operationId: operation.operationId,
+      prepareStep: ({ stepNumber }) => ({
+        activeTools: stepNumber === 0 ? activeTools : [],
+      }),
       prompt: context.prompt,
-      stopWhen: isStepCount(1),
+      stopWhen: isStepCount(3),
       taskKey: "assistant-synthesis",
-      tools: context.tools,
+      toolApproval: {
+        start_run: "user-approval",
+        ...(marketTemplate.enabled
+          ? { market_action: "user-approval" as const }
+          : {}),
+      },
+      toolApprovalSecret: env.ASSISTANT_APPROVAL_SECRET,
       workspaceId,
     });
-
-    // A turn that only calls the tool streams no text; the transcript answers
-    // that with its own line rather than an empty bubble.
-    let started = false;
-
-    for await (const delta of synthesis.textStream) {
-      if (!started) {
-        writer.write({ type: "text-start", id: textId });
-        started = true;
+    const reader = synthesis.uiStream.getReader();
+    let answered = false;
+    let nativeToolFailed = false;
+    let responseErrorWritten = false;
+    let streamFailed = false;
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      if (isAssistantNativeToolError(chunk.value)) {
+        nativeToolFailed = true;
+        streamFailed = true;
+        if (!responseErrorWritten) {
+          writer.write({ type: "data-response-error", data: true });
+          responseErrorWritten = true;
+        }
+        continue;
       }
-
-      writer.write({ type: "text-delta", delta, id: textId });
-    }
-
-    if (started) {
-      writer.write({ type: "text-end", id: textId });
-    }
-
-    succeeded = true;
-
-    // The model may call the tool but never owns its output: the choices come
-    // from the workspace and are re-parsed before they reach the transcript.
-    for (const call of synthesis.toolCalls()) {
-      const output = assistantAskUserSchema.safeParse(call.output);
-
-      if (call.toolName === ASK_USER_TOOL && output.success) {
-        return {
-          answered: started,
-          ask: { input: output.data, toolCallId: call.toolCallId },
-        };
+      if (chunk.value.type === "error") streamFailed = true;
+      if (
+        nativeToolFailed &&
+        (chunk.value.type.startsWith("text-") ||
+          chunk.value.type.startsWith("reasoning-") ||
+          chunk.value.type.startsWith("source-") ||
+          chunk.value.type === "file" ||
+          chunk.value.type === "error")
+      ) {
+        continue;
       }
+      if (chunk.value.type === "text-delta") answered = true;
+      writer.write(chunk.value);
     }
-
-    return { answered: started, ask: null };
+    succeeded = !streamFailed;
+    return answered && succeeded;
   } finally {
     try {
       await closeSynthesisOperation(
@@ -298,6 +369,39 @@ async function streamAnswer(
       });
     }
   }
+}
+
+async function readMarketPromptContext(): Promise<AssistantMarketPromptContext> {
+  if (!marketTemplate.enabled) {
+    return { enabled: false, options: null };
+  }
+  const [options, catalog] = await Promise.all([
+    getMarketAnalysisOptions(),
+    getMarketAnalysisCatalog(),
+  ]);
+  return {
+    enabled: true,
+    options: {
+      instruments: options.instruments.map(({ id, key, name, symbol }) => ({
+        id,
+        key,
+        name,
+        symbol,
+      })),
+      periods: options.enabledPeriods,
+      scales: options.enabledScales,
+      formats: ["portrait", "square", "story", "landscape"],
+      imageModels: options.imageOptions.map(({ key, name }) => ({ key, name })),
+      copyModels: options.copyModels.map(({ key, name }) => ({ key, name })),
+      comparisons: catalog.entries.map(
+        ({ canonicalIdentity, displayName, symbol }) => ({
+          canonicalIdentity,
+          displayName,
+          symbol,
+        }),
+      ),
+    },
+  };
 }
 
 async function authorizedCard(
@@ -321,7 +425,6 @@ async function authorizedCard(
 
   return origin &&
     origin.platform === claimed.platform &&
-    origin.contentLocale === claimed.contentLocale &&
     (request.brandKeys.length === 0 ||
       request.brandKeys.includes(origin.brandKey))
     ? { brandKey: origin.brandKey, card: claimed }

@@ -123,7 +123,7 @@ export function useAssistant() {
   const value = use(AssistantContext);
 
   if (!value) {
-    throw new Error("useAssistant used outside AssistantScope");
+    throw new Error("useAssistant used outside AssistantProvider");
   }
 
   return value;

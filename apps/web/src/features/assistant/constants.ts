@@ -1,4 +1,6 @@
 export const ASSISTANT_NAMESPACE = "assistant";
+export const ASSISTANT_FAB_CLASS =
+  "fixed inset-e-4 bottom-4 z-60 size-16 overflow-hidden rounded-full";
 
 export const MAX_QUESTION_CHARS = 2_000;
 export const MAX_REQUEST_BYTES = 32 * 1_024;

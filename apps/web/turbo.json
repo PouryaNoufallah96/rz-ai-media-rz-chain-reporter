@@ -12,6 +12,7 @@
       ],
       "env": [
         "$TURBO_EXTENDS$",
+        "ASSISTANT_APPROVAL_SECRET",
         "DATABASE_URL",
         "BETTER_AUTH_SECRET",
         "BETTER_AUTH_URL",

@@ -1,5 +1,22 @@
 import { LOCALES } from "@rz-chain-reporter/i18n";
+import type {
+  InferUITools,
+  UIMessage,
+  UIMessageChunk,
+  UIToolInvocation,
+} from "ai";
 import { z } from "zod";
+
+import type { AssistantToolRegistry } from "../lib/tool-registry.server";
+import type { AssistantReadTools } from "../lib/tools/read-tools.server";
+import type {
+  AssistantMarketResult,
+  AssistantPendingMarket,
+  AssistantPendingRun,
+  AssistantRunResult,
+  SignedApprovalEnvelope,
+  SignedMarketApprovalEnvelope,
+} from "./approval";
 
 export const assistantCitationSchema = z.strictObject({
   sourceId: z.string().min(1).max(128),
@@ -30,4 +47,64 @@ export const assistantMessageMetadataSchema = z.strictObject({
 
 export type AssistantMessageMetadata = z.infer<
   typeof assistantMessageMetadataSchema
+>;
+
+export const assistantSupersededSchema = z.strictObject({
+  toolCallId: z.string().max(128),
+  reason: z.enum(["edit", "cancel"]).optional(),
+});
+
+export type AssistantSuperseded = z.infer<typeof assistantSupersededSchema>;
+
+type AssistantUITools = InferUITools<
+  AssistantToolRegistry & AssistantReadTools
+>;
+
+type AssistantUIData = {
+  citation: AssistantCitation;
+  "response-error": true;
+  "market-proposal": {
+    envelope: SignedMarketApprovalEnvelope;
+    toolCallId: string;
+  };
+  "market-intent": AssistantPendingMarket & { toolCallId: string };
+  "market-result": AssistantMarketResult & { toolCallId: string };
+  "market-superseded": AssistantSuperseded;
+  "run-proposal": {
+    envelope: SignedApprovalEnvelope;
+    toolCallId: string;
+  };
+  "run-intent": AssistantPendingRun & { toolCallId: string };
+  "run-result": AssistantRunResult & { toolCallId: string };
+  "run-superseded": AssistantSuperseded;
+  "usage-settled": true;
+};
+
+export type AssistantUIMessage = UIMessage<
+  AssistantMessageMetadata,
+  AssistantUIData,
+  AssistantUITools
+>;
+
+type AssistantUIMessageChunk = UIMessageChunk<
+  AssistantMessageMetadata,
+  AssistantUIData
+>;
+
+export function isAssistantNativeToolError(
+  chunk: AssistantUIMessageChunk,
+): chunk is Extract<
+  AssistantUIMessageChunk,
+  { type: "tool-input-error" | "tool-output-error" }
+> {
+  return (
+    chunk.type === "tool-input-error" || chunk.type === "tool-output-error"
+  );
+}
+
+export type StartRunToolInvocation = UIToolInvocation<
+  AssistantUITools["start_run"]
+>;
+export type MarketActionToolInvocation = UIToolInvocation<
+  AssistantUITools["market_action"]
 >;

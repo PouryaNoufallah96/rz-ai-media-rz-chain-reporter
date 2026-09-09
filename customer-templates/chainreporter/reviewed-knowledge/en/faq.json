@@ -166,7 +166,7 @@
       "source selection",
       "available sources"
     ],
-    "answer": "You can use the RSS feeds and public Telegram channels configured for this installation. Choose a subset as compact run options on the Editorial Workspace; the full source catalog, import history, and per-source outcomes stay on the Sources page.",
+    "answer": "You can use the configured RSS feeds and public Telegram channels. On Sources, choose enabled feeds or channels and import options, start one import, then review its per-source outcomes, the catalog and the imported-item stream. The assistant only explains that desk; it does not read source records or start imports.",
     "priority": 60
   },
   {
@@ -178,7 +178,7 @@
       "rss feed",
       "import feed"
     ],
-    "answer": "Select a configured RSS source, set the run options, and start the run to evaluate recent articles from that feed.",
+    "answer": "On Sources, select the enabled RSS feeds, recency window and enrichment option, start one import, then review each feed's outcome and imported items. The source catalog also shows each feed's current configuration and latest observation.",
     "priority": 70
   },
   {
@@ -190,7 +190,7 @@
       "telegram channels",
       "public telegram"
     ],
-    "answer": "Select configured public Telegram channels, choose the recency and ordering options, and start the run.",
+    "answer": "On Sources, select the enabled public Telegram channels, recency, chronological or keyword ordering, shortlist size and any keyword topics, then start one import and review the per-channel outcomes and imported items.",
     "priority": 70
   },
   {
@@ -242,6 +242,22 @@
     ],
     "answer": "The Editorial Workspace groups cards into Model Lanes (editorial selections or promo ideas, by editorial model and media brand), Telegram Lanes (Telegram source cards by media brand), and Platform Lanes (routed cards by media brand and destination platform).",
     "priority": 60
+  },
+  {
+    "key": "editorial_workflow",
+    "question": "What is the complete Editorial workflow from choosing a story to publishing or scheduling it?",
+    "aliases": [
+      "How do I take a story through Editorial?",
+      "How do I finish a news card?"
+    ],
+    "keywords": [
+      "editorial workflow",
+      "choose story",
+      "route card",
+      "copy revision image approval publish schedule"
+    ],
+    "answer": "For this ChainReporter installation, route the chosen origin card to Telegram, X, or Instagram; work its generated copy, revisions, and optional image in Card Sheet; then approve the active revision. Configured Telegram and X destinations can publish immediately or on a schedule, while Instagram content can be prepared but not delivered because this installation has no Instagram destination account.",
+    "priority": 100
   },
   {
     "key": "open_card",
@@ -445,7 +461,7 @@
       "post to instagram",
       "instagram publishing"
     ],
-    "answer": "Yes. Instagram is a first-class publishing target. Approved revisions publish directly or on a schedule through an asynchronous media-container workflow, the same as Telegram and X.",
+    "answer": "Instagram is a first-class product publishing capability, but this ChainReporter installation has no Instagram destination account. It can prepare Instagram-oriented copy and visuals, but direct and scheduled Instagram publishing are unavailable until an account is configured.",
     "priority": 100
   },
   {
@@ -481,7 +497,7 @@
       "assistant scope",
       "what can chatbot do"
     ],
-    "answer": "The chatbot answers questions about the four media brands, active news cards, and documented ChainReporter functions.",
+    "answer": "The assistant explains documented ChainReporter behavior and the four media brands, and reads one bounded view at a time from this installation or the current operator's Editorial, Account, Usage, Saved, or Publishing records. Reads appear as compact chat cards with safe media previews where available and an Open link to the native desk; chat does not embed full desks or Card Sheet. It can prepare one News or Promo run, and only the proposal's explicit Approve control can start it. Market Analysis is disabled in this installation. Sources is guidance-only in chat. Editorial and Card Sheet changes, content approval, publishing, scheduling, and cancel or reschedule actions stay in their native desks. It cannot perform those desk actions, run multi-item writes, or search the external web.",
     "priority": 80
   },
   {
@@ -505,7 +521,7 @@
       "open card context",
       "understand current card"
     ],
-    "answer": "Yes. When a card is open, its brand, platform, headline, and available copy are provided as temporary context for your question.",
+    "answer": "Yes. When a card is open, its brand, platform, headline, and available copy are temporary question context. If you ask to show or summarize the saved card, the assistant re-reads it through the card owner and returns a compact read card with an Open link; the full Card Sheet remains in its native desk.",
     "priority": 70
   },
   {
