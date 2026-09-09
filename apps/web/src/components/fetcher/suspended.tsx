@@ -1,6 +1,7 @@
 import "server-only";
 
-import { type ReactNode, Suspense } from "react";
+import { type ReactNode, Suspense, ViewTransition } from "react";
+import type {} from "react/canary";
 
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
 import { getT } from "@/i18n/server";
@@ -52,10 +53,18 @@ export async function Suspended<T>({
       message={t("error.message")}
       retryLabel={t("error.retry")}
     >
-      <Suspense fallback={fallback}>
-        <Resolved data={data} empty={empty}>
-          {children}
-        </Resolved>
+      <Suspense
+        fallback={
+          <ViewTransition default="none" exit="page-fade">
+            {fallback}
+          </ViewTransition>
+        }
+      >
+        <ViewTransition default="none" enter="page-fade">
+          <Resolved data={data} empty={empty}>
+            {children}
+          </Resolved>
+        </ViewTransition>
       </Suspense>
     </ComponentErrorBoundary>
   );

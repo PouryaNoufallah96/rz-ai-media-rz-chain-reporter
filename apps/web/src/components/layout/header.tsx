@@ -55,7 +55,10 @@ export default async function Header() {
   const loadingLabel = t("loader.loading");
 
   return (
-    <header className="sticky top-0 z-40 min-w-0 border-border/40 border-b bg-background/45 backdrop-blur-xl">
+    <header
+      className="sticky top-0 z-40 min-w-0 border-border/40 border-b bg-background/45 backdrop-blur-xl"
+      style={{ viewTransitionName: "site-header" }}
+    >
       <a
         className="sr-only z-50 bg-background px-3 py-2 focus:not-sr-only focus:absolute focus:inset-s-2 focus:top-2"
         href="#main-content"
@@ -78,13 +81,14 @@ export default async function Header() {
           <UrlDataBoundary
             fallback={
               <HeaderControlSkeleton
-                className="h-9 w-72 max-sm:h-11"
+                className="h-9 w-96 max-sm:h-11"
                 label={loadingLabel}
               />
             }
           >
             <PrimaryNav
               accountLabel={t("header.account")}
+              assistantLabel={t("header.assistant")}
               dashboardLabel={t("header.multiMedia")}
               label={t("header.primaryNav")}
               marketAnalysisEnabled={customerTemplate.marketAnalysis.enabled}

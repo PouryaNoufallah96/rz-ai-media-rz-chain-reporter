@@ -2,6 +2,7 @@
 
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import {
+  BotMessageSquareIcon,
   ChartNoAxesCombinedIcon,
   ChartSplineIcon,
   LayoutGridIcon,
@@ -11,6 +12,7 @@ import { Link, usePathname } from "@/i18n/navigation";
 
 export function PrimaryNav({
   accountLabel,
+  assistantLabel,
   dashboardLabel,
   label,
   marketAnalysisEnabled,
@@ -18,6 +20,7 @@ export function PrimaryNav({
   usageLabel,
 }: {
   accountLabel: string;
+  assistantLabel: string;
   dashboardLabel: string;
   label: string;
   marketAnalysisEnabled: boolean;
@@ -37,6 +40,11 @@ export function PrimaryNav({
         ]
       : []),
     { href: "/account", label: accountLabel, icon: UserRoundIcon },
+    {
+      href: "/assistant",
+      label: assistantLabel,
+      icon: BotMessageSquareIcon,
+    },
     { href: "/usage", label: usageLabel, icon: ChartNoAxesCombinedIcon },
   ] as const;
   return (

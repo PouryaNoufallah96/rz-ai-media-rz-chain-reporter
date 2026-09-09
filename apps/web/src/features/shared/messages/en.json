@@ -10,6 +10,7 @@
       "dashboard": "Dashboard",
       "multiMedia": "Multi Media",
       "marketAnalysis": "Market Analysis",
+      "assistant": "Assistant",
       "account": "Account",
       "sources": "Sources",
       "saved": "Saved",
@@ -48,6 +49,17 @@
     },
     "footer": {
       "description": "Your editorial workspace."
+    },
+    "hotkeys": {
+      "title": "Keyboard shortcuts",
+      "description": "Shortcuts for this workspace. They stay off while you type in most fields.",
+      "close": "Close shortcuts",
+      "commands": {
+        "assistantToggle": "Open or close the assistant",
+        "assistantClose": "Close the assistant",
+        "editorialSidebarToggle": "Open or close the Multi Media run panel",
+        "help": "Show keyboard shortcuts"
+      }
     }
   }
 }

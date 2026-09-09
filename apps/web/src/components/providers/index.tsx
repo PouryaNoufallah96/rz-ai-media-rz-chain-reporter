@@ -3,6 +3,7 @@
 import { DIRECTION, type Locale } from "@rz-chain-reporter/i18n";
 import { DirectionProvider } from "@rz-chain-reporter/ui/components/direction-provider";
 import { Toaster } from "@rz-chain-reporter/ui/components/sonner";
+import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import { QueryClientProvider } from "@tanstack/react-query";
 import {
   type IntlError,
@@ -57,7 +58,17 @@ export default function Providers({
             disableTransitionOnChange
           >
             <QueryClientProvider client={queryClient}>
-              {children}
+              <HotkeysProvider
+                defaultOptions={{
+                  hotkey: {
+                    preventDefault: true,
+                    stopPropagation: true,
+                    conflictBehavior: "warn",
+                  },
+                }}
+              >
+                {children}
+              </HotkeysProvider>
             </QueryClientProvider>
             <Toaster dir={direction} richColors />
             <WebVitals />

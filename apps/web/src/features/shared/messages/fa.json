@@ -10,6 +10,7 @@
       "dashboard": "داشبورد",
       "multiMedia": "چندرسانه‌ای",
       "marketAnalysis": "تحلیل بازار",
+      "assistant": "دستیار",
       "account": "حساب",
       "sources": "منابع",
       "saved": "ذخیره‌ها",
@@ -48,6 +49,17 @@
     },
     "footer": {
       "description": "فضای کار تحریریهٔ شما."
+    },
+    "hotkeys": {
+      "title": "میانبرهای صفحه‌کلید",
+      "description": "میانبرهای این فضای کاری. هنگام نوشتن در بیشتر فیلدها فعال نمی‌شوند.",
+      "close": "بستن میانبرها",
+      "commands": {
+        "assistantToggle": "باز یا بستن دستیار",
+        "assistantClose": "بستن دستیار",
+        "editorialSidebarToggle": "باز یا بستن پنل اجرای چندرسانه‌ای",
+        "help": "نمایش میانبرهای صفحه‌کلید"
+      }
     }
   }
 }
