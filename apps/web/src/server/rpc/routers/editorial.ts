@@ -8,16 +8,18 @@ import {
   COPY_CONFIGURATION_VERSION,
   COPY_PROMPT_VERSION,
   type ContentLocale,
+  canonicalRunConfiguration,
   effectiveNewsSourceIds,
   INLINE_HASHTAG_TOKEN,
   isOperationSettled,
   okSchema,
   PLATFORM_COPY_HARD_MAX,
   platformCopyLength,
+  type RunConfigurationTransport,
   runConfigurationSchema,
-  runConfigurationTransportSchema,
 } from "@rz-chain-reporter/contracts";
 import { classifyDbError } from "@rz-chain-reporter/db/db-error";
+import type { Executor } from "@rz-chain-reporter/db/executor";
 import {
   ANALYSIS_RUN_COMMAND_TYPE,
   requestAnalysisRunCancellation,
@@ -64,6 +66,7 @@ import {
 import {
   cancelAnalysisRunInputSchema,
   presentationTranslationCommandResultSchema,
+  startAnalysisRunInputSchema,
   startAnalysisRunResultSchema,
   startPresentationTranslationInputSchema,
 } from "@/features/editorial/schemas/workspace";
@@ -79,6 +82,14 @@ import { rpcDb } from "../db";
 const customerRunConfigurationSchema = runConfigurationSchema(
   customerEditorial.bounds,
 );
+
+export function runConfigurationRequestHash(
+  configuration: RunConfigurationTransport,
+) {
+  return createHash("sha256")
+    .update(canonicalRunConfiguration(configuration))
+    .digest("hex");
+}
 
 const copyOperationErrors = {
   VALIDATION_FAILED: { status: 400 },
@@ -708,8 +719,95 @@ export const startPresentationTranslation = installationProcedure
     };
   });
 
+export async function resolveRunConfiguration(
+  database: Executor,
+  workspaceId: string,
+  candidate: unknown,
+) {
+  const parsed = customerRunConfigurationSchema.safeParse(candidate);
+  if (!parsed.success) {
+    return { status: "invalid" as const, issues: parsed.error.issues };
+  }
+
+  let configuration = parsed.data;
+  if (configuration.kind === "promo") {
+    const promoBrandKeys = new Set(
+      customerEditorial.brands.flatMap((brand) =>
+        brand.promoEnabled ? [brand.key] : [],
+      ),
+    );
+    const disabledBrandIndex = configuration.promo.brands.findIndex(
+      (brand) => !promoBrandKeys.has(brand),
+    );
+    if (disabledBrandIndex !== -1) {
+      return {
+        status: "invalid" as const,
+        issues: [
+          {
+            code: "custom" as const,
+            message: "PROMO_BRAND_DISABLED",
+            path: ["promo", "brands", disabledBrandIndex],
+          },
+        ],
+      };
+    }
+    const prompts: Record<string, string> = {};
+    for (const brand of configuration.promo.brands) {
+      const prompt = configuration.promo.prompts[brand];
+      if (prompt === undefined) {
+        return { status: "invalid" as const, issues: [] };
+      }
+      prompts[brand] = prompt;
+    }
+    return {
+      status: "valid" as const,
+      configuration: {
+        ...configuration,
+        platforms: configuration.platforms ?? customerEditorial.platforms,
+        promo: { ...configuration.promo, prompts },
+      },
+    };
+  }
+
+  if (configuration.kind === "news") {
+    const selectedSources = await selectAnalysisRunSources(
+      database,
+      workspaceId,
+      configuration.sourceIds,
+    );
+    if (selectedSources.length !== configuration.sourceIds.length) {
+      return { status: "invalid" as const, issues: [] };
+    }
+
+    const telegramSourceIds = selectedSources.flatMap((source) =>
+      source.origin === "telegram_public" ? [source.id] : [],
+    );
+    const sourceValidated = runConfigurationSchema(customerEditorial.bounds, {
+      telegramSourceIds,
+    }).safeParse(configuration);
+    if (!sourceValidated.success || sourceValidated.data.kind !== "news") {
+      return {
+        status: "invalid" as const,
+        issues: sourceValidated.success ? [] : sourceValidated.error.issues,
+      };
+    }
+
+    configuration = sourceValidated.data.telegramOnly
+      ? {
+          ...sourceValidated.data,
+          sourceIds: effectiveNewsSourceIds(
+            sourceValidated.data,
+            telegramSourceIds,
+          ),
+        }
+      : sourceValidated.data;
+  }
+
+  return { status: "valid" as const, configuration };
+}
+
 export const startRun = installationProcedure
-  .input(runConfigurationTransportSchema)
+  .input(startAnalysisRunInputSchema)
   .output(startAnalysisRunResultSchema)
   .errors({
     VALIDATION_FAILED: { status: 400 },
@@ -718,63 +816,25 @@ export const startRun = installationProcedure
     TEMPLATE_DRIFT: { status: 409 },
   })
   .handler(async ({ context, errors, input }) => {
-    const parsed = customerRunConfigurationSchema.safeParse(input);
-
-    if (!parsed.success) {
-      throw errors.VALIDATION_FAILED({ data: { issues: parsed.error.issues } });
-    }
-
     const database = rpcDb();
-    let configuration = parsed.data;
-
-    if (configuration.kind === "news") {
-      const selectedSources = await selectAnalysisRunSources(
-        database,
-        context.workspaceId,
-        configuration.sourceIds,
-      );
-
-      if (selectedSources.length !== configuration.sourceIds.length) {
-        throw errors.VALIDATION_FAILED();
-      }
-
-      const telegramSourceIds = selectedSources.flatMap((source) =>
-        source.origin === "telegram_public" ? [source.id] : [],
-      );
-      const sourceValidated = runConfigurationSchema(customerEditorial.bounds, {
-        telegramSourceIds,
-      }).safeParse(configuration);
-
-      if (!sourceValidated.success) {
-        throw errors.VALIDATION_FAILED({
-          data: { issues: sourceValidated.error.issues },
-        });
-      }
-      if (sourceValidated.data.kind !== "news") {
-        throw errors.VALIDATION_FAILED();
-      }
-
-      configuration = sourceValidated.data.telegramOnly
-        ? {
-            ...sourceValidated.data,
-            sourceIds: effectiveNewsSourceIds(
-              sourceValidated.data,
-              telegramSourceIds,
-            ),
-          }
-        : sourceValidated.data;
+    const resolved = await resolveRunConfiguration(
+      database,
+      context.workspaceId,
+      input.configuration,
+    );
+    if (resolved.status === "invalid") {
+      throw errors.VALIDATION_FAILED({ data: { issues: resolved.issues } });
     }
+    const configuration = resolved.configuration;
 
     const operationId = randomUUID();
-    const idempotencyKey = `${ANALYSIS_RUN_COMMAND_TYPE}:${operationId}`;
+    const idempotencyKey = `${ANALYSIS_RUN_COMMAND_TYPE}:${input.idempotencyKey}`;
 
     const result = await startAnalysisRun(database, context.workspaceId, {
       operationId,
       actor: context.session.user.id,
       idempotencyKey,
-      requestHash: createHash("sha256")
-        .update(`${idempotencyKey}:${ANALYSIS_RUN_COMMAND_TYPE}`)
-        .digest("hex"),
+      requestHash: runConfigurationRequestHash(configuration),
       requestId: context.requestId,
       kind: configuration.kind,
       configuration,
@@ -794,6 +854,7 @@ export const startRun = installationProcedure
     }
 
     return {
+      status: result.status,
       operationId: result.operationId,
       analysisRunId: result.analysisRunId,
     };

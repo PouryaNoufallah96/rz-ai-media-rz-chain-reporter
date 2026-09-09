@@ -2,7 +2,6 @@
 
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
-import { Card } from "@rz-chain-reporter/ui/components/card";
 import {
   Collapsible,
   CollapsibleContent,
@@ -11,7 +10,7 @@ import {
 import { ChevronDownIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId } from "react";
-
+import { SectionCard } from "@/components/common/section-card";
 import {
   StateMark,
   type StateMarkState,
@@ -58,39 +57,41 @@ export function SourceImportRuns({ imports }: { imports: SourceImportsView }) {
         aria-labelledby={currentId}
         className="lg:flex lg:max-h-1/2 lg:min-h-0 lg:flex-col lg:only:max-h-none lg:only:flex-1"
       >
-        <Card className="gap-0 border p-4 ring-0 sm:p-5 lg:min-h-0 lg:flex-1">
-          <header className="flex min-w-0 shrink-0 flex-wrap items-center gap-2 border-b pb-3">
-            <h2 className="ticket-label" id={currentId}>
-              {t("import.current")}
-            </h2>
-            <SourcesFreshness readAt={imports.readAt} />
-          </header>
-          <div className="lg:scrollbar-gutter-stable lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:px-1">
-            {current ? (
-              <SourceImportRunCard card={current} />
-            ) : (
-              <div className="mt-3">
-                <p className="text-sm">{t("import.empty.title")}</p>
-                <p className="mt-1 text-muted-foreground text-xs">
-                  {t("import.empty.hint")}
-                </p>
-              </div>
-            )}
-          </div>
-        </Card>
+        <SectionCard
+          action={<SourcesFreshness readAt={imports.readAt} />}
+          className="lg:min-h-0 lg:flex-1"
+          contentClassName="lg:scrollbar-gutter-stable lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:px-1"
+          title={t("import.current")}
+          titleId={currentId}
+        >
+          {current ? (
+            <SourceImportRunCard card={current} />
+          ) : (
+            <div>
+              <p className="text-sm">{t("import.empty.title")}</p>
+              <p className="mt-1 text-muted-foreground text-xs">
+                {t("import.empty.hint")}
+              </p>
+            </div>
+          )}
+        </SectionCard>
       </section>
       {older.length > 0 ? (
         <section
           aria-labelledby={recentId}
           className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col"
         >
-          <Card className="gap-0 border p-4 ring-0 sm:p-5 lg:min-h-0 lg:flex-1">
-            <h2
-              className="shrink-0 border-b pb-3 font-medium text-sm"
-              id={recentId}
-            >
-              {t("import.recent.title")}
-            </h2>
+          <SectionCard
+            className="lg:min-h-0 lg:flex-1"
+            contentClassName="flex min-h-0 flex-1 flex-col gap-3"
+            footer={
+              <p className="text-muted-foreground text-xs/relaxed">
+                {t("import.recent.hint")}
+              </p>
+            }
+            title={t("import.recent.title")}
+            titleId={recentId}
+          >
             <ul className="scrollbar-gutter-stable max-h-128 overflow-y-auto overscroll-contain px-1 lg:max-h-none lg:min-h-0 lg:flex-1">
               {older.map((card) => (
                 <li
@@ -101,10 +102,7 @@ export function SourceImportRuns({ imports }: { imports: SourceImportsView }) {
                 </li>
               ))}
             </ul>
-            <p className="mt-3 shrink-0 text-muted-foreground text-xs/relaxed">
-              {t("import.recent.hint")}
-            </p>
-          </Card>
+          </SectionCard>
         </section>
       ) : null}
     </div>

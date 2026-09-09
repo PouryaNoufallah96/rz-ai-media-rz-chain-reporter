@@ -11,10 +11,13 @@ import { resolveInstallationWorkspaceId } from "@/server/rpc/workspace";
 import { draftsTags } from "../../db/cache/tags";
 import { readPlatformDrafts } from "../../db/queries";
 
-export async function getPlatformDraft(platformDraftId: string) {
-  const [session, presentationLocale, workspaceId] = await Promise.all([
+export async function getPlatformDraft(
+  platformDraftId: string,
+  presentationLocale?: ContentLocale,
+) {
+  const [session, resolvedPresentationLocale, workspaceId] = await Promise.all([
     requireSession(),
-    currentLocale(),
+    presentationLocale ?? currentLocale(),
     resolveInstallationWorkspaceId(rpcDb()),
   ]);
   const result = await readCachedPlatformDraft(
@@ -23,7 +26,7 @@ export async function getPlatformDraft(platformDraftId: string) {
     platformDraftId,
     env.PUBLISHING_EMERGENCY_PAUSED,
     customerTimeZone,
-    presentationLocale,
+    resolvedPresentationLocale,
   );
 
   return result ? { ...result, readAt: new Date() } : null;

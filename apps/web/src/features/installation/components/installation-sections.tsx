@@ -1,14 +1,9 @@
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@rz-chain-reporter/ui/components/card";
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
-import { cn } from "@rz-chain-reporter/ui/lib/utils";
 import type { ReactNode } from "react";
 
 import { PlatformIcon } from "@/components/common/platform-icon";
+import { SectionCard } from "@/components/common/section-card";
 import { getFormatter, getT } from "@/i18n/server";
 
 import { INSTALLATION_NAMESPACE } from "../constants";
@@ -33,7 +28,7 @@ export async function InstallationSections({
   return (
     <div className="mt-6 grid gap-4">
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <Section title={t("identity.title")}>
+        <SectionCard content="grid" section title={t("identity.title")}>
           <dl className="grid gap-4 sm:grid-cols-2">
             <DefinitionItem label={t("labels.workspace")}>
               {identity.workspaceName}
@@ -65,9 +60,9 @@ export async function InstallationSections({
               )}
             </DefinitionItem>
           </dl>
-        </Section>
+        </SectionCard>
 
-        <Section title={t("mediaBrands.title")}>
+        <SectionCard content="grid" section title={t("mediaBrands.title")}>
           <List>
             {mediaBrands.map((brand) => (
               <li
@@ -79,13 +74,13 @@ export async function InstallationSections({
               </li>
             ))}
           </List>
-        </Section>
+        </SectionCard>
 
-        <Section title={t("brandPolicy.title")}>
+        <SectionCard content="grid" section title={t("brandPolicy.title")}>
           <BrandPolicyBlock appliedAt={identity.templateAppliedAt} />
-        </Section>
+        </SectionCard>
 
-        <Section title={t("destinations.title")}>
+        <SectionCard content="grid" section title={t("destinations.title")}>
           {destinations.length === 0 ? (
             <EmptyLine>{t("destinations.empty")}</EmptyLine>
           ) : (
@@ -155,9 +150,13 @@ export async function InstallationSections({
               ))}
             </List>
           )}
-        </Section>
+        </SectionCard>
 
-        <Section className="lg:col-span-2" title={t("mapping.title")}>
+        <SectionCard
+          content="grid"
+          section="lg:col-span-2"
+          title={t("mapping.title")}
+        >
           <List>
             {mediaBrands.map((brand) => (
               <li
@@ -183,10 +182,10 @@ export async function InstallationSections({
               </li>
             ))}
           </List>
-        </Section>
+        </SectionCard>
       </div>
       <div className="min-w-0">
-        <Section title={t("sources.title")}>
+        <SectionCard content="grid" section title={t("sources.title")}>
           {sources.length === 0 ? (
             <EmptyLine>{t("sources.empty")}</EmptyLine>
           ) : (
@@ -216,7 +215,7 @@ export async function InstallationSections({
               ))}
             </List>
           )}
-        </Section>
+        </SectionCard>
       </div>
     </div>
   );
@@ -237,47 +236,27 @@ export function InstallationSectionsSkeleton({
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         {sections.map(({ key, title }) =>
           key === "sources" ? null : (
-            <Section
-              className={cn(key === "mapping" && "lg:col-span-2")}
+            <SectionCard
+              content="grid"
               key={key}
+              section={key === "mapping" ? "lg:col-span-2" : true}
               title={title}
             >
               <Skeleton
                 className={key === "identity" ? "h-20 w-full" : "h-36 w-full"}
               />
-            </Section>
+            </SectionCard>
           ),
         )}
       </div>
       {sections.map(({ key, title }) =>
         key !== "sources" ? null : (
-          <Section key={key} title={title}>
+          <SectionCard content="grid" key={key} section title={title}>
             <Skeleton className="h-144 w-full" />
-          </Section>
+          </SectionCard>
         ),
       )}
     </div>
-  );
-}
-
-function Section({
-  children,
-  className,
-  title,
-}: {
-  children: ReactNode;
-  className?: string;
-  title: string;
-}) {
-  return (
-    <section className={cn("flex min-w-0 flex-col", className)}>
-      <Card className="flex-1 gap-0 border ring-0">
-        <CardHeader className="border-b bg-muted/30 py-4">
-          <h2 className="font-medium text-sm">{title}</h2>
-        </CardHeader>
-        <CardContent className="grid gap-4 pt-4">{children}</CardContent>
-      </Card>
-    </section>
   );
 }
 

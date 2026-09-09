@@ -1,10 +1,6 @@
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@rz-chain-reporter/ui/components/card";
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
 
+import { SectionCard } from "@/components/common/section-card";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { Suspended } from "@/components/fetcher/suspended";
 import { Localized } from "@/i18n/client";
@@ -82,26 +78,21 @@ function UsageReportSkeleton({ loadingLabel }: { loadingLabel: string }) {
         </div>
       </div>
       <section className="mt-6">
-        <Card className="gap-0 border ring-0">
-          <CardHeader className="border-b bg-muted/30 py-4">
-            <Skeleton className="h-4 w-32" />
-          </CardHeader>
-          <CardContent className="px-0">
-            <dl className="grid grid-cols-2 gap-4 border-b p-4 sm:grid-cols-3 sm:p-5 lg:grid-cols-5">
-              {facts.map((fact) => (
-                <div key={fact}>
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="mt-2 h-6 w-16" />
-                </div>
-              ))}
-            </dl>
-            <div className="grid gap-4 p-4">
-              {modelRows.map((row) => (
-                <Skeleton className="h-4 w-full" key={row} />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <SectionCard content="flush" title={<Skeleton className="h-4 w-32" />}>
+          <dl className="grid grid-cols-2 gap-4 border-b p-4 sm:grid-cols-3 sm:p-5 lg:grid-cols-5">
+            {facts.map((fact) => (
+              <div key={fact}>
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="mt-2 h-6 w-16" />
+              </div>
+            ))}
+          </dl>
+          <div className="grid gap-4 p-4">
+            {modelRows.map((row) => (
+              <Skeleton className="h-4 w-full" key={row} />
+            ))}
+          </div>
+        </SectionCard>
       </section>
       <section className="mt-6">
         <Skeleton className="mb-3 h-5 w-32" />

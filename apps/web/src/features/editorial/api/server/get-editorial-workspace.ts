@@ -18,6 +18,7 @@ import {
 
 export async function getEditorialWorkspace(
   searchParams: WorkspaceSearchParams,
+  presentationLocale?: ContentLocale,
 ): Promise<EditorialWorkspace> {
   const session = await requireSession();
   const query = normalizeWorkspaceQuery(
@@ -34,15 +35,15 @@ export async function getEditorialWorkspace(
     };
   }
 
-  const [presentationLocale, workspaceId] = await Promise.all([
-    currentLocale(),
+  const [resolvedPresentationLocale, workspaceId] = await Promise.all([
+    presentationLocale ?? currentLocale(),
     resolveInstallationWorkspaceId(rpcDb()),
   ]);
   const { head, ...lanes } = await readPinnedEditorialWorkspace(
     workspaceId,
     session.user.id,
     query.run,
-    presentationLocale,
+    resolvedPresentationLocale,
   );
   const readAt = new Date();
 

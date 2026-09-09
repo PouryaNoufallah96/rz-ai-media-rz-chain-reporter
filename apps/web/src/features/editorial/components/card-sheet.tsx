@@ -204,8 +204,6 @@ export function CardSheet({
     publishSheetCard,
   ]);
 
-  // Base UI leaves the shell tabbable behind a non-modal sheet's scrim, so
-  // keyboard reach has to be closed to match the pointer block the scrim gives.
   useEffect(() => {
     if (!open) return;
 
@@ -216,11 +214,7 @@ export function CardSheet({
     const inerted: HTMLElement[] = [];
 
     for (const child of shell.children) {
-      if (
-        child instanceof HTMLElement &&
-        !child.inert &&
-        !child.hasAttribute("data-assistant-fab")
-      ) {
+      if (child instanceof HTMLElement && !child.inert) {
         child.inert = true;
         inerted.push(child);
       }

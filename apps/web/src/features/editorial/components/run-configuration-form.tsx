@@ -46,6 +46,7 @@ import { useTranslations } from "next-intl";
 import {
   type ReactNode,
   type Ref,
+  type SubmitEvent,
   useEffect,
   useEffectEvent,
   useId,
@@ -124,7 +125,14 @@ export function RunConfigurationForm({
   const selectableSourceIdSet = new Set(selectable.map((entry) => entry.id));
   const hasExcludableSource = selectable.length > telegramSourceIds.length;
   const telegramSourceIdSet = new Set(telegramSourceIds);
-  const promoBrands = options.brands.filter((brand) => brand.promoEnabled);
+  const formInitialValues = initialValues(
+    options,
+    selectable,
+    initialConfiguration,
+  );
+  const submissionIdentity = useRef<ReturnType<
+    typeof createSubmissionIdentity
+  > | null>(null);
 
   const action = useAction(startAnalysisRunAction);
   const { isPending: isNavigationPending, setValues } = useTransitionUrlState(
@@ -142,7 +150,7 @@ export function RunConfigurationForm({
     setValue,
     subscribe,
   } = useForm<RunFormValues>({
-    defaultValues: initialValues(options, selectable, initialConfiguration),
+    defaultValues: formInitialValues,
     mode: "onSubmit",
     reValidateMode: "onSubmit",
     resolver: zodResolver(
@@ -165,10 +173,6 @@ export function RunConfigurationForm({
 
   const isPending = isSubmitting || action.isPending || isNavigationPending;
   const isBusy = isPending || runInProgress;
-  const { field: kind } = useController({
-    control,
-    name: "kind",
-  });
   const publish = useEffectEvent((values: RunFormValues) =>
     onPresentationChange({
       brandKeys: values.kind === "promo" ? values.promo.brands : values.brands,
@@ -178,6 +182,13 @@ export function RunConfigurationForm({
       telegramOnly: values.kind === "news" && values.telegramOnly,
     }),
   );
+  const refreshSubmissionIdentity = useEffectEvent((values: RunFormValues) => {
+    const configuration = toConfiguration(values, telegramSourceIds);
+    const fingerprint = JSON.stringify(configuration);
+    if (submissionIdentity.current?.fingerprint !== fingerprint) {
+      submissionIdentity.current = createSubmissionIdentity(configuration);
+    }
+  });
 
   useEffect(
     () =>
@@ -195,25 +206,43 @@ export function RunConfigurationForm({
       }),
     [subscribe],
   );
+  useEffect(
+    () =>
+      subscribe({
+        callback: ({ values }) => refreshSubmissionIdentity(values),
+        formState: { values: true },
+      }),
+    [subscribe],
+  );
 
-  const onSubmit = handleSubmit(async (values) => {
-    clearErrors("root");
-    action.reset();
-    const result = await action.execute(
-      toConfiguration(values, telegramSourceIds),
-    );
+  const onSubmit = (event: SubmitEvent<HTMLFormElement>) =>
+    handleSubmit(async (values) => {
+      clearErrors("root");
+      action.reset();
+      const configuration = toConfiguration(values, telegramSourceIds);
+      if (
+        submissionIdentity.current?.fingerprint !==
+        JSON.stringify(configuration)
+      ) {
+        submissionIdentity.current = createSubmissionIdentity(configuration);
+      }
+      const result = await action.execute({
+        configuration,
+        idempotencyKey: submissionIdentity.current.idempotencyKey,
+      });
 
-    if (result.status !== "success" || !result.data) {
-      applyActionErrorToForm(setError, result, setFocus);
-      return;
-    }
+      if (result.status !== "success" || !result.data) {
+        applyActionErrorToForm(setError, result, setFocus);
+        return;
+      }
 
-    operationCreated(result.data.operationId);
-    await setValues(
-      { draft: null, run: result.data.analysisRunId },
-      { history: "push" },
-    );
-  });
+      submissionIdentity.current = createSubmissionIdentity(configuration);
+      operationCreated(result.data.operationId);
+      await setValues(
+        { draft: null, run: result.data.analysisRunId },
+        { history: "push" },
+      );
+    })(event);
 
   const loadPreviousRun = () => {
     const previous = options.previousRun;
@@ -316,55 +345,106 @@ export function RunConfigurationForm({
         noValidate
         onSubmit={onSubmit}
       >
-        <FieldGroup>
-          <KindField
-            control={control}
-            disabled={isBusy}
-            resolveError={resolveError}
-          />
-          {kind.value === "promo" ? (
-            <PromoFields
-              control={control}
-              disabled={isBusy}
-              models={options.models}
-              platforms={options.platforms}
-              promoBrands={promoBrands}
-              resolveError={resolveError}
-            />
-          ) : (
-            <NewsFields
-              announce={setAnnouncement}
-              control={control}
-              disabled={isBusy}
-              onSourceIdsChange={reconcileTelegramOnly}
-              onToggleTelegramOnly={toggleTelegramOnly}
-              options={options}
-              resolveError={resolveError}
-              selectable={selectable}
-            />
-          )}
-          <FormRootError
-            message={
-              errors.root?.server
-                ? resolveError(errors.root.server.message)
-                : undefined
-            }
-          />
-          <p className="sr-only" role="status">
-            {announcement}
-          </p>
-          <RunFooter
-            control={control}
-            fromPreviousRun={Boolean(fromRunId)}
-            hasPreviousRun={options.previousRun !== null}
-            isPending={isPending}
-            onUsePreviousRun={loadPreviousRun}
-            promoBrands={promoBrands}
-            runInProgress={runInProgress}
-          />
-        </FieldGroup>
+        <RunConfigurationFields
+          announcement={announcement}
+          control={control}
+          disabled={isBusy}
+          fromPreviousRun={Boolean(fromRunId)}
+          isPending={isPending}
+          onAnnouncement={setAnnouncement}
+          onSourceIdsChange={reconcileTelegramOnly}
+          onToggleTelegramOnly={toggleTelegramOnly}
+          onUsePreviousRun={loadPreviousRun}
+          options={options}
+          resolveError={resolveError}
+          runInProgress={runInProgress}
+          selectable={selectable}
+          serverError={
+            errors.root?.server
+              ? resolveError(errors.root.server.message)
+              : undefined
+          }
+        />
       </form>
     </section>
+  );
+}
+
+function RunConfigurationFields({
+  announcement,
+  control,
+  disabled,
+  fromPreviousRun,
+  isPending,
+  onAnnouncement,
+  onSourceIdsChange,
+  onToggleTelegramOnly,
+  onUsePreviousRun,
+  options,
+  resolveError,
+  runInProgress,
+  selectable,
+  serverError,
+}: FieldProps & {
+  announcement: string;
+  fromPreviousRun: boolean;
+  isPending: boolean;
+  onAnnouncement: (message: string) => void;
+  onSourceIdsChange: (sourceIds: readonly string[]) => void;
+  onToggleTelegramOnly: (
+    checked: boolean,
+    commit: (value: boolean) => void,
+  ) => void;
+  onUsePreviousRun: () => void;
+  options: RunOptions;
+  runInProgress: boolean;
+  selectable: readonly SourceCatalogEntry[];
+  serverError: string | undefined;
+}) {
+  const { field: kind } = useController({ control, name: "kind" });
+  const promoBrands = options.brands.filter((brand) => brand.promoEnabled);
+  return (
+    <FieldGroup>
+      <KindField
+        control={control}
+        disabled={disabled}
+        resolveError={resolveError}
+      />
+      {kind.value === "promo" ? (
+        <PromoFields
+          control={control}
+          disabled={disabled}
+          models={options.models}
+          platforms={options.platforms}
+          promoBrands={promoBrands}
+          resolveError={resolveError}
+        />
+      ) : (
+        <NewsFields
+          announce={onAnnouncement}
+          control={control}
+          disabled={disabled}
+          onSourceIdsChange={onSourceIdsChange}
+          onToggleTelegramOnly={onToggleTelegramOnly}
+          options={options}
+          resolveError={resolveError}
+          selectable={selectable}
+        />
+      )}
+      <FormRootError message={serverError} />
+      <p className="sr-only" role="status">
+        {announcement}
+      </p>
+      <RunFooter
+        control={control}
+        fromPreviousRun={fromPreviousRun}
+        hasPreviousRun={options.previousRun !== null}
+        isPending={isPending}
+        onUsePreviousRun={onUsePreviousRun}
+        promoBrands={promoBrands}
+        runInProgress={runInProgress}
+      />
+    </FieldGroup>
   );
 }
 
@@ -1339,6 +1419,13 @@ function toConfiguration(
       { ...news, kind: "news" },
       telegramSourceIds,
     ),
+  };
+}
+
+function createSubmissionIdentity(configuration: RunSubmission) {
+  return {
+    fingerprint: JSON.stringify(configuration),
+    idempotencyKey: crypto.randomUUID(),
   };
 }
 

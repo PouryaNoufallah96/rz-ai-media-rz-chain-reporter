@@ -1,1 +1,55 @@
 @import "@rz-chain-reporter/ui/globals.css";
+
+:root {
+  --page-fade-exit: 140ms;
+  --page-fade-enter: 180ms;
+}
+
+@keyframes page-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+::view-transition-group(.page-fade) {
+  animation: none;
+}
+
+::view-transition-old(.page-fade) {
+  animation: var(--page-fade-exit) ease-in both page-fade reverse;
+}
+
+::view-transition-new(.page-fade) {
+  animation: var(--page-fade-enter) ease-out var(--page-fade-exit) both
+    page-fade;
+}
+
+::view-transition-group(site-header),
+::view-transition-group(site-footer) {
+  animation: none;
+  z-index: 100;
+}
+
+::view-transition-old(site-header),
+::view-transition-old(site-footer) {
+  display: none;
+}
+
+::view-transition-new(site-header),
+::view-transition-new(site-footer) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.page-fade),
+  ::view-transition-new(.page-fade),
+  ::view-transition-group(.page-fade),
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-group(root) {
+    animation: none;
+  }
+}

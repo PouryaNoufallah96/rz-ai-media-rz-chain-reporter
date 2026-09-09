@@ -8,7 +8,6 @@ import {
 } from "@rz-chain-reporter/contracts";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
-import { Card } from "@rz-chain-reporter/ui/components/card";
 import { Checkbox } from "@rz-chain-reporter/ui/components/checkbox";
 import {
   Collapsible,
@@ -40,7 +39,7 @@ import {
 } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
-
+import { SectionCard } from "@/components/common/section-card";
 import {
   FieldCaption,
   FormField,
@@ -156,13 +155,10 @@ export function SourceImportForm({
 
   return (
     <section aria-labelledby={titleId} className="min-w-0">
-      <Card className="gap-0 border p-4 ring-0 sm:p-5">
-        <h2 className="border-b pb-3 font-medium text-sm" id={titleId}>
-          {t("import.title")}
-        </h2>
+      <SectionCard title={t("import.title")} titleId={titleId}>
         <form
           aria-busy={isBusy}
-          className="mt-4 max-sm:**:data-[slot=button]:min-h-11 max-sm:**:data-[slot=input]:min-h-11 max-sm:**:data-[slot=select-trigger]:min-h-11 max-sm:**:data-[slot=button]:min-w-11"
+          className="max-sm:**:data-[slot=button]:min-h-11 max-sm:**:data-[slot=input]:min-h-11 max-sm:**:data-[slot=select-trigger]:min-h-11 max-sm:**:data-[slot=button]:min-w-11"
           noValidate
           onSubmit={onSubmit}
         >
@@ -195,7 +191,7 @@ export function SourceImportForm({
             />
           </FieldGroup>
         </form>
-      </Card>
+      </SectionCard>
     </section>
   );
 }

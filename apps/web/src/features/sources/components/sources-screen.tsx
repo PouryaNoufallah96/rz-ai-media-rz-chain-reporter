@@ -1,6 +1,6 @@
-import { Card } from "@rz-chain-reporter/ui/components/card";
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
 
+import { SectionCard } from "@/components/common/section-card";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { Suspended } from "@/components/fetcher/suspended";
 import { OPERATIONS_NAMESPACE } from "@/features/operations/constants";
@@ -152,11 +152,13 @@ function SourceCatalogSkeleton() {
 
   return (
     <section className="min-w-0">
-      <Card className="mt-8 gap-0 border p-4 ring-0 sm:p-5">
-        <Skeleton className="h-5 w-32" />
-        <Skeleton className="mt-2 h-4 w-full max-w-md" />
+      <SectionCard
+        className="mt-8"
+        description={<Skeleton className="h-4 w-full max-w-md" />}
+        title={<Skeleton className="h-5 w-32" />}
+      >
         {groups.map((group) => (
-          <div className="mt-6" key={group}>
+          <div className="mt-6 first:mt-0" key={group}>
             <Skeleton className="h-4 w-40" />
             <div className="mt-3 divide-y overflow-hidden rounded-lg border bg-muted/20">
               {rows.map((row) => (
@@ -167,7 +169,7 @@ function SourceCatalogSkeleton() {
             </div>
           </div>
         ))}
-      </Card>
+      </SectionCard>
     </section>
   );
 }

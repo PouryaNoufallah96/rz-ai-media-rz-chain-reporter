@@ -10,13 +10,7 @@ import { DIRECTION, type Locale } from "@rz-chain-reporter/i18n";
 import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@rz-chain-reporter/ui/components/card";
+import { Card } from "@rz-chain-reporter/ui/components/card";
 import {
   Collapsible,
   CollapsibleContent,
@@ -38,6 +32,7 @@ import {
 
 import { type BrandLogo, BrandMark } from "@/components/common/brand-mark";
 import { PlatformIcon } from "@/components/common/platform-icon";
+import { SectionCard } from "@/components/common/section-card";
 import { StateMark, type StateMarkState } from "@/components/common/state-mark";
 import { KeysetPagination } from "@/components/data-table/keyset-pagination";
 import { LabeledSelect } from "@/components/form/form-field";
@@ -313,11 +308,12 @@ function BrandList({
   const t = useTranslations(ACCOUNT_NAMESPACE);
   return (
     <section aria-labelledby="account-brands-title" className="min-w-0">
-      <Card className="min-w-0 gap-0 border p-4 ring-0 sm:p-5">
-        <h2 className="font-medium text-sm" id="account-brands-title">
-          {t("brands.title")}
-        </h2>
-        <dl className="mt-3 grid grid-cols-1 gap-2">
+      <SectionCard
+        className="min-w-0"
+        title={t("brands.title")}
+        titleId="account-brands-title"
+      >
+        <dl className="grid grid-cols-1 gap-2">
           {brands.map((brand) => (
             <div
               className="grid min-w-0 gap-3 rounded-lg border bg-muted/30 p-3"
@@ -345,7 +341,7 @@ function BrandList({
             </div>
           ))}
         </dl>
-      </Card>
+      </SectionCard>
     </section>
   );
 }
@@ -392,19 +388,20 @@ function ActivityList({ activities }: { activities: ActivityHistoryRow[] }) {
   const Icon = expanded ? ChevronUpIcon : ChevronDownIcon;
   return (
     <section aria-labelledby="account-activity-title" className="min-w-0">
-      <Card className="min-w-0 gap-0 border p-4 ring-0 sm:p-5 lg:h-full">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-border border-b pb-3">
-          <h2 className="font-medium text-sm" id="account-activity-title">
-            {t("activity.title")}
-          </h2>
-          {activities.length > 0 ? (
+      <SectionCard
+        action={
+          activities.length > 0 ? (
             <p className="text-muted-foreground text-xs">
               {t("activity.latest", {
                 n: expanded ? activities.length : visibleCount,
               })}
             </p>
-          ) : null}
-        </div>
+          ) : null
+        }
+        className="min-w-0 lg:h-full"
+        title={t("activity.title")}
+        titleId="account-activity-title"
+      >
         {activities.length === 0 ? (
           <CompactEmpty description={t("activity.empty")} />
         ) : (
@@ -441,7 +438,7 @@ function ActivityList({ activities }: { activities: ActivityHistoryRow[] }) {
             ) : null}
           </Collapsible>
         )}
-      </Card>
+      </SectionCard>
     </section>
   );
 }
@@ -495,14 +492,15 @@ function TopicList({ topics }: { topics: string[] }) {
   const t = useTranslations(ACCOUNT_NAMESPACE);
   return (
     <section aria-labelledby="account-topics-title" className="min-w-0">
-      <Card className="min-w-0 gap-0 border p-4 ring-0 sm:p-5">
-        <h2 className="font-medium text-sm" id="account-topics-title">
-          {t("topics.title")}
-        </h2>
+      <SectionCard
+        className="min-w-0"
+        title={t("topics.title")}
+        titleId="account-topics-title"
+      >
         {topics.length === 0 ? (
           <CompactEmpty description={t("topics.empty")} />
         ) : (
-          <ul className="mt-3 flex flex-wrap gap-2">
+          <ul className="flex flex-wrap gap-2">
             {topics.map((topic) => (
               <li
                 className="min-w-0 max-w-full"
@@ -518,7 +516,7 @@ function TopicList({ topics }: { topics: string[] }) {
             ))}
           </ul>
         )}
-      </Card>
+      </SectionCard>
     </section>
   );
 }
@@ -542,28 +540,29 @@ function ScheduledCards({
   const Icon = expanded ? ChevronUpIcon : ChevronDownIcon;
   return (
     <section aria-labelledby="account-scheduled-title" className="min-w-0">
-      <Card className="min-w-0 gap-0 border p-4 ring-0 sm:p-5 lg:h-full">
-        <div className="border-border border-b pb-3">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-            <h2 className="font-medium text-sm" id="account-scheduled-title">
-              {t("scheduled.title")}
-            </h2>
-            <Link
-              className="inline-flex items-center text-xs underline-offset-4 hover:underline max-sm:min-h-11"
-              href="/schedule?view=scheduled"
-            >
-              {t("scheduled.viewAll")}
-            </Link>
-          </div>
-          <p className="text-muted-foreground text-xs">
+      <SectionCard
+        action={
+          <Link
+            className="inline-flex items-center text-xs underline-offset-4 hover:underline max-sm:min-h-11"
+            href="/schedule?view=scheduled"
+          >
+            {t("scheduled.viewAll")}
+          </Link>
+        }
+        className="min-w-0 lg:h-full"
+        description={
+          <>
             {t("scheduled.description")}
-          </p>
-          {showFreshness ? (
-            <div className="mt-2">
-              <PublishingFreshness />
-            </div>
-          ) : null}
-        </div>
+            {showFreshness ? (
+              <span className="mt-2 block">
+                <PublishingFreshness />
+              </span>
+            ) : null}
+          </>
+        }
+        title={t("scheduled.title")}
+        titleId="account-scheduled-title"
+      >
         {rows.length === 0 ? (
           <CompactEmpty description={t("scheduled.empty")} />
         ) : (
@@ -612,7 +611,7 @@ function ScheduledCards({
             ) : null}
           </Collapsible>
         )}
-      </Card>
+      </SectionCard>
     </section>
   );
 }
@@ -732,16 +731,8 @@ function SavedCards({
       aria-labelledby="account-saved-title"
       className="min-w-0"
     >
-      <Card className="min-w-0 gap-0 border bg-muted/20 p-3 ring-0 sm:p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <h2
-            className="font-medium text-sm"
-            id="account-saved-title"
-            ref={onFallbackFocus}
-            tabIndex={-1}
-          >
-            {t("saved.title")}
-          </h2>
+      <SectionCard
+        action={
           <LabeledSelect
             busy={isPending}
             className="w-fit"
@@ -760,7 +751,13 @@ function SavedCards({
             triggerClassName="max-sm:min-h-11"
             value={query.savedState}
           />
-        </div>
+        }
+        className="min-w-0"
+        title={t("saved.title")}
+        titleId="account-saved-title"
+        titleRef={(node) => onFallbackFocus(node)}
+        titleTabIndex={-1}
+      >
         {page.rows.length === 0 ? (
           <CompactEmpty description={t("saved.empty")} />
         ) : (
@@ -773,16 +770,8 @@ function SavedCards({
                 const savedAt = new Date(row.savedAt.valueOf());
                 return (
                   <li key={row.id}>
-                    <Card className="border ring-0" size="sm">
-                      <CardHeader className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 py-3">
-                        <CardTitle className="flex items-center gap-2">
-                          <StateMark
-                            state={row.discardedAt ? "cancelled" : "succeeded"}
-                          />
-                          {row.discardedAt
-                            ? t("saved.discarded")
-                            : t("saved.active")}
-                        </CardTitle>
+                    <SectionCard
+                      action={
                         <p className="wrap-anywhere text-muted-foreground text-xs">
                           <span className="inline-flex items-center gap-1.5">
                             <BrandMark
@@ -799,40 +788,56 @@ function SavedCards({
                             <Bdi>{t(`platform.${row.platform}`)}</Bdi>
                           </span>
                         </p>
-                      </CardHeader>
-                      <CardContent>
-                        <Button
-                          aria-label={`${t("saved.open")}: ${row.headline ?? row.originTitle}`}
-                          className="grid h-auto min-h-11 w-full min-w-0 justify-start gap-1 whitespace-normal px-2 py-3 text-start"
-                          onClick={(event) =>
-                            onOpenDraft(event, row.platformDraftId)
-                          }
-                          type="button"
-                          variant="ghost"
-                        >
-                          <ContentPreview
-                            contentLocale={row.contentLocale}
-                            headline={row.headline}
-                            body={row.body}
+                      }
+                      content="flush"
+                      footer={
+                        <div className="flex w-full flex-wrap justify-between gap-2 text-muted-foreground text-xs">
+                          <time dateTime={savedAt.toISOString()}>
+                            {format.dateTime(savedAt, {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })}
+                          </time>
+                          <span>
+                            {row.revisionNumber
+                              ? t("card.revision", { n: row.revisionNumber })
+                              : t("card.noHeadline")}{" "}
+                            ·{" "}
+                            {row.hasImage
+                              ? t("card.image")
+                              : t("card.textOnly")}
+                          </span>
+                        </div>
+                      }
+                      size="sm"
+                      title={
+                        <span className="flex items-center gap-2">
+                          <StateMark
+                            state={row.discardedAt ? "cancelled" : "succeeded"}
                           />
-                        </Button>
-                      </CardContent>
-                      <CardFooter className="flex-wrap justify-between gap-2 bg-muted/20 py-3 text-muted-foreground text-xs">
-                        <time dateTime={savedAt.toISOString()}>
-                          {format.dateTime(savedAt, {
-                            dateStyle: "short",
-                            timeStyle: "short",
-                          })}
-                        </time>
-                        <span>
-                          {row.revisionNumber
-                            ? t("card.revision", { n: row.revisionNumber })
-                            : t("card.noHeadline")}{" "}
-                          ·{" "}
-                          {row.hasImage ? t("card.image") : t("card.textOnly")}
+                          {row.discardedAt
+                            ? t("saved.discarded")
+                            : t("saved.active")}
                         </span>
-                      </CardFooter>
-                    </Card>
+                      }
+                      titleLevel={3}
+                    >
+                      <Button
+                        aria-label={`${t("saved.open")}: ${row.headline ?? row.originTitle}`}
+                        className="grid h-auto min-h-11 w-full min-w-0 justify-start gap-1 whitespace-normal px-2 py-3 text-start"
+                        onClick={(event) =>
+                          onOpenDraft(event, row.platformDraftId)
+                        }
+                        type="button"
+                        variant="ghost"
+                      >
+                        <ContentPreview
+                          contentLocale={row.contentLocale}
+                          headline={row.headline}
+                          body={row.body}
+                        />
+                      </Button>
+                    </SectionCard>
                   </li>
                 );
               })}
@@ -849,7 +854,7 @@ function SavedCards({
           olderCursor={page.olderCursor}
           onCursor={(savedCursor) => void setValues({ savedCursor })}
         />
-      </Card>
+      </SectionCard>
     </section>
   );
 }

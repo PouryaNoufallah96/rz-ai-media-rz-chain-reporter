@@ -16,14 +16,8 @@ export function LogosTelegram({
       viewBox="0 0 256 256"
     >
       {title ? <title>{title}</title> : null}
-      <defs>
-        <linearGradient id="SVG6DaOZcwt2" x1="50%" x2="50%" y1="0%" y2="100%">
-          <stop offset="0%" stopColor="#2aabee" />
-          <stop offset="100%" stopColor="#229ed9" />
-        </linearGradient>
-      </defs>
       <path
-        fill="url(#SVG6DaOZcwt2)"
+        fill="#2aabee"
         d="M128 0C94.06 0 61.48 13.494 37.5 37.49A128.04 128.04 0 0 0 0 128c0 33.934 13.5 66.514 37.5 90.51C61.48 242.506 94.06 256 128 256s66.52-13.494 90.5-37.49c24-23.996 37.5-56.576 37.5-90.51s-13.5-66.514-37.5-90.51C194.52 13.494 161.94 0 128 0"
       />
       <path

@@ -7,7 +7,6 @@ import {
 import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
-import { Card } from "@rz-chain-reporter/ui/components/card";
 import {
   Collapsible,
   CollapsibleContent,
@@ -18,6 +17,7 @@ import { ChevronDownIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId } from "react";
 
+import { SectionCard } from "@/components/common/section-card";
 import { SourceOriginIcon } from "@/components/common/source-origin-icon";
 import { StateMark, type StateMarkState } from "@/components/common/state-mark";
 
@@ -50,17 +50,16 @@ export function SourceCatalog({ catalog }: { catalog: SourceCatalogView }) {
 
   return (
     <section aria-labelledby={titleId} className="min-w-0">
-      <Card className="mt-8 gap-0 border p-4 ring-0 sm:p-5">
-        <h2 className="font-medium text-sm" id={titleId}>
-          {t("catalog.title")}
-        </h2>
-        <p className="mt-2 text-muted-foreground text-xs">
-          {t("catalog.hint")}
-        </p>
+      <SectionCard
+        className="mt-8"
+        content="grid"
+        contentClassName="gap-6"
+        description={t("catalog.hint")}
+        title={t("catalog.title")}
+        titleId={titleId}
+      >
         {catalog.entries.length === 0 ? (
-          <p className="mt-4 text-muted-foreground text-sm">
-            {t("catalog.empty")}
-          </p>
+          <p className="text-muted-foreground text-sm">{t("catalog.empty")}</p>
         ) : (
           GROUPS.map((origin) => {
             const entries = catalog.entries.filter(
@@ -72,7 +71,7 @@ export function SourceCatalog({ catalog }: { catalog: SourceCatalogView }) {
             );
           })
         )}
-      </Card>
+      </SectionCard>
     </section>
   );
 }
@@ -94,7 +93,7 @@ function SourceGroup({
   );
 
   return (
-    <section aria-labelledby={labelId} className="mt-6">
+    <section aria-labelledby={labelId}>
       <h3 className="flex items-baseline gap-2" id={labelId}>
         <span className="ticket-label inline-flex items-center gap-1.5">
           <SourceOriginIcon className="size-3.5" origin={origin} />

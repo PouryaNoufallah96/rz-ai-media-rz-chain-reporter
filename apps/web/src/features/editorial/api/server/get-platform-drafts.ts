@@ -23,10 +23,11 @@ import type { PlatformDraftLane } from "../../schemas/drafts";
 
 export async function getPlatformDrafts(
   analysisRunId: string,
+  presentationLocale?: ContentLocale,
 ): Promise<PlatformDraftLane[]> {
-  const [session, presentationLocale, workspaceId] = await Promise.all([
+  const [session, resolvedPresentationLocale, workspaceId] = await Promise.all([
     requireSession(),
-    currentLocale(),
+    presentationLocale ?? currentLocale(),
     resolveInstallationWorkspaceId(rpcDb()),
   ]);
 
@@ -36,7 +37,7 @@ export async function getPlatformDrafts(
     env.PUBLISHING_EMERGENCY_PAUSED,
     customerTimeZone,
     analysisRunId,
-    presentationLocale,
+    resolvedPresentationLocale,
     customerEditorial.brands,
     customerEditorial.platforms,
   );

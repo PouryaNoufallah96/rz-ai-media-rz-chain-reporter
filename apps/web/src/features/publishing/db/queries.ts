@@ -11,7 +11,6 @@ import {
   occurredAtCursorSchema,
 } from "@/features/shared/lib/keyset-cursor";
 
-import { PUBLISHING_PAGE_SIZE } from "../constants";
 import type {
   PublishingHistoryRow,
   PublishingQuery,
@@ -45,6 +44,7 @@ export async function readSavedHistory(
   workspaceId: string,
   userId: string,
   query: SavedQuery,
+  pageSize: number,
 ) {
   const cursor = decodeKeysetCursor(occurredAtCursorSchema, query.cursor);
   const direction = cursor?.direction ?? "older";
@@ -99,11 +99,11 @@ export async function readSavedHistory(
       ${state}
       and ${cursorCondition(cursor, sql`saved.created_at`, sql`saved.id`)}
     order by saved.created_at ${orderDirection}, saved.id ${orderDirection}
-    limit ${PUBLISHING_PAGE_SIZE + 1}
+    limit ${pageSize + 1}
   `);
   const { ordered, ...page } = keysetPageOf({
     raw: result.rows,
-    pageSize: PUBLISHING_PAGE_SIZE,
+    pageSize,
     cursor,
     toCursor: occurredAtCursorOf,
   });
@@ -143,6 +143,7 @@ export async function readPublishingHistory(
   workspaceId: string,
   userId: string,
   query: PublishingQuery,
+  pageSize: number,
 ) {
   const cursor = decodeKeysetCursor(occurredAtCursorSchema, query.cursor);
   const direction = cursor?.direction ?? "older";
@@ -278,11 +279,11 @@ export async function readPublishingHistory(
     from (${source}) history
     where ${cursorCondition(cursor, sql`history."occurredAt"`, sql`history.id`)}
     order by history."occurredAt" ${orderDirection}, history.id ${orderDirection}
-    limit ${PUBLISHING_PAGE_SIZE + 1}
+    limit ${pageSize + 1}
   `);
   const { ordered, ...page } = keysetPageOf({
     raw: result.rows,
-    pageSize: PUBLISHING_PAGE_SIZE,
+    pageSize,
     cursor,
     toCursor: occurredAtCursorOf,
   });

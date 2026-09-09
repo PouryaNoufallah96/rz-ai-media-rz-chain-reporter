@@ -35,11 +35,11 @@ export const loadSavedSearchParams = createLoader(savedSearchParsers);
 export const loadPublishingSearchParams = createLoader(publishingSearchParsers);
 export type PublishingSearchParams = Promise<SearchParams>;
 
-const savedQuerySchema = z.strictObject({
+export const savedQuerySchema = z.strictObject({
   state: z.enum(SAVED_STATES),
   cursor: keysetCursorParam,
 });
-const publishingQuerySchema = z.strictObject({
+export const publishingQuerySchema = z.strictObject({
   view: z.enum(PUBLISHING_VIEWS),
   cursor: keysetCursorParam,
 });

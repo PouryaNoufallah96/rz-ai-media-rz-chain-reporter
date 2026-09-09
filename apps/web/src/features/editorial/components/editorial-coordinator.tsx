@@ -33,9 +33,10 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-
+import { CommandHotkeyKbd } from "@/components/hotkeys/hotkey-kbd";
 import { useAssistant } from "@/features/assistant/lib/assistant-context";
 import type { SourceCatalogEntry } from "@/features/sources/schemas/catalog";
+import { useCommandHotkey } from "@/hooks/use-command-hotkey";
 import { useTransitionUrlState } from "@/hooks/use-transition-url-state";
 import { Link } from "@/i18n/navigation";
 import { EDITORIAL_NAMESPACE } from "../constants";
@@ -118,6 +119,11 @@ export function EditorialCoordinator({
   const sidebarPanel = useRef<HTMLDivElement>(null);
   const sidebarTrigger = useRef<HTMLButtonElement>(null);
   const sidebarClose = useRef<HTMLButtonElement>(null);
+
+  useCommandHotkey("editorial.sidebar.toggle", () => {
+    setSidebarOverride(!sidebarOpen);
+  });
+
   const { isPending, setValues, values } = useTransitionUrlState(
     workspaceSearchParsers,
   );
@@ -181,22 +187,32 @@ export function EditorialCoordinator({
           <SidebarHeader className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 workspace:group-data-open/sidebar:grid-cols-subgrid">
             <div className="flex items-center gap-2">
               {desktopSidebar ? (
-                <SidebarTrigger ref={sidebarTrigger}>
-                  {t("run.title")}
-                </SidebarTrigger>
-              ) : (
-                <SheetTrigger
-                  className="group/sidebar-trigger min-h-9 gap-2 max-sm:min-h-11"
-                  ref={sidebarTrigger}
-                  render={<Button variant="outline" />}
+                <Hint
+                  keys={<CommandHotkeyKbd id="editorial.sidebar.toggle" />}
+                  label={t("run.title")}
                 >
-                  {t("run.title")}
-                  <PanelLeftIcon
-                    aria-hidden="true"
-                    className="rtl:rotate-180"
-                    data-icon="inline-end"
-                  />
-                </SheetTrigger>
+                  <SidebarTrigger ref={sidebarTrigger}>
+                    {t("run.title")}
+                  </SidebarTrigger>
+                </Hint>
+              ) : (
+                <Hint
+                  keys={<CommandHotkeyKbd id="editorial.sidebar.toggle" />}
+                  label={t("run.title")}
+                >
+                  <SheetTrigger
+                    className="group/sidebar-trigger min-h-9 gap-2 max-sm:min-h-11"
+                    ref={sidebarTrigger}
+                    render={<Button variant="outline" />}
+                  >
+                    {t("run.title")}
+                    <PanelLeftIcon
+                      aria-hidden="true"
+                      className="rtl:rotate-180"
+                      data-icon="inline-end"
+                    />
+                  </SheetTrigger>
+                </Hint>
               )}
               <Hint label={t("run.newWorkspace")}>
                 <Button

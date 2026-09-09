@@ -10,11 +10,6 @@ import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@rz-chain-reporter/ui/components/card";
-import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -40,6 +35,7 @@ import { ChevronDownIcon, FileTextIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import type { SubmitEventHandler } from "react";
 import { ModelIcon } from "@/components/common/model-icon";
+import { SectionCard } from "@/components/common/section-card";
 import { StateMark } from "@/components/common/state-mark";
 import { CoreDataTable } from "@/components/data-table/data-table";
 import { KeysetPagination } from "@/components/data-table/keyset-pagination";
@@ -371,75 +367,72 @@ function UsageSummaryBlock({ summary }: { summary: UsageSummary }) {
   const format = useFormatter();
   return (
     <section aria-labelledby="usage-summary-title" className="mt-6">
-      <Card className="gap-0 border ring-0">
-        <CardHeader className="border-b bg-muted/30 py-4">
-          <h2 className="font-medium text-sm" id="usage-summary-title">
-            {t("summary.title")}
-          </h2>
-        </CardHeader>
-        <CardContent className="px-0">
-          <dl className="grid grid-cols-2 gap-4 border-b p-4 text-xs sm:grid-cols-3 sm:p-5 lg:grid-cols-5">
-            <SummaryFact
-              label={t("summary.invocations")}
-              value={format.number(summary.invocations)}
-            />
-            <SummaryFact
-              label={t("summary.tokens")}
-              value={format.number(summary.totalTokens)}
-            />
-            <SummaryFact
-              label={t("summary.recordedCost")}
-              value={format.number(Number(summary.recordedCost), COST_FORMAT)}
-            />
-            <SummaryFact
-              label={t("summary.pending")}
-              value={format.number(summary.pendingCount)}
-            />
-            <SummaryFact
-              label={t("summary.unknown")}
-              value={format.number(summary.unknownCount)}
-            />
-          </dl>
-          {summary.models.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("columns.model")}</TableHead>
-                  <TableHead>{t("columns.backend")}</TableHead>
-                  <TableHead>{t("summary.invocations")}</TableHead>
-                  <TableHead>{t("summary.tokens")}</TableHead>
-                  <TableHead>{t("summary.recordedCost")}</TableHead>
+      <SectionCard
+        content="flush"
+        title={t("summary.title")}
+        titleId="usage-summary-title"
+      >
+        <dl className="grid grid-cols-2 gap-4 border-b p-4 text-xs sm:grid-cols-3 sm:p-5 lg:grid-cols-5">
+          <SummaryFact
+            label={t("summary.invocations")}
+            value={format.number(summary.invocations)}
+          />
+          <SummaryFact
+            label={t("summary.tokens")}
+            value={format.number(summary.totalTokens)}
+          />
+          <SummaryFact
+            label={t("summary.recordedCost")}
+            value={format.number(Number(summary.recordedCost), COST_FORMAT)}
+          />
+          <SummaryFact
+            label={t("summary.pending")}
+            value={format.number(summary.pendingCount)}
+          />
+          <SummaryFact
+            label={t("summary.unknown")}
+            value={format.number(summary.unknownCount)}
+          />
+        </dl>
+        {summary.models.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("columns.model")}</TableHead>
+                <TableHead>{t("columns.backend")}</TableHead>
+                <TableHead>{t("summary.invocations")}</TableHead>
+                <TableHead>{t("summary.tokens")}</TableHead>
+                <TableHead>{t("summary.recordedCost")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {summary.models.map((model) => (
+                <TableRow key={`${model.backend}:${model.model}`}>
+                  <TableCell>
+                    <span className="flex items-center gap-2">
+                      <ModelIcon
+                        className="size-4 shrink-0"
+                        vendor={modelVendor(model.model)}
+                      />
+                      <Bdi className="font-mono">{model.model}</Bdi>
+                    </span>
+                  </TableCell>
+                  <TableCell>{t(`backend.${model.backend}`)}</TableCell>
+                  <TableCell className="tabular-nums">
+                    {format.number(model.invocations)}
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {format.number(model.totalTokens)}
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {format.number(Number(model.recordedCost), COST_FORMAT)}
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {summary.models.map((model) => (
-                  <TableRow key={`${model.backend}:${model.model}`}>
-                    <TableCell>
-                      <span className="flex items-center gap-2">
-                        <ModelIcon
-                          className="size-4 shrink-0"
-                          vendor={modelVendor(model.model)}
-                        />
-                        <Bdi className="font-mono">{model.model}</Bdi>
-                      </span>
-                    </TableCell>
-                    <TableCell>{t(`backend.${model.backend}`)}</TableCell>
-                    <TableCell className="tabular-nums">
-                      {format.number(model.invocations)}
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      {format.number(model.totalTokens)}
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      {format.number(Number(model.recordedCost), COST_FORMAT)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : null}
-        </CardContent>
-      </Card>
+              ))}
+            </TableBody>
+          </Table>
+        ) : null}
+      </SectionCard>
     </section>
   );
 }

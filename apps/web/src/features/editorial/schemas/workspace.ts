@@ -29,6 +29,7 @@ import {
   contentLocaleSchema,
   dispatchStateSchema,
   operationLifecycleSchema,
+  runConfigurationTransportSchema,
 } from "@rz-chain-reporter/contracts";
 import type { AnalysisRunProgress } from "@rz-chain-reporter/db/repositories/analysis-run";
 import { createLoader, parseAsString, type SearchParams } from "nuqs/server";
@@ -44,7 +45,7 @@ export const loadWorkspaceSearchParams = createLoader(workspaceSearchParsers);
 
 export type WorkspaceSearchParams = Promise<SearchParams>;
 
-const workspaceQuerySchema = z.object({
+export const workspaceQuerySchema = z.object({
   draft: z.uuid().nullable().catch(null),
   run: z.uuid().nullable().catch(null),
 });
@@ -61,6 +62,11 @@ export const analysisRunIdSchema = z.uuid();
 
 export const cancelAnalysisRunInputSchema = z.object({
   analysisRunId: analysisRunIdSchema,
+});
+
+export const startAnalysisRunInputSchema = z.strictObject({
+  configuration: runConfigurationTransportSchema,
+  idempotencyKey: z.uuid({ error: "IDEMPOTENCY_KEY_REQUIRED" }),
 });
 
 export const startPresentationTranslationInputSchema = z.strictObject({
@@ -103,7 +109,8 @@ export const presentationTranslationStatusSchema = translationStatusSchema;
 export type TranslationStatus = z.infer<typeof translationStatusSchema>;
 export type PresentationTranslationStatus = TranslationStatus;
 
-export const startAnalysisRunResultSchema = z.object({
+export const startAnalysisRunResultSchema = z.strictObject({
+  status: z.enum(["created", "replayed"]),
   operationId: z.uuid(),
   analysisRunId: z.uuid(),
 });
