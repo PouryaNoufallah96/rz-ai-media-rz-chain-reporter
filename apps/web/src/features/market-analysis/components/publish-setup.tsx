@@ -29,6 +29,7 @@ import type { MarketAnalysisOptionsProjection } from "../schemas/reads";
 
 export function PublishSetup({
   busy,
+  disabledPlatforms,
   modelOptionKey,
   models,
   onModelOptionChange,
@@ -42,6 +43,7 @@ export function PublishSetup({
   selectedCard,
 }: {
   busy: boolean;
+  disabledPlatforms?: ReadonlySet<Platform>;
   modelOptionKey: string;
   models: MarketAnalysisOptionsProjection["copyModels"];
   onModelOptionChange: (modelOptionKey: string) => void;
@@ -68,17 +70,23 @@ export function PublishSetup({
             onValueChange={(next) => {
               const value = next.at(-1);
               const chosen = platforms.find((candidate) => candidate === value);
-              if (chosen) onPlatformChange(chosen);
+              if (!chosen || disabledPlatforms?.has(chosen)) return;
+              onPlatformChange(chosen);
             }}
             value={platform ? [platform] : []}
           >
             {platforms.map((candidate) => {
               const name = editorialT(`run.platform.${candidate}`);
+              const prepared = disabledPlatforms?.has(candidate) ?? false;
+              const label = prepared
+                ? t("report.platformAlreadyPrepared", { platform: name })
+                : name;
               return (
-                <Hint key={candidate} label={name}>
+                <Hint key={candidate} label={label}>
                   <ToggleGroupItem
-                    aria-label={name}
+                    aria-label={label}
                     className="min-h-7 min-w-7 px-0"
+                    disabled={prepared}
                     value={candidate}
                   >
                     <PlatformIcon className="size-4" platform={candidate} />

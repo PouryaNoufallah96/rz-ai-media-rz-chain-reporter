@@ -34,7 +34,6 @@ import {
   keysetPageOf,
 } from "@/features/shared/lib/keyset-cursor";
 import { customerEditorial } from "@/lib/customer-template.server";
-import { MARKET_ANALYSIS_HISTORY_PAGE_SIZE } from "../constants";
 import { hashPayload } from "../lib/fingerprints";
 import { suggestMarketStories } from "../lib/story-suggestions";
 import {
@@ -888,6 +887,7 @@ export async function readMarketAnalysisHistoryBase(
   workspaceId: string,
   userId: string,
   query: MarketAnalysisHistoryQuery,
+  pageSize: number,
 ): Promise<MarketAnalysisHistoryPage> {
   const cursor = decodeKeysetCursor(
     marketAnalysisHistoryCursorSchema,
@@ -969,11 +969,11 @@ export async function readMarketAnalysisHistoryBase(
       ${search}
       ${bound}
     order by ${ordering}
-    limit ${MARKET_ANALYSIS_HISTORY_PAGE_SIZE + 1}
+    limit ${pageSize + 1}
   `);
   const { ordered, ...page } = keysetPageOf({
     raw: result.rows,
-    pageSize: MARKET_ANALYSIS_HISTORY_PAGE_SIZE,
+    pageSize,
     cursor,
     toCursor: (row, nextDirection) => ({
       direction: nextDirection,

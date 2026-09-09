@@ -117,10 +117,11 @@ export function ReportPublishing({
           analysisId={analysisId}
           copyModels={copyModels}
           defaultCopyModelOptionKey={defaultCopyModelOptionKey}
+          disabledPlatforms={preparedPlatforms}
           onPrepared={(draftId) =>
             void setValues({ draft: draftId }, { startTransition })
           }
-          platforms={openPlatforms}
+          platforms={platforms}
         />
       ) : null}
       <CardSheet
@@ -147,26 +148,31 @@ function PreparePlatform({
   analysisId,
   copyModels,
   defaultCopyModelOptionKey,
+  disabledPlatforms,
   onPrepared,
   platforms,
 }: {
   analysisId: string;
   copyModels: MarketAnalysisOptionsProjection["copyModels"];
   defaultCopyModelOptionKey: string;
+  disabledPlatforms: ReadonlySet<Platform>;
   onPrepared: (draftId: string) => void;
   platforms: readonly Platform[];
 }) {
   const t = useTranslations(MARKET_ANALYSIS_NAMESPACE);
   const resolveError = useMarketActionError();
   const prepare = useAction(prepareMarketPlatformAction);
+  const openPlatforms = platforms.filter(
+    (candidate) => !disabledPlatforms.has(candidate),
+  );
   const [platform, setPlatform] = useState<Platform | undefined>(
-    () => platforms[0],
+    () => openPlatforms[0],
   );
   const [modelOptionKey, setModelOptionKey] = useState(
     defaultCopyModelOptionKey,
   );
   const selected =
-    platform && platforms.includes(platform) ? platform : platforms[0];
+    platform && openPlatforms.includes(platform) ? platform : openPlatforms[0];
 
   const preparePlatform = async () => {
     if (!selected) return;
@@ -190,6 +196,7 @@ function PreparePlatform({
       </div>
       <PublishSetup
         busy={prepare.isPending}
+        disabledPlatforms={disabledPlatforms}
         modelOptionKey={modelOptionKey}
         models={copyModels}
         onModelOptionChange={setModelOptionKey}

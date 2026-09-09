@@ -14,6 +14,8 @@ import {
 export type PrepareMarketPlatformInput = {
   actorId: string;
   analysisId: string;
+  expectedVersion?: number;
+  expectedFinalFingerprint?: string;
   platform: Platform;
   modelOptionKey: string;
   idempotencyKey: string;
@@ -66,6 +68,7 @@ type AuthorityRow = {
   storySupportingText: string | null;
   templateFingerprint: string;
   visualOwnerInstrumentId: string;
+  version: number;
 };
 
 class RouteRejected extends Error {
@@ -92,6 +95,14 @@ export async function prepareMarketPlatform(
       const authority = await loadAuthority(tx, workspaceId, input.analysisId);
       if (!authority || authority.operationActor !== input.actorId) {
         return { status: "not_found" } as const;
+      }
+      if (
+        (input.expectedVersion !== undefined &&
+          authority.version !== input.expectedVersion) ||
+        (input.expectedFinalFingerprint !== undefined &&
+          authority.approvedFinalFingerprint !== input.expectedFinalFingerprint)
+      ) {
+        return { status: "stale_origin" } as const;
       }
       if (!ready(authority)) return { status: "not_ready" } as const;
       const verifiedFacts = await tx
@@ -237,7 +248,8 @@ async function loadAuthority(
       analysis.story_headline as "storyHeadline",
       analysis.story_supporting_text as "storySupportingText",
       analysis.template_fingerprint as "templateFingerprint",
-      analysis.visual_owner_instrument_id as "visualOwnerInstrumentId"
+      analysis.visual_owner_instrument_id as "visualOwnerInstrumentId",
+      analysis.version as "version"
     from market_analysis analysis
     join operation owner_operation
       on owner_operation.workspace_id = analysis.workspace_id

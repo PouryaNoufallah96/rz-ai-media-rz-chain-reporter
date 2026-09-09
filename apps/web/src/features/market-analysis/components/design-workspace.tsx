@@ -205,9 +205,11 @@ export function DesignWorkspace({
             const FamilyIcon = FAMILY_ICONS[family.key] ?? ImageIcon;
             return {
               label: (
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <FamilyIcon aria-hidden="true" className="size-4" />
-                  <Bdi>{family.displayName}</Bdi>
+                <span className="flex w-full min-w-0 items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <FamilyIcon aria-hidden="true" className="size-4" />
+                    <Bdi>{family.displayName}</Bdi>
+                  </div>
                   <span className="text-muted-foreground">
                     {t("design.versionCount", {
                       count: family.variants.length,

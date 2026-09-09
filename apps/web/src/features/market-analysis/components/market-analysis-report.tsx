@@ -7,18 +7,7 @@ import {
 import { Badge } from "@rz-chain-reporter/ui/components/badge";
 import { Bdi } from "@rz-chain-reporter/ui/components/bdi";
 import { Button } from "@rz-chain-reporter/ui/components/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@rz-chain-reporter/ui/components/card";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@rz-chain-reporter/ui/components/collapsible";
+import { Card, CardContent } from "@rz-chain-reporter/ui/components/card";
 import { Skeleton } from "@rz-chain-reporter/ui/components/skeleton";
 import {
   Table,
@@ -31,13 +20,13 @@ import {
 } from "@rz-chain-reporter/ui/components/table";
 import {
   AlertTriangleIcon,
-  ChevronDownIcon,
   DownloadIcon,
   ExternalLinkIcon,
 } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
 
+import { SectionCard } from "@/components/common/section-card";
 import { Suspended } from "@/components/fetcher/suspended";
 import { PublishingFreshness } from "@/features/publishing/components/publishing-freshness";
 import { currentLocale, getFormatter, getT } from "@/i18n/server";
@@ -115,7 +104,9 @@ export async function MarketAnalysisReport({
         t={t}
       />
       <div className="grid gap-4 xl:grid-cols-2">
-        <ReportSection
+        <SectionCard
+          className="flex-1"
+          content="stack"
           footer={t("report.approvedAt", {
             date: dateTime(core.story.approvedAt),
           })}
@@ -131,8 +122,10 @@ export async function MarketAnalysisReport({
               {core.story.supportingText}
             </p>
           </div>
-        </ReportSection>
-        <ReportSection
+        </SectionCard>
+        <SectionCard
+          className="flex-1"
+          content="stack"
           footer={t("report.approvedAt", {
             date: dateTime(core.design.approvedAt),
           })}
@@ -155,10 +148,12 @@ export async function MarketAnalysisReport({
               </Bdi>
             </Fact>
           </dl>
-        </ReportSection>
+        </SectionCard>
       </div>
-      <ReportSection
+      <SectionCard
         action={<PublishingFreshness />}
+        className="flex-1"
+        content="stack"
         description={t("report.handoffsBody")}
         title={t("report.handoffs")}
       >
@@ -170,8 +165,7 @@ export async function MarketAnalysisReport({
             <ReportPublishing handoffs={current.handoffs} {...publishing} />
           )}
         </Suspended>
-      </ReportSection>
-      <ReportProvenance core={core} dateTime={dateTime} t={t} />
+      </SectionCard>
     </article>
   );
 }
@@ -241,7 +235,7 @@ function Artifact({
 }) {
   const href = `/api/media/${media.id}`;
   return (
-    <ReportSection
+    <SectionCard
       action={
         <Suspended
           data={integrity}
@@ -252,108 +246,114 @@ function Artifact({
           )}
         </Suspended>
       }
+      className="flex-1"
+      content="stack"
+      footer={
+        <div className="grid w-full gap-3">
+          <dl className="grid compact:grid-cols-2 gap-3 text-xs">
+            <Fact label={t("report.dimensions")}>
+              <Bdi>
+                {media.width} × {media.height}
+              </Bdi>
+            </Fact>
+            <Fact label={t("report.fileType")}>
+              <Bdi dir="ltr">{media.mimeType}</Bdi>
+            </Fact>
+            {attribution && attribution.length > 0 ? (
+              <Fact label={t("report.attribution")}>
+                <Bdi dir="ltr">{attribution.join(" · ")}</Bdi>
+              </Fact>
+            ) : null}
+            {spec ? (
+              <>
+                <Fact label={t("chart.legendPosition")}>
+                  {t(`chart.legendPositions.${spec.legendPosition}`)}
+                </Fact>
+                <Fact label={t("chart.legendFormat")}>
+                  {t(`chart.legendFormats.${spec.legendFormat}`)}
+                </Fact>
+                <Fact label={t("chart.lineWidth")}>
+                  {t("chart.lineWidthValue", { value: spec.lineWidth })}
+                </Fact>
+                <Fact label={t("chart.markers")}>
+                  {t(`chart.markerOptions.${spec.markers}`)}
+                </Fact>
+                <Fact label={t("chart.gridStrength")}>
+                  {t(`chart.gridStrengths.${spec.gridStrength}`)}
+                </Fact>
+              </>
+            ) : null}
+          </dl>
+          <Suspended data={integrity} fallback={null}>
+            {(current) =>
+              current === "available" ? (
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button
+                    nativeButton={false}
+                    render={
+                      <a href={href} rel="noreferrer" target="_blank">
+                        <ExternalLinkIcon
+                          aria-hidden="true"
+                          data-icon="inline-start"
+                        />
+                        {t("report.view")}
+                      </a>
+                    }
+                    size="sm"
+                    variant="outline"
+                  />
+                  <Button
+                    nativeButton={false}
+                    render={
+                      <a href={`${href}?download=1`}>
+                        <DownloadIcon
+                          aria-hidden="true"
+                          data-icon="inline-start"
+                        />
+                        {t("report.download")}
+                      </a>
+                    }
+                    size="sm"
+                    variant="outline"
+                  />
+                </div>
+              ) : null
+            }
+          </Suspended>
+        </div>
+      }
       title={label}
     >
-      <Suspended
-        data={integrity}
-        fallback={
-          <Skeleton
-            className="max-h-176 w-full rounded-lg"
-            style={{ aspectRatio: `${media.width} / ${media.height}` }}
-          />
-        }
-      >
-        {(current) =>
-          current === "available" ? (
-            <Image
-              alt={alt}
-              className="h-auto max-h-176 w-full rounded-lg border object-contain"
-              height={media.height}
-              loading="eager"
-              src={href}
-              unoptimized
-              width={media.width}
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <Suspended
+          data={integrity}
+          fallback={
+            <Skeleton
+              className="max-h-112 max-w-full rounded-lg"
+              style={{ aspectRatio: `${media.width} / ${media.height}` }}
             />
-          ) : (
-            <p className="text-muted-foreground text-xs">
-              {t(`report.integrityBody.${current}`)}
-            </p>
-          )
-        }
-      </Suspended>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <dl className="grid compact:grid-cols-2 gap-3 text-xs">
-          <Fact label={t("report.dimensions")}>
-            <Bdi>
-              {media.width} × {media.height}
-            </Bdi>
-          </Fact>
-          <Fact label={t("report.fileType")}>
-            <Bdi dir="ltr">{media.mimeType}</Bdi>
-          </Fact>
-          {attribution && attribution.length > 0 ? (
-            <Fact label={t("report.attribution")}>
-              <Bdi dir="ltr">{attribution.join(" · ")}</Bdi>
-            </Fact>
-          ) : null}
-          {spec ? (
-            <>
-              <Fact label={t("chart.legendPosition")}>
-                {t(`chart.legendPositions.${spec.legendPosition}`)}
-              </Fact>
-              <Fact label={t("chart.legendFormat")}>
-                {t(`chart.legendFormats.${spec.legendFormat}`)}
-              </Fact>
-              <Fact label={t("chart.lineWidth")}>
-                {t("chart.lineWidthValue", { value: spec.lineWidth })}
-              </Fact>
-              <Fact label={t("chart.markers")}>
-                {t(`chart.markerOptions.${spec.markers}`)}
-              </Fact>
-              <Fact label={t("chart.gridStrength")}>
-                {t(`chart.gridStrengths.${spec.gridStrength}`)}
-              </Fact>
-            </>
-          ) : null}
-        </dl>
-        <Suspended data={integrity} fallback={null}>
+          }
+        >
           {(current) =>
             current === "available" ? (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  nativeButton={false}
-                  render={
-                    <a href={href} rel="noreferrer" target="_blank">
-                      <ExternalLinkIcon
-                        aria-hidden="true"
-                        data-icon="inline-start"
-                      />
-                      {t("report.view")}
-                    </a>
-                  }
-                  size="sm"
-                  variant="outline"
-                />
-                <Button
-                  nativeButton={false}
-                  render={
-                    <a href={`${href}?download=1`}>
-                      <DownloadIcon
-                        aria-hidden="true"
-                        data-icon="inline-start"
-                      />
-                      {t("report.download")}
-                    </a>
-                  }
-                  size="sm"
-                  variant="outline"
-                />
-              </div>
-            ) : null
+              <Image
+                alt={alt}
+                className="h-auto max-h-112 w-auto max-w-full rounded-lg border object-contain"
+                height={media.height}
+                loading="eager"
+                src={href}
+                unoptimized
+                width={media.width}
+              />
+            ) : (
+              <p className="text-muted-foreground text-xs">
+                {t(`report.integrityBody.${current}`)}
+              </p>
+            )
           }
         </Suspended>
       </div>
-    </ReportSection>
+    </SectionCard>
   );
 }
 
@@ -381,7 +381,9 @@ function MarketEvidence({
     "state",
   ] as const;
   return (
-    <ReportSection
+    <SectionCard
+      className="flex-1"
+      content="stack"
       description={t("report.marketWindow", {
         status: t(`report.snapshotStatus.${core.snapshot.status}`),
         scale: t(`create.scales.${core.normalizedRequest.scale}`),
@@ -477,140 +479,7 @@ function MarketEvidence({
           </TableBody>
         </Table>
       </div>
-    </ReportSection>
-  );
-}
-
-function ReportProvenance({
-  core,
-  dateTime,
-  t,
-}: {
-  core: ReportCore;
-  dateTime: (value: Date) => string;
-  t: Translate;
-}) {
-  const entries: readonly (readonly [string, string])[] = [
-    [t("report.analysisId"), core.id],
-    [t("report.requestFingerprint"), core.requestFingerprint],
-    [t("report.snapshotId"), core.snapshot.id],
-    [t("report.chartFingerprint"), core.chart.fingerprint],
-    [t("report.renderContract"), core.chart.renderContractVersion],
-    [t("report.chartChecksum"), core.chart.media.checksum],
-    [t("report.storyFingerprint"), core.story.fingerprint],
-    [t("report.designFingerprint"), core.design.fingerprint],
-    [t("report.imageOption"), core.design.imageOptionKey],
-    [t("report.referenceKey"), core.design.referenceSampleKey],
-    [t("report.referenceChecksum"), core.design.referenceSampleChecksum],
-    [t("report.lockupKey"), core.design.footerLockupKey],
-    [t("report.lockupChecksum"), core.design.footerLockupChecksum],
-    [t("report.posterFingerprint"), core.final.fingerprint],
-    [t("report.posterChecksum"), core.final.media.checksum],
-    [t("report.operationId"), core.final.operationId],
-    [t("report.templateFingerprint"), core.fingerprints.template],
-    [t("report.catalogFingerprint"), core.fingerprints.catalog ?? "—"],
-    [t("report.profileFingerprint"), core.fingerprints.instrumentProfile],
-    [
-      t("report.approvedChartBy"),
-      `${core.chart.approvedBy} · ${dateTime(core.chart.approvedAt)}`,
-    ],
-    [
-      t("report.approvedStoryBy"),
-      `${core.story.approvedBy} · ${dateTime(core.story.approvedAt)}`,
-    ],
-    [
-      t("report.approvedDesignBy"),
-      `${core.design.approvedBy} · ${dateTime(core.design.approvedAt)}`,
-    ],
-    [
-      t("report.approvedPosterBy"),
-      `${core.final.approvedBy} · ${dateTime(core.final.approvedAt)}`,
-    ],
-    [
-      t("report.completedBy"),
-      `${core.completedBy} · ${dateTime(core.completedAt)}`,
-    ],
-  ];
-  const fallbackReason =
-    core.final.fallbackCode === "MODEL_INVOCATION_FAILED" ||
-    core.final.fallbackCode === "STRUCTURED_OUTPUT_INVALID"
-      ? t(`generate.fallback.${core.final.fallbackCode}`)
-      : t("generate.fallback.generic");
-  return (
-    <Collapsible className="rounded-xl border bg-card text-muted-foreground">
-      <CollapsibleTrigger
-        render={
-          <Button
-            className="group h-auto w-full justify-between whitespace-normal px-4 py-3 text-start"
-            variant="ghost"
-          />
-        }
-      >
-        <span className="text-xs">{t("report.provenance")}</span>
-        <ChevronDownIcon
-          aria-hidden="true"
-          className="size-4 shrink-0 transition-transform group-data-panel-open:rotate-180 motion-reduce:transition-none"
-        />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="border-t p-4">
-        <dl className="grid compact:grid-cols-2 wide:grid-cols-3 gap-3 text-xs">
-          {entries.map(([label, value]) => (
-            <Fact key={label} label={label}>
-              <Bdi className="break-all font-mono font-normal">{value}</Bdi>
-            </Fact>
-          ))}
-          <Fact label={t("report.briefSource")}>
-            {core.final.briefSource
-              ? t(`report.briefSources.${core.final.briefSource}`)
-              : "—"}
-          </Fact>
-          {core.final.fallbackCode ? (
-            <Fact label={t("report.fallbackReason")}>{fallbackReason}</Fact>
-          ) : null}
-          <Fact label={t("report.createdAt")}>
-            <time dateTime={core.createdAt.toISOString()}>
-              {dateTime(core.createdAt)}
-            </time>
-          </Fact>
-        </dl>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
-function ReportSection({
-  action,
-  children,
-  description,
-  footer,
-  title,
-}: {
-  action?: ReactNode;
-  children: ReactNode;
-  description?: string;
-  footer?: string;
-  title: string;
-}) {
-  return (
-    <section className="flex min-w-0 flex-col">
-      <Card className="flex-1 gap-0 border ring-0">
-        <CardHeader className="border-b bg-muted/30 py-4">
-          <h2 className="font-medium text-sm">{title}</h2>
-          {description ? (
-            <p className="text-muted-foreground text-xs">{description}</p>
-          ) : null}
-          {action ? <CardAction>{action}</CardAction> : null}
-        </CardHeader>
-        <CardContent className="grid min-w-0 gap-4 pt-4">
-          {children}
-        </CardContent>
-        {footer ? (
-          <CardFooter className="mt-4 text-muted-foreground text-xs">
-            {footer}
-          </CardFooter>
-        ) : null}
-      </Card>
-    </section>
+    </SectionCard>
   );
 }
 

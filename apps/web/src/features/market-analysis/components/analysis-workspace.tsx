@@ -218,6 +218,9 @@ function analysisSidebarPreview(
   options: MarketAnalysisOptionsProjection,
   selected: MarketAnalysisStep,
 ) {
+  if (selected === "chart" || selected === "story") {
+    return <ChartSidebarPreview analysis={analysis} />;
+  }
   if (selected === "design") {
     return (
       <DesignSamplePreview
@@ -264,9 +267,6 @@ function analysisSidebarFooter(
 ) {
   if (selected === "market") {
     return <MarketSnapshotDetail analysis={analysis} />;
-  }
-  if (selected === "chart" || selected === "story") {
-    return <ChartSidebarPreview analysis={analysis} />;
   }
   return undefined;
 }

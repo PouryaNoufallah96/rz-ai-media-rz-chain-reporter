@@ -135,6 +135,15 @@ assert.notDeepEqual(
   materialMarketChartSpec(cleanLight),
   materialMarketChartSpec(highContrast),
 );
+const invalidDraft = {
+  ...cleanLight,
+  presetId: "custom",
+  seriesColors: { alpha: "#fefefe" },
+} as const;
+for (const presetId of MARKET_CHART_PRESET_IDS) {
+  const preset = applyMarketChartPreset(invalidDraft, presetId, ["alpha"]);
+  assert.equal(marketChartSpecSchema.safeParse(preset).success, true);
+}
 for (const presetId of MARKET_CHART_PRESET_IDS) {
   const preset = applyMarketChartPreset(spec, presetId, [
     "one",

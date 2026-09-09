@@ -2,7 +2,7 @@ import { Button } from "@rz-chain-reporter/ui/components/button";
 import { PlusIcon } from "lucide-react";
 
 import { Suspended } from "@/components/fetcher/suspended";
-import { PageContainer } from "@/components/layout/page-container";
+import { PageContainer, PageDesk } from "@/components/layout/page-container";
 import { SHARED_NAMESPACE } from "@/features/shared/constants";
 import { Localized } from "@/i18n/client";
 import { Link } from "@/i18n/navigation";
@@ -21,9 +21,6 @@ import {
 import { AnalysisFrameSkeleton } from "./analysis-workspace-frame";
 import { MarketAnalysisEntry } from "./market-analysis-entry";
 import { MarketAnalysisHistory } from "./market-analysis-history";
-
-const WORKSPACE_FRAME =
-  "mx-auto flex min-h-full w-full max-w-[100rem] flex-col px-4 py-5 sm:px-6 sm:py-6";
 
 export async function MarketAnalysisScreen({
   searchParams,
@@ -59,20 +56,20 @@ export async function MarketAnalysisScreen({
           return { history, kind: "history" as const };
         }}
         fallback={
-          <div className={WORKSPACE_FRAME}>
+          <PageDesk>
             <AnalysisFrameSkeleton />
-          </div>
+          </PageDesk>
         }
       >
         {(result) =>
           result.kind === "create" ? (
-            <div className={WORKSPACE_FRAME}>
+            <PageDesk>
               <MarketAnalysisEntry
                 catalog={result.catalog}
                 initialContentLocale={result.contentLocale}
                 options={result.options}
               />
-            </div>
+            </PageDesk>
           ) : (
             <PageContainer>
               <div className="flex flex-wrap items-start justify-between gap-3">

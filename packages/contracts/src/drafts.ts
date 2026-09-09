@@ -55,6 +55,11 @@ export type CardOriginReference = z.infer<typeof cardOriginReferenceSchema>;
 
 export const prepareMarketPlatformInputSchema = z.strictObject({
   analysisId: z.uuid(),
+  expectedVersion: z.int().positive().optional(),
+  expectedFinalFingerprint: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/u)
+    .optional(),
   platform: platformSchema,
   modelOptionKey: z
     .string()

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { Suspended } from "@/components/fetcher/suspended";
+import { PageDesk } from "@/components/layout/page-container";
 import { getPlatformDraft } from "@/features/editorial/api/server/get-platform-draft";
 import { EDITORIAL_NAMESPACE } from "@/features/editorial/constants";
 import { PUBLISHING_NAMESPACE } from "@/features/publishing/constants";
@@ -41,7 +42,7 @@ export function AnalysisScreen({
   searchParams: MarketAnalysisSearchParams;
 }) {
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-[100rem] flex-col px-4 py-5 sm:px-6 sm:py-6">
+    <PageDesk>
       <Localized namespaces={[MARKET_ANALYSIS_NAMESPACE]}>
         <Suspended
           data={() => readAnalysisView(analysisId, searchParams)}
@@ -62,7 +63,7 @@ export function AnalysisScreen({
           )}
         </Suspended>
       </Localized>
-    </div>
+    </PageDesk>
   );
 }
 

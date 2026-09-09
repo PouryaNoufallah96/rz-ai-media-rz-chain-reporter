@@ -31,7 +31,7 @@ export function AnalysisFooter({
   const slot = useAnalysisFooterSlot();
   if (!slot) return null;
   return createPortal(
-    <div className="workspace:sticky bottom-5 z-10 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl bg-card px-4 py-3 ring-1 ring-foreground/10 max-workspace:pe-16 sm:bottom-6">
+    <div className="workspace:sticky workspace:bottom-5 z-10 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl bg-card px-4 py-3 ring-1 ring-foreground/10 max-workspace:mb-16 sm:workspace:bottom-6">
       <Button
         disabled={!onBack || pending}
         onClick={onBack}

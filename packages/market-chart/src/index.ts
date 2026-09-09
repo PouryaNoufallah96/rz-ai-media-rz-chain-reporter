@@ -203,10 +203,9 @@ export function applyMarketChartPreset(
   presetId: MarketChartPresetId,
   seriesIdentities: readonly string[],
 ) {
-  const normalized = normalizeMarketChartSpec(spec);
   const { colors, ...preset } = MARKET_CHART_PRESETS[presetId];
   return normalizeMarketChartSpec({
-    ...normalized,
+    ...spec,
     ...preset,
     presetId,
     seriesColors: Object.fromEntries(

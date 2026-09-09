@@ -813,6 +813,8 @@ export const preparePlatform = installationProcedure
     const result = await prepareMarketPlatform(rpcDb(), context.workspaceId, {
       actorId: context.session.user.id,
       analysisId: input.analysisId,
+      expectedVersion: input.expectedVersion,
+      expectedFinalFingerprint: input.expectedFinalFingerprint,
       platform: input.platform,
       modelOptionKey,
       idempotencyKey: input.idempotencyKey,
@@ -835,6 +837,9 @@ export const preparePlatform = installationProcedure
     }
     if (result.status === "mismatch") {
       throw errors.IDEMPOTENCY_KEY_REUSED();
+    }
+    if (result.status === "stale_origin") {
+      throw errors.TRANSIENT_CONFLICT();
     }
     if (result.status === "platform_not_allowed") {
       throw errors.VALIDATION_FAILED();

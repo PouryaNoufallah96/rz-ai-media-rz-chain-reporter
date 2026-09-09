@@ -292,7 +292,7 @@
         "plane": "Saturation and brightness",
         "swatch": "Use {color}"
       },
-      "exportPng": "Export PNG",
+      "exportPng": "Export",
       "validation": {
         "title": "Validation",
         "uniqueColors": "Unique series colors",
@@ -300,7 +300,7 @@
         "colorContrast": "Accessible contrast ({ratio, number}:1)",
         "colorContrastHint": "A series color is too close to the background. Raise its contrast to at least {ratio, number}:1.",
         "timeline": "Timeline matches {period}",
-        "timelineHint": "The verified window does not cover the requested {period}. Refresh the market data."
+        "timelineHint": "The available data does not cover enough of the requested {period}. Refresh the market data or start a new analysis with a longer period."
       }
     },
     "story": {
@@ -390,7 +390,7 @@
         "recovery": "Review the current state and try again. If this analysis changed in another tab, refresh first."
       },
       "finalAlt": "Current market poster",
-      "download": "Download PNG",
+      "download": "Download",
       "model": "Image model",
       "direction": "Creative direction",
       "directionHint": "Optional. Style guidance only — the verified facts, approved chart and brand rules never change.",
@@ -452,8 +452,8 @@
       "counter": "{count, number} / {max, number}",
       "approvedPost": "Approved post",
       "approvedPostAlt": "Approved final market image",
-      "downloadPost": "Download PNG",
-      "viewFull": "View full image",
+      "downloadPost": "Download",
+      "viewFull": "View full",
       "checkImage": "Image approved",
       "checkCaption": "Caption selected",
       "checkPlatform": "{platform} connected",
@@ -466,7 +466,6 @@
       "completed": "Completed",
       "approvedAt": "Approved {date}",
       "contentLocale": "Content locale",
-      "analysisId": "Analysis ID",
       "artifacts": "Approved images",
       "finalPoster": "Approved poster",
       "canonicalChart": "Approved chart",
@@ -505,6 +504,7 @@
       "noHandoffs": "No platform captions were prepared for this analysis.",
       "prepareAnother": "Prepare another platform",
       "prepareAnotherBody": "Generate captions for a platform you have not prepared yet. The approved poster stays unchanged.",
+      "platformAlreadyPrepared": "{platform} · Already prepared",
       "classification": {
         "final_completed_chain": "Current approved poster",
         "earlier_approved_chain": "Earlier approved poster"
@@ -526,37 +526,6 @@
       "dimensions": "Dimensions",
       "fileType": "File type",
       "attribution": "Attribution",
-      "provenance": "Provenance and checksums",
-      "requestFingerprint": "Request fingerprint",
-      "snapshotId": "Snapshot ID",
-      "chartFingerprint": "Chart fingerprint",
-      "renderContract": "Chart render contract",
-      "chartChecksum": "Chart checksum",
-      "storyFingerprint": "Text fingerprint",
-      "designFingerprint": "Layout fingerprint",
-      "imageOption": "Image model option",
-      "referenceKey": "Sample key",
-      "referenceChecksum": "Sample checksum",
-      "lockupKey": "Lockup key",
-      "lockupChecksum": "Lockup checksum",
-      "posterFingerprint": "Poster fingerprint",
-      "posterChecksum": "Poster checksum",
-      "operationId": "Generation operation",
-      "templateFingerprint": "Template fingerprint",
-      "catalogFingerprint": "Catalog fingerprint",
-      "profileFingerprint": "Token profile fingerprint",
-      "approvedChartBy": "Chart approved by",
-      "approvedStoryBy": "Text approved by",
-      "approvedDesignBy": "Layout approved by",
-      "approvedPosterBy": "Poster approved by",
-      "completedBy": "Completed by",
-      "createdAt": "Started",
-      "briefSource": "Brief source",
-      "briefSources": {
-        "model": "Generated brief",
-        "deterministic_fallback": "Deterministic brief"
-      },
-      "fallbackReason": "Deterministic brief reason",
       "view": "View",
       "download": "Download",
       "integrity": {

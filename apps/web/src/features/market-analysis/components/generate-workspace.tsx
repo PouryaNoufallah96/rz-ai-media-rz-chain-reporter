@@ -147,7 +147,7 @@ export function GenerateWorkspace({
 
   return (
     <>
-      <div className="grid min-w-0 @3xl:grid-cols-2 gap-4">
+      <div className="grid min-w-0 @xl:grid-cols-2 gap-4">
         <GenerationSetup
           actionError={view.actionError}
           chartUrl={view.chartUrl}
@@ -312,13 +312,13 @@ function GenerationSetup({
 }) {
   const t = useTranslations(MARKET_ANALYSIS_NAMESPACE);
   return (
-    <BackgroundGradient className="h-full" containerClassName="min-w-0">
+    <BackgroundGradient className="h-full" containerClassName="h-full min-w-0">
       <section className="flex h-full min-w-0 flex-col gap-4 p-4">
         <h2 className="ticket-label text-muted-foreground">
           {t("generate.setupTitle")}
         </h2>
         <form
-          className="grid min-w-0 gap-4"
+          className="flex min-w-0 flex-1 flex-col gap-4"
           noValidate
           onChange={onChange}
           onSubmit={onSubmit}
@@ -389,7 +389,7 @@ function GenerationSetup({
           </section>
           <Button
             className={cn(
-              "justify-self-start",
+              "mt-auto w-fit",
               generationRequired && !working && imageOptions.length > 0
                 ? "ready-ring"
                 : undefined,
@@ -432,7 +432,7 @@ function GenerationPreview({
 }) {
   const t = useTranslations(MARKET_ANALYSIS_NAMESPACE);
   return (
-    <Card className="min-w-0">
+    <Card className="h-full min-w-0">
       <CardHeader>
         <h2 className="ticket-label text-muted-foreground">
           {t("generate.previewTitle")}
@@ -442,7 +442,7 @@ function GenerationPreview({
           {t(`generate.statuses.${status}`)}
         </CardAction>
       </CardHeader>
-      <CardContent className="flex min-w-0 grow flex-col gap-4">
+      <CardContent className="flex min-w-0 flex-1 flex-col gap-4">
         {generation?.fallbackCode ? (
           <Alert>
             <InfoIcon />
@@ -452,35 +452,36 @@ function GenerationPreview({
             </AlertDescription>
           </Alert>
         ) : null}
-        {phase && status === "generating" ? (
-          <GenerationPlaceholder
-            className="min-h-0 grow"
-            height={dimensions.height}
-            label={t(`generate.phaseBody.${phase}`)}
-            width={dimensions.width}
-          />
-        ) : mediaUrl ? (
-          <Image
-            alt={t("generate.finalAlt")}
-            className="min-h-0 w-full grow rounded-lg border bg-muted object-contain"
-            height={dimensions.height}
-            loading="eager"
-            src={mediaUrl}
-            unoptimized
-            width={dimensions.width}
-          />
-        ) : (
-          <Empty className="min-h-48 grow border border-dashed">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <ImageIcon aria-hidden="true" />
-              </EmptyMedia>
-              <EmptyTitle>{t("generate.previewEmpty")}</EmptyTitle>
-            </EmptyHeader>
-          </Empty>
-        )}
+        <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
+          {phase && status === "generating" ? (
+            <GenerationPlaceholder
+              height={dimensions.height}
+              label={t(`generate.phaseBody.${phase}`)}
+              width={dimensions.width}
+            />
+          ) : mediaUrl ? (
+            <Image
+              alt={t("generate.finalAlt")}
+              className="h-auto max-h-full w-full rounded-lg border bg-muted object-contain"
+              height={dimensions.height}
+              loading="eager"
+              src={mediaUrl}
+              unoptimized
+              width={dimensions.width}
+            />
+          ) : (
+            <Empty className="min-h-48 w-full border border-dashed">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <ImageIcon aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>{t("generate.previewEmpty")}</EmptyTitle>
+              </EmptyHeader>
+            </Empty>
+          )}
+        </div>
       </CardContent>
-      <CardFooter className="flex-wrap gap-2">
+      <CardFooter className="mt-auto flex-wrap gap-2">
         <Button
           className="data-disabled:pointer-events-none data-disabled:opacity-50"
           disabled={!mediaUrl}
@@ -533,23 +534,25 @@ function ReferenceRow({
   width: number;
 }) {
   return (
-    <figure className="grid min-h-24 min-w-0 grid-cols-[6rem_minmax(0,1fr)] overflow-hidden rounded-lg border">
-      {src ? (
-        <Image
-          alt={alt}
-          className="size-full border-e bg-muted object-cover"
-          height={height}
-          loading="eager"
-          src={src}
-          unoptimized
-          width={width}
-        />
-      ) : (
-        <span className="border-e border-dashed bg-muted" />
-      )}
-      <div className="grid min-w-0 content-center gap-1 p-3">
-        <figcaption className="font-medium text-sm">{title}</figcaption>
-        <p className="text-muted-foreground text-sm">{caption}</p>
+    <figure className="flex min-w-0 items-center gap-3 overflow-hidden rounded-lg border p-2">
+      <div className="size-14 shrink-0 overflow-hidden rounded-md bg-muted">
+        {src ? (
+          <Image
+            alt={alt}
+            className="size-full object-cover"
+            height={height}
+            loading="eager"
+            src={src}
+            unoptimized
+            width={width}
+          />
+        ) : null}
+      </div>
+      <div className="grid min-w-0 flex-1 gap-0.5">
+        <figcaption className="truncate font-medium text-sm">
+          {title}
+        </figcaption>
+        <p className="truncate text-muted-foreground text-xs">{caption}</p>
       </div>
     </figure>
   );

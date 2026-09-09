@@ -292,7 +292,7 @@
         "plane": "اشباع و روشنایی",
         "swatch": "استفاده از {color}"
       },
-      "exportPng": "خروجی PNG",
+      "exportPng": "خروجی",
       "validation": {
         "title": "اعتبارسنجی",
         "uniqueColors": "رنگ یکتا برای هر مجموعه",
@@ -300,7 +300,7 @@
         "colorContrast": "کنتراست دسترس‌پذیر ({ratio, number}:۱)",
         "colorContrastHint": "رنگ یکی از مجموعه‌ها به پس‌زمینه نزدیک است. کنتراست را دست‌کم به {ratio, number}:۱ برسانید.",
         "timeline": "بازهٔ زمانی با {period} هم‌خوان است",
-        "timelineHint": "پنجرهٔ تأییدشده کل {period} درخواستی را پوشش نمی‌دهد. دادهٔ بازار را به‌روزرسانی کنید."
+        "timelineHint": "داده‌های موجود بخش کافی از بازهٔ {period} درخواستی را پوشش نمی‌دهند. دادهٔ بازار را به‌روزرسانی کنید یا تحلیل تازه‌ای با بازهٔ زمانی طولانی‌تر بسازید."
       }
     },
     "story": {
@@ -453,7 +453,7 @@
       "approvedPost": "پست تأییدشده",
       "approvedPostAlt": "تصویر نهایی تأییدشدهٔ بازار",
       "downloadPost": "دریافت PNG",
-      "viewFull": "نمایش تصویر کامل",
+      "viewFull": "نمایش کامل",
       "checkImage": "تصویر تأیید شد",
       "checkCaption": "کپشن انتخاب شد",
       "checkPlatform": "{platform} متصل است",
@@ -466,7 +466,6 @@
       "completed": "تکمیل",
       "approvedAt": "تأیید در {date}",
       "contentLocale": "زبان محتوا",
-      "analysisId": "شناسهٔ تحلیل",
       "artifacts": "تصاویر تأییدشده",
       "finalPoster": "پوستر تأییدشده",
       "canonicalChart": "نمودار تأییدشده",
@@ -505,6 +504,7 @@
       "noHandoffs": "برای این تحلیل کپشن پلتفرمی آماده نشده است.",
       "prepareAnother": "آماده‌سازی پلتفرم دیگر",
       "prepareAnotherBody": "برای پلتفرمی که هنوز آماده نکرده‌اید کپشن بسازید. پوستر تأییدشده تغییری نمی‌کند.",
+      "platformAlreadyPrepared": "{platform} · قبلاً آماده شده",
       "classification": {
         "final_completed_chain": "پوستر تأییدشدهٔ فعلی",
         "earlier_approved_chain": "پوستر تأییدشدهٔ پیشین"
@@ -526,37 +526,6 @@
       "dimensions": "ابعاد",
       "fileType": "نوع فایل",
       "attribution": "منبع‌نگاری",
-      "provenance": "اصالت و چک‌سام‌ها",
-      "requestFingerprint": "اثرانگشت درخواست",
-      "snapshotId": "شناسهٔ اسنپ‌شات",
-      "chartFingerprint": "اثرانگشت نمودار",
-      "renderContract": "نسخهٔ قرارداد رندر نمودار",
-      "chartChecksum": "چک‌سام نمودار",
-      "storyFingerprint": "اثرانگشت متن",
-      "designFingerprint": "اثرانگشت چیدمان",
-      "imageOption": "گزینهٔ مدل تصویر",
-      "referenceKey": "کلید نمونه",
-      "referenceChecksum": "چک‌سام نمونه",
-      "lockupKey": "کلید قفل اطلاعاتی",
-      "lockupChecksum": "چک‌سام قفل اطلاعاتی",
-      "posterFingerprint": "اثرانگشت پوستر",
-      "posterChecksum": "چک‌سام پوستر",
-      "operationId": "عملیات تولید",
-      "templateFingerprint": "اثرانگشت قالب",
-      "catalogFingerprint": "اثرانگشت کاتالوگ",
-      "profileFingerprint": "اثرانگشت پروفایل توکن",
-      "approvedChartBy": "تأییدکنندهٔ نمودار",
-      "approvedStoryBy": "تأییدکنندهٔ متن",
-      "approvedDesignBy": "تأییدکنندهٔ چیدمان",
-      "approvedPosterBy": "تأییدکنندهٔ پوستر",
-      "completedBy": "تکمیل‌کننده",
-      "createdAt": "شروع",
-      "briefSource": "منبع خلاصه",
-      "briefSources": {
-        "model": "خلاصهٔ تولیدشده",
-        "deterministic_fallback": "خلاصهٔ قطعی"
-      },
-      "fallbackReason": "دلیل استفاده از خلاصهٔ قطعی",
       "view": "نمایش",
       "download": "دریافت",
       "integrity": {

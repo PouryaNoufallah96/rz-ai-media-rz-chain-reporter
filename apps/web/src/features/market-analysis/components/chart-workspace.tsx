@@ -78,7 +78,7 @@ import { AnalysisFooter } from "./analysis-footer";
 
 const CHART_FORM_ID = "chart-designer-form";
 const DESIGNER_FIELD_CLASS =
-  "w-auto min-w-0 flex-1 basis-40 @max-2xl:basis-full";
+  "w-auto min-w-0 flex-1 basis-40 @max-lg:basis-full";
 
 const STRIP_OWNED_CODES = new Set([
   "market_chart_series_color_duplicate",
@@ -207,47 +207,49 @@ export function ChartWorkspace({
   return (
     <>
       <form
-        className="grid min-w-0 gap-4"
+        className="grid min-w-0 @3xl:grid-cols-2 gap-4"
         id={CHART_FORM_ID}
         noValidate
         onChange={() => onDirtyChange(true)}
         onSubmit={approveSubmit}
       >
-        <ChartSaveError
-          code={chartSaveError(
-            approve.status,
-            approve.code,
-            saveDefault.status,
-            saveDefault.code,
-          )}
-          resolveError={resolveActionError}
-        />
-        <ChartDesigner
-          activePresetId={spec?.presetId}
-          control={form.control}
-          disabled={pending}
-          isDirty={isDirty}
-          onManualChange={markCustom}
-          onReset={() => {
-            form.reset(values, { keepDirtyValues: false });
-            onDirtyChange(false);
-          }}
-          onSaveDefault={async () => {
-            if (!spec) return;
-            const result = await saveDefault.execute({
-              marketInstrumentId: analysis.visualOwnerInstrumentId,
-              chartSpec: spec,
-              expectedVersion: analysis.chartDefaultVersion,
-            });
-            if (result.status === "success") {
-              toast.success(t("chart.defaultSaved"));
-            }
-          }}
-          onSelectPreset={selectPreset}
-          resolveError={resolveFieldError}
-          series={renderInput.snapshot.series}
-        />
-        <div className="grid min-w-0 gap-3">
+        <div className="grid min-w-0 content-start gap-4">
+          <ChartSaveError
+            code={chartSaveError(
+              approve.status,
+              approve.code,
+              saveDefault.status,
+              saveDefault.code,
+            )}
+            resolveError={resolveActionError}
+          />
+          <ChartDesigner
+            activePresetId={spec?.presetId}
+            control={form.control}
+            disabled={pending}
+            isDirty={isDirty}
+            onManualChange={markCustom}
+            onReset={() => {
+              form.reset(values, { keepDirtyValues: false });
+              onDirtyChange(false);
+            }}
+            onSaveDefault={async () => {
+              if (!spec) return;
+              const result = await saveDefault.execute({
+                marketInstrumentId: analysis.visualOwnerInstrumentId,
+                chartSpec: spec,
+                expectedVersion: analysis.chartDefaultVersion,
+              });
+              if (result.status === "success") {
+                toast.success(t("chart.defaultSaved"));
+              }
+            }}
+            onSelectPreset={selectPreset}
+            resolveError={resolveFieldError}
+            series={renderInput.snapshot.series}
+          />
+        </div>
+        <div className="grid min-w-0 content-start gap-3">
           <ChartPreview
             announcement={announcement}
             onAnnouncement={setAnnouncement}
@@ -880,28 +882,30 @@ export function ChartSidebarPreview({
       return null;
     }
   })();
+  const media = analysis.currentChartMediaAssetId ? (
+    <Image
+      alt={t("chart.canonicalAlt")}
+      className="h-auto w-full rounded-lg border object-contain"
+      height={dimensions.height}
+      loading="eager"
+      src={`/api/media/${analysis.currentChartMediaAssetId}`}
+      unoptimized
+      width={dimensions.width}
+    />
+  ) : svg ? (
+    <div
+      aria-hidden="true"
+      className="overflow-hidden rounded-lg border [&>svg]:h-auto [&>svg]:w-full"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  ) : null;
+  if (!media) return null;
   return (
-    <div className="grid min-w-0 flex-1 gap-2">
+    <div className="grid min-w-0 gap-2">
       <span className="ticket-label text-muted-foreground">
         {t("chart.preview")}
       </span>
-      {analysis.currentChartMediaAssetId ? (
-        <Image
-          alt={t("chart.canonicalAlt")}
-          className="h-auto w-full rounded-lg border"
-          height={dimensions.height}
-          loading="eager"
-          src={`/api/media/${analysis.currentChartMediaAssetId}`}
-          unoptimized
-          width={dimensions.width}
-        />
-      ) : svg ? (
-        <div
-          aria-hidden="true"
-          className="overflow-hidden rounded-lg border [&>svg]:h-auto [&>svg]:w-full"
-          dangerouslySetInnerHTML={{ __html: svg }}
-        />
-      ) : null}
+      {media}
       <div className="flex min-w-0 items-center justify-between gap-2 text-xs">
         <span className="text-muted-foreground">{t("chart.canonical")}</span>
         <span className="font-medium">{t(`chart.renderState.${state}`)}</span>

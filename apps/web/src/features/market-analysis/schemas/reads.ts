@@ -15,6 +15,14 @@ import type {
   OperationLifecycle,
   Platform,
 } from "@rz-chain-reporter/contracts";
+import {
+  contentLocaleSchema,
+  marketChartSpecSchema,
+  marketOutputFormatSchema,
+  marketPeriodSchema,
+  marketScaleSchema,
+  platformSchema,
+} from "@rz-chain-reporter/contracts";
 import { z } from "zod";
 import type { PlatformDraftExactCard } from "@/features/editorial/schemas/drafts";
 
@@ -73,6 +81,136 @@ export const marketComparisonSearchResultSchema = z.strictObject({
 
 export type MarketComparisonSearchResult = z.infer<
   typeof marketComparisonSearchResultSchema
+>;
+
+const assistantMarketOptionSchema = z.strictObject({
+  key: z.string().trim().min(1).max(128),
+  name: z.string().trim().min(1).max(200),
+});
+
+export const assistantMarketLoadProjectionSchema = z.strictObject({
+  options: z.strictObject({
+    instruments: z.array(
+      z.strictObject({
+        id: z.uuid(),
+        key: z.string().trim().min(1).max(128),
+        name: z.string().trim().min(1).max(200),
+        symbol: z.string().trim().min(1).max(80),
+      }),
+    ),
+    enabledPeriods: z.array(marketPeriodSchema),
+    enabledScales: z.array(marketScaleSchema),
+    defaultPeriod: marketPeriodSchema,
+    defaultScale: marketScaleSchema,
+    outputFormat: marketOutputFormatSchema,
+    defaultComparisonIdentity: z.string().nullable(),
+    compositions: z.array(
+      z.strictObject({
+        key: z.string().trim().min(1).max(80),
+        displayName: z.string().trim().min(1).max(200),
+        variants: z.array(
+          z.strictObject({
+            key: z.string().trim().min(1).max(80),
+            displayName: z.string().trim().min(1).max(200),
+            formats: z.array(marketOutputFormatSchema),
+            minSeries: z.int().positive(),
+            maxSeries: z.int().positive(),
+            allowedScales: z.array(marketScaleSchema),
+          }),
+        ),
+      }),
+    ),
+    defaultImageOptionKey: z.string(),
+    imageOptions: z.array(assistantMarketOptionSchema),
+    defaultCopyModelOptionKey: z.string(),
+    copyModels: z.array(assistantMarketOptionSchema),
+    catalog: z.array(marketComparisonProjectionSchema),
+  }),
+  analysis: z
+    .strictObject({
+      id: z.uuid(),
+      status: z.enum(["in_progress", "completed"]),
+      version: z.int().positive(),
+      mediaBrandName: z.string(),
+      visualOwnerInstrumentId: z.uuid(),
+      visualOwnerName: z.string(),
+      visualOwnerSymbol: z.string(),
+      contentLocale: contentLocaleSchema,
+      primaryInstrumentIds: z.array(z.uuid()).min(1).max(3),
+      comparisonCatalogIdentities: z.array(z.string()).max(3),
+      period: marketPeriodSchema,
+      scale: marketScaleSchema,
+      outputFormat: marketOutputFormatSchema,
+      requestFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+      snapshot: z
+        .strictObject({
+          status: z.enum(["verified", "partial", "unverified"]),
+          warnings: z.array(z.string()),
+          series: z.array(
+            z.strictObject({
+              descriptorIdentity: z.string(),
+              role: z.enum(["primary", "comparison"]),
+              outcome: z.enum(["succeeded", "failed"]),
+              changePercent: z.string().nullable(),
+              failureCode: z.string().nullable(),
+            }),
+          ),
+        })
+        .nullable(),
+      chartSpec: marketChartSpecSchema.nullable(),
+      chartDefaultVersion: z.int().positive().nullable(),
+      chartApprovalFingerprint: z.string().nullable(),
+      chartMediaAssetId: z.uuid().nullable(),
+      storyHeadline: z.string().nullable(),
+      storySupportingText: z.string().nullable(),
+      storyApprovalFingerprint: z.string().nullable(),
+      storySuggestions: z.array(
+        z.strictObject({
+          kind: z.enum(["marketComparison", "performanceLead"]),
+          headline: z.string(),
+          supportingText: z.string(),
+        }),
+      ),
+      designFamilyKey: z.string().nullable(),
+      designVariantKey: z.string().nullable(),
+      designApprovalFingerprint: z.string().nullable(),
+      imageOptionKey: z.string().nullable(),
+      operatorDirection: z.string().nullable(),
+      finalMediaAssetId: z.uuid().nullable(),
+      finalApprovalFingerprint: z.string().nullable(),
+      generation: z
+        .strictObject({
+          operationId: z.uuid(),
+          phase: z.enum([
+            "briefing",
+            "cancelled",
+            "failed",
+            "finalizing",
+            "generating",
+            "queued",
+            "ready",
+            "superseded",
+            "unknown",
+          ]),
+          canRetryFinalization: z.boolean(),
+          finalizationRetryEpoch: z.int().nonnegative(),
+        })
+        .nullable(),
+      eligiblePlatforms: z.array(platformSchema),
+      drafts: z.array(
+        z.strictObject({
+          id: z.uuid(),
+          platform: platformSchema,
+          candidateCount: z.int().nonnegative(),
+          generationLifecycle: z.string().nullable(),
+        }),
+      ),
+    })
+    .nullable(),
+});
+
+export type AssistantMarketLoadProjection = z.infer<
+  typeof assistantMarketLoadProjectionSchema
 >;
 
 export type MarketAnalysisOptionsProjection = {

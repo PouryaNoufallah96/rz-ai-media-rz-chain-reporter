@@ -62,7 +62,7 @@ export function useAnalysisFooterSlot() {
 }
 
 const PANEL_COLUMNS =
-  "wide:grid-cols-[15rem_minmax(0,1fr)_20rem] workspace:grid-cols-[auto_minmax(0,1fr)]";
+  "wide:grid-cols-[12rem_minmax(0,1fr)_15rem] workspace:grid-cols-[auto_minmax(0,1fr)]";
 const FRAME_BALANCE = "flex min-w-0 flex-1 flex-col";
 const FRAME_SPACE_ABOVE = "workspace:block hidden max-h-32 flex-1 basis-0";
 const FRAME_SPACE_BELOW = "workspace:block hidden flex-1 basis-0";
