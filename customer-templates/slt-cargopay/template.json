@@ -902,10 +902,10 @@
       "brandLogo": {
         "path": "brand-logos/slt-cargopay.png",
         "mimeType": "image/png",
-        "byteLength": 25572,
-        "pixelWidth": 266,
-        "pixelHeight": 62,
-        "sha256": "282637b24831d1677bdce50dd0a76d4531908b9ab018b887d1b299ab31097357"
+        "byteLength": 5115,
+        "pixelWidth": 176,
+        "pixelHeight": 176,
+        "sha256": "3c9027cfd767c33aeb2cfcd601ce1d3d1545202cb7d4a4777f00fabbb4e14902"
       },
       "editorial": {
         "mediaFitThreshold": 0,
@@ -1099,10 +1099,10 @@
       "brandLogo": {
         "path": "brand-logos/coin-bank.png",
         "mimeType": "image/png",
-        "byteLength": 17042,
-        "pixelWidth": 217,
-        "pixelHeight": 64,
-        "sha256": "bcdc890b01242e4f4c25beed76b937284b89c57cd1414179a5bbecbc762d082d"
+        "byteLength": 14632,
+        "pixelWidth": 342,
+        "pixelHeight": 362,
+        "sha256": "ea2b7923ed26cec788663a65c49780aecb63182155bb1aa76e78835bc662ef46"
       },
       "editorial": {
         "mediaFitThreshold": 0,
@@ -1308,10 +1308,10 @@
       "brandLogo": {
         "path": "brand-logos/coin-factory.png",
         "mimeType": "image/png",
-        "byteLength": 3055,
-        "pixelWidth": 248,
-        "pixelHeight": 62,
-        "sha256": "6740758be2ae8dcc22f4d64c8003af35f50a46e04459cc67738749d303c1c13c"
+        "byteLength": 1369,
+        "pixelWidth": 68,
+        "pixelHeight": 80,
+        "sha256": "fa2107cc512b2f4c5c8d61b4cc1574731a95fc754f88d36931413a8b85053bdf"
       },
       "editorial": {
         "mediaFitThreshold": 0,

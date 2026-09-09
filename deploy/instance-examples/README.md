@@ -13,3 +13,7 @@ Each instance owns its Compose project, app root, image prefix, template key,
 loopback ports, TLS paths, environment directory, volumes, backups, and release
 pointer. Separate VPS hosts may use the same loopback ports; verify availability
 on the target before deploying.
+
+Real secrets and operator runbooks live under gitignored
+`deploy/instances/<hostname-or-ip>/`. An update always rsyncs `src/`, `env/`,
+and `deploy.env` — see `deploy/SHIP-UPDATE.md`.
