@@ -5,6 +5,7 @@ import {
   MARKET_CHART_RENDER_CONTRACT_VERSION,
   MARKET_CHART_RENDER_MEDIA_KIND,
   type MarketChartRenderInput,
+  marketChartRenderRequestedPayloadSchema,
   marketChartSpecSchema,
 } from "@rz-chain-reporter/contracts";
 import { withWorkspaceContext } from "@rz-chain-reporter/db/executor";
@@ -25,8 +26,10 @@ import { renderMarketChartSvg } from "@rz-chain-reporter/market-chart";
 import { and, eq, inArray, like, lte } from "drizzle-orm";
 import { NonRetriableError } from "inngest";
 import sharp from "sharp";
+import { z } from "zod";
 import { workerLogger } from "../logging/logger";
 import { notifyMarketAnalysisChanged } from "../web-cache/market-analysis";
+import { publishOperationStatus } from "./channels";
 import type { WorkerInngestClient } from "./client";
 import { durableEvents } from "./events";
 import {
@@ -38,6 +41,17 @@ import { assertWorkspace, type WorkerRuntime } from "./runtime";
 
 const FUNCTION_ID = "market-chart-render";
 const CLAIM_LEASE_MS = 5 * 60_000;
+
+const cancelledIdsSchema = z.object({
+  data: z.object({ function_id: z.string(), run_id: z.string() }),
+});
+
+const cancelledEnvelopeSchema = z.object({
+  data: z.object({
+    event: z.object({ data: marketChartRenderRequestedPayloadSchema }),
+    run_id: z.string(),
+  }),
+});
 
 function claimant(operationId: string) {
   return `${MARKET_CHART_RENDER_COMMAND_PREFIX}${operationId}`;
@@ -365,7 +379,7 @@ async function attachRenderedChart(
       analysis.currentChartRenderId !== render.id ||
       analysis.chartApprovalFingerprint !== render.expectedChartFingerprint
     ) {
-      await tx
+      const [settled] = await tx
         .update(operation)
         .set({
           claimedAt: null,
@@ -380,8 +394,11 @@ async function attachRenderedChart(
             eq(operation.id, currentOperation.id),
             eq(operation.version, currentOperation.version),
           ),
-        );
-      return { status: "superseded" as const };
+        )
+        .returning();
+      return settled
+        ? { status: "superseded" as const, settled: true as const }
+        : { status: "lost" as const };
     }
     await tx
       .insert(mediaAsset)
@@ -457,9 +474,64 @@ async function attachRenderedChart(
   });
 }
 
+async function renderAndAttachMarketChart(
+  runtime: WorkerRuntime,
+  input: {
+    claimedBy: string;
+    marketAnalysisId: string;
+    marketChartRenderId: string;
+    operationId: string;
+    operationVersion: number;
+    workspaceId: string;
+  },
+) {
+  const loaded = await loadRenderInput(runtime, input);
+  if (loaded.status === "superseded") {
+    const settled = await settleOwned(
+      runtime,
+      input.workspaceId,
+      input.operationId,
+      "cancelled",
+    );
+    return { status: "superseded" as const, settled: settled !== null };
+  }
+  const svg = renderMarketChartSvg(loaded.input);
+  const bytes = await sharp(Buffer.from(svg))
+    .png({
+      adaptiveFiltering: false,
+      compressionLevel: 9,
+      palette: false,
+    })
+    .toBuffer();
+  const mediaAssetId = stableIdentity(input.operationId);
+  const key = objectKey(input.workspaceId, mediaAssetId);
+  const prepared = await prepareMarketChartRender(workerStorage(), {
+    bytes,
+    height: loaded.input.dimensions.height,
+    mediaAssetId,
+    objectKey: key,
+    width: loaded.input.dimensions.width,
+  });
+  let attached: Awaited<ReturnType<typeof attachRenderedChart>>;
+  try {
+    attached = await attachRenderedChart(runtime, {
+      ...prepared,
+      ...input,
+    });
+  } catch (error) {
+    await removeUnownedObject(runtime, input.workspaceId, input.operationId);
+    throw error;
+  }
+  if (attached.status === "lost" || attached.status === "superseded") {
+    await compensateChartObject(input.workspaceId, input.operationId, key);
+  }
+  return attached;
+}
+
 export function createMarketChartRenderFunctions(
   client: WorkerInngestClient,
   runtime: WorkerRuntime,
+  executeRender = renderAndAttachMarketChart,
 ) {
   const effect = client.createFunction(
     {
@@ -469,15 +541,23 @@ export function createMarketChartRenderFunctions(
       triggers: [durableEvents.operationMarketChartRenderRequested],
       onFailure: async ({ event, step }) => {
         const payload = event.data.event.data;
-        const settled = await step.run(
+        const result = await step.run(
           "settle-failed-market-chart-render",
-          () =>
-            settleOwned(
+          async () => {
+            const settled = await settleOwned(
               runtime,
               payload.workspaceId,
               payload.operationId,
               "failed",
-            ),
+            );
+            return settled
+              ? {
+                  settled: true as const,
+                  actor: settled.actor,
+                  operationVersion: settled.version,
+                }
+              : { settled: false as const };
+          },
         );
         await step.run("cleanup-failed-market-chart-render", () =>
           removeUnownedObject(
@@ -486,12 +566,24 @@ export function createMarketChartRenderFunctions(
             payload.operationId,
           ),
         );
-        if (settled) {
+        if (result.settled) {
           await notifyMarketAnalysisChanged(
             step,
             payload.workspaceId,
             payload.marketAnalysisId,
             "render-failure",
+          );
+          await publishOperationStatus(
+            step,
+            payload.workspaceId,
+            {
+              actorId: result.actor,
+              lifecycle: "failed",
+              operationId: payload.operationId,
+              operationVersion: result.operationVersion,
+              sharedImport: false,
+            },
+            "worker.market-chart.realtime-unavailable",
           );
         }
       },
@@ -500,12 +592,31 @@ export function createMarketChartRenderFunctions(
       const owner = claimant(event.data.operationId);
       const claimed = await step.run("claim-market-chart-render", async () => {
         await assertWorkspace(runtime, event.data.workspaceId);
-        return claimOperationExecution(runtime.db, event.data.workspaceId, {
-          id: event.data.operationId,
-          claimedBy: owner,
-          now: new Date(),
-          leaseExpiresAt: new Date(Date.now() + CLAIM_LEASE_MS),
-        });
+        const result = await claimOperationExecution(
+          runtime.db,
+          event.data.workspaceId,
+          {
+            id: event.data.operationId,
+            claimedBy: owner,
+            now: new Date(),
+            leaseExpiresAt: new Date(Date.now() + CLAIM_LEASE_MS),
+          },
+        );
+        if (result.status !== "claimed") return { status: result.status };
+        if (
+          !result.operation.commandType.startsWith(
+            MARKET_CHART_RENDER_COMMAND_PREFIX,
+          )
+        ) {
+          throw new NonRetriableError(
+            "market chart render command type mismatch",
+          );
+        }
+        return {
+          status: "claimed" as const,
+          actor: result.operation.actor,
+          operationVersion: result.operation.version,
+        };
       });
       if (claimed.status !== "claimed") {
         if (claimed.status === "terminal") {
@@ -518,98 +629,59 @@ export function createMarketChartRenderFunctions(
         }
         return { status: claimed.status };
       }
-      if (
-        !claimed.operation.commandType.startsWith(
-          MARKET_CHART_RENDER_COMMAND_PREFIX,
-        )
-      ) {
-        throw new NonRetriableError(
-          "market chart render command type mismatch",
-        );
-      }
-      const loaded = await step.run("load-market-chart-render-input", () =>
-        loadRenderInput(runtime, event.data),
+      await publishOperationStatus(
+        step,
+        event.data.workspaceId,
+        {
+          actorId: claimed.actor,
+          lifecycle: "running",
+          operationId: event.data.operationId,
+          operationVersion: claimed.operationVersion,
+          sharedImport: false,
+        },
+        "worker.market-chart.realtime-unavailable",
       );
-      if (loaded.status === "superseded") {
-        const settled = await step.run(
-          "settle-superseded-market-chart-render",
-          () =>
-            settleOwned(
-              runtime,
-              event.data.workspaceId,
-              event.data.operationId,
-              "cancelled",
-            ),
-        );
-        if (settled)
-          await notifyMarketAnalysisChanged(
-            step,
-            event.data.workspaceId,
-            event.data.marketAnalysisId,
-            "render-superseded",
-          );
-        return loaded;
-      }
-      const rendered = await step.run("render-market-chart-png", async () => {
-        const svg = renderMarketChartSvg(loaded.input);
-        const bytes = await sharp(Buffer.from(svg))
-          .png({
-            adaptiveFiltering: false,
-            compressionLevel: 9,
-            palette: false,
-          })
-          .toBuffer();
-        return { bytes: bytes.toString("base64") };
-      });
-      const mediaAssetId = stableIdentity(event.data.operationId);
-      const key = objectKey(event.data.workspaceId, mediaAssetId);
-      const prepared = await step.run("store-market-chart-png", () =>
-        prepareMarketChartRender(workerStorage(), {
-          bytes: Buffer.from(rendered.bytes, "base64"),
-          height: loaded.input.dimensions.height,
-          mediaAssetId,
-          objectKey: key,
-          width: loaded.input.dimensions.width,
-        }),
-      );
-      let attached: Awaited<ReturnType<typeof attachRenderedChart>>;
-      try {
-        attached = await step.run("attach-market-chart-render", () =>
-          attachRenderedChart(runtime, {
-            ...prepared,
+      const attached = await step.run(
+        "render-store-and-attach-market-chart",
+        () =>
+          executeRender(runtime, {
             claimedBy: owner,
             marketAnalysisId: event.data.marketAnalysisId,
             marketChartRenderId: event.data.marketChartRenderId,
             operationId: event.data.operationId,
-            operationVersion: claimed.operation.version,
+            operationVersion: claimed.operationVersion,
             workspaceId: event.data.workspaceId,
           }),
-        );
-      } catch (error) {
-        await step.run("resolve-ambiguous-market-chart-attachment", () =>
-          removeUnownedObject(
-            runtime,
-            event.data.workspaceId,
-            event.data.operationId,
-          ),
-        );
-        throw error;
-      }
-      if (attached.status === "lost" || attached.status === "superseded") {
-        await step.run("cleanup-losing-market-chart-render", () =>
-          compensateChartObject(
-            event.data.workspaceId,
-            event.data.operationId,
-            key,
-          ),
-        );
-      }
-      await notifyMarketAnalysisChanged(
-        step,
-        event.data.workspaceId,
-        event.data.marketAnalysisId,
-        `render-${attached.status}`,
       );
+      const committed =
+        attached.status === "rendered" ||
+        attached.status === "replayed" ||
+        (attached.status === "superseded" && attached.settled !== false);
+      if (committed) {
+        await notifyMarketAnalysisChanged(
+          step,
+          event.data.workspaceId,
+          event.data.marketAnalysisId,
+          `render-${attached.status}`,
+        );
+        const lifecycle =
+          attached.status === "superseded" ? "cancelled" : "succeeded";
+        await publishOperationStatus(
+          step,
+          event.data.workspaceId,
+          {
+            actorId: claimed.actor,
+            lifecycle,
+            operationId: event.data.operationId,
+            operationVersion:
+              lifecycle === "succeeded"
+                ? claimed.operationVersion + 1
+                : claimed.operationVersion + 1,
+            sharedImport: false,
+          },
+          "worker.market-chart.realtime-unavailable",
+        );
+      }
       return attached;
     },
   );
@@ -625,39 +697,63 @@ export function createMarketChartRenderFunctions(
       ],
     },
     async ({ event, step }) => {
-      const payload = (
-        event.data.event as
-          | {
-              data?: {
-                operationId?: string;
-                workspaceId?: string;
-                marketAnalysisId?: string;
-              };
-            }
-          | undefined
-      )?.data;
-      if (
-        !payload?.operationId ||
-        !payload.workspaceId ||
-        !payload.marketAnalysisId
-      )
-        return { status: "ignored" };
+      const envelope = cancelledEnvelopeSchema.safeParse(event);
+      if (!envelope.success) {
+        const ids = cancelledIdsSchema.safeParse(event);
+        await step.run("report-cancelled-market-chart-invalid", () => {
+          workerLogger.error("worker.market-chart.cancelled-event-invalid", {
+            errorCode: "VALIDATION_FAILED",
+            functionId: ids.success ? ids.data.data.function_id : undefined,
+            runId: ids.success ? ids.data.data.run_id : undefined,
+          });
+          return { parsed: false };
+        });
+        return { status: "invalid" };
+      }
+      const payload = envelope.data.data.event.data;
       const { marketAnalysisId, operationId, workspaceId } = payload;
-      const settled = await step.run(
+      const result = await step.run(
         "settle-cancelled-market-chart-render",
-        () => settleOwned(runtime, workspaceId, operationId, "cancelled"),
+        async () => {
+          const settled = await settleOwned(
+            runtime,
+            workspaceId,
+            operationId,
+            "cancelled",
+          );
+          return settled
+            ? {
+                settled: true as const,
+                actor: settled.actor,
+                operationVersion: settled.version,
+              }
+            : { settled: false as const };
+        },
       );
       await step.run("cleanup-cancelled-market-chart-render", () =>
         removeUnownedObject(runtime, workspaceId, operationId),
       );
-      if (settled)
+      if (result.settled) {
         await notifyMarketAnalysisChanged(
           step,
           workspaceId,
           marketAnalysisId,
           "render-cancelled",
         );
-      return { status: settled ? "cancelled" : "ignored" };
+        await publishOperationStatus(
+          step,
+          workspaceId,
+          {
+            actorId: result.actor,
+            lifecycle: "cancelled",
+            operationId,
+            operationVersion: result.operationVersion,
+            sharedImport: false,
+          },
+          "worker.market-chart.realtime-unavailable",
+        );
+      }
+      return { status: result.settled ? "cancelled" : "ignored" };
     },
   );
   return [effect, cancelled];
@@ -681,8 +777,10 @@ export async function reconcileStaleMarketChartRenders(
     )
     .limit(10);
   const settled: {
+    actorId: string;
     marketAnalysisId: string;
     operationId: string;
+    operationVersion: number;
     lifecycle: "cancelled" | "failed" | "succeeded";
   }[] = [];
   for (const candidate of candidates) {
@@ -737,8 +835,10 @@ export async function reconcileStaleMarketChartRenders(
         .returning();
       return updated
         ? {
+            actorId: updated.actor,
             marketAnalysisId: render.marketAnalysisId,
             operationId: candidate.id,
+            operationVersion: updated.version,
             lifecycle,
           }
         : null;

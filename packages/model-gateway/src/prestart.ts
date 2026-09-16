@@ -10,6 +10,13 @@ import { ModelBindingError } from "./errors";
 import { resolveModelTask } from "./task";
 import type { ModelBindings } from "./types";
 
+const LOCAL_BACKEND_ALLOWED_TASKS = new Set<ModelTaskKey>([
+  "assistant-synthesis",
+  "image-template-selection",
+  "keyword-embedding",
+  "text-translation",
+]);
+
 function workerModelTasks(template: CustomerTemplate): ModelTaskKey[] {
   return Object.keys(template.models.tasks).map((taskKey) =>
     modelTaskKeySchema.parse(taskKey),
@@ -33,6 +40,22 @@ export function assertModelCapabilities(
   }
 }
 
+export function assertAssistantBindings(
+  template: CustomerTemplate,
+  bindings: ModelBindings,
+) {
+  const taskKey = "assistant-synthesis" satisfies ModelTaskKey;
+  const primary = resolveModelTask(template, taskKey, "primary").route;
+  assertRouteBinding(taskKey, primary.backend, bindings);
+  assertRouteCapability(taskKey, primary.backend);
+
+  const fallback = template.models.tasks[taskKey]?.fallback;
+  if (fallback) {
+    assertRouteBinding(taskKey, fallback.backend, bindings);
+    assertRouteCapability(taskKey, fallback.backend);
+  }
+}
+
 function assertRouteCapability(taskKey: ModelTaskKey, backend: ModelBackend) {
   if (
     taskKey.startsWith(IMAGE_GENERATION_TASK_PREFIX) &&
@@ -40,6 +63,12 @@ function assertRouteCapability(taskKey: ModelTaskKey, backend: ModelBackend) {
   ) {
     throw new ModelBindingError(
       `model task "${taskKey}" selects a local backend, but image generation requires a remote backend`,
+    );
+  }
+
+  if (backend === "local" && !LOCAL_BACKEND_ALLOWED_TASKS.has(taskKey)) {
+    throw new ModelBindingError(
+      `model task "${taskKey}" selects a local backend, which is not authorised for this task`,
     );
   }
 }

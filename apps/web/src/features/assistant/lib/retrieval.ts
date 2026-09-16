@@ -6,6 +6,10 @@ import type { ReviewedKnowledgeFaqRow } from "@rz-chain-reporter/customer-templa
 import type { Locale } from "@rz-chain-reporter/i18n";
 
 import {
+  LOCAL_MAX_BIBLE_CHARS,
+  LOCAL_MAX_FAQ_CHARS,
+  LOCAL_MAX_OVERVIEW_CHARS,
+  LOCAL_MAX_REVIEWED_CHARS,
   MAX_BIBLE_CHARS,
   MAX_EXCERPTS,
   MAX_FAQ_CHARS,
@@ -80,7 +84,11 @@ function overlap(
   return shared / Math.sqrt(question.size * candidate.size);
 }
 
-function rankFaq(rows: readonly ReviewedKnowledgeFaqRow[], question: string) {
+function rankFaq(
+  rows: readonly ReviewedKnowledgeFaqRow[],
+  question: string,
+  compact = false,
+) {
   const asked = tokens(question);
 
   const ranked = rows
@@ -95,10 +103,10 @@ function rankFaq(rows: readonly ReviewedKnowledgeFaqRow[], question: string) {
       (left, right) =>
         right.score - left.score || right.row.priority - left.row.priority,
     )
-    .slice(0, MAX_FAQ_ROWS);
+    .slice(0, compact ? 3 : MAX_FAQ_ROWS);
 
   const selected: ReviewedKnowledgeFaqRow[] = [];
-  let budget = MAX_FAQ_CHARS;
+  let budget = compact ? LOCAL_MAX_FAQ_CHARS : MAX_FAQ_CHARS;
 
   for (const { row } of ranked) {
     const length = row.question.length + row.answer.length + 1;
@@ -264,6 +272,7 @@ export function selectKnowledge(input: {
   knowledge: LoadedReviewedKnowledge;
   locale: Locale;
   question: string;
+  compact?: boolean;
 }): AssistantKnowledge {
   const asked = tokens(input.question);
   const normalized = normalizeQuestion(input.question);
@@ -303,7 +312,11 @@ export function selectKnowledge(input: {
     })),
   );
   rankedOverview.sort((left, right) => right.score - left.score);
-  const overview = fill(rankedOverview, MAX_OVERVIEW_CHARS, MAX_EXCERPTS);
+  const overview = fill(
+    rankedOverview,
+    input.compact ? LOCAL_MAX_OVERVIEW_CHARS : MAX_OVERVIEW_CHARS,
+    input.compact ? 2 : MAX_EXCERPTS,
+  );
 
   const rankedMatches: (KnowledgeExcerpt & {
     brandKey: string;
@@ -330,7 +343,11 @@ export function selectKnowledge(input: {
   }
 
   rankedMatches.sort((left, right) => right.score - left.score);
-  const matches = fill(rankedMatches, MAX_REVIEWED_CHARS, MAX_EXCERPTS);
+  const matches = fill(
+    rankedMatches,
+    input.compact ? LOCAL_MAX_REVIEWED_CHARS : MAX_REVIEWED_CHARS,
+    input.compact ? 2 : MAX_EXCERPTS,
+  );
 
   // A named brand always contributes its bible, ranked but never gated: with no
   // lexical hit the leading sections carry the brand's identity.
@@ -364,7 +381,11 @@ export function selectKnowledge(input: {
 
   // Sort is stable, so an unmatched bible keeps its leading sections first.
   rankedBibles.sort((left, right) => right.score - left.score);
-  const bibles = fill(rankedBibles, MAX_BIBLE_CHARS, MAX_EXCERPTS);
+  const bibles = fill(
+    rankedBibles,
+    input.compact ? LOCAL_MAX_BIBLE_CHARS : MAX_BIBLE_CHARS,
+    input.compact ? 1 : MAX_EXCERPTS,
+  );
 
   const choices = brandOptions(input.brands, input.brandKeys);
   const faqLocale =
@@ -376,6 +397,7 @@ export function selectKnowledge(input: {
   const faq = rankFaq(
     faqLocale ? (input.knowledge.faqByLocale[faqLocale] ?? []) : [],
     input.question,
+    input.compact,
   );
   const faqSource = faqLocale
     ? input.knowledge.faqSourceByLocale[faqLocale]

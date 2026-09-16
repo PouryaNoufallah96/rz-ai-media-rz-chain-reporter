@@ -23,7 +23,7 @@ import type {
   StorageObjectListPage,
 } from "@rz-chain-reporter/storage";
 import dotenv from "dotenv";
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import sharp from "sharp";
 
 import { createInngestClient } from "./client";
@@ -60,7 +60,13 @@ type StoredObject = {
 class ProbeStorage implements Storage {
   readonly deleted: string[] = [];
   readonly objects = new Map<string, StoredObject>();
+  headCalls = 0;
+  listCalls = 0;
+  readonly listCursors: Array<string | undefined> = [];
+  openReadCalls = 0;
   signedUrlCalls = 0;
+  transientHeadFailures = 0;
+  transientListFailures = 0;
 
   async delete(keys: string[]) {
     for (const key of keys) {
@@ -75,6 +81,11 @@ class ProbeStorage implements Storage {
   }
 
   async head(key: string) {
+    this.headCalls += 1;
+    if (this.transientHeadFailures > 0) {
+      this.transientHeadFailures -= 1;
+      throw new Error("transient storage failure");
+    }
     const object = this.required(key);
     return { contentType: object.contentType, size: object.bytes.byteLength };
   }
@@ -84,6 +95,12 @@ class ProbeStorage implements Storage {
     cursor?: string;
     limit: number;
   }): Promise<StorageObjectListPage> {
+    this.listCalls += 1;
+    this.listCursors.push(input.cursor);
+    if (this.transientListFailures > 0) {
+      this.transientListFailures -= 1;
+      throw new Error("transient storage list failure");
+    }
     const keys = [...this.objects.keys()]
       .filter(
         (key) =>
@@ -105,6 +122,7 @@ class ProbeStorage implements Storage {
   }
 
   async openRead(key: string) {
+    this.openReadCalls += 1;
     const bytes = this.required(key).bytes;
     return {
       contentLength: bytes.byteLength,
@@ -150,6 +168,7 @@ const ids = {
   imageOperation: randomUUID(),
   promo: randomUUID(),
   revision: randomUUID(),
+  retryOperation: randomUUID(),
   verificationOperation: randomUUID(),
   verifiedOperation: randomUUID(),
   workspace: randomUUID(),
@@ -160,9 +179,11 @@ const observed: string[] = [];
 try {
   await insertFixture();
   await proveTerminalFailureSettlement();
+  await proveTransientVerificationRetry();
   await proveVerification();
   await proveCleanupAttachmentRace();
   await proveReconciliation();
+  await proveReconciliationListRetry();
   await proveCommitUncertainty();
   assert.equal(storage.signedUrlCalls, 0);
   observed.push("no-presigned-path");
@@ -211,6 +232,7 @@ async function proveTerminalFailureSettlement() {
       event: {
         data: {
           error: { message: string };
+          run_id: string;
           event: {
             data: {
               mediaAssetId: string;
@@ -228,11 +250,13 @@ async function proveTerminalFailureSettlement() {
   assert.equal(typeof descriptor.opts.onFailure, "function");
   const onFailure = descriptor.onFailureFn;
   assert.equal(typeof onFailure, "function");
+  const failedRunId = randomUUID();
 
   const failedEvent = {
     event: {
       data: {
         error: { message: "storage token=must-not-persist" },
+        run_id: failedRunId,
         event: {
           data: {
             mediaAssetId: uploaded.id,
@@ -254,10 +278,12 @@ async function proveTerminalFailureSettlement() {
     { status: "verified" },
   );
   await insertVerificationOperation(ids.verifiedOperation, verified.id);
+  const verifiedRunId = randomUUID();
   const verifiedEvent = {
     event: {
       data: {
         error: { message: "commit response lost token=must-not-persist" },
+        run_id: verifiedRunId,
         event: {
           data: {
             mediaAssetId: verified.id,
@@ -311,12 +337,227 @@ async function proveTerminalFailureSettlement() {
     { failureCode: null, outcome: "succeeded" },
   ]);
   assert.deepEqual(published, [
-    "publish-failed-status",
-    "publish-succeeded-status",
+    `publish-${ids.verificationOperation}-3-failed-status`,
+    `publish-${ids.verificationOperation}-3-failed-status`,
+    `publish-${ids.verifiedOperation}-3-succeeded-status`,
+    `publish-${ids.verifiedOperation}-3-succeeded-status`,
   ]);
+
+  const mismatchedOperationId = randomUUID();
+  const mismatchedBound = await createUploaded({
+    bytes: await paddedPng(4096),
+  });
+  const mismatchedEventAsset = await createUploaded({
+    bytes: await paddedPng(4096),
+  });
+  await insertVerificationOperation(mismatchedOperationId, mismatchedBound.id);
+  await onFailure({
+    event: {
+      data: {
+        error: { message: "controlled pre-claim failure" },
+        run_id: randomUUID(),
+        event: {
+          data: {
+            mediaAssetId: mismatchedEventAsset.id,
+            operationId: mismatchedOperationId,
+            schemaVersion: 1,
+            workspaceId: ids.workspace,
+          },
+        },
+      },
+    },
+    step,
+  });
+  const [mismatched] = await database.db
+    .select({ lifecycle: operation.lifecycle })
+    .from(operation)
+    .where(eq(operation.id, mismatchedOperationId));
+  assert.equal(mismatched?.lifecycle, "queued");
+  assert.equal(
+    (
+      await database.db
+        .select({ id: operationAttempt.id })
+        .from(operationAttempt)
+        .where(eq(operationAttempt.operationId, mismatchedOperationId))
+    ).length,
+    0,
+  );
   observed.push(
     "terminal-failure-settlement-idempotent",
     "verified-commit-recovered-as-success",
+    "terminal-onfailure-realtime-repaired",
+    "mismatched-failure-event-ignored",
+  );
+}
+
+async function proveTransientVerificationRetry() {
+  const uploaded = await createUploaded({ bytes: await paddedPng(4096) });
+  await insertVerificationOperation(ids.retryOperation, uploaded.id);
+  const client = createInngestClient(`media-retry-probe-${randomUUID()}`);
+  const runtime = {
+    db: database.db,
+    identity: {
+      customerTemplateKey: "probe",
+      fingerprint: "probe",
+    },
+  } satisfies Pick<WorkerRuntime, "db" | "identity">;
+  const verification = createMediaUploadVerificationFunction(client, runtime, {
+    assertRuntimeWorkspace: async () => undefined,
+    storage: () => storage,
+  });
+  const published: string[] = [];
+  let expireLeaseBeforeVerification = false;
+  const step = {
+    realtime: {
+      publish: async (id: string) => {
+        published.push(id);
+      },
+    },
+    run: async (id: string, execute: () => Promise<unknown>) => {
+      if (expireLeaseBeforeVerification && id === "verify-media-upload-1") {
+        expireLeaseBeforeVerification = false;
+        await database.db
+          .update(operation)
+          .set({ leaseExpiresAt: new Date(Date.now() - 1) })
+          .where(eq(operation.id, ids.retryOperation));
+      }
+      return execute();
+    },
+  };
+  const handler = (
+    verification as unknown as {
+      fn: (input: {
+        attempt: number;
+        event: {
+          data: {
+            mediaAssetId: string;
+            operationId: string;
+            schemaVersion: 1;
+            workspaceId: string;
+          };
+        };
+        runId: string;
+        step: typeof step;
+      }) => Promise<unknown>;
+    }
+  ).fn;
+  const event = {
+    data: {
+      mediaAssetId: uploaded.id,
+      operationId: ids.retryOperation,
+      schemaVersion: 1 as const,
+      workspaceId: ids.workspace,
+    },
+  };
+  const runId = randomUUID();
+  const initialHeadCalls = storage.headCalls;
+  const initialOpenReadCalls = storage.openReadCalls;
+  storage.transientHeadFailures = 1;
+
+  await assert.rejects(
+    handler({ attempt: 0, event, runId, step }),
+    (error: unknown) =>
+      error instanceof Error && error.message === "INTERNAL_SERVER_ERROR",
+  );
+  assert.equal(
+    (await getMediaAsset(database.db, ids.workspace, uploaded.id))?.lifecycle,
+    "validating",
+  );
+  const [running] = await database.db
+    .select({
+      attemptSeq: operation.attemptSeq,
+      claimedBy: operation.claimedBy,
+      lifecycle: operation.lifecycle,
+    })
+    .from(operation)
+    .where(eq(operation.id, ids.retryOperation));
+  assert.deepEqual(running, {
+    attemptSeq: 1,
+    claimedBy: `media-upload-verification:${runId}`,
+    lifecycle: "running",
+  });
+
+  expireLeaseBeforeVerification = true;
+  await assert.rejects(
+    handler({ attempt: 1, event, runId, step }),
+    (error: unknown) =>
+      error instanceof Error && error.message === "TRANSIENT_CONFLICT",
+  );
+  assert.equal(
+    (await getMediaAsset(database.db, ids.workspace, uploaded.id))?.lifecycle,
+    "verified",
+  );
+  const [expired] = await database.db
+    .select({ lifecycle: operation.lifecycle })
+    .from(operation)
+    .where(eq(operation.id, ids.retryOperation));
+  assert.equal(expired?.lifecycle, "running");
+
+  const retried = (await handler({
+    attempt: 2,
+    event,
+    runId,
+    step,
+  })) as { lifecycle: string | null; status: string };
+  assert.equal(retried.status, "replayed");
+  assert.equal(retried.lifecycle, "succeeded");
+  assert.equal(
+    (await getMediaAsset(database.db, ids.workspace, uploaded.id))?.lifecycle,
+    "verified",
+  );
+  assert.equal(storage.headCalls - initialHeadCalls, 2);
+  assert.equal(storage.openReadCalls - initialOpenReadCalls, 1);
+
+  const attempts = await database.db
+    .select({
+      attemptNumber: operationAttempt.attemptNumber,
+      failureCode: operationAttempt.failureCode,
+      outcome: operationAttempt.outcome,
+    })
+    .from(operationAttempt)
+    .where(eq(operationAttempt.operationId, ids.retryOperation))
+    .orderBy(asc(operationAttempt.attemptNumber));
+  assert.deepEqual(attempts, [
+    {
+      attemptNumber: 1,
+      failureCode: "INTERNAL_SERVER_ERROR",
+      outcome: "failed_retryable",
+    },
+    {
+      attemptNumber: 2,
+      failureCode: "INTERNAL_SERVER_ERROR",
+      outcome: "failed_retryable",
+    },
+    { attemptNumber: 3, failureCode: null, outcome: "succeeded" },
+  ]);
+
+  const replayed = (await handler({
+    attempt: 2,
+    event,
+    runId,
+    step,
+  })) as { status: string };
+  assert.equal(replayed.status, "terminal");
+  assert.equal(storage.headCalls - initialHeadCalls, 2);
+  assert.equal(storage.openReadCalls - initialOpenReadCalls, 1);
+  assert.equal(
+    (
+      await database.db
+        .select({ id: operationAttempt.id })
+        .from(operationAttempt)
+        .where(eq(operationAttempt.operationId, ids.retryOperation))
+    ).length,
+    3,
+  );
+  assert.deepEqual(published, [
+    `publish-${ids.retryOperation}-5-succeeded-status`,
+    `publish-${ids.retryOperation}-5-succeeded-status`,
+  ]);
+  observed.push(
+    "transient-storage-retry-resumes-validation",
+    "expired-lease-settlement-rejected",
+    "retry-attempt-ledger-owned",
+    "terminal-replay-repairs-realtime-without-duplicate-effect",
   );
 }
 
@@ -713,6 +954,30 @@ async function proveReconciliation() {
   assert.equal(storage.objects.has(objectKey), false);
   assert.equal(storage.objects.has(orphanKey), false);
   observed.push("cleanup-reconciliation");
+}
+
+async function proveReconciliationListRetry() {
+  const objectCursor = `${ids.workspace}/uploads/${randomUUID()}`;
+  const cursor = Buffer.from(
+    JSON.stringify({ db: null, market: null, objects: objectCursor }),
+  ).toString("base64url");
+  const initialListCalls = storage.listCalls;
+  storage.transientListFailures = 1;
+  await assert.rejects(
+    reconcileStorage(database.db, storage, ids.workspace, {
+      cursor,
+      now: new Date(),
+    }),
+    /transient storage list failure/,
+  );
+  const retried = await reconcileStorage(database.db, storage, ids.workspace, {
+    cursor,
+    now: new Date(),
+  });
+  assert.equal(storage.listCalls - initialListCalls, 2);
+  assert.deepEqual(storage.listCursors.slice(-2), [objectCursor, objectCursor]);
+  assert.equal(retried.nextCursor, undefined);
+  observed.push("storage-list-failure-retried-with-same-cursor");
 }
 
 async function proveCommitUncertainty() {

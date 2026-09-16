@@ -87,6 +87,7 @@ export async function notifyMarketAnalysisAndUsageChanged(
       step,
       workspaceId,
       usageActorId,
+      callSite,
     ),
   };
 }
@@ -153,7 +154,12 @@ export async function notifyMarketDraftsChanged(
     `drafts-${callSite}`,
   );
   if (usageActorId !== undefined) {
-    await publishUsageLedgerChanged(step, workspaceId, usageActorId);
+    await publishUsageLedgerChanged(
+      step,
+      workspaceId,
+      usageActorId,
+      `drafts-${callSite}`,
+    );
   }
   return { cacheInvalidation, realtimePublished };
 }

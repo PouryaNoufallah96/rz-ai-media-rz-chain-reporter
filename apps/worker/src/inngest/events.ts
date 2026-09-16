@@ -4,6 +4,7 @@ import {
   copyGenerationRequestedPayloadSchema,
   copyVariantTranslationRequestedPayloadSchema,
   DURABLE_EVENT_SCHEMA_VERSION,
+  type DurableEventName,
   imageGenerationRequestedPayloadSchema,
   MEDIA_UPLOAD_CONFIRMED_EVENT_NAME,
   marketCatalogRefreshRequestedPayloadSchema,
@@ -195,7 +196,13 @@ type RelayedEventCreator = (
   id: string,
 ) => ReturnType<(typeof durableEvents)[keyof typeof durableEvents]["create"]>;
 
-const relayedEventCreators: Record<string, RelayedEventCreator | undefined> = {
+type NonOutboxDurableEventName =
+  | typeof OPERATION_SOURCE_IMPORT_READY_EVENT_NAME
+  | typeof SOURCE_IMPORT_ENRICHMENT_REQUESTED_EVENT_NAME;
+
+type RelayedEventName = Exclude<DurableEventName, NonOutboxDurableEventName>;
+
+const relayedEventCreators = {
   [MEDIA_UPLOAD_CONFIRMED_EVENT_NAME]: (payload, id) => {
     const parsed = mediaUploadConfirmedPayloadSchema.safeParse(payload);
     if (!parsed.success) {
@@ -360,13 +367,17 @@ const relayedEventCreators: Record<string, RelayedEventCreator | undefined> = {
       id,
     });
   },
-};
+} satisfies Record<RelayedEventName, RelayedEventCreator>;
+
+function isRelayedEventName(eventName: string): eventName is RelayedEventName {
+  return Object.hasOwn(relayedEventCreators, eventName);
+}
 
 export function createInngestEvent(outbox: OutboxEvent) {
   assertSchemaVersion(outbox.schemaVersion);
-  const create = relayedEventCreators[outbox.eventType];
-  if (!create) {
+  if (!isRelayedEventName(outbox.eventType)) {
     throw new OutboxEventContractError("OUTBOX_EVENT_TYPE_UNSUPPORTED");
   }
+  const create = relayedEventCreators[outbox.eventType];
   return create(outbox.payload, `outbox:${outbox.eventType}:${outbox.id}`);
 }

@@ -35,7 +35,8 @@ import { Spinner } from "@rz-chain-reporter/ui/components/spinner";
 import { ExternalLinkIcon, XIcon } from "lucide-react";
 import Image from "next/image";
 import { useFormatter, useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { Link } from "@/i18n/navigation";
 
@@ -557,9 +558,13 @@ function AssistantTurn({
               key={`${message.id}-text-${partIndex}`}
               variant={fromOperator ? "default" : "ghost"}
             >
-              <BubbleContent className="whitespace-pre-wrap">
+              <BubbleContent className="prose prose-sm dark:prose-invert wrap-break-word prose-li:my-0.5 prose-p:my-2 prose-headings:mt-4 prose-headings:mb-2 max-w-none">
                 <Bdi>
-                  {fromOperator ? part.text : linkedAssistantText(part.text)}
+                  {fromOperator ? (
+                    <span className="whitespace-pre-wrap">{part.text}</span>
+                  ) : (
+                    <AssistantMarkdown text={part.text} />
+                  )}
                 </Bdi>
               </BubbleContent>
             </Bubble>
@@ -858,24 +863,97 @@ function translatedReadValue(
 }
 
 const OWNER_ROUTE =
-  /(\/(?:dashboard|account|saved|schedule|sources|usage|market-analysis|installation)(?:[/?][^\s،؛,.!?)]*)?)/gu;
-function linkedAssistantText(text: string) {
-  const parts: ReactNode[] = [];
-  let cursor = 0;
-  for (const match of text.matchAll(OWNER_ROUTE)) {
-    const href = match[0];
-    parts.push(text.slice(cursor, match.index));
-    parts.push(
-      <Link
-        className="font-medium underline underline-offset-4"
-        href={href}
-        key={`${href}:${match.index}`}
-      >
-        {href}
-      </Link>,
-    );
-    cursor = match.index + href.length;
-  }
-  parts.push(text.slice(cursor));
-  return parts;
+  /^\/(?:dashboard|account|saved|schedule|sources|usage|market-analysis|installation)(?:[/?].*)?$/u;
+
+function AssistantMarkdown({ text }: { text: string }) {
+  return (
+    <Markdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        a: ({ href, children, ...props }) => {
+          if (!href) return <a {...props}>{children}</a>;
+          if (OWNER_ROUTE.test(href)) {
+            return (
+              <Link
+                className="font-medium underline underline-offset-4"
+                href={href}
+              >
+                {children}
+              </Link>
+            );
+          }
+          return (
+            <a
+              className="font-medium underline underline-offset-4"
+              href={href}
+              rel="noreferrer"
+              target="_blank"
+              {...props}
+            >
+              {children}
+            </a>
+          );
+        },
+        p: ({ children, ...props }) => (
+          <p className="my-2 leading-6" {...props}>
+            {children}
+          </p>
+        ),
+        ul: ({ children, ...props }) => (
+          <ul className="my-2 list-disc ps-5" {...props}>
+            {children}
+          </ul>
+        ),
+        ol: ({ children, ...props }) => (
+          <ol className="my-2 list-decimal ps-5" {...props}>
+            {children}
+          </ol>
+        ),
+        li: ({ children, ...props }) => (
+          <li className="my-0.5" {...props}>
+            {children}
+          </li>
+        ),
+        strong: ({ children, ...props }) => (
+          <strong className="font-semibold" {...props}>
+            {children}
+          </strong>
+        ),
+        h1: ({ children, ...props }) => (
+          <h3 className="mt-4 mb-2 font-semibold text-base" {...props}>
+            {children}
+          </h3>
+        ),
+        h2: ({ children, ...props }) => (
+          <h3 className="mt-4 mb-2 font-semibold text-base" {...props}>
+            {children}
+          </h3>
+        ),
+        h3: ({ children, ...props }) => (
+          <h3 className="mt-4 mb-2 font-semibold text-sm" {...props}>
+            {children}
+          </h3>
+        ),
+        hr: (props) => <hr className="my-3 border-border" {...props} />,
+        code: ({ children, ...props }) => (
+          <code
+            className="rounded bg-muted px-1 py-0.5 font-mono text-xs"
+            {...props}
+          >
+            {children}
+          </code>
+        ),
+        pre: ({ children, ...props }) => (
+          <pre
+            className="my-2 overflow-auto rounded-md bg-muted p-3 text-xs"
+            {...props}
+          >
+            {children}
+          </pre>
+        ),
+      }}
+    >
+      {text}
+    </Markdown>
+  );
 }

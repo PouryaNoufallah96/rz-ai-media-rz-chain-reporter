@@ -5,7 +5,18 @@ import {
   MARKET_CATALOG_REFRESH_COMMAND_PREFIX,
   OPERATION_MARKET_CATALOG_REFRESH_REQUESTED_EVENT_NAME,
 } from "@rz-chain-reporter/contracts";
-import { and, asc, eq, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  lt,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import {
   type Executor,
@@ -227,6 +238,7 @@ export async function publishMarketComparisonCatalogBatch(
   workspaceId: string,
   input: {
     operationId: string;
+    claimedBy: string;
     batchId: string;
     rows: readonly CatalogRow[];
     publishedAt: Date;
@@ -262,6 +274,11 @@ export async function publishMarketComparisonCatalogBatch(
       and(
         inWorkspace(marketComparisonCatalogState, workspaceId),
         eq(marketComparisonCatalogState.refreshOperationId, input.operationId),
+        eq(marketComparisonCatalogState.refreshClaimedBy, input.claimedBy),
+        gt(
+          marketComparisonCatalogState.refreshLeaseExpiresAt,
+          input.publishedAt,
+        ),
       ),
     )
     .returning();
@@ -295,7 +312,12 @@ export async function publishMarketComparisonCatalogBatch(
 export async function recordMarketComparisonCatalogFailure(
   tx: Transaction,
   workspaceId: string,
-  input: { operationId: string; failedAt: Date; failureCode: ErrorCode },
+  input: {
+    operationId: string;
+    claimedBy: string;
+    failedAt: Date;
+    failureCode: ErrorCode;
+  },
 ) {
   const [failed] = await tx
     .update(marketComparisonCatalogState)
@@ -312,8 +334,34 @@ export async function recordMarketComparisonCatalogFailure(
       and(
         inWorkspace(marketComparisonCatalogState, workspaceId),
         eq(marketComparisonCatalogState.refreshOperationId, input.operationId),
+        eq(marketComparisonCatalogState.refreshClaimedBy, input.claimedBy),
       ),
     )
     .returning();
   return failed ?? null;
+}
+
+export async function releaseMarketComparisonCatalogRefresh(
+  tx: Transaction,
+  workspaceId: string,
+  input: { operationId: string; claimedBy: string; releasedAt: Date },
+) {
+  const [released] = await tx
+    .update(marketComparisonCatalogState)
+    .set({
+      refreshOperationId: null,
+      refreshClaimedBy: null,
+      refreshClaimedAt: null,
+      refreshLeaseExpiresAt: null,
+      updatedAt: input.releasedAt,
+    })
+    .where(
+      and(
+        inWorkspace(marketComparisonCatalogState, workspaceId),
+        eq(marketComparisonCatalogState.refreshOperationId, input.operationId),
+        eq(marketComparisonCatalogState.refreshClaimedBy, input.claimedBy),
+      ),
+    )
+    .returning();
+  return released ?? null;
 }

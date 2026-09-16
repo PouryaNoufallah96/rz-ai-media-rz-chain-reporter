@@ -24,6 +24,21 @@ import { outboxEvent } from "../schema/outbox-event";
 
 export const MARKET_GENERATION_COMMAND = `${MARKET_GENERATION_COMMAND_PREFIX}analysis`;
 
+export function marketGenerationAttemptSettlement(input: {
+  ambiguous: boolean;
+  failureCode?: ErrorCode;
+}) {
+  return input.ambiguous
+    ? {
+        failureCode: "MODEL_INVOCATION_FAILED" as const,
+        outcome: "ambiguous" as const,
+      }
+    : {
+        failureCode: input.failureCode ?? null,
+        outcome: "failed_terminal" as const,
+      };
+}
+
 type GenerationRow = typeof marketGeneration.$inferSelect;
 type PreparedImageResult = {
   actualBytes: number;
@@ -600,6 +615,7 @@ export async function settleMarketGenerationOperation(
   input: {
     claimedBy: string;
     expectedVersion: number;
+    failureCode?: ErrorCode;
     operationId: string;
     terminal: "cancelled" | "failed" | "unknown";
   },
@@ -616,6 +632,7 @@ async function settleOpenMarketGeneration(
   input: {
     claimedBy: string | null;
     expectedVersion: number;
+    failureCode?: ErrorCode;
     operationId: string;
     terminal: "cancelled" | "failed" | "unknown";
   },
@@ -683,8 +700,10 @@ async function settleOpenMarketGeneration(
     await tx
       .update(operationAttempt)
       .set({
-        failureCode: ambiguous ? "MODEL_INVOCATION_FAILED" : null,
-        outcome: ambiguous ? "ambiguous" : "failed_terminal",
+        ...marketGenerationAttemptSettlement({
+          ambiguous,
+          failureCode: input.failureCode,
+        }),
         updatedAt: now,
       })
       .where(
@@ -828,9 +847,11 @@ export async function reconcileStaleMarketGenerations(
       lifecycle: "cancelled" | "failed" | "queued" | "succeeded" | "unknown";
       marketAnalysisId: string;
       operationId: string;
+      operationVersion: number;
     }> = [];
     for (const candidate of candidates) {
       let lifecycle: (typeof settled)[number]["lifecycle"];
+      let operationVersion: number;
       if (candidate.generation.finalMediaAssetId) {
         lifecycle =
           candidate.analysis.currentGenerationId === candidate.generation.id &&
@@ -847,7 +868,7 @@ export async function reconcileStaleMarketGenerations(
         lifecycle = "failed";
       }
       if (lifecycle === "queued" || lifecycle === "succeeded") {
-        await tx
+        const [resolved] = await tx
           .update(operation)
           .set({
             claimedAt: null,
@@ -863,7 +884,10 @@ export async function reconcileStaleMarketGenerations(
               eq(operation.id, candidate.operation.id),
               eq(operation.version, candidate.operation.version),
             ),
-          );
+          )
+          .returning({ version: operation.version });
+        if (!resolved) continue;
+        operationVersion = resolved.version;
       } else {
         const resolved = await settleOpenMarketGeneration(tx, workspaceId, {
           claimedBy: candidate.operation.claimedBy,
@@ -873,12 +897,14 @@ export async function reconcileStaleMarketGenerations(
         });
         if (!resolved) continue;
         if (resolved.lifecycle === "unknown") lifecycle = "unknown";
+        operationVersion = resolved.version;
       }
       settled.push({
         actorId: candidate.operation.actor,
         lifecycle,
         marketAnalysisId: candidate.generation.marketAnalysisId,
         operationId: candidate.operation.id,
+        operationVersion,
       });
     }
     return settled;

@@ -23,8 +23,11 @@ import {
   beginOrResumePublicationAttempt,
   claimPublicationExecution,
   claimPublicationFinalEffect,
+  deferPublicationCacheNotification,
   enqueueStrandedPublicationRecoveries,
+  markPublicationCacheNotificationCompleted,
   markSettlementActivityFailed,
+  readPendingPublicationFollowUps,
   readPublicationCommandContext,
   rearmSettlementActivity,
   reassertPublicationExecution,
@@ -1255,16 +1258,88 @@ async function proveRetryAndAmbiguity() {
     first.publication.id,
     "definite-first",
   );
-  const released = await settlePublicationExecution(database.db, workspaceId, {
-    attemptId: null,
+  const firstAttempt = await beginOrResumePublicationAttempt(
+    database.db,
+    workspaceId,
+    {
+      claimedBy: "definite-first",
+      now: new Date(),
+      operationId: first.operationId,
+    },
+  );
+  if (!firstAttempt) throw new Error("deferred fixture attempt missing");
+  const resumeAt = new Date(Date.now() + 60_000);
+  const deferred = await settlePublicationExecution(database.db, workspaceId, {
+    attemptId: firstAttempt.id,
     claimedBy: "definite-first",
     expectedOperationVersion: firstClaim.operation.version,
+    failureCode: "X_RATE_LIMITED",
+    operationId: first.operationId,
+    outcome: "deferred",
+    publicationId: first.publication.id,
+    resumeAt,
+  });
+  if (!deferred) throw new Error("deferred fixture settlement missing");
+  const deferredFollowUp = (
+    await readPendingPublicationFollowUps(
+      database.db,
+      workspaceId,
+      new Date(deferred.operation.updatedAt.getTime() + 30_001),
+    )
+  ).find((entry) => entry.operationId === first.operationId);
+  if (!deferredFollowUp?.cacheNotificationDue) {
+    throw new Error("deferred cache notification was not repairable");
+  }
+  const retryAttempt = await beginOrResumePublicationAttempt(
+    database.db,
+    workspaceId,
+    {
+      claimedBy: "definite-first",
+      now: new Date(deferred.operation.updatedAt.getTime() + 1),
+      operationId: first.operationId,
+    },
+  );
+  if (!retryAttempt) throw new Error("deferred retry attempt missing");
+  const released = await settlePublicationExecution(database.db, workspaceId, {
+    attemptId: retryAttempt.id,
+    claimedBy: "definite-first",
+    expectedOperationVersion: deferred.operation.version,
     failureCode: "PROVIDER_CAPABILITY_UNAVAILABLE",
     outcome: "definite_failure",
     publicationId: first.publication.id,
     operationId: first.operationId,
   });
   if (!released) throw new Error("definite failure did not release slot");
+  const staleCompletion = await markPublicationCacheNotificationCompleted(
+    database.db,
+    workspaceId,
+    first.operationId,
+    new Date(released.operation.updatedAt.getTime() + 1),
+    deferredFollowUp.publishOperationUpdatedAt,
+  );
+  if (staleCompletion) {
+    throw new Error("stale repair consumed terminal notification marker");
+  }
+  const staleDeferral = await deferPublicationCacheNotification(
+    database.db,
+    workspaceId,
+    first.operationId,
+    new Date(released.operation.updatedAt.getTime() + 2),
+    deferredFollowUp.publishOperationUpdatedAt,
+  );
+  if (staleDeferral) {
+    throw new Error("stale repair deferred terminal notification marker");
+  }
+  const terminalFollowUp = (
+    await readPendingPublicationFollowUps(
+      database.db,
+      workspaceId,
+      new Date(released.operation.updatedAt.getTime() + 30_001),
+    )
+  ).find((entry) => entry.operationId === first.operationId);
+  if (!terminalFollowUp?.cacheNotificationDue) {
+    throw new Error("terminal cache notification marker was lost");
+  }
   for (const [destinationAccountId, expected, label] of [
     [unmappedXDestinationId, "destination_not_mapped", "unmapped retry"],
     [instagramDestinationId, "destination_not_mapped", "cross-platform retry"],
@@ -1668,6 +1743,7 @@ async function proveRetryAndAmbiguity() {
   );
   observed.push(
     "definite-failure-successor",
+    "deferred-cache-notification-stale-repair-fence",
     "delivery-unknown-block",
     "confirmed-terminal-slot",
     "alternate-destination-retry-and-invalid-target-fences",

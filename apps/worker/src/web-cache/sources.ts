@@ -18,7 +18,8 @@ type SourcesNotificationCallSite =
   | "enriching"
   | "settled"
   | "failed"
-  | "replayed";
+  | "replayed"
+  | `settled-${string}`;
 
 export function notifySourcesChanged(
   step: WorkerStep,
@@ -74,7 +75,12 @@ async function notifySources(
       callSite,
     ),
     usageRealtimePublished: withUsage
-      ? await publishUsageLedgerChanged(step, workspaceId, usageActorId)
+      ? await publishUsageLedgerChanged(
+          step,
+          workspaceId,
+          usageActorId,
+          callSite,
+        )
       : false,
   };
 }

@@ -162,6 +162,7 @@ export async function generateStructured<TOutput>(
       model,
       instructions: input.instructions,
       prompt: input.prompt,
+      providerOptions: input.providerOptions,
       output: Output.object({
         name: input.outputName,
         schema: input.schema,
@@ -234,6 +235,9 @@ export async function streamSynthesis<
     prepareStep: input.prepareStep,
     stopWhen: input.stopWhen,
     timeout: { totalMs: input.deadlineMs },
+    ...(input.providerOptions
+      ? { providerOptions: input.providerOptions }
+      : {}),
     toolChoice: input.toolChoice,
     toolApproval: input.toolApproval,
     runtimeContext: input.telemetry,

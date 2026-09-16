@@ -39,8 +39,45 @@ whether retrying is safe.
 
 **Remote** supports structured output, embeddings, image generation and streaming.
 
-**On-host** supports structured output and embeddings only. A template routing
-image generation locally fails at startup rather than at first use.
+**On-host** supports structured output, embeddings, and streaming synthesis. A
+template routing image generation locally fails at startup rather than at first
+use. Local routing is allowlisted: `assistant-synthesis`,
+`image-template-selection`, `keyword-embedding`, and `text-translation` may
+select local; every other task stays remote-only.
+
+Shipped templates route **four tasks local** on host `127.0.0.1:11434`:
+
+- `assistant-synthesis` → `qwen3:0.6b` (local, web + worker) → `openai/gpt-4o-mini`
+- `text-translation` → `qwen3:0.6b` (local, worker) → `openai/gpt-4o-mini`
+- `image-template-selection` → `qwen3:0.6b` (local, worker) → `openai/gpt-4o-mini`
+- `keyword-embedding` → `embeddinggemma:300m` (local, worker) → `openai/text-embedding-3-small`
+
+Other tasks remain remote.
+
+### Local setup (host Ollama `127.0.0.1:11434`, shipped 4-task)
+
+```sh
+free -h  # need ~2 GiB free after the app is running, or stop and don't go local
+
+curl -fsSL https://ollama.com/install.sh | sh
+systemctl enable --now ollama
+
+ollama pull qwen3:0.6b
+ollama pull embeddinggemma:300m
+curl -fsS http://127.0.0.1:11434/api/tags
+```
+
+Bind **worker + web** (web needs it because `assistant-synthesis` is local):
+
+```bash
+# deploy/instances/<host>/env/worker.env and deploy/instances/<host>/env/web.env
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+```
+
+If only worker tasks were local, `web.env` would not need it. To revert any
+local task to remote, change its route back to `"backend": "remote"` and drop
+`OLLAMA_BASE_URL` only if no task remains local — prestart fails if a local
+route is unbound.
 
 ## Every call, same usage lifecycle
 
@@ -108,7 +145,9 @@ never enter telemetry.**
 
 `assertModelCapabilities` checks every configured task's primary *and* fallback
 routes: a remote route needs the remote key, a local route needs the local URL,
-and any image-generation task must be remote.
+image-generation tasks must be remote, and only allowlisted tasks may select
+local. Web prestart uses `assertAssistantBindings` for the same binding and
+capability rules on `assistant-synthesis` alone.
 
 A template routing to an unbound backend fails at startup, not mid-run.
 

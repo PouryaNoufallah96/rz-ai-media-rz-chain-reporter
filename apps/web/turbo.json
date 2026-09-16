@@ -19,6 +19,8 @@
         "APP_URL",
         "INNGEST_DEV",
         "INNGEST_SIGNING_KEY",
+        "OLLAMA_BASE_URL",
+        "OPENROUTER_API_KEY",
         "SENTRY_DSN",
         "NEXT_PUBLIC_SENTRY_DSN",
         "S3_ACCESS_KEY_ID",

@@ -8,6 +8,7 @@ import {
   MAX_REFERENCE_IMAGE_DIMENSION,
   MAX_REFERENCE_IMAGE_PIXELS,
   marketChartSpecSchema,
+  marketGenerationRequestedPayloadSchema,
 } from "@rz-chain-reporter/contracts";
 import {
   IMAGE_GENERATION_TASK_PREFIX,
@@ -48,6 +49,8 @@ import { ModelGatewayInvocationError } from "@rz-chain-reporter/model-gateway/er
 import type { ModelGateway } from "@rz-chain-reporter/model-gateway/gateway";
 import { and, eq } from "drizzle-orm";
 import { NonRetriableError } from "inngest";
+import { z } from "zod";
+import { workerLogger } from "../logging/logger";
 import {
   deterministicMarketBrief,
   MARKET_GENERATION_BRIEF_POLICY_VERSION,
@@ -66,6 +69,7 @@ import { nextInvocationSlot } from "../market-generation/slots";
 import { workerModelGateway } from "../model-gateway/worker-gateway";
 import { resolveArtifactRoot } from "../runtime/artifact-root";
 import { notifyMarketAnalysisAndUsageChanged } from "../web-cache/market-analysis";
+import { publishOperationStatus } from "./channels";
 import type { WorkerInngestClient } from "./client";
 import { durableEvents } from "./events";
 import {
@@ -81,6 +85,16 @@ import { assertWorkspace, type WorkerRuntime } from "./runtime";
 const FUNCTION_ID = "market-generation";
 const LEASE_MS = 15 * 60_000;
 const PROVIDER_DEADLINE_MS = 90_000;
+
+const cancelledIdsSchema = z.object({
+  data: z.object({ function_id: z.string(), run_id: z.string() }),
+});
+
+const cancelledEnvelopeSchema = z.object({
+  data: z.object({
+    event: z.object({ data: marketGenerationRequestedPayloadSchema }),
+  }),
+});
 
 function stableIdentity(operationId: string, purpose: string) {
   const hex = createHash("sha256")
@@ -138,7 +152,13 @@ async function settleInterrupted(
         operationId,
       },
     );
-    return { actorId: context.operation.actor, settled: released !== null };
+    return released
+      ? {
+          actorId: released.actor,
+          operationVersion: released.version,
+          settled: true as const,
+        }
+      : { actorId: context.operation.actor, settled: false as const };
   }
   const settled = await settleMarketGenerationOperation(
     runtime.db,
@@ -150,7 +170,14 @@ async function settleInterrupted(
       terminal: current ? lifecycle : "cancelled",
     },
   );
-  return { actorId: context.operation.actor, settled: settled !== null };
+  return settled
+    ? {
+        actorId: settled.actor,
+        lifecycle: settled.lifecycle,
+        operationVersion: settled.version,
+        settled: true as const,
+      }
+    : { actorId: context.operation.actor, settled: false as const };
 }
 
 type GenerationContext = NonNullable<
@@ -833,6 +860,27 @@ export function createMarketGenerationFunctions(
           "failed",
           settled.actorId,
         );
+        if (
+          settled.settled &&
+          settled.actorId &&
+          "operationVersion" in settled
+        ) {
+          await publishOperationStatus(
+            step,
+            payload.workspaceId,
+            {
+              actorId: settled.actorId,
+              lifecycle:
+                (settled as { lifecycle?: "cancelled" | "failed" | "unknown" })
+                  .lifecycle ?? "failed",
+              operationId: payload.operationId,
+              operationVersion: (settled as { operationVersion: number })
+                .operationVersion,
+              sharedImport: false,
+            },
+            "worker.market-generation.realtime-unavailable",
+          );
+        }
       },
     },
     async ({ event, step }) => {
@@ -858,6 +906,18 @@ export function createMarketGenerationFunctions(
         }
         return { status: claimed.status };
       }
+      await publishOperationStatus(
+        step,
+        event.data.workspaceId,
+        {
+          actorId: claimed.operation.actor,
+          lifecycle: "running",
+          operationId: event.data.operationId,
+          operationVersion: claimed.operation.version,
+          sharedImport: false,
+        },
+        "worker.market-generation.realtime-unavailable",
+      );
       const brief = await step.run("persist-market-generation-brief", () =>
         executeBrief(
           runtime,
@@ -868,13 +928,19 @@ export function createMarketGenerationFunctions(
         ),
       );
       if (brief.status === "ambiguous") {
-        await step.run("settle-ambiguous-market-generation-brief", () =>
-          settleMarketGenerationOperation(runtime.db, event.data.workspaceId, {
-            claimedBy: owner,
-            expectedVersion: claimed.operation.version,
-            operationId: event.data.operationId,
-            terminal: "unknown",
-          }),
+        const ambiguousBriefSettled = await step.run(
+          "settle-ambiguous-market-generation-brief",
+          () =>
+            settleMarketGenerationOperation(
+              runtime.db,
+              event.data.workspaceId,
+              {
+                claimedBy: owner,
+                expectedVersion: claimed.operation.version,
+                operationId: event.data.operationId,
+                terminal: "unknown",
+              },
+            ),
         );
         await notifyMarketAnalysisAndUsageChanged(
           step,
@@ -883,6 +949,20 @@ export function createMarketGenerationFunctions(
           "ambiguous-brief",
           claimed.operation.actor,
         );
+        if (ambiguousBriefSettled) {
+          await publishOperationStatus(
+            step,
+            event.data.workspaceId,
+            {
+              actorId: ambiguousBriefSettled.actor,
+              lifecycle: ambiguousBriefSettled.lifecycle as "unknown",
+              operationId: event.data.operationId,
+              operationVersion: ambiguousBriefSettled.version,
+              sharedImport: false,
+            },
+            "worker.market-generation.realtime-unavailable",
+          );
+        }
         return brief;
       }
       if (brief.status !== "stale") {
@@ -906,13 +986,19 @@ export function createMarketGenerationFunctions(
           ),
       );
       if (image.status === "ambiguous") {
-        await step.run("settle-ambiguous-market-generation-image", () =>
-          settleMarketGenerationOperation(runtime.db, event.data.workspaceId, {
-            claimedBy: owner,
-            expectedVersion: claimed.operation.version,
-            operationId: event.data.operationId,
-            terminal: "unknown",
-          }),
+        const ambiguousImageSettled = await step.run(
+          "settle-ambiguous-market-generation-image",
+          () =>
+            settleMarketGenerationOperation(
+              runtime.db,
+              event.data.workspaceId,
+              {
+                claimedBy: owner,
+                expectedVersion: claimed.operation.version,
+                operationId: event.data.operationId,
+                terminal: "unknown",
+              },
+            ),
         );
         await notifyMarketAnalysisAndUsageChanged(
           step,
@@ -921,10 +1007,61 @@ export function createMarketGenerationFunctions(
           "ambiguous-image",
           claimed.operation.actor,
         );
+        if (ambiguousImageSettled) {
+          await publishOperationStatus(
+            step,
+            event.data.workspaceId,
+            {
+              actorId: ambiguousImageSettled.actor,
+              lifecycle: ambiguousImageSettled.lifecycle as "unknown",
+              operationId: event.data.operationId,
+              operationVersion: ambiguousImageSettled.version,
+              sharedImport: false,
+            },
+            "worker.market-generation.realtime-unavailable",
+          );
+        }
         return image;
       }
-      if (image.status === "failed")
-        throw new NonRetriableError("MARKET_GENERATION_PROVIDER_EXHAUSTED");
+      if (image.status === "failed") {
+        const exhaustedSettled = await step.run(
+          "settle-provider-exhausted-market-generation",
+          () =>
+            settleMarketGenerationOperation(
+              runtime.db,
+              event.data.workspaceId,
+              {
+                claimedBy: owner,
+                expectedVersion: claimed.operation.version,
+                failureCode: "MODEL_INVOCATION_FAILED",
+                operationId: event.data.operationId,
+                terminal: "failed",
+              },
+            ),
+        );
+        await notifyMarketAnalysisAndUsageChanged(
+          step,
+          event.data.workspaceId,
+          event.data.marketAnalysisId,
+          "provider-exhausted",
+          claimed.operation.actor,
+        );
+        if (exhaustedSettled) {
+          await publishOperationStatus(
+            step,
+            event.data.workspaceId,
+            {
+              actorId: exhaustedSettled.actor,
+              lifecycle: exhaustedSettled.lifecycle as "failed",
+              operationId: event.data.operationId,
+              operationVersion: exhaustedSettled.version,
+              sharedImport: false,
+            },
+            "worker.market-generation.realtime-unavailable",
+          );
+        }
+        return image;
+      }
       if (image.status !== "stale") {
         await notifyMarketAnalysisAndUsageChanged(
           step,
@@ -942,7 +1079,7 @@ export function createMarketGenerationFunctions(
           owner,
         ),
       );
-      await step.run("settle-market-generation", async () => {
+      const settled = await step.run("settle-market-generation", async () => {
         const latest = await loadMarketGenerationContext(
           runtime.db,
           event.data.workspaceId,
@@ -980,6 +1117,20 @@ export function createMarketGenerationFunctions(
         "settled",
         claimed.operation.actor,
       );
+      if (settled) {
+        await publishOperationStatus(
+          step,
+          event.data.workspaceId,
+          {
+            actorId: settled.actor,
+            lifecycle: settled.lifecycle as "cancelled" | "succeeded",
+            operationId: event.data.operationId,
+            operationVersion: settled.version,
+            sharedImport: false,
+          },
+          "worker.market-generation.realtime-unavailable",
+        );
+      }
       return final;
     },
   );
@@ -995,24 +1146,24 @@ export function createMarketGenerationFunctions(
       ],
     },
     async ({ event, step }) => {
-      const payload = (
-        event.data.event as
-          | {
-              data?: {
-                operationId?: string;
-                workspaceId?: string;
-                marketAnalysisId?: string;
-              };
-            }
-          | undefined
-      )?.data;
-      if (
-        !payload?.operationId ||
-        !payload.workspaceId ||
-        !payload.marketAnalysisId
-      )
-        return { status: "ignored" };
-      const { marketAnalysisId, operationId, workspaceId } = payload;
+      const envelope = cancelledEnvelopeSchema.safeParse(event);
+      if (!envelope.success) {
+        const ids = cancelledIdsSchema.safeParse(event);
+        await step.run("report-cancelled-event-invalid", async () => {
+          workerLogger.error(
+            "worker.market-generation.cancelled-event-invalid",
+            {
+              errorCode: "VALIDATION_FAILED",
+              functionId: ids.success ? ids.data.data.function_id : undefined,
+              runId: ids.success ? ids.data.data.run_id : undefined,
+            },
+          );
+          return { parsed: false };
+        });
+        return { settled: false };
+      }
+      const { marketAnalysisId, operationId, workspaceId } =
+        envelope.data.data.event.data;
       const settled = await step.run("settle-cancelled-market-generation", () =>
         settleInterrupted(runtime, workspaceId, operationId, "cancelled"),
       );
@@ -1023,6 +1174,23 @@ export function createMarketGenerationFunctions(
         "cancelled",
         settled.actorId,
       );
+      if (settled.settled && settled.actorId && "operationVersion" in settled) {
+        await publishOperationStatus(
+          step,
+          workspaceId,
+          {
+            actorId: settled.actorId,
+            lifecycle:
+              (settled as { lifecycle?: "cancelled" | "failed" | "unknown" })
+                .lifecycle ?? "cancelled",
+            operationId,
+            operationVersion: (settled as { operationVersion: number })
+              .operationVersion,
+            sharedImport: false,
+          },
+          "worker.market-generation.realtime-unavailable",
+        );
+      }
       return { status: settled.settled ? "cancelled" : "ignored" };
     },
   );

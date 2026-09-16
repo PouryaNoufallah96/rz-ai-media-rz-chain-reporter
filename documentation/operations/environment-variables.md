@@ -52,7 +52,8 @@ database driver into a page.
 | `NEXT_PUBLIC_SENTRY_DSN` | Optional | The browser error reporter. The only variable the browser ever sees. |
 | `SENTRY_DSN` | Optional | The server-side error reporter. Absent means logs go to standard output. |
 | `INNGEST_SIGNING_KEY` | Yes in production | The web application uses it to mint realtime subscription tokens. |
-| `OPENROUTER_API_KEY` | Yes | The remote model provider. The assistant cannot start without it. |
+| `OPENROUTER_API_KEY` | Conditionally | Required when any task (shipped fallback) selects the remote backend. Prestart refuses to start unbound. |
+| `OLLAMA_BASE_URL` | Conditionally | Required when `assistant-synthesis` (primary or fallback) selects the local backend. Host verification `curl -fsS http://127.0.0.1:11434/api/tags`; web/worker containers in Compose reach the host Ollama via `http://host.docker.internal:11434` (`compose.production.yml:143,186` `extra_hosts: ["host.docker.internal:host-gateway"]`). |
 | `ASSISTANT_APPROVAL_SECRET` | Required for assistant operations, at least 32 characters | Signs transient approval envelopes. It is a web-runtime secret and never enters the browser. |
 | `PUBLISHING_EMERGENCY_PAUSED` | Optional | An operator brake. Only `1` or `true` pauses. |
 
@@ -74,8 +75,8 @@ assistant proposals; runs already admitted to PostgreSQL remain authoritative.
 | `INNGEST_SIGNING_KEY` | Yes when not in development mode | Signing durable traffic |
 | `INNGEST_DEV` | Development only | Switches the SDK to the local development server. **Refused in every production environment file, and the deploy script greps the rendered Compose output to prove it is absent.** |
 | `INNGEST_CONNECT_MAX_WORKER_CONCURRENCY` | Defaulted to 12 | Concurrent function executions. Production sets it lower. |
-| `OPENROUTER_API_KEY` | Yes | The remote model backend |
-| `OLLAMA_BASE_URL` | Optional | The on-host model backend, when a task's configuration selects it. **Refused in the web environment** — the web application cannot serve it. |
+| `OPENROUTER_API_KEY` | Conditionally | The remote model backend — required when any configured task route selects it |
+| `OLLAMA_BASE_URL` | Optional | The on-host model backend, when a task's configuration selects it. Host `curl -fsS http://127.0.0.1:11434/api/tags`; containers use `http://host.docker.internal:11434` via `extra_hosts`. Bind the same URL on web when `assistant-synthesis` is local. |
 | `FIRECRAWL_API_KEY` | Conditionally | Required only when an enabled source selects a rendered-page fetch mode. Prestart exits with the unbound code if the template needs it and it is missing. |
 | `PUBLISHING_EMERGENCY_PAUSED` | Optional | The same brake, checked inside the publish effect |
 | `SENTRY_DSN` | Optional | Error reporting |

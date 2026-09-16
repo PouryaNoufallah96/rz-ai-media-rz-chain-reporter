@@ -79,7 +79,12 @@ async function notifyDrafts(
       callSite,
     ),
     usageRealtimePublished: withUsage
-      ? await publishUsageLedgerChanged(step, workspaceId, usageActorId)
+      ? await publishUsageLedgerChanged(
+          step,
+          workspaceId,
+          usageActorId,
+          callSite,
+        )
       : false,
   };
 }

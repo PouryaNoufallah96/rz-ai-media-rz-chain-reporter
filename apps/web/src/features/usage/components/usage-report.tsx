@@ -22,6 +22,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@rz-chain-reporter/ui/components/empty";
+import { SimpleIconsOllama } from "@rz-chain-reporter/ui/components/icons/simple-icons/ollama";
 import {
   Table,
   TableBody,
@@ -137,7 +138,14 @@ export function UsageReport({ page, query, summary }: UsageReportProps) {
       accessorKey: "provider",
       header: t("columns.provider"),
       id: "provider",
-      cell: ({ row }) => t(`provider.${row.original.provider}`),
+      cell: ({ row }) => (
+        <span className="inline-flex items-center gap-1.5">
+          {row.original.provider === "ollama" ? (
+            <SimpleIconsOllama className="size-3.5 shrink-0" aria-hidden />
+          ) : null}
+          {t(`provider.${row.original.provider}`)}
+        </span>
+      ),
     },
     {
       accessorKey: "totalTokens",
@@ -410,10 +418,17 @@ function UsageSummaryBlock({ summary }: { summary: UsageSummary }) {
                 <TableRow key={`${model.backend}:${model.model}`}>
                   <TableCell>
                     <span className="flex items-center gap-2">
-                      <ModelIcon
-                        className="size-4 shrink-0"
-                        vendor={modelVendor(model.model)}
-                      />
+                      {model.backend === "local" ? (
+                        <SimpleIconsOllama
+                          className="size-4 shrink-0"
+                          aria-hidden
+                        />
+                      ) : (
+                        <ModelIcon
+                          className="size-4 shrink-0"
+                          vendor={modelVendor(model.model)}
+                        />
+                      )}
                       <Bdi className="font-mono">{model.model}</Bdi>
                     </span>
                   </TableCell>
@@ -477,10 +492,14 @@ function ModelValue({ row }: { row: UsageRow }) {
   return (
     <span className="flex max-w-56 flex-wrap items-center gap-1 text-xs">
       <span className="inline-flex items-center gap-1">
-        <ModelIcon
-          className="size-4 shrink-0"
-          vendor={modelVendor(row.requestedModel)}
-        />
+        {row.backend === "local" ? (
+          <SimpleIconsOllama className="size-4 shrink-0" aria-hidden />
+        ) : (
+          <ModelIcon
+            className="size-4 shrink-0"
+            vendor={modelVendor(row.requestedModel)}
+          />
+        )}
         <Bdi className="font-mono">{row.requestedModel}</Bdi>
       </span>
       {changed ? (
@@ -558,7 +577,12 @@ function UsageDetails({ row }: { row: UsageRow }) {
             {t(`backend.${row.backend}`)}
           </Detail>
           <Detail label={t("columns.provider")}>
-            {t(`provider.${row.provider}`)}
+            <span className="inline-flex items-center gap-1.5">
+              {row.provider === "ollama" ? (
+                <SimpleIconsOllama className="size-3.5 shrink-0" aria-hidden />
+              ) : null}
+              {t(`provider.${row.provider}`)}
+            </span>
           </Detail>
           <Detail label={t("columns.tokens")}>
             <TokenValue row={row} />

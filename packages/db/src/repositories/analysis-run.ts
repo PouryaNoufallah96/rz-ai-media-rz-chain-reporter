@@ -27,6 +27,7 @@ import {
   withWorkspaceContext,
 } from "../executor";
 import { inWorkspace } from "../filters";
+import { aiUsageEvent } from "../schema/ai-usage-event";
 import { analysisModelUnit } from "../schema/analysis-model-unit";
 import { analysisRun } from "../schema/analysis-run";
 import { analysisRunItem } from "../schema/analysis-run-item";
@@ -40,6 +41,7 @@ import { sourceImport } from "../schema/source-import";
 import { sourceImportItem } from "../schema/source-import-item";
 import { sourceItem } from "../schema/source-item";
 import { sourceItemRevision } from "../schema/source-item-revision";
+import { markPendingAttemptUsageUnknown } from "./ai-usage-event";
 import { matchesAppliedCustomerTemplate } from "./customer-template-identity";
 import { createOperation, transitionOperation } from "./operation";
 import {
@@ -957,7 +959,13 @@ export async function cancelAnalysisRunInBand(
       return null;
     }
 
-    await cancelNonTerminalUnits(tx, workspaceId, claim.run.id);
+    await cancelNonTerminalUnits(tx, workspaceId, claim.run.id, null);
+    await settleInterruptedAttempt(
+      tx,
+      workspaceId,
+      claim.run.semanticAttemptId,
+      null,
+    );
 
     return finishSettle(tx, workspaceId, claim, "cancelled");
   });
@@ -983,7 +991,18 @@ export async function settleAnalysisRun(
       return null;
     }
 
-    await cancelNonTerminalUnits(tx, workspaceId, claim.run.id);
+    const cancelledUnitCount = await cancelNonTerminalUnits(
+      tx,
+      workspaceId,
+      claim.run.id,
+      input.failureCode,
+    );
+    await settleInterruptedAttempt(
+      tx,
+      workspaceId,
+      claim.run.semanticAttemptId,
+      input.failureCode,
+    );
 
     const [units] = await tx
       .select({
@@ -1004,7 +1023,7 @@ export async function settleAnalysisRun(
     // completed zero-unit plan; otherwise cancellation arrived after completion.
     if (
       claim.run.cancelRequestedAt !== null &&
-      ((units?.cancelled ?? 0) > 0 ||
+      (cancelledUnitCount > 0 ||
         (planned === 0 && claim.run.fanOutPlannedAt === null))
     ) {
       return finishSettle(tx, workspaceId, claim, "cancelled");
@@ -1031,6 +1050,7 @@ type SettleClaim = {
     id: string;
     fanOutPlannedAt: Date | null;
     semanticStatus: SemanticStageStatus;
+    semanticAttemptId: string | null;
     cancelRequestedAt: Date | null;
     cancelledAt: Date | null;
   };
@@ -1065,6 +1085,7 @@ async function claimSettle(
       id: analysisRun.id,
       fanOutPlannedAt: analysisRun.fanOutPlannedAt,
       semanticStatus: analysisRun.semanticStatus,
+      semanticAttemptId: analysisRun.semanticAttemptId,
       cancelRequestedAt: analysisRun.cancelRequestedAt,
       cancelledAt: analysisRun.cancelledAt,
     })
@@ -1092,8 +1113,9 @@ async function cancelNonTerminalUnits(
   tx: Transaction,
   workspaceId: string,
   analysisRunId: string,
+  failureCode: ErrorCode | null,
 ) {
-  await tx
+  const cancelled = await tx
     .update(analysisModelUnit)
     .set({ status: "cancelled" })
     .where(
@@ -1102,7 +1124,51 @@ async function cancelNonTerminalUnits(
         eq(analysisModelUnit.analysisRunId, analysisRunId),
         inArray(analysisModelUnit.status, NON_TERMINAL_UNIT_STATUSES),
       ),
+    )
+    .returning({
+      id: analysisModelUnit.id,
+      operationAttemptId: analysisModelUnit.operationAttemptId,
+    });
+
+  for (const attemptId of new Set(
+    cancelled.flatMap((unit) =>
+      unit.operationAttemptId === null ? [] : [unit.operationAttemptId],
+    ),
+  )) {
+    await settleInterruptedAttempt(tx, workspaceId, attemptId, failureCode);
+  }
+
+  return cancelled.length;
+}
+
+async function settleInterruptedAttempt(
+  tx: Transaction,
+  workspaceId: string,
+  attemptId: string | null,
+  failureCode: ErrorCode | null,
+) {
+  if (attemptId === null) return;
+
+  const [usage] = await tx
+    .select({
+      unresolved: sql<number>`count(*) filter (where ${aiUsageEvent.status} in ('pending', 'unknown'))::int`,
+    })
+    .from(aiUsageEvent)
+    .where(
+      and(
+        inWorkspace(aiUsageEvent, workspaceId),
+        eq(aiUsageEvent.operationAttemptId, attemptId),
+      ),
     );
+  const ambiguous = (usage?.unresolved ?? 0) > 0;
+  if (ambiguous) {
+    await markPendingAttemptUsageUnknown(tx, workspaceId, attemptId);
+  }
+  await settleOperationAttempt(tx, workspaceId, {
+    failureCode,
+    id: attemptId,
+    outcome: ambiguous ? "ambiguous" : "failed_terminal",
+  });
 }
 
 // A settled run cannot retain pending/running semantic status: no allocation

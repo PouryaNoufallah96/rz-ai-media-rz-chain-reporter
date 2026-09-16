@@ -17,7 +17,10 @@ import { workspace } from "@rz-chain-reporter/db/schema/workspace";
 import { asc, eq, inArray } from "drizzle-orm";
 
 import { createInngestClient } from "../inngest/client";
-import { createInngestEvent } from "../inngest/events";
+import {
+  createInngestEvent,
+  OutboxEventContractError,
+} from "../inngest/events";
 import { workerLogger } from "../logging/logger";
 import { workerEnv } from "../runtime/env";
 import { OutboxRelay } from "./relay";
@@ -55,6 +58,18 @@ workerLogger.warn = (event, fields) => {
 try {
   const marketAnalysisId = randomUUID();
   const marketOperationId = randomUUID();
+  assert.throws(
+    () =>
+      createInngestEvent({
+        eventType: "toString",
+        id: randomUUID(),
+        payload: {},
+        schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+      }),
+    (error) =>
+      error instanceof OutboxEventContractError &&
+      error.code === "OUTBOX_EVENT_TYPE_UNSUPPORTED",
+  );
   assert.equal(
     createInngestEvent({
       eventType: OPERATION_MARKET_VERIFICATION_REQUESTED_EVENT_NAME,

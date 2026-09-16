@@ -148,6 +148,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test:
         [
@@ -184,6 +186,8 @@ services:
       WORKER_HEALTH_PORT: "3002"
       INNGEST_CONNECT_MAX_WORKER_CONCURRENCY: "5"
       WEB_INTERNAL_BASE_URL: http://web:3001
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy

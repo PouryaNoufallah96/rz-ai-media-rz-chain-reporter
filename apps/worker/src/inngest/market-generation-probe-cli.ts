@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { closestSupportedAspectRatio } from "@rz-chain-reporter/contracts";
+import { marketGenerationAttemptSettlement } from "@rz-chain-reporter/db/repositories/market-generation";
 import { assertImageInvocationBounds } from "@rz-chain-reporter/model-gateway/gateway";
 import type { ImageModelInvocation } from "@rz-chain-reporter/model-gateway/types";
 import sharp from "sharp";
@@ -93,6 +94,30 @@ async function main() {
     ),
     { status: "available", invocationKey: "fallback" },
   );
+  assert.deepEqual(
+    nextInvocationSlot(
+      ["primary", "retry-1"],
+      [
+        { invocationKey: "primary", status: "failed" },
+        { invocationKey: "retry-1", status: "failed" },
+      ],
+    ),
+    { status: "exhausted" },
+  );
+  assert.deepEqual(
+    marketGenerationAttemptSettlement({
+      ambiguous: false,
+      failureCode: "MODEL_INVOCATION_FAILED",
+    }),
+    {
+      failureCode: "MODEL_INVOCATION_FAILED",
+      outcome: "failed_terminal",
+    },
+  );
+  assert.deepEqual(marketGenerationAttemptSettlement({ ambiguous: true }), {
+    failureCode: "MODEL_INVOCATION_FAILED",
+    outcome: "ambiguous",
+  });
 
   const scenes = [
     "A credible advanced manufacturing floor at deep indigo hour with one precise gold robotic arm and quiet editorial space.",
@@ -279,6 +304,7 @@ async function main() {
         scenarios: [
           "gateway-reference-bounds",
           "slot-availability-and-ambiguity-refusal",
+          "definite-provider-exhaustion-settlement",
           "brief-policy-rejection",
           "deterministic-fallback",
           "prompt-assembly",
