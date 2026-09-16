@@ -10,6 +10,7 @@ import {
   COPY_PROMPT_VERSION,
   type ContentLocale,
   type EnrichmentReason,
+  PLATFORM_COPY_HARD_MAX,
   type Platform,
   platformCopyLength,
 } from "@rz-chain-reporter/contracts";
@@ -27,6 +28,7 @@ import {
   markCopyGenerationCancelled,
   persistCopyVariantResult,
   prepareCopyGenerationSource,
+  scheduleCopyGenerationRecovery,
   settleCopyGeneration,
   startCopyOperation,
 } from "@rz-chain-reporter/db/repositories/copy-generation";
@@ -97,6 +99,17 @@ const LIMITED_SUMMARY = "L".repeat(900);
 const TELEGRAM_POST = "T".repeat(2_200);
 const X_HARD_MAXIMUM = 280;
 
+type CopyNormalizationProbePolicy = Pick<
+  (typeof opened.template.editorial.drafting.copy.platforms)[number],
+  "assembledCharacters" | "emojiGraphemeCap" | "hashtags"
+>;
+
+const INSTAGRAM_NORMALIZATION_PROBE_POLICY = {
+  assembledCharacters: { max: 1_200, min: 600 },
+  emojiGraphemeCap: 8,
+  hashtags: { max: 6, min: 4 },
+} satisfies CopyNormalizationProbePolicy;
+
 const [requestedCommand, ...args] = process.argv.slice(2);
 const command = requestedCommand ?? "execution";
 if (
@@ -129,7 +142,7 @@ const runtime = {
 
 const copyClaimFences = new Map<
   string,
-  { operationVersion: number; token: string }
+  { operationVersion: number; recovered: boolean; token: string }
 >();
 
 async function claimProbeCopy(
@@ -151,6 +164,7 @@ async function claimProbeCopy(
   if (claimed.status !== "claimed") throw new Error("COPY_CLAIM_REQUIRED");
   const fence = {
     operationVersion: claimed.operation.version,
+    recovered: claimed.recovered,
     token,
   };
   copyClaimFences.set(operationId, fence);
@@ -1083,75 +1097,91 @@ class CopySourceFixture {
 
   async cleanup() {
     if (!this.workspaceId) return "exact_fixture_removed";
-    if (this.draftRevisionIds.length > 0) {
-      await opened.database.db
-        .delete(draftRevision)
-        .where(inArray(draftRevision.id, this.draftRevisionIds));
-    }
-    if (this.operationIds.length > 0) {
-      await opened.database.db
-        .delete(aiUsageEvent)
-        .where(inArray(aiUsageEvent.operationId, this.operationIds));
-      await opened.database.db
-        .delete(copyVariant)
-        .where(
-          inArray(
-            copyVariant.copyGenerationUnitId,
-            opened.database.db
-              .select({ id: copyGenerationUnit.id })
-              .from(copyGenerationUnit)
-              .where(
-                inArray(copyGenerationUnit.copyGenerationId, this.operationIds),
-              ),
-          ),
-        );
-      await opened.database.db
-        .delete(copyGenerationUnit)
-        .where(inArray(copyGenerationUnit.copyGenerationId, this.operationIds));
-      await opened.database.db
-        .delete(copyGeneration)
-        .where(inArray(copyGeneration.operationId, this.operationIds));
-      await opened.database.db
-        .delete(outboxEvent)
-        .where(inArray(outboxEvent.operationId, this.operationIds));
-    }
-    if (this.revisionIds.length > 0) {
-      await opened.database.db
-        .delete(sourceItemEnrichment)
-        .where(
-          inArray(sourceItemEnrichment.sourceItemRevisionId, this.revisionIds),
-        );
-    }
-    if (this.draftIds.length > 0) {
-      await opened.database.db
-        .delete(platformDraft)
-        .where(inArray(platformDraft.id, this.draftIds));
-    }
-    if (this.analysisRunId) {
-      await opened.database.db
-        .delete(analysisRun)
-        .where(eq(analysisRun.id, this.analysisRunId));
-    }
-    if (this.itemIds.length > 0) {
-      await opened.database.db
-        .delete(sourceItem)
-        .where(inArray(sourceItem.id, this.itemIds));
-    }
-    if (this.rssSourceId || this.telegramSourceId) {
-      await opened.database.db
-        .delete(source)
-        .where(inArray(source.id, [this.rssSourceId, this.telegramSourceId]));
-    }
-    if (this.operationIds.length > 0) {
-      await opened.database.db
-        .delete(operation)
-        .where(inArray(operation.id, this.operationIds));
-      const remaining = await opened.database.db
-        .select({ id: operation.id })
-        .from(operation)
-        .where(inArray(operation.id, this.operationIds));
-      assert.equal(remaining.length, 0);
-    }
+    await opened.database.db.transaction(async (tx) => {
+      if (this.draftRevisionIds.length > 0) {
+        await tx
+          .delete(draftRevision)
+          .where(inArray(draftRevision.id, this.draftRevisionIds));
+      }
+      if (this.operationIds.length > 0) {
+        await tx
+          .update(operation)
+          .set({
+            claimedBy: null,
+            leaseExpiresAt: null,
+            lifecycle: "cancelled",
+          })
+          .where(inArray(operation.id, this.operationIds));
+        await tx
+          .delete(outboxEvent)
+          .where(inArray(outboxEvent.operationId, this.operationIds));
+        await tx
+          .delete(aiUsageEvent)
+          .where(inArray(aiUsageEvent.operationId, this.operationIds));
+        await tx
+          .delete(copyVariant)
+          .where(
+            inArray(
+              copyVariant.copyGenerationUnitId,
+              tx
+                .select({ id: copyGenerationUnit.id })
+                .from(copyGenerationUnit)
+                .where(
+                  inArray(
+                    copyGenerationUnit.copyGenerationId,
+                    this.operationIds,
+                  ),
+                ),
+            ),
+          );
+        await tx
+          .delete(copyGenerationUnit)
+          .where(
+            inArray(copyGenerationUnit.copyGenerationId, this.operationIds),
+          );
+        await tx
+          .delete(copyGeneration)
+          .where(inArray(copyGeneration.operationId, this.operationIds));
+      }
+      if (this.revisionIds.length > 0) {
+        await tx
+          .delete(sourceItemEnrichment)
+          .where(
+            inArray(
+              sourceItemEnrichment.sourceItemRevisionId,
+              this.revisionIds,
+            ),
+          );
+      }
+      if (this.draftIds.length > 0) {
+        await tx
+          .delete(platformDraft)
+          .where(inArray(platformDraft.id, this.draftIds));
+      }
+      if (this.analysisRunId) {
+        await tx
+          .delete(analysisRun)
+          .where(eq(analysisRun.id, this.analysisRunId));
+      }
+      if (this.itemIds.length > 0) {
+        await tx.delete(sourceItem).where(inArray(sourceItem.id, this.itemIds));
+      }
+      if (this.rssSourceId || this.telegramSourceId) {
+        await tx
+          .delete(source)
+          .where(inArray(source.id, [this.rssSourceId, this.telegramSourceId]));
+      }
+      if (this.operationIds.length > 0) {
+        await tx
+          .delete(operation)
+          .where(inArray(operation.id, this.operationIds));
+        const remaining = await tx
+          .select({ id: operation.id })
+          .from(operation)
+          .where(inArray(operation.id, this.operationIds));
+        assert.equal(remaining.length, 0);
+      }
+    });
     return "exact_fixture_removed";
   }
 
@@ -1447,7 +1477,7 @@ class DeterministicGateway implements ModelGateway {
 
 function candidateFor(
   platform: Platform,
-  policy: (typeof opened.template.editorial.drafting.copy.platforms)[number],
+  policy: CopyNormalizationProbePolicy,
   canonicalHashtag: string,
   accepted: boolean,
 ) {
@@ -1486,7 +1516,7 @@ function candidateFor(
 
 function persianCandidateFor(
   platform: Platform,
-  policy: (typeof opened.template.editorial.drafting.copy.platforms)[number],
+  policy: CopyNormalizationProbePolicy,
   canonicalHashtag: string,
 ) {
   const candidate = {
@@ -2252,10 +2282,15 @@ async function runExecutionProbe(probe: CopySourceFixture) {
   await proveStaleCopyReconciliation(probe);
   await proveCancellationFence(probe, brand);
   for (const platform of ["x", "telegram", "instagram"] as const) {
-    const policy = opened.template.editorial.drafting.copy.platforms.find(
-      (entry) => entry.platform === platform,
-    );
+    const policy =
+      opened.template.editorial.drafting.copy.platforms.find(
+        (entry) => entry.platform === platform,
+      ) ??
+      (platform === "instagram" ? INSTAGRAM_NORMALIZATION_PROBE_POLICY : null);
     if (!policy) throw new Error(`EXECUTION_PLATFORM_${platform}`);
+    assert.ok(
+      policy.assembledCharacters.max <= PLATFORM_COPY_HARD_MAX[platform],
+    );
     const candidate = candidateFor(
       platform,
       policy,
@@ -2328,7 +2363,7 @@ async function runExecutionProbe(probe: CopySourceFixture) {
   assert.equal(await operationUsageCount(partialFixture.operationId), 7);
   assert.equal(await operationVariantCount(partialFixture.operationId), 2);
   assert.equal(await operationAttemptCount(partialFixture.operationId), 3);
-  assert.equal(await pendingCopyWakeCount(partialFixture.operationId), 1);
+  assert.equal(await pendingCopyWakeCount(partialFixture.operationId), 0);
   const beforeReplayUsage = await operationUsageCount(
     partialFixture.operationId,
   );
@@ -2424,6 +2459,7 @@ async function runExecutionProbe(probe: CopySourceFixture) {
   await executeCopyGenerationUnit(runtime, unusedGateway, {
     operationVersion: 0,
     operationId: cancelledFixture.operationId,
+    recovered: false,
     token: `probe:${cancelledFixture.operationId}`,
     unitId: cancelledContext.units[0]?.id ?? "",
     workspaceId: probe.workspaceId,
@@ -2460,6 +2496,8 @@ async function runExecutionProbe(probe: CopySourceFixture) {
     "copy-generation execution parent-restart still-running status=pass",
   );
 
+  await proveCrashAfterPendingRecovery(probe);
+  await proveSiblingWakePreservesActiveFence(probe, brand);
   await proveMixedRunningRejectedInvokes(probe);
   await proveFunctionPolicy();
   await proveFreshnessOrdering(probe, partialContext);
@@ -2805,10 +2843,348 @@ async function runInngestProbe(probe: CopySourceFixture) {
       order.indexOf("publish-drafts-changed-terminal"),
   );
   assert.ok(
-    order.indexOf("notify-usage-cache") < order.indexOf("publish-usage-ledger"),
+    order.indexOf("notify-usage-cache-terminal") <
+      order.indexOf("publish-usage-ledger-terminal"),
   );
   console.log(
     "copy-generation inngest injected-envelope handler-step=true rejected-transport=pending-only-failed aggregate=terminal providerEffects=0 cleanup=pending status=pass",
+  );
+}
+
+async function proveCrashAfterPendingRecovery(probe: CopySourceFixture) {
+  const fixture = await probe.createExecutionGeneration("telegram");
+  const activeRunId = `copy-crash-active-${fixture.operationId}`;
+  await claimProbeCopy(fixture.operationId, `inngest:${activeRunId}`);
+  const context = await findCopyExecutionContext(
+    opened.database.db,
+    probe.workspaceId,
+    fixture.operationId,
+  );
+  if (context?.units.length !== 3) {
+    throw new Error("COPY_CRASH_AFTER_PENDING_FIXTURE_INVALID");
+  }
+  const fence = copyExecutionFence(fixture.operationId);
+  const attemptIds: string[] = [];
+  for (const unit of context.units) {
+    const claimed = await claimCopyGenerationUnit(
+      opened.database.db,
+      probe.workspaceId,
+      fixture.operationId,
+      unit.id,
+      {
+        claimedBy: fence.token,
+        expectedVersion: fence.operationVersion,
+      },
+    );
+    if (claimed?.status !== "running" || !claimed.operationAttemptId) {
+      throw new Error("COPY_CRASH_AFTER_PENDING_UNIT_CLAIM_FAILED");
+    }
+    attemptIds.push(claimed.operationAttemptId);
+    const pending = await insertPendingUsage(
+      opened.database.db,
+      probe.workspaceId,
+      {
+        apiKind: "chat",
+        backend: "local",
+        claimFence: {
+          claimedBy: fence.token,
+          expectedVersion: fence.operationVersion,
+          now: new Date(),
+        },
+        invocationKey: "primary",
+        operationAttemptId: claimed.operationAttemptId,
+        operationId: fixture.operationId,
+        providerGateway: "ollama",
+        requestedModel: "deterministic-local-probe",
+        taskKey: `copy-generation:${context.modelOptionKey}`,
+      },
+    );
+    assert.equal(pending.inserted, true);
+  }
+  await opened.database.db
+    .update(operation)
+    .set({ leaseExpiresAt: new Date(0) })
+    .where(eq(operation.id, fixture.operationId));
+
+  const gateway = new DeterministicGateway([]);
+  const client = new Inngest({
+    appVersion: `copy-crash-recovery-${randomUUID()}`,
+    id: `rz-copy-probe-crash-recovery-${randomUUID()}`,
+  });
+  const [parent] = createCopyGenerationFunctions(
+    client,
+    runtime,
+    () => gateway,
+  );
+  if (!parent) throw new Error("COPY_CRASH_RECOVERY_PARENT_MISSING");
+  let invoked = 0;
+  const step = {
+    invoke: async (
+      _id: string,
+      input: {
+        data: {
+          actorId?: string;
+          operationId: string;
+          operationVersion: number;
+          recovered: boolean;
+          token: string;
+          unitId: string;
+          workspaceId: string;
+        };
+      },
+    ) => {
+      invoked += 1;
+      return executeCopyGenerationUnit(runtime, gateway, input.data);
+    },
+    realtime: { publish: async () => undefined },
+    run: async (id: string, execute: () => Promise<unknown>) =>
+      id.startsWith("notify-") ? "accepted" : execute(),
+    sleep: async () => undefined,
+  };
+  const recovered = await (
+    parent as unknown as {
+      fn: (input: {
+        event: {
+          data: { operationId: string; schemaVersion: 1; workspaceId: string };
+        };
+        runId: string;
+        step: typeof step;
+      }) => Promise<unknown>;
+    }
+  ).fn({
+    event: {
+      data: {
+        operationId: fixture.operationId,
+        schemaVersion: 1,
+        workspaceId: probe.workspaceId,
+      },
+    },
+    runId: `copy-crash-recovery-${fixture.operationId}`,
+    step,
+  });
+  assert.deepEqual(recovered, {
+    lifecycle: "unknown",
+    operationId: fixture.operationId,
+  });
+  const terminal = await findCopyExecutionContext(
+    opened.database.db,
+    probe.workspaceId,
+    fixture.operationId,
+  );
+  assert.equal(terminal?.operationLifecycle, "unknown");
+  assert.equal(
+    terminal?.units.every((unit) => unit.status === "failed"),
+    true,
+  );
+  const attempts = await opened.database.db
+    .select({ outcome: operationAttempt.outcome })
+    .from(operationAttempt)
+    .where(inArray(operationAttempt.id, attemptIds));
+  assert.equal(
+    attempts.every((attempt) => attempt.outcome === "ambiguous"),
+    true,
+  );
+  const usage = await opened.database.db
+    .select({
+      costAuthority: aiUsageEvent.costAuthority,
+      status: aiUsageEvent.status,
+    })
+    .from(aiUsageEvent)
+    .where(inArray(aiUsageEvent.operationAttemptId, attemptIds));
+  assert.equal(usage.length, context.units.length);
+  assert.equal(
+    usage.every(
+      (event) =>
+        event.status === "unknown" && event.costAuthority === "unknown",
+    ),
+    true,
+  );
+  assert.equal(invoked, context.units.length);
+  assert.equal(gateway.prompts.length, 0);
+  assert.equal(gateway.definiteCallbacks, 0);
+  assert.equal(gateway.resultCallbacks, 0);
+  console.log(
+    "copy-generation execution crash-after-pending expired-owner=recovered usage=unknown attempts=ambiguous aggregate=unknown providerRetries=0 status=pass",
+  );
+}
+
+async function proveSiblingWakePreservesActiveFence(
+  probe: CopySourceFixture,
+  brand: (typeof opened.template.mediaBrands)[number],
+) {
+  const fixture = await probe.createExecutionGeneration("telegram");
+  const activeRunId = `copy-active-${fixture.operationId}`;
+  const { claimed: activeClaim } = await claimProbeCopy(
+    fixture.operationId,
+    `inngest:${activeRunId}`,
+  );
+  const context = await findCopyExecutionContext(
+    opened.database.db,
+    probe.workspaceId,
+    fixture.operationId,
+  );
+  const first = context?.units[0];
+  const sibling = context?.units[1];
+  if (!first || !sibling) throw new Error("COPY_SIBLING_WAKE_FIXTURE_INVALID");
+  const siblingClaim = await claimCopyGenerationUnit(
+    opened.database.db,
+    probe.workspaceId,
+    fixture.operationId,
+    sibling.id,
+    {
+      claimedBy: copyExecutionFence(fixture.operationId).token,
+      expectedVersion: copyExecutionFence(fixture.operationId).operationVersion,
+    },
+  );
+  assert.equal(siblingClaim?.status, "running");
+
+  const output = candidateFor(
+    "telegram",
+    fixture.policy,
+    brand.editorial.canonicalHashtags.en,
+    true,
+  );
+  const firstResult = await executeCopyGenerationUnit(
+    runtime,
+    new DeterministicGateway([{ kind: "output", output }]),
+    {
+      ...copyExecutionFence(fixture.operationId),
+      operationId: fixture.operationId,
+      unitId: first.id,
+      workspaceId: probe.workspaceId,
+    },
+  );
+  assert.equal(firstResult.status, "succeeded");
+  assert.equal(await pendingCopyWakeCount(fixture.operationId), 0);
+  const scheduled = await scheduleCopyGenerationRecovery(
+    opened.database.db,
+    probe.workspaceId,
+    fixture.operationId,
+  );
+  assert.equal(scheduled.status, "scheduled");
+  assert.ok(
+    scheduled.status === "scheduled" &&
+      scheduled.nextAttemptAt.getTime() >
+        (activeClaim.operation.leaseExpiresAt?.getTime() ?? Number.MAX_VALUE),
+  );
+  assert.equal(await pendingCopyWakeCount(fixture.operationId), 1);
+
+  const client = new Inngest({
+    appVersion: `copy-wake-${randomUUID()}`,
+    id: `rz-copy-probe-wake-${randomUUID()}`,
+  });
+  const [parent] = createCopyGenerationFunctions(client, runtime);
+  if (!parent) throw new Error("COPY_SIBLING_WAKE_PARENT_MISSING");
+  const siblingGateway = new DeterministicGateway([{ kind: "output", output }]);
+  const recoveryGateway = new DeterministicGateway([
+    { kind: "output", output },
+  ]);
+  let recoveryInvokes = 0;
+  const busyStep = {
+    invoke: async (
+      _id: string,
+      input: {
+        data: {
+          actorId?: string;
+          operationId: string;
+          operationVersion: number;
+          recovered: boolean;
+          token: string;
+          unitId: string;
+          workspaceId: string;
+        };
+      },
+    ) => {
+      recoveryInvokes += 1;
+      return executeCopyGenerationUnit(runtime, recoveryGateway, input.data);
+    },
+    realtime: { publish: async () => undefined },
+    run: async (id: string, execute: () => Promise<unknown>) =>
+      id.startsWith("notify-") ? "accepted" : execute(),
+    sleep: async () => undefined,
+  };
+  const wakeRunId = `copy-wake-${fixture.operationId}`;
+  const busy = await (
+    parent as unknown as {
+      fn: (input: {
+        event: {
+          data: { operationId: string; schemaVersion: 1; workspaceId: string };
+        };
+        runId: string;
+        step: typeof busyStep;
+      }) => Promise<unknown>;
+    }
+  ).fn({
+    event: {
+      data: {
+        operationId: fixture.operationId,
+        schemaVersion: 1,
+        workspaceId: probe.workspaceId,
+      },
+    },
+    runId: wakeRunId,
+    step: busyStep,
+  });
+  assert.deepEqual(busy, {
+    operationId: fixture.operationId,
+    replayed: true,
+  });
+  assert.equal(recoveryInvokes, 0);
+  const beforeRecovery = await findCopyExecutionContext(
+    opened.database.db,
+    probe.workspaceId,
+    fixture.operationId,
+  );
+  assert.equal(beforeRecovery?.operationVersion, activeClaim.operation.version);
+
+  const siblingResult = await executeCopyGenerationUnit(
+    runtime,
+    siblingGateway,
+    {
+      ...copyExecutionFence(fixture.operationId),
+      operationId: fixture.operationId,
+      unitId: sibling.id,
+      workspaceId: probe.workspaceId,
+    },
+  );
+  assert.equal(siblingResult.status, "succeeded");
+  await opened.database.db
+    .update(operation)
+    .set({ leaseExpiresAt: new Date(0) })
+    .where(eq(operation.id, fixture.operationId));
+
+  const recovery = await (
+    parent as unknown as {
+      fn: (input: {
+        event: {
+          data: { operationId: string; schemaVersion: 1; workspaceId: string };
+        };
+        runId: string;
+        step: typeof busyStep;
+      }) => Promise<unknown>;
+    }
+  ).fn({
+    event: {
+      data: {
+        operationId: fixture.operationId,
+        schemaVersion: 1,
+        workspaceId: probe.workspaceId,
+      },
+    },
+    runId: `copy-recovery-${fixture.operationId}`,
+    step: busyStep,
+  });
+  assert.deepEqual(recovery, {
+    lifecycle: "succeeded",
+    operationId: fixture.operationId,
+  });
+  assert.equal(siblingGateway.resultCallbacks, 1);
+  assert.equal(recoveryGateway.resultCallbacks, 1);
+  assert.equal(recoveryInvokes, 1);
+  assert.equal(await operationUsageCount(fixture.operationId), 3);
+  assert.equal(await operationVariantCount(fixture.operationId), 3);
+  console.log(
+    "copy-generation execution recovery-wake busy-run=immediate active-claim=preserved paid-sibling=retained expired-recovery=resumed status=pass",
   );
 }
 
@@ -2882,8 +3258,10 @@ async function proveMixedRunningRejectedInvokes(probe: CopySourceFixture) {
         };
       },
     ) => {
+      if (input.data.unitId === held.unitId) {
+        return { status: "waiting", unitId: held.unitId } as const;
+      }
       rejectedInvokes += 1;
-      assert.notEqual(input.data.unitId, held.unitId);
       throw new Error("CONTROLLED_MIXED_INVOKE_TRANSPORT_REJECTION");
     },
     realtime: {
@@ -2941,6 +3319,7 @@ async function proveMixedRunningRejectedInvokes(probe: CopySourceFixture) {
   if (!mixed) throw new Error("COPY_MIXED_REJECTED_INVOKE_NOT_FOUND");
   copyClaimFences.set(fixture.operationId, {
     operationVersion: mixed.operationVersion,
+    recovered: false,
     token: `inngest:${parentRunId}`,
   });
   assert.equal(
@@ -2971,7 +3350,7 @@ async function proveMixedRunningRejectedInvokes(probe: CopySourceFixture) {
     .where(eq(operationAttempt.id, held.attemptId));
   assert.equal(JSON.stringify(heldUnitAfter), held.unitBefore);
   assert.equal(JSON.stringify(heldAttemptAfter), held.attemptBefore);
-  assert.equal(await pendingCopyWakeCount(fixture.operationId), 0);
+  assert.equal(await pendingCopyWakeCount(fixture.operationId), 1);
 
   const gateway = new DeterministicGateway([
     {
@@ -3047,8 +3426,8 @@ async function proveMixedRunningRejectedInvokes(probe: CopySourceFixture) {
       terminalOrder.indexOf("publish-drafts-changed-terminal"),
   );
   assert.ok(
-    terminalOrder.indexOf("notify-usage-cache") <
-      terminalOrder.indexOf("publish-usage-ledger"),
+    terminalOrder.indexOf("notify-usage-cache-terminal") <
+      terminalOrder.indexOf("publish-usage-ledger-terminal"),
   );
   console.log(
     "copy-generation inngest mixed-running=true rejected-pending=failed-once running-preserved=true wake-settled=true lane2-before-lane3=true providerEffects=0 cleanup=pending status=pass",

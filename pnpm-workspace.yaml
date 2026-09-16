@@ -38,6 +38,9 @@ catalog:
   "@types/react": 19.2.18
   "@types/react-dom": 19.2.7
   tailwindcss: 4.3.3
+  "@tailwindcss/typography": 0.5.16
+  react-markdown: 10.1.0
+  remark-gfm: 4.0.1
   ai: 7.0.91
   "@ai-sdk/react": 4.0.94
   "@ai-sdk/openai-compatible": 3.0.43

@@ -52,6 +52,10 @@ export type ObservedModelStep = {
   usage: LanguageModelUsage;
 };
 
+type JSONValue = string | number | boolean | null | JSONObject | JSONArray;
+type JSONObject = { [key: string]: JSONValue };
+type JSONArray = JSONValue[];
+
 export type StructuredAdapterInput<TOutput> = {
   abortSignal?: AbortSignal;
   deadlineMs: number;
@@ -60,6 +64,7 @@ export type StructuredAdapterInput<TOutput> = {
   model: string;
   outputName: string;
   prompt: string;
+  providerOptions?: Record<string, JSONObject>;
   schema: z.ZodType<TOutput>;
   telemetry: {
     operationAttemptId: string;
@@ -116,6 +121,7 @@ export type TextStreamAdapterInput<TOOLS extends ToolSet> =
     maxOutputTokens: number;
     model: string;
     prompt: string;
+    providerOptions?: Record<string, JSONObject>;
     telemetry: ModelTelemetryContext;
     onStepEnd: (
       stepNumber: number,
@@ -173,17 +179,17 @@ export interface ModelAdapter {
   generateStructured<TOutput>(
     input: StructuredAdapterInput<TOutput>,
   ): Promise<StructuredAdapterResult<TOutput>>;
-}
-
-export interface RemoteModelAdapter extends ModelAdapter {
-  embedMany(input: EmbeddingAdapterInput): Promise<EmbeddingAdapterResult>;
-  generateImage(input: ImageAdapterInput): Promise<ImageAdapterResult>;
   streamText?<
     TOOLS extends ToolSet,
     UI_MESSAGE extends UIMessage = TextStreamUIMessage<TOOLS>,
   >(
     input: TextStreamAdapterInput<TOOLS>,
   ): Promise<TextStreamAdapterResult<UI_MESSAGE>>;
+}
+
+export interface RemoteModelAdapter extends ModelAdapter {
+  embedMany(input: EmbeddingAdapterInput): Promise<EmbeddingAdapterResult>;
+  generateImage(input: ImageAdapterInput): Promise<ImageAdapterResult>;
 }
 
 export type StructuredModelInvocation<TOutput> = {

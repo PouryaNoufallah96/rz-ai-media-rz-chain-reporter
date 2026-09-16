@@ -47,7 +47,7 @@ export function publishOperationStatus(
 ) {
   return settled(
     step.realtime.publish(
-      `publish-${message.lifecycle}-status`,
+      `publish-${message.operationId}-${message.operationVersion}-${message.lifecycle}-status`,
       operationsRealtimeChannel(workspaceId).status,
       message,
     ),
@@ -219,13 +219,14 @@ export function publishUsageLedgerChanged(
   step: WorkerStep,
   workspaceId: string,
   actorId: string | null,
+  callSite: string,
 ) {
   if (!actorId) {
     return Promise.resolve(false);
   }
   return settled(
     step.realtime.publish(
-      "publish-usage-ledger",
+      `publish-usage-ledger-${callSite}`,
       usageRealtimeChannel(workspaceId, actorId).ledger,
       ping(),
     ),

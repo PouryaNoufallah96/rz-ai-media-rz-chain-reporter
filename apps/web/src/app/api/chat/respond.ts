@@ -16,6 +16,7 @@ import {
 } from "ai";
 import { revalidateTag } from "next/cache";
 import {
+  LOCAL_SYNTHESIS_DEADLINE_MS,
   MAX_SOURCE_NOTES,
   REQUEST_DEADLINE_MS,
   SYNTHESIS_MAX_OUTPUT_TOKENS,
@@ -89,6 +90,8 @@ export async function respondToAssistantTurn(
     readMarketPromptContext(),
   ]);
   const readContext = assistantReadContext(request.locale);
+  const isLocalPrimary =
+    customerTemplate.models.tasks["assistant-synthesis"]?.backend === "local";
   const knowledge = selectKnowledge({
     brandKeys: request.brandKeys,
     brands: customerEditorial.brands,
@@ -96,10 +99,50 @@ export async function respondToAssistantTurn(
     knowledge: customerReviewedKnowledge,
     locale: request.locale,
     question,
+    compact: isLocalPrimary,
   });
 
   const options = brandOptions(customerEditorial.brands, request.brandKeys);
   const clarifiable = knowledge.brandChoice === null && options.length > 1;
+
+  const baseInstructions = {
+    brandChoice: knowledge.brandChoice !== null,
+    clarifyTool: clarifiable,
+    locale: request.locale,
+    pendingMarket: request.pendingMarket !== null,
+    pendingRun: request.pendingRun !== null,
+  } as const;
+  const compactInstructions = chatInstructions(
+    baseInstructions,
+    isLocalPrimary,
+  );
+  const fullInstructions = chatInstructions(baseInstructions, false);
+
+  const promptInput = {
+    brandChoices: request.brandKeys.map((key) => ({
+      key,
+      name: brandName(key),
+    })),
+    card: card?.card ?? null,
+    context: request.context,
+    knowledge,
+    modelChoices: customerEditorial.models,
+    market,
+    marketAnalysisId: request.marketAnalysisId,
+    pendingMarket: request.pendingMarket,
+    pendingRun: request.pendingRun,
+    platforms: customerEditorial.platforms,
+    promoBrandChoices: customerEditorial.brands.filter(
+      (brand) => brand.promoEnabled,
+    ),
+    question,
+    readContext,
+    run,
+  } as const;
+  const compactPrompt = chatPrompt(promptInput, isLocalPrimary);
+  const fullPrompt = isLocalPrimary
+    ? chatPrompt(promptInput, false)
+    : compactPrompt;
 
   const stream = createUIMessageStream<AssistantUIMessage>({
     onError: (error) => {
@@ -110,35 +153,11 @@ export async function respondToAssistantTurn(
       const answered = await streamAnswer(writer, {
         abortSignal,
         executor,
-        instructions: chatInstructions({
-          brandChoice: knowledge.brandChoice !== null,
-          clarifyTool: clarifiable,
-          locale: request.locale,
-          pendingMarket: request.pendingMarket !== null,
-          pendingRun: request.pendingRun !== null,
-        }),
+        compactPrompt,
+        fullPrompt,
+        compactInstructions,
+        fullInstructions,
         locale: request.locale,
-        prompt: chatPrompt({
-          brandChoices: request.brandKeys.map((key) => ({
-            key,
-            name: brandName(key),
-          })),
-          card: card?.card ?? null,
-          context: request.context,
-          knowledge,
-          modelChoices: customerEditorial.models,
-          market,
-          marketAnalysisId: request.marketAnalysisId,
-          pendingMarket: request.pendingMarket,
-          pendingRun: request.pendingRun,
-          platforms: customerEditorial.platforms,
-          promoBrandChoices: customerEditorial.brands.filter(
-            (brand) => brand.promoEnabled,
-          ),
-          question,
-          readContext,
-          run,
-        }),
         askUser: clarifiable ? askUserTool(options.map(choiceOf)) : undefined,
         currentDraftId: card?.card.draftId ?? null,
         currentMarketAnalysisId: request.marketAnalysisId,
@@ -227,9 +246,11 @@ async function streamAnswer(
     askUser?: ReturnType<typeof askUserTool>;
     abortSignal: AbortSignal;
     executor: Executor;
-    instructions: string;
+    compactInstructions: string;
+    fullInstructions: string;
     locale: AssistantChatRequest["locale"];
-    prompt: string;
+    compactPrompt: string;
+    fullPrompt: string;
     currentDraftId: string | null;
     currentMarketAnalysisId: string | null;
     currentRunId: string | null;
@@ -256,7 +277,12 @@ async function streamAnswer(
         throw new Error("template drift");
       }
     },
-    bindings: { OPENROUTER_API_KEY: env.OPENROUTER_API_KEY },
+    bindings: {
+      ...(env.OLLAMA_BASE_URL ? { OLLAMA_BASE_URL: env.OLLAMA_BASE_URL } : {}),
+      ...(env.OPENROUTER_API_KEY
+        ? { OPENROUTER_API_KEY: env.OPENROUTER_API_KEY }
+        : {}),
+    },
     executor,
     logger: { warn: () => undefined },
     template: customerTemplate,
@@ -289,67 +315,117 @@ async function streamAnswer(
           ...(marketTemplate.enabled ? [MARKET_ACTION_TOOL] : []),
           ...ASSISTANT_READ_TOOL_NAMES,
         ] as const);
-    const synthesis = await gateway.streamSynthesis<
-      typeof tools,
-      AssistantUIMessage
-    >({
-      activeTools,
-      bindAgentTools: (settings) => ({ ...settings, tools }),
-      abortSignal,
-      deadlineMs: REQUEST_DEADLINE_MS,
-      instructions: context.instructions,
-      invocationKey: "primary",
-      maxOutputTokens: SYNTHESIS_MAX_OUTPUT_TOKENS,
-      operationAttemptId: operation.attemptId,
-      operationId: operation.operationId,
-      prepareStep: ({ stepNumber }) => ({
-        activeTools: stepNumber === 0 ? activeTools : [],
-      }),
-      prompt: context.prompt,
-      stopWhen: isStepCount(3),
-      taskKey: "assistant-synthesis",
-      toolApproval: {
-        start_run: "user-approval",
-        ...(marketTemplate.enabled
-          ? { market_action: "user-approval" as const }
-          : {}),
-      },
-      toolApprovalSecret: env.ASSISTANT_APPROVAL_SECRET,
-      workspaceId,
-    });
-    const reader = synthesis.uiStream.getReader();
-    let answered = false;
-    let nativeToolFailed = false;
-    let responseErrorWritten = false;
-    let streamFailed = false;
-    while (true) {
-      const chunk = await reader.read();
-      if (chunk.done) break;
-      if (isAssistantNativeToolError(chunk.value)) {
-        nativeToolFailed = true;
-        streamFailed = true;
-        if (!responseErrorWritten) {
-          writer.write({ type: "data-response-error", data: true });
-          responseErrorWritten = true;
+    const invocationKeys: Array<"primary" | "retry-1" | "fallback"> =
+      customerTemplate.models.tasks["assistant-synthesis"]?.fallback
+        ? ["primary", "retry-1", "fallback"]
+        : ["primary", "retry-1"];
+    let lastSynthesisError: unknown = null;
+    for (const invocationKey of invocationKeys) {
+      let synthesis: Awaited<
+        ReturnType<
+          typeof gateway.streamSynthesis<typeof tools, AssistantUIMessage>
+        >
+      > | null = null;
+      const isFallback = invocationKey === "fallback";
+      const deadlineMs = isFallback
+        ? REQUEST_DEADLINE_MS
+        : LOCAL_SYNTHESIS_DEADLINE_MS;
+      const instructions = isFallback
+        ? context.fullInstructions
+        : context.compactInstructions;
+      const prompt = isFallback ? context.fullPrompt : context.compactPrompt;
+      try {
+        synthesis = await gateway.streamSynthesis<
+          typeof tools,
+          AssistantUIMessage
+        >({
+          activeTools,
+          bindAgentTools: (settings) => ({ ...settings, tools }),
+          abortSignal,
+          deadlineMs,
+          instructions,
+          invocationKey,
+          maxOutputTokens: SYNTHESIS_MAX_OUTPUT_TOKENS,
+          operationAttemptId: operation.attemptId,
+          operationId: operation.operationId,
+          prepareStep: ({ stepNumber }) => ({
+            activeTools: stepNumber === 0 ? activeTools : [],
+          }),
+          prompt,
+          stopWhen: isStepCount(3),
+          taskKey: "assistant-synthesis",
+          toolApproval: {
+            start_run: "user-approval",
+            ...(marketTemplate.enabled
+              ? { market_action: "user-approval" as const }
+              : {}),
+          },
+          toolApprovalSecret: env.ASSISTANT_APPROVAL_SECRET,
+          workspaceId,
+        });
+      } catch (error) {
+        lastSynthesisError = error;
+        if (invocationKey === "fallback") throw error;
+        continue;
+      }
+      if (!synthesis) throw lastSynthesisError;
+      const reader = synthesis.uiStream.getReader();
+      type StreamChunk = NonNullable<
+        Awaited<ReturnType<typeof reader.read>>["value"]
+      >;
+      const buffered: StreamChunk[] = [];
+      let nativeToolFailed = false;
+      let streamFailed = false;
+      let chunkAnswered = false;
+      let hadToolCall = false;
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        if (chunk.value === undefined) continue;
+        if (isAssistantNativeToolError(chunk.value)) {
+          nativeToolFailed = true;
+          streamFailed = true;
+          continue;
         }
-        continue;
+        if (chunk.value.type === "error") streamFailed = true;
+        if (
+          nativeToolFailed &&
+          (chunk.value.type.startsWith("text-") ||
+            chunk.value.type.startsWith("reasoning-") ||
+            chunk.value.type.startsWith("source-") ||
+            chunk.value.type === "file" ||
+            chunk.value.type === "error")
+        ) {
+          continue;
+        }
+        if (chunk.value.type === "text-delta") {
+          const delta = (chunk.value as { delta?: string }).delta ?? "";
+          if (delta.trim().length > 0) chunkAnswered = true;
+        }
+        if (
+          chunk.value.type === "tool-input-available" ||
+          chunk.value.type === "tool-output-available"
+        )
+          hadToolCall = true;
+        buffered.push(chunk.value);
       }
-      if (chunk.value.type === "error") streamFailed = true;
-      if (
-        nativeToolFailed &&
-        (chunk.value.type.startsWith("text-") ||
-          chunk.value.type.startsWith("reasoning-") ||
-          chunk.value.type.startsWith("source-") ||
-          chunk.value.type === "file" ||
-          chunk.value.type === "error")
-      ) {
-        continue;
+      if (!streamFailed && (chunkAnswered || hadToolCall)) {
+        for (const value of buffered) writer.write(value);
+        succeeded = true;
+        lastSynthesisError = null;
+        return true;
       }
-      if (chunk.value.type === "text-delta") answered = true;
-      writer.write(chunk.value);
+      lastSynthesisError = new Error("stream failed");
+      if (invocationKey === "fallback") {
+        writer.write({ type: "data-response-error", data: true });
+        succeeded = false;
+        return false;
+      }
     }
-    succeeded = !streamFailed;
-    return answered && succeeded;
+    if (lastSynthesisError) throw lastSynthesisError;
+    writer.write({ type: "data-response-error", data: true });
+    succeeded = false;
+    return false;
   } finally {
     try {
       await closeSynthesisOperation(

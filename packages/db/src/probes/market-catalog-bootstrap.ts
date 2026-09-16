@@ -152,6 +152,7 @@ try {
       await assert.rejects(
         publishMarketComparisonCatalogBatch(tx, workspaceId, {
           operationId: refreshed.operationId,
+          claimedBy: "probe",
           batchId: randomUUID(),
           rows: [],
           publishedAt: nextBucket,
@@ -161,6 +162,7 @@ try {
       );
       await recordMarketComparisonCatalogFailure(tx, workspaceId, {
         operationId: refreshed.operationId,
+        claimedBy: "probe",
         failedAt: nextBucket,
         failureCode: "MARKET_SERIES_UNAVAILABLE",
       });

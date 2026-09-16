@@ -16,18 +16,18 @@ import {
   issuePublishingMediaGrant,
 } from "@rz-chain-reporter/db/repositories/publishing-media-grant";
 import { resolveDestinationCredential } from "@rz-chain-reporter/env/destination-bindings";
-import { invoke } from "inngest";
+import { invoke, NonRetriableError } from "inngest";
 import { z } from "zod";
 
 import { workerLogger } from "../logging/logger";
 import { createPublisher } from "../publishing/factory";
+import { publicationMaterialFromExecutionContext } from "../publishing/material";
 import {
   type ProviderFailure,
   type PublisherRuntime,
   type PublishRequest,
   providerCheckpointSchema,
   providerFailureSchema,
-  publishMaterialSchema,
 } from "../publishing/port";
 import { workerEnv } from "../runtime/env";
 import type { WorkerInngestClient } from "./client";
@@ -92,7 +92,7 @@ export function createPublishingEffectFunction(
 
       const assertLastResponsibleMoment = async () => {
         if (workerEnv.PUBLISHING_EMERGENCY_PAUSED) {
-          throw new Error("PUBLISHING_PAUSED");
+          throw new NonRetriableError("PUBLISHING_PAUSED");
         }
         const asserted = await reassertPublicationExecution(
           runtime.db,
@@ -104,7 +104,7 @@ export function createPublishingEffectFunction(
           },
         );
         if (asserted.status !== "ready") {
-          throw new Error("PUBLICATION_REASSERTION_FAILED");
+          throw new NonRetriableError("PUBLICATION_REASSERTION_FAILED");
         }
         const destination = templateDestination(
           runtime.template,
@@ -200,7 +200,9 @@ export function createPublishingEffectFunction(
         withMaterial: async (name, effect) =>
           step.run(name, async () => {
             const materialContext = await assertLastResponsibleMoment();
-            return effect(materialFromContext(materialContext));
+            return effect(
+              publicationMaterialFromExecutionContext(materialContext),
+            );
           }) as Promise<Awaited<ReturnType<typeof effect>>>,
       };
 
@@ -346,7 +348,7 @@ function finalCheckpoint(
       providerReferenceId: checkpoint.providerReferenceId,
     };
   }
-  throw new Error("PUBLICATION_FINAL_CHECKPOINT_INVALID");
+  throw new NonRetriableError("PUBLICATION_FINAL_CHECKPOINT_INVALID");
 }
 
 async function settleFailure(
@@ -443,37 +445,6 @@ async function settleFailure(
   };
 }
 
-function materialFromContext(
-  context: NonNullable<
-    Awaited<ReturnType<typeof loadPublicationExecutionContext>>
-  >,
-) {
-  return publishMaterialSchema.parse({
-    contentLocale: context.draft.contentLocale,
-    destinationKey: context.destination.key,
-    draft: {
-      body: context.draft.body,
-      hashtags: context.draft.hashtags,
-      headline: context.draft.headline,
-    },
-    media: context.media
-      ? {
-          actualBytes: context.media.actualBytes,
-          mimeType: context.media.mimeType,
-          objectKey: context.media.objectKey,
-        }
-      : null,
-    platform: context.publishOperation.platform,
-    source:
-      context.sourceItem && context.sourceRevision
-        ? {
-            attribution: context.sourceItem.attribution,
-            canonicalUrl: context.sourceRevision.canonicalUrl,
-          }
-        : null,
-  });
-}
-
 async function recordSettlementActivity(
   runtime: WorkerRuntime,
   input: EffectInput,
@@ -524,6 +495,6 @@ function templateDestination(
   const destination = template.destinationAccounts.find(
     (entry) => entry.key === key && entry.platform === platform,
   );
-  if (!destination) throw new Error("TEMPLATE_DRIFT");
+  if (!destination) throw new NonRetriableError("TEMPLATE_DRIFT");
   return destination;
 }

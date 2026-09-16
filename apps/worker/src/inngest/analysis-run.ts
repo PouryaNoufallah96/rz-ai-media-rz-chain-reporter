@@ -34,6 +34,7 @@ import {
   type AnalysisModelUnitOutput,
   type AnalysisModelUnitPlan,
   advanceAnalysisRunSemanticStage,
+  analysisRunHasRunningUnit,
   analysisRunProgress,
   bindAnalysisRunSourceImport,
   cancelAnalysisRunInBand,
@@ -119,6 +120,15 @@ const SOURCE_IMPORT_READY_WAIT_SLICES = 72;
 export const UNIT_TOTAL_DEADLINE_MS = 90_000;
 export const UNIT_PRIMARY_DEADLINE_MS = 70_000;
 export const UNIT_REPAIR_DEADLINE_MS = 20_000;
+export const ANALYSIS_UNIT_QUIESCENCE_INTERVAL_MS = 5_000;
+export const ANALYSIS_UNIT_QUIESCENCE_INTERVAL = "5s";
+export const ANALYSIS_UNIT_QUIESCENCE_PASSES = Math.ceil(
+  UNIT_TOTAL_DEADLINE_MS / ANALYSIS_UNIT_QUIESCENCE_INTERVAL_MS,
+);
+export const ANALYSIS_UNIT_QUIESCENCE_RELOAD_PASSES = Array.from(
+  { length: ANALYSIS_UNIT_QUIESCENCE_PASSES + 1 },
+  (_, pass) => pass,
+);
 const UNIT_REASONING_MAX_CHARS = 600;
 const UNIT_TEXT_MAX_CHARS = 400;
 const UNIT_REPAIR_INSTRUCTIONS =
@@ -1339,6 +1349,8 @@ export function createAnalysisRunFunctions(
         const failureCode = failureCodeOf(event.data.error.message);
         let analysisRunId: string | null = null;
         let actorId: string | null = null;
+        let lifecycle: OperationLifecycle | null = null;
+        let operationVersion: number | null = null;
         try {
           const settled = await step.run("settle-failed-run", () =>
             coded(async () => {
@@ -1380,11 +1392,14 @@ export function createAnalysisRunFunctions(
                 actor: owner?.actor ?? null,
                 analysisRunId: run?.id ?? null,
                 lifecycle: result?.lifecycle ?? null,
+                version: result?.version ?? null,
               };
             }),
           );
           analysisRunId = settled.analysisRunId;
           actorId = settled.actor ?? null;
+          lifecycle = settled.lifecycle;
+          operationVersion = settled.version;
         } finally {
           if (analysisRunId === null) {
             await notifyUsageLedgerChanged(
@@ -1400,6 +1415,24 @@ export function createAnalysisRunFunctions(
               analysisRunId,
               "failed",
               actorId,
+            );
+          }
+          if (
+            actorId !== null &&
+            lifecycle !== null &&
+            operationVersion !== null
+          ) {
+            await publishOperationStatus(
+              step,
+              workspaceId,
+              {
+                actorId,
+                lifecycle,
+                operationId,
+                operationVersion,
+                sharedImport: false,
+              },
+              "worker.analysis-run.realtime-unavailable",
             );
           }
         }
@@ -1859,6 +1892,39 @@ export function createAnalysisRunFunctions(
       );
       if (!run) {
         return { settled: false };
+      }
+
+      let running = true;
+      for (const pass of ANALYSIS_UNIT_QUIESCENCE_RELOAD_PASSES) {
+        if (!running) break;
+        if (pass > 0) {
+          await step.sleep(
+            `await-cancelled-unit-quiescence-${pass}`,
+            ANALYSIS_UNIT_QUIESCENCE_INTERVAL,
+          );
+        }
+        running = await step.run(
+          `cancelled-unit-quiescence-${pass}`,
+          async () => {
+            const current = await analysisRunHasRunningUnit(
+              runtime.db,
+              workspaceId,
+              run.analysisRunId,
+            );
+            if (current && pass === ANALYSIS_UNIT_QUIESCENCE_PASSES) {
+              workerLogger.error(
+                "worker.analysis-run.cancelled-unit-not-quiescent",
+                {
+                  analysisRunId: run.analysisRunId,
+                  errorCode: "ANALYSIS_CHILD_HANDLER_NOT_QUIESCENT",
+                  operationId,
+                },
+              );
+              throw new Error("ANALYSIS_CHILD_HANDLER_NOT_QUIESCENT");
+            }
+            return current;
+          },
+        );
       }
 
       const settled = await step.run("settle-cancelled-run", () =>

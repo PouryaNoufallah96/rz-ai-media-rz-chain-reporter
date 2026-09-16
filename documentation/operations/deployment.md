@@ -80,16 +80,15 @@ durable execution keys.
 **Forbidden keys.** The development-mode durable flag is refused in both the web
 and worker environments — that flag in production would silently switch the SDK
 out of cloud mode. The error-reporting upload token is refused in both runtime
-environments; it belongs to the build, not the running process. The on-host model
-URL is refused in the web environment, because the web application does not serve
-that backend.
+environments; it belongs to the build, not the running process.
 
 **Cross-file agreement.** Values that *must* be identical are compared, not
 assumed: the object-storage user, secret and bucket across storage, web and
 worker; the cache-invalidation secret across web, worker and reconcile; the
 durable signing key across web and worker; the server-actions encryption key
 across build and web; the model provider key across web and
-worker.
+worker when both bind remote. When a template routes a web-served task local,
+`OLLAMA_BASE_URL` must be present in both `web.env` and `worker.env`.
 
 Every one of these checks exists because the corresponding mismatch is a real
 failure that would otherwise appear hours later as a confusing symptom rather
@@ -189,13 +188,15 @@ Prestart exit codes are meaningful: **1** is a failure, **2** is specifically
 "something is unbound".
 
 Beyond identity, the worker's prestart also verifies that the object store is
-bound, that the model capabilities the template selects are available, that the
-rendered-page fetcher key is present if a source needs it, that market provider
-bindings are satisfied, and that every declared destination account has its
-credentials. The web application's prestart additionally requires the object
-store and verifies that the assistant task routes to the remote backend — the web
-process cannot serve a local one, so an incorrectly routed task must stop the
-process rather than fail the operator's first question.
+bound, that the model capabilities the template selects are available (remote key,
+local URL, allowlisted local tasks `assistant-synthesis`, `image-template-selection`, `keyword-embedding`, `text-translation`), that the rendered-page
+fetcher key is present if a source needs it, that market provider bindings are
+satisfied, and that every declared destination account has its credentials. The
+web application's prestart additionally requires the object store and verifies
+the `assistant-synthesis` route's binding and capability — remote needs
+`OPENROUTER_API_KEY`, local needs `OLLAMA_BASE_URL` and must be allowlisted. An
+unbound or disallowed route fails the process (`EXIT_UNBOUND`) rather than the
+operator's first question.
 
 ## Images
 

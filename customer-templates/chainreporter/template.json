@@ -19,15 +19,19 @@
         }
       },
       "keyword-embedding": {
-        "backend": "remote",
-        "model": "openai/text-embedding-3-small"
-      },
-      "text-translation": {
-        "backend": "remote",
-        "model": "openai/gpt-4o-mini",
+        "backend": "local",
+        "model": "embeddinggemma:300m",
         "fallback": {
           "backend": "remote",
-          "model": "openai/gpt-4.1-nano"
+          "model": "openai/text-embedding-3-small"
+        }
+      },
+      "text-translation": {
+        "backend": "local",
+        "model": "qwen3:0.6b",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
         }
       },
       "enrichment-brief": {
@@ -119,11 +123,11 @@
         }
       },
       "image-template-selection": {
-        "backend": "remote",
-        "model": "openai/gpt-4o-mini",
+        "backend": "local",
+        "model": "qwen3:0.6b",
         "fallback": {
           "backend": "remote",
-          "model": "google/gemini-2.5-flash"
+          "model": "openai/gpt-4o-mini"
         }
       },
       "image-creative-brief": {
@@ -167,8 +171,12 @@
         }
       },
       "assistant-synthesis": {
-        "backend": "remote",
-        "model": "openai/gpt-4o-mini"
+        "backend": "local",
+        "model": "qwen3:0.6b",
+        "fallback": {
+          "backend": "remote",
+          "model": "openai/gpt-4o-mini"
+        }
       }
     }
   },

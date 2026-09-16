@@ -13,11 +13,11 @@ import { publishOperationStatus, type WorkerStep } from "../inngest/channels";
 import type { WorkerRuntime } from "../inngest/runtime";
 import { workerEnv } from "../runtime/env";
 import { createPublisher } from "./factory";
+import { publicationMaterialFromExecutionContext } from "./material";
 import {
   type PublisherRuntime,
   type PublishRequest,
   providerCheckpointSchema,
-  publishMaterialSchema,
 } from "./port";
 
 const RECONCILIATION_LEASE_MS = 2 * 60_000;
@@ -167,30 +167,9 @@ export async function reconcilePublication(
           input.publicationId,
         );
         if (!loaded) throw new Error("PUBLICATION_RECONCILIATION_REQUIRED");
-        const material = publishMaterialSchema.parse({
-          contentLocale: loaded.execution.draft.contentLocale,
-          destinationKey: loaded.execution.destination.key,
-          draft: {
-            body: loaded.execution.draft.body,
-            hashtags: loaded.execution.draft.hashtags,
-            headline: loaded.execution.draft.headline,
-          },
-          media: loaded.execution.media
-            ? {
-                actualBytes: loaded.execution.media.actualBytes,
-                mimeType: loaded.execution.media.mimeType,
-                objectKey: loaded.execution.media.objectKey,
-              }
-            : null,
-          platform: loaded.execution.publishOperation.platform,
-          source:
-            loaded.execution.sourceItem && loaded.execution.sourceRevision
-              ? {
-                  attribution: loaded.execution.sourceItem.attribution,
-                  canonicalUrl: loaded.execution.sourceRevision.canonicalUrl,
-                }
-              : null,
-        });
+        const material = publicationMaterialFromExecutionContext(
+          loaded.execution,
+        );
         return effect(material);
       }) as Promise<Awaited<ReturnType<typeof effect>>>,
   };

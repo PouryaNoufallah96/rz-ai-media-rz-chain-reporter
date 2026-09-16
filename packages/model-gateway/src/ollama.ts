@@ -1,6 +1,10 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 
-import { generateEmbeddings, generateStructured } from "./generate";
+import {
+  generateEmbeddings,
+  generateStructured,
+  streamSynthesis,
+} from "./generate";
 import type {
   ModelAdapter,
   ModelCallObservation,
@@ -40,8 +44,17 @@ export function createOllamaAdapter(
     generateStructured(input) {
       return generateStructured(
         getProvider().chatModel(input.model),
-        input,
+        withNoThink(input),
         emptyObservation(input.model),
+        observeOllamaStep,
+      );
+    },
+
+    streamText(input) {
+      const forwarded = withNoThink(input);
+      return streamSynthesis(
+        getProvider().chatModel(forwarded.model),
+        forwarded,
         observeOllamaStep,
       );
     },
@@ -57,6 +70,17 @@ function emptyObservation(model: string): ModelCallObservation {
     costAuthority: "local",
     resolvedModel: model,
   };
+}
+
+function withNoThink<T extends { prompt: string; providerOptions?: unknown }>(
+  input: T,
+): T {
+  const thinkDisabled =
+    (input.providerOptions as { ollama?: { think?: boolean } } | undefined)
+      ?.ollama?.think === false;
+  return thinkDisabled && !input.prompt.endsWith(" /no_think")
+    ? { ...input, prompt: `${input.prompt} /no_think` }
+    : input;
 }
 
 function observeOllamaStep(step: ObservedModelStep): ModelCallObservation {

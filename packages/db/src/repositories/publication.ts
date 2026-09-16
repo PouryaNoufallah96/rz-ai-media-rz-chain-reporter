@@ -1151,7 +1151,7 @@ export async function enqueueStrandedPublicationRecoveries(
       .select({
         operationId: operation.id,
         publicationId: publication.id,
-        scheduleId: schedule.id,
+        scheduleId: publishOperation.scheduleId,
       })
       .from(outboxEvent)
       .innerJoin(
@@ -1169,12 +1169,11 @@ export async function enqueueStrandedPublicationRecoveries(
           eq(publishOperation.operationId, operation.id),
         ),
       )
-      .innerJoin(
+      .leftJoin(
         schedule,
         and(
           inWorkspace(schedule, workspaceId),
           eq(schedule.id, publishOperation.scheduleId),
-          lte(schedule.effectiveAt, queuedRecoveryCutoff),
         ),
       )
       .innerJoin(
@@ -1193,13 +1192,21 @@ export async function enqueueStrandedPublicationRecoveries(
           lte(outboxEvent.dispatchedAt, queuedRecoveryCutoff),
           or(
             and(
+              inArray(publishOperation.commandKind, ["direct", "retry"]),
+              isNull(publishOperation.scheduleId),
+              eq(publication.lifecycle, "effect_claimed"),
+              eq(publication.activeOperationId, operation.id),
+            ),
+            and(
               eq(publishOperation.commandKind, "scheduled"),
+              lte(schedule.effectiveAt, queuedRecoveryCutoff),
               eq(schedule.lifecycle, "scheduled"),
               eq(publication.lifecycle, "reserved"),
               eq(publication.reservedScheduleId, schedule.id),
             ),
             and(
               eq(publishOperation.commandKind, "missed_recovery"),
+              lte(schedule.effectiveAt, queuedRecoveryCutoff),
               eq(schedule.lifecycle, "missed_requires_confirmation"),
               eq(publication.lifecycle, "effect_claimed"),
               eq(publication.activeOperationId, operation.id),
@@ -1225,7 +1232,7 @@ export async function enqueueStrandedPublicationRecoveries(
       )
       .orderBy(schedule.effectiveAt, outboxEvent.id)
       .limit(limit)
-      .for("update", { skipLocked: true });
+      .for("update", { of: outboxEvent, skipLocked: true });
     const queuedRecoveries =
       queuedEvents.length === 0
         ? []
@@ -1242,7 +1249,7 @@ export async function enqueueStrandedPublicationRecoveries(
                   workspaceId,
                   operationId: entry.operationId,
                   publicationId: entry.publicationId,
-                  scheduleId: entry.scheduleId,
+                  ...(entry.scheduleId ? { scheduleId: entry.scheduleId } : {}),
                 },
               })),
             )
@@ -1332,6 +1339,7 @@ export async function readPublicationExecutionSummary(
       operationVersion: operation.version,
       publicationId: publication.id,
       publicationLifecycle: publication.lifecycle,
+      publishOperationUpdatedAt: publishOperation.updatedAt,
       scheduleId: publishOperation.scheduleId,
     })
     .from(publishOperation)
@@ -1401,6 +1409,7 @@ export async function readPendingPublicationFollowUps(
       operationId: operation.id,
       operationLifecycle: operation.lifecycle,
       publicationId: publishOperation.publicationId,
+      publishOperationUpdatedAt: publishOperation.updatedAt,
       scheduleId: publishOperation.scheduleId,
       settlementActivityStatus: publishOperation.settlementActivityStatus,
     })
@@ -1415,14 +1424,23 @@ export async function readPendingPublicationFollowUps(
     .where(
       and(
         inWorkspace(publishOperation, workspaceId),
-        inArray(operation.lifecycle, ["succeeded", "failed", "unknown"]),
         lte(publishOperation.updatedAt, retryBefore),
         or(
-          inArray(publishOperation.settlementActivityStatus, [
-            "pending",
-            "failed",
-          ]),
-          isNull(publishOperation.cacheNotificationCompletedAt),
+          and(
+            inArray(operation.lifecycle, ["succeeded", "failed", "unknown"]),
+            or(
+              inArray(publishOperation.settlementActivityStatus, [
+                "pending",
+                "failed",
+              ]),
+              isNull(publishOperation.cacheNotificationCompletedAt),
+            ),
+          ),
+          and(
+            eq(operation.lifecycle, "running"),
+            eq(publishOperation.settlementActivityStatus, "not_due"),
+            isNull(publishOperation.cacheNotificationCompletedAt),
+          ),
         ),
       ),
     )
@@ -1439,6 +1457,7 @@ export async function readPendingPublicationFollowUps(
     cacheNotificationDue: row.cacheNotificationCompletedAt === null,
     operationId: row.operationId,
     publicationId: row.publicationId,
+    publishOperationUpdatedAt: row.publishOperationUpdatedAt,
     scheduleId: row.scheduleId,
     settlementActivityStatus: row.settlementActivityStatus,
   }));
@@ -1449,6 +1468,7 @@ export async function markPublicationCacheNotificationCompleted(
   workspaceId: string,
   operationId: string,
   completedAt: Date,
+  expectedUpdatedAt: Date,
 ) {
   const [updated] = await executor
     .update(publishOperation)
@@ -1457,6 +1477,7 @@ export async function markPublicationCacheNotificationCompleted(
       and(
         inWorkspace(publishOperation, workspaceId),
         eq(publishOperation.operationId, operationId),
+        eq(publishOperation.updatedAt, expectedUpdatedAt),
         isNull(publishOperation.cacheNotificationCompletedAt),
       ),
     )
@@ -1469,6 +1490,7 @@ export async function deferPublicationCacheNotification(
   workspaceId: string,
   operationId: string,
   attemptedAt: Date,
+  expectedUpdatedAt: Date,
 ) {
   const [updated] = await executor
     .update(publishOperation)
@@ -1477,6 +1499,7 @@ export async function deferPublicationCacheNotification(
       and(
         inWorkspace(publishOperation, workspaceId),
         eq(publishOperation.operationId, operationId),
+        eq(publishOperation.updatedAt, expectedUpdatedAt),
         isNull(publishOperation.cacheNotificationCompletedAt),
       ),
     )
@@ -2298,6 +2321,17 @@ async function settlePublicationExecutionInTransaction(
         .returning();
       if (!deferredSchedule) throw new Error("SCHEDULE_DEFER_FENCE_LOST");
     }
+    const [armed] = await tx
+      .update(publishOperation)
+      .set({ cacheNotificationCompletedAt: null, updatedAt: now })
+      .where(
+        and(
+          inWorkspace(publishOperation, workspaceId),
+          eq(publishOperation.operationId, input.operationId),
+        ),
+      )
+      .returning({ operationId: publishOperation.operationId });
+    if (!armed) throw new Error("PUBLICATION_FOLLOW_UP_ARM_LOST");
     return {
       attempt: settledAttempt,
       checkpoint,

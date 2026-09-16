@@ -19,12 +19,14 @@ import {
   settleEditorialPresentationTranslationFailure,
   settleStaleEditorialPresentationTranslation,
 } from "@rz-chain-reporter/db/repositories/editorial-presentation-localization-request";
+import { operation } from "@rz-chain-reporter/db/schema/operation";
 import {
   ModelBindingError,
   ModelGatewayInvocationError,
   ModelTaskConfigurationError,
 } from "@rz-chain-reporter/model-gateway/errors";
 import type { ModelGateway } from "@rz-chain-reporter/model-gateway/gateway";
+import { eq } from "drizzle-orm";
 import { NonRetriableError } from "inngest";
 import { z } from "zod";
 
@@ -40,6 +42,7 @@ import { publishOperationStatus, type WorkerStep } from "./channels";
 import type { WorkerInngestClient } from "./client";
 import { durableEvents } from "./events";
 import { assertWorkspace, type WorkerRuntime } from "./runtime";
+import { getTranslationInvocationKeys } from "./translation-invocation";
 
 export const PRESENTATION_TRANSLATION_FUNCTION_ID =
   "presentation-translation" as const;
@@ -204,6 +207,22 @@ export async function reconcileStalePresentationTranslations(
   };
 }
 
+function translationClaimStepResult(
+  result: Awaited<ReturnType<typeof claimEditorialPresentationTranslation>>,
+) {
+  if (result.status === "claimed") {
+    return {
+      actor: result.operation.actor,
+      operationVersion: result.operation.version,
+      status: result.status,
+    } as const;
+  }
+  if (result.status === "busy") {
+    return { status: result.status } as const;
+  }
+  return { status: result.status } as const;
+}
+
 export function createPresentationTranslationFunction(
   client: WorkerInngestClient,
   runtime: WorkerRuntime,
@@ -232,32 +251,37 @@ export function createPresentationTranslationFunction(
       const claim = await step.run("claim-translation", async () => {
         await assertWorkspace(runtime, workspaceId);
         const now = new Date();
-        return claimEditorialPresentationTranslation(runtime.db, workspaceId, {
-          claimedBy,
-          leaseExpiresAt: new Date(now.getTime() + CLAIM_LEASE_MS),
-          now,
-          operationId,
-        });
+        return translationClaimStepResult(
+          await claimEditorialPresentationTranslation(runtime.db, workspaceId, {
+            claimedBy,
+            leaseExpiresAt: new Date(now.getTime() + CLAIM_LEASE_MS),
+            now,
+            operationId,
+          }),
+        );
       });
 
-      if (claim.status === "settled") {
+      if (claim.status === "busy") {
         return { operationId, replayed: true };
       }
-      if (claim.status === "busy") {
+      if (claim.status === "settled") {
         return { operationId, replayed: true };
       }
       if (claim.status === "not_found") {
         throw new NonRetriableError("NOT_FOUND");
+      }
+      if (claim.status !== "claimed") {
+        return { operationId, replayed: true };
       }
 
       await publishOperationStatus(
         step,
         workspaceId,
         {
-          actorId: claim.operation.actor,
+          actorId: claim.actor,
           lifecycle: "running",
           operationId,
-          operationVersion: claim.operation.version,
+          operationVersion: claim.operationVersion,
           sharedImport: false,
         },
         "worker.presentation-translation.realtime-unavailable",
@@ -267,7 +291,7 @@ export function createPresentationTranslationFunction(
         executePresentationTranslation(runtime, gatewayFactory(), {
           claimFence: {
             claimedBy,
-            expectedVersion: claim.operation.version,
+            expectedVersion: claim.operationVersion,
           },
           operationId,
           workspaceId,
@@ -424,55 +448,93 @@ export async function executePresentationTranslation(
           >
         >
       | undefined;
-    await gateway.invokeStructured({
-      claimFence: input.claimFence,
-      deadlineMs: MODEL_DEADLINE_MS,
-      invocationKey: "primary",
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      operationAttemptId: allocated.attempt.id,
-      operationId: input.operationId,
-      outputName: "presentation_translation",
-      persistDefiniteFailure: async (tx, failure) => {
-        const failed = await failEditorialPresentationTranslationInTransaction(
-          tx,
-          input.workspaceId,
-          {
-            claimFence: input.claimFence,
-            failureCode: failure.code,
-            operationAttemptId: allocated.attempt.id,
-            operationId: input.operationId,
-            outcome: "failed_terminal",
+    const invocationKeys = getTranslationInvocationKeys(runtime.template);
+    let lastError: unknown = null;
+    for (const [index, invocationKey] of invocationKeys.entries()) {
+      const hasMoreSlots = index < invocationKeys.length - 1;
+      let fence = input.claimFence;
+      if (invocationKey !== "primary") {
+        const [current] = await runtime.db
+          .select({
+            claimedBy: operation.claimedBy,
+            lifecycle: operation.lifecycle,
+            version: operation.version,
+          })
+          .from(operation)
+          .where(eq(operation.id, input.operationId));
+        if (
+          current?.lifecycle !== "running" ||
+          current.claimedBy !== input.claimFence.claimedBy
+        )
+          throw lastError ?? new Error("translation fallback claim lost");
+        fence = {
+          claimedBy: current.claimedBy,
+          expectedVersion: current.version,
+        };
+      }
+      try {
+        await gateway.invokeStructured({
+          claimFence: fence,
+          deadlineMs: MODEL_DEADLINE_MS,
+          invocationKey,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          operationAttemptId: allocated.attempt.id,
+          operationId: input.operationId,
+          outputName: "presentation_translation",
+          persistDefiniteFailure: async (tx, failure) => {
+            if (hasMoreSlots) return;
+            const failed =
+              await failEditorialPresentationTranslationInTransaction(
+                tx,
+                input.workspaceId,
+                {
+                  claimFence: fence,
+                  failureCode: failure.code,
+                  operationAttemptId: allocated.attempt.id,
+                  operationId: input.operationId,
+                  outcome: "failed_terminal",
+                },
+              );
+            requireTerminalSettlement(failed);
           },
-        );
-        requireTerminalSettlement(failed);
-      },
-      persistResult: async (tx, output) => {
-        completed = await completeEditorialPresentationTranslationInTransaction(
-          tx,
-          input.workspaceId,
-          {
-            claimFence: input.claimFence,
-            localizations: presentationTranslationWrites(
-              request.missingSubjects,
-              output,
-            ),
-            operationAttemptId: allocated.attempt.id,
-            operationId: input.operationId,
+          persistResult: async (tx, output) => {
+            completed =
+              await completeEditorialPresentationTranslationInTransaction(
+                tx,
+                input.workspaceId,
+                {
+                  claimFence: fence,
+                  localizations: presentationTranslationWrites(
+                    request.missingSubjects,
+                    output,
+                  ),
+                  operationAttemptId: allocated.attempt.id,
+                  operationId: input.operationId,
+                },
+              );
+            requireTerminalSettlement(completed);
           },
-        );
-        requireTerminalSettlement(completed);
-      },
-      prompt: presentationTranslationPrompt(
-        request.missingSubjects,
-        request.presentationLocale,
-      ),
-      schema: presentationTranslationOutputSchema(
-        request.missingSubjects,
-        request.presentationLocale,
-      ),
-      taskKey: "text-translation",
-      workspaceId: input.workspaceId,
-    });
+          prompt: presentationTranslationPrompt(
+            request.missingSubjects,
+            request.presentationLocale,
+          ),
+          schema: presentationTranslationOutputSchema(
+            request.missingSubjects,
+            request.presentationLocale,
+          ),
+          taskKey: "text-translation",
+          workspaceId: input.workspaceId,
+        });
+        lastError = null;
+        break;
+      } catch (error) {
+        if (!(error instanceof ModelGatewayInvocationError)) throw error;
+        if (error.ambiguous) throw error;
+        lastError = error;
+        if (hasMoreSlots) continue;
+      }
+    }
+    if (lastError) throw lastError;
     if (completed === undefined) {
       throw new Error("presentation translation result was not persisted");
     }

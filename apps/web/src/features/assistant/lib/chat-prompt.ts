@@ -1,5 +1,6 @@
 import type { ReviewedKnowledgeFaqRow } from "@rz-chain-reporter/customer-template/schema";
 import type { Locale } from "@rz-chain-reporter/i18n";
+import { LOCAL_MAX_PROMPT_CHARS } from "../constants";
 import type {
   AssistantPendingMarket,
   AssistantPendingRun,
@@ -37,13 +38,28 @@ const LANGUAGE: Record<Locale, string> = {
   fa: "Persian",
 };
 
-export function chatInstructions(input: {
-  locale: Locale;
-  brandChoice: boolean;
-  clarifyTool: boolean;
-  pendingRun: boolean;
-  pendingMarket?: boolean;
-}) {
+export function chatInstructions(
+  input: {
+    locale: Locale;
+    brandChoice: boolean;
+    clarifyTool: boolean;
+    pendingRun: boolean;
+    pendingMarket?: boolean;
+  },
+  compact = false,
+) {
+  if (compact) {
+    return [
+      `Write only in ${LANGUAGE[input.locale]}.`,
+      "You are the workspace assistant. Answer the QUESTION in 1-3 short sentences from the provided knowledge only. For how-to, give the shortest ordered steps. No headings, tables, or markdown. Use read_workspace for live records, handle tools when needed.",
+      input.brandChoice
+        ? "A brand chooser is shown — answer generally, don't ask brand."
+        : "",
+      input.clarifyTool ? "If brand is unclear, call ask_user." : "",
+    ]
+      .filter((line) => line !== "")
+      .join("\n");
+  }
   return [
     `Write only in ${LANGUAGE[input.locale]}.`,
     "You are the assistant for the operators of this content workspace. Answer a factual QUESTION in one to three short sentences by default. For a how-to request, give the shortest complete ordered sequence that preserves the real desk stages and return loop; numbered lines are allowed. Do not use headings, tables, source labels, or decorative Markdown.",
@@ -68,7 +84,8 @@ export function chatInstructions(input: {
     "When the operator asks to prepare, start, continue, or revise one News or Promo run, call start_run exactly once. Provide a patch containing only stated or clearly changed values. The application preserves prior values, resolves owner defaults, asks one missing material value at a time, and shows the complete preview. Never claim the run started until its explicit Approve button succeeds.",
     "When the operator asks for two or more separate runs, do not call start_run. Say that you can prepare one run at a time and ask which one to prepare first. Multiple brands belong in one call only when the operator explicitly asks for one combined run.",
     "For an unspecified run, omit kind so the application asks News or Promo. Preserve an explicitly named kind and brand. For default, set useDefaults. For reuse, set reusePrevious. For source requests use one of owner_defaults, all_enabled, rss_enabled, or telegram_enabled. Promo text belongs in promoText.",
-    "Use only stable brand and model keys listed in RUN_OPTIONS. A Promo run may use only the listed promo brands. Do not invent IDs, keys, choices, defaults, source names, or configuration values.",
+    "Use only stable brand and model keys listed in RUN_OPTIONS exactly as written — copy the key verbatim. Keys are canonical: lower-case with hyphens (brand/model) and platforms telegram/x lower-case. Never use display names, underscores, spaces, or upper-case.",
+    "If the operator writes a display name or variant (MGC, mgc_coin, mgc coin, GPT, Telegram), normalize by lower-casing and replacing spaces/underscores with hyphens, then match case-insensitively against RUN_OPTIONS and use the exact canonical key.",
     "Editorial work stays in Multi Media and the Card Sheet. Direct the operator to the existing native control for routing, copy, revisions, images, approval, or cancellation; never offer or claim an assistant Editorial effect.",
     "Publishing and every schedule mutation stay in Saved or Schedule. Direct the operator to the exact native control and return loop; never offer or claim an assistant save, approval, publish, schedule, cancel, reschedule, recovery, retry, reconciliation, attestation, pause, or resume effect.",
     "When MARKET_OPTIONS says enabled, market_action can prepare only one new Market Analysis. Put one to three operator-stated instrument names, symbols, or keys in primaryInstrumentRefs; primaryInstrumentIds is only for UUIDs copied exactly from current owner context. Never send both fields. The application resolves references against fresh owner options, asks one missing setup value at a time, and requires a preview plus explicit Approve click. Chart, Story, Design, Generate, and Publish work stays in the Market Analysis workspace. Never call market_action when disabled or for an existing analysis.",
@@ -91,29 +108,32 @@ export function chatInstructions(input: {
     .join("\n");
 }
 
-export function chatPrompt(input: {
-  brandChoices: readonly { key: string; name: string }[];
-  card: AssistantActiveCard | null;
-  context: AssistantConversationContext;
-  knowledge: AssistantKnowledge;
-  modelChoices: readonly { key: string; name: string }[];
-  market?: AssistantMarketPromptContext;
-  marketAnalysisId: string | null;
-  pendingRun: AssistantPendingRun | null;
-  pendingMarket?: AssistantPendingMarket | null;
-  platforms: readonly string[];
-  promoBrandChoices: readonly { key: string; name: string }[];
-  question: string;
-  readContext: AssistantReadContext;
-  run: AssistantRunContext | null;
-}) {
+export function chatPrompt(
+  input: {
+    brandChoices: readonly { key: string; name: string }[];
+    card: AssistantActiveCard | null;
+    context: AssistantConversationContext;
+    knowledge: AssistantKnowledge;
+    modelChoices: readonly { key: string; name: string }[];
+    market?: AssistantMarketPromptContext;
+    marketAnalysisId: string | null;
+    pendingRun: AssistantPendingRun | null;
+    pendingMarket?: AssistantPendingMarket | null;
+    platforms: readonly string[];
+    promoBrandChoices: readonly { key: string; name: string }[];
+    question: string;
+    readContext: AssistantReadContext;
+    run: AssistantRunContext | null;
+  },
+  compact = false,
+) {
   const { knowledge } = input;
   const market = input.market ?? {
     enabled: false,
     options: null,
   };
 
-  return [
+  const prompt = [
     input.brandChoices.length > 0
       ? block(
           "BRANDS",
@@ -187,6 +207,11 @@ export function chatPrompt(input: {
   ]
     .filter((part) => part !== "")
     .join("\n");
+
+  if (!compact || prompt.length <= LOCAL_MAX_PROMPT_CHARS) return prompt;
+  const questionBlock = block("QUESTION", input.question);
+  const budget = LOCAL_MAX_PROMPT_CHARS - questionBlock.length - 200;
+  return `${prompt.slice(0, budget)}\n${questionBlock}`;
 }
 
 function runBlock(run: AssistantRunContext | null) {

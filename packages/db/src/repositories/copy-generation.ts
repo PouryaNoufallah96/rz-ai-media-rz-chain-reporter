@@ -14,7 +14,18 @@ import {
   DURABLE_EVENT_SCHEMA_VERSION,
   OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
 } from "@rz-chain-reporter/contracts";
-import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import {
   type Executor,
@@ -48,6 +59,7 @@ import { source } from "../schema/source";
 import { sourceItem } from "../schema/source-item";
 import { sourceItemEnrichment } from "../schema/source-item-enrichment";
 import { sourceItemRevision } from "../schema/source-item-revision";
+import { markPendingAttemptUsageUnknown } from "./ai-usage-event";
 import { matchesAppliedCustomerTemplate } from "./customer-template-identity";
 import { ownedDraftExists } from "./draft-origin";
 import {
@@ -1422,6 +1434,7 @@ async function bindPageEnrichment(
 const NONTERMINAL_UNIT_STATUSES = ["pending", "running"] as const;
 
 export type CopyExecutionContext = {
+  actor: string;
   executionScope: MarketExecutionScopeTarget;
   brandPolicyFingerprint: string;
   brandKey: string;
@@ -1455,6 +1468,7 @@ export async function findCopyExecutionContext(
       analysisRunId: sql<
         string | null
       >`coalesce(${filterResult.analysisRunId}, ${analysisRun.id})`,
+      actor: operation.actor,
       marketAnalysisId: marketAnalysisHandoff.marketAnalysisId,
       brandPolicyFingerprint: copyGeneration.brandPolicyFingerprint,
       brandKey: mediaBrand.key,
@@ -1546,30 +1560,28 @@ export async function claimCopyGeneration(
     operationId: string;
   },
 ) {
-  const [generation] = await executor
-    .select({ operationId: copyGeneration.operationId })
-    .from(copyGeneration)
-    .where(
-      and(
-        inWorkspace(copyGeneration, workspaceId),
-        eq(copyGeneration.operationId, input.operationId),
-      ),
-    );
-  if (!generation) return { status: "not_found" as const };
+  return executor.transaction(async (tx) => {
+    await withWorkspaceContext(tx, workspaceId);
+    const current = await lockCopyOperation(tx, workspaceId, input.operationId);
+    if (!current) return { status: "not_found" as const };
+    const recovered =
+      current.lifecycle === "running" &&
+      (current.leaseExpiresAt === null || current.leaseExpiresAt <= input.now);
 
-  const claimed = await claimOperationExecution(executor, workspaceId, {
-    claimedBy: input.claimedBy,
-    id: input.operationId,
-    leaseExpiresAt: input.leaseExpiresAt,
-    now: input.now,
+    const claimed = await claimOperationExecution(tx, workspaceId, {
+      claimedBy: input.claimedBy,
+      id: input.operationId,
+      leaseExpiresAt: input.leaseExpiresAt,
+      now: input.now,
+    });
+    if (claimed.status === "terminal") {
+      return {
+        lifecycle: claimed.operation.lifecycle,
+        status: "settled" as const,
+      };
+    }
+    return claimed.status === "claimed" ? { ...claimed, recovered } : claimed;
   });
-  if (claimed.status === "terminal") {
-    return {
-      lifecycle: claimed.operation.lifecycle,
-      status: "settled" as const,
-    };
-  }
-  return claimed;
 }
 
 export type CopyGenerationClaimFence = {
@@ -1757,7 +1769,6 @@ export async function persistCopyVariantResult(
       id: input.operationAttemptId,
       outcome: "succeeded",
     });
-    await enqueueCopyWake(tx, workspaceId, input.operationId);
     return { status: "persisted" as const };
   }
 
@@ -1776,7 +1787,6 @@ export async function persistCopyVariantResult(
       outcome: "failed_terminal",
       failureCode: "VALIDATION_FAILED",
     });
-    await enqueueCopyWake(tx, workspaceId, input.operationId);
     return { status: "persisted" as const };
   }
   return { status: "ignored" as const };
@@ -1816,7 +1826,6 @@ export async function persistCopyStructuredFailure(
     outcome: "failed_terminal",
     failureCode: input.code,
   });
-  await enqueueCopyWake(tx, workspaceId, input.operationId);
 }
 
 export async function settleCopyGenerationUnit(
@@ -1846,12 +1855,18 @@ export async function settleCopyGenerationUnit(
       )
       .returning({ id: copyGenerationUnit.id });
     if (!settled) return false;
+    if (input.outcome === "ambiguous") {
+      await markPendingAttemptUsageUnknown(
+        tx,
+        workspaceId,
+        input.operationAttemptId,
+      );
+    }
     await settleOperationAttempt(tx, workspaceId, {
       id: input.operationAttemptId,
       outcome: input.outcome,
       failureCode: input.failureCode,
     });
-    await enqueueCopyWake(tx, workspaceId, input.operationId);
     return true;
   });
 }
@@ -1966,31 +1981,12 @@ export async function settleStaleCopyOperation(
             eq(copyGenerationUnit.status, unit.status),
           ),
         );
-      await settleOperationAttempt(tx, workspaceId, {
-        id: attemptId,
-        outcome: "failed_terminal",
-        failureCode: "INTERNAL_SERVER_ERROR",
-      });
     }
 
-    const openAttempts = await tx
-      .select({ id: operationAttempt.id })
-      .from(operationAttempt)
-      .where(
-        and(
-          inWorkspace(operationAttempt, workspaceId),
-          eq(operationAttempt.operationId, input.operationId),
-          isNull(operationAttempt.outcome),
-        ),
-      )
-      .for("update");
-    for (const attempt of openAttempts) {
-      await settleOperationAttempt(tx, workspaceId, {
-        id: attempt.id,
-        outcome: "failed_terminal",
-        failureCode: "INTERNAL_SERVER_ERROR",
-      });
-    }
+    const ambiguous = await settleOpenCopyAttempts(tx, workspaceId, {
+      failureCode: "INTERNAL_SERVER_ERROR",
+      operationId: input.operationId,
+    });
 
     const [settled] = await tx
       .update(operation)
@@ -1998,7 +1994,7 @@ export async function settleStaleCopyOperation(
         claimedAt: null,
         claimedBy: null,
         leaseExpiresAt: null,
-        lifecycle: "failed",
+        lifecycle: ambiguous ? "unknown" : "failed",
         updatedAt: input.now,
         version: current.version + 1,
       })
@@ -2223,6 +2219,20 @@ export async function markCopyGenerationCancelled(
     await withWorkspaceContext(tx, workspaceId);
     const current = await lockCopyOperation(tx, workspaceId, operationId);
     if (!current) return null;
+    await tx
+      .update(copyGenerationUnit)
+      .set({ status: "cancelled" })
+      .where(
+        and(
+          inWorkspace(copyGenerationUnit, workspaceId),
+          eq(copyGenerationUnit.copyGenerationId, operationId),
+          inArray(copyGenerationUnit.status, NONTERMINAL_UNIT_STATUSES),
+        ),
+      );
+    const ambiguous = await settleOpenCopyAttempts(tx, workspaceId, {
+      failureCode: null,
+      operationId,
+    });
     if (["queued", "running"].includes(current.lifecycle)) {
       await tx
         .update(operation)
@@ -2230,7 +2240,7 @@ export async function markCopyGenerationCancelled(
           claimedAt: null,
           claimedBy: null,
           leaseExpiresAt: null,
-          lifecycle: "cancelled",
+          lifecycle: ambiguous ? "unknown" : "cancelled",
           version: current.version + 1,
         })
         .where(
@@ -2241,68 +2251,115 @@ export async function markCopyGenerationCancelled(
           ),
         );
     }
-    const cancelled = await tx
-      .update(copyGenerationUnit)
-      .set({ status: "cancelled" })
-      .where(
-        and(
-          inWorkspace(copyGenerationUnit, workspaceId),
-          eq(copyGenerationUnit.copyGenerationId, operationId),
-          inArray(copyGenerationUnit.status, NONTERMINAL_UNIT_STATUSES),
-        ),
-      )
-      .returning({ operationAttemptId: copyGenerationUnit.operationAttemptId });
-    for (const unit of cancelled) {
-      if (!unit.operationAttemptId) continue;
-      await settleOperationAttempt(tx, workspaceId, {
-        id: unit.operationAttemptId,
-        outcome: "failed_terminal",
-      });
-    }
     return true;
   });
 }
 
-async function enqueueCopyWake(
+async function settleOpenCopyAttempts(
   tx: Transaction,
   workspaceId: string,
-  operationId: string,
+  input: { failureCode: ErrorCode | null; operationId: string },
 ) {
-  await tx
-    .select({ id: operation.id })
-    .from(operation)
-    .where(
-      and(inWorkspace(operation, workspaceId), eq(operation.id, operationId)),
-    )
-    .for("update");
-
-  const [pending] = await tx
-    .select({ id: outboxEvent.id })
-    .from(outboxEvent)
+  const attempts = await tx
+    .select({ id: operationAttempt.id })
+    .from(operationAttempt)
     .where(
       and(
-        inWorkspace(outboxEvent, workspaceId),
-        eq(outboxEvent.operationId, operationId),
-        eq(
-          outboxEvent.eventType,
-          OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
-        ),
-        isNull(outboxEvent.dispatchedAt),
-        isNull(outboxEvent.exhaustedAt),
+        inWorkspace(operationAttempt, workspaceId),
+        eq(operationAttempt.operationId, input.operationId),
+        isNull(operationAttempt.outcome),
       ),
     )
-    .limit(1);
-  if (pending) return;
+    .for("update");
+  if (attempts.length === 0) return false;
 
-  await tx.insert(outboxEvent).values({
-    workspaceId,
-    operationId,
-    eventType: OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
-    schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
-    payload: {
-      schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+  const ambiguousUsage = await tx
+    .select({ operationAttemptId: aiUsageEvent.operationAttemptId })
+    .from(aiUsageEvent)
+    .where(
+      and(
+        inWorkspace(aiUsageEvent, workspaceId),
+        eq(aiUsageEvent.operationId, input.operationId),
+        inArray(
+          aiUsageEvent.operationAttemptId,
+          attempts.map((attempt) => attempt.id),
+        ),
+        inArray(aiUsageEvent.status, ["pending", "unknown"]),
+      ),
+    )
+    .for("update");
+  const ambiguousAttemptIds = new Set(
+    ambiguousUsage.map((usage) => usage.operationAttemptId),
+  );
+  for (const attempt of attempts) {
+    const ambiguous = ambiguousAttemptIds.has(attempt.id);
+    if (ambiguous) {
+      await markPendingAttemptUsageUnknown(tx, workspaceId, attempt.id);
+    }
+    await settleOperationAttempt(tx, workspaceId, {
+      failureCode: input.failureCode,
+      id: attempt.id,
+      outcome: ambiguous ? "ambiguous" : "failed_terminal",
+    });
+  }
+  return ambiguousAttemptIds.size > 0;
+}
+
+export async function scheduleCopyGenerationRecovery(
+  executor: Executor,
+  workspaceId: string,
+  operationId: string,
+  now = new Date(),
+) {
+  return executor.transaction(async (tx) => {
+    await withWorkspaceContext(tx, workspaceId);
+    const current = await lockCopyOperation(tx, workspaceId, operationId);
+    if (current?.lifecycle !== "running" || !current.leaseExpiresAt) {
+      return { status: "not_needed" as const };
+    }
+
+    const [pending] = await tx
+      .select({
+        id: outboxEvent.id,
+        nextAttemptAt: outboxEvent.nextAttemptAt,
+      })
+      .from(outboxEvent)
+      .where(
+        and(
+          inWorkspace(outboxEvent, workspaceId),
+          eq(outboxEvent.operationId, operationId),
+          eq(
+            outboxEvent.eventType,
+            OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
+          ),
+          gt(outboxEvent.nextAttemptAt, current.leaseExpiresAt),
+          isNull(outboxEvent.dispatchedAt),
+          isNull(outboxEvent.exhaustedAt),
+        ),
+      )
+      .limit(1);
+    if (pending) {
+      return {
+        nextAttemptAt: pending.nextAttemptAt,
+        status: "scheduled" as const,
+      };
+    }
+
+    const nextAttemptAt = new Date(
+      Math.max(now.getTime(), current.leaseExpiresAt.getTime() + 1),
+    );
+    await tx.insert(outboxEvent).values({
       workspaceId,
       operationId,
-    },
+      eventType: OPERATION_COPY_GENERATION_REQUESTED_EVENT_NAME,
+      schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+      nextAttemptAt,
+      payload: {
+        schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
+        workspaceId,
+        operationId,
+      },
+    });
+    return { nextAttemptAt, status: "scheduled" as const };
   });
 }

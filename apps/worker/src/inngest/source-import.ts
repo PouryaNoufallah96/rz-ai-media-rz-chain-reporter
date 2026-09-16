@@ -268,6 +268,10 @@ async function claimSourceImport(
       return { status: "settled", actor: current.actor };
     }
 
+    if (!current.commandType.startsWith(SOURCE_IMPORT_COMMAND_PREFIX)) {
+      throw new NonRetriableError("source import command type mismatch");
+    }
+
     const now = new Date();
     const claimedAt = current.claimedAt ?? now;
     const [claimed] = await tx
@@ -960,7 +964,7 @@ function briefPolicyVersion(
   return `${EXTRACT_POLICY_VERSION}:${route.backend}:${route.model}`;
 }
 
-async function prepareSourceImportEffectiveTopics(
+export async function prepareSourceImportEffectiveTopics(
   runtime: WorkerRuntime,
   workspaceId: string,
   operationId: string,
@@ -1830,6 +1834,9 @@ export function createSourceImportFunctions(
         const { operationId, workspaceId } = event.data.event.data;
         const failureCode = failureCodeOf(event.data.error.message);
         let actorId: string | null = null;
+        let lifecycle: OperationLifecycle | null = null;
+        let operationVersion: number | null = null;
+        let sharedImport: boolean | null = null;
         try {
           const failed = await step.run("settle-failed-import", () =>
             coded({ operationId, workspaceId }, async () => {
@@ -1902,10 +1909,15 @@ export function createSourceImportFunctions(
               return {
                 actorId: settled?.actorId ?? null,
                 lifecycle: settled?.lifecycle ?? null,
+                sharedImport: settled?.sharedImport ?? null,
+                version: settled?.version ?? null,
               };
             }),
           );
           actorId = failed.actorId ?? null;
+          lifecycle = failed.lifecycle;
+          operationVersion = failed.version;
+          sharedImport = failed.sharedImport;
         } finally {
           await notifySourcesAndUsageChanged(
             step,
@@ -1913,6 +1925,25 @@ export function createSourceImportFunctions(
             "failed",
             actorId,
           );
+          if (
+            actorId !== null &&
+            lifecycle !== null &&
+            operationVersion !== null &&
+            sharedImport !== null
+          ) {
+            await publishOperationStatus(
+              step,
+              workspaceId,
+              {
+                actorId,
+                lifecycle,
+                operationId,
+                operationVersion,
+                sharedImport,
+              },
+              "worker.source-import.realtime-unavailable",
+            );
+          }
         }
       },
     },
@@ -2274,7 +2305,7 @@ type EmbeddingSettlement = {
   overCapSourceItemIds: readonly string[];
 };
 
-async function admitAndOrder(
+export async function admitAndOrder(
   runtime: WorkerRuntime,
   workspaceId: string,
   input: OrderingInput,

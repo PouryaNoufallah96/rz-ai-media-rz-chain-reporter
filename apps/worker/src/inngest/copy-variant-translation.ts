@@ -17,12 +17,14 @@ import {
   settleCopyVariantTranslationFailure,
   settleStaleCopyVariantTranslation,
 } from "@rz-chain-reporter/db/repositories/copy-variant-localization";
+import { operation } from "@rz-chain-reporter/db/schema/operation";
 import {
   ModelBindingError,
   ModelGatewayInvocationError,
   ModelTaskConfigurationError,
 } from "@rz-chain-reporter/model-gateway/errors";
 import type { ModelGateway } from "@rz-chain-reporter/model-gateway/gateway";
+import { eq } from "drizzle-orm";
 import { NonRetriableError } from "inngest";
 import { z } from "zod";
 
@@ -45,6 +47,7 @@ import {
 } from "./copy-generation";
 import { durableEvents } from "./events";
 import { assertWorkspace, type WorkerRuntime } from "./runtime";
+import { getTranslationInvocationKeys } from "./translation-invocation";
 
 export const COPY_VARIANT_TRANSLATION_FUNCTION_ID =
   "copy-variant-translation" as const;
@@ -201,6 +204,22 @@ export async function reconcileStaleCopyVariantTranslations(
   };
 }
 
+function translationClaimStepResult(
+  result: Awaited<ReturnType<typeof claimCopyVariantTranslation>>,
+) {
+  if (result.status === "claimed") {
+    return {
+      actor: result.operation.actor,
+      operationVersion: result.operation.version,
+      status: result.status,
+    } as const;
+  }
+  if (result.status === "busy") {
+    return { status: result.status } as const;
+  }
+  return { status: result.status } as const;
+}
+
 export function createCopyVariantTranslationFunction(
   client: WorkerInngestClient,
   runtime: WorkerRuntime,
@@ -231,20 +250,28 @@ export function createCopyVariantTranslationFunction(
         async () => {
           await assertWorkspace(runtime, workspaceId);
           const now = new Date();
-          return claimCopyVariantTranslation(runtime.db, workspaceId, {
-            claimedBy,
-            leaseExpiresAt: new Date(now.getTime() + CLAIM_LEASE_MS),
-            now,
-            operationId,
-          });
+          return translationClaimStepResult(
+            await claimCopyVariantTranslation(runtime.db, workspaceId, {
+              claimedBy,
+              leaseExpiresAt: new Date(now.getTime() + CLAIM_LEASE_MS),
+              now,
+              operationId,
+            }),
+          );
         },
       );
 
-      if (claim.status === "settled" || claim.status === "busy") {
+      if (claim.status === "busy") {
+        return { operationId, replayed: true };
+      }
+      if (claim.status === "settled") {
         return { operationId, replayed: true };
       }
       if (claim.status === "not_found") {
         throw new NonRetriableError("NOT_FOUND");
+      }
+      if (claim.status !== "claimed") {
+        return { operationId, replayed: true };
       }
 
       const request = await step.run(
@@ -283,10 +310,10 @@ export function createCopyVariantTranslationFunction(
         step,
         workspaceId,
         {
-          actorId: claim.operation.actor,
+          actorId: claim.actor,
           lifecycle: "running",
           operationId,
-          operationVersion: claim.operation.version,
+          operationVersion: claim.operationVersion,
           sharedImport: false,
         },
         "worker.copy-variant-translation.realtime-unavailable",
@@ -296,7 +323,7 @@ export function createCopyVariantTranslationFunction(
         executeCopyVariantTranslation(runtime, gatewayFactory(), {
           claimFence: {
             claimedBy,
-            expectedVersion: claim.operation.version,
+            expectedVersion: claim.operationVersion,
           },
           operationId,
           workspaceId,
@@ -450,94 +477,154 @@ export async function executeCopyVariantTranslation(
           result: TranslationSettlementResult;
         }
       | undefined;
-    await gateway.invokeStructured({
-      claimFence: input.claimFence,
-      deadlineMs: MODEL_DEADLINE_MS,
-      invocationKey: "primary",
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      operationAttemptId: allocated.attempt.id,
-      operationId: input.operationId,
-      outputName: "copy_variant_translation",
-      persistDefiniteFailure: async (tx, failure) => {
-        const failed = await failCopyVariantTranslationInTransaction(
-          tx,
-          input.workspaceId,
-          {
-            claimFence: input.claimFence,
-            failureCode: failure.code,
-            operationAttemptId: allocated.attempt.id,
-            operationId: input.operationId,
-            outcome: "failed_terminal",
-          },
-        );
-        requireTerminalSettlement(failed);
-      },
-      persistResult: async (tx, output) => {
-        const checked = normalizeCopyCandidate(
-          request.source.platform,
-          output,
-          {
-            canonicalHashtag,
-            emojiGraphemeCap: policy.emojiGraphemeCap,
-            maximumCharacters: policy.assembledCharacters.max,
-            maximumHashtags: policy.hashtags.max,
-            minimumHashtags: policy.hashtags.min,
-            requestedContentLocale: request.contentLocale,
-            source: request.source.publishSource,
-          },
-        );
-        const localization = {
-          body: checked.body,
-          hashtags: checked.hashtags,
-          headline: checked.headline,
+    const invocationKeys = getTranslationInvocationKeys(runtime.template);
+    let lastError: unknown = null;
+    for (const [index, invocationKey] of invocationKeys.entries()) {
+      const hasMoreSlots = index < invocationKeys.length - 1;
+      let fence = input.claimFence;
+      if (invocationKey !== "primary") {
+        const [current] = await runtime.db
+          .select({
+            claimedBy: operation.claimedBy,
+            lifecycle: operation.lifecycle,
+            version: operation.version,
+          })
+          .from(operation)
+          .where(eq(operation.id, input.operationId));
+        if (
+          current?.lifecycle !== "running" ||
+          current.claimedBy !== input.claimFence.claimedBy
+        )
+          throw lastError ?? new Error("translation fallback claim lost");
+        fence = {
+          claimedBy: current.claimedBy,
+          expectedVersion: current.version,
         };
-        const policyAccepted =
-          checked.hashtags.length === request.source.hashtags.length &&
-          checked.failures.length === 0 &&
-          outputSchema.safeParse(localization).success;
-        if (!policyAccepted) {
-          const failed = await failCopyVariantTranslationInTransaction(
-            tx,
-            input.workspaceId,
+      }
+      let slotValidationFailed = false;
+      try {
+        await gateway.invokeStructured({
+          claimFence: fence,
+          deadlineMs: MODEL_DEADLINE_MS,
+          invocationKey,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          operationAttemptId: allocated.attempt.id,
+          operationId: input.operationId,
+          outputName: "copy_variant_translation",
+          persistDefiniteFailure: async (tx, failure) => {
+            if (hasMoreSlots) return;
+            const failed = await failCopyVariantTranslationInTransaction(
+              tx,
+              input.workspaceId,
+              {
+                claimFence: fence,
+                failureCode: failure.code,
+                operationAttemptId: allocated.attempt.id,
+                operationId: input.operationId,
+                outcome: "failed_terminal",
+              },
+            );
+            requireTerminalSettlement(failed);
+          },
+          persistResult: async (tx, output) => {
+            const checked = normalizeCopyCandidate(
+              request.source.platform,
+              output,
+              {
+                canonicalHashtag,
+                emojiGraphemeCap: policy.emojiGraphemeCap,
+                maximumCharacters: policy.assembledCharacters.max,
+                maximumHashtags: policy.hashtags.max,
+                minimumHashtags: policy.hashtags.min,
+                requestedContentLocale: request.contentLocale,
+                source: request.source.publishSource,
+              },
+            );
+            const localization = {
+              body: checked.body,
+              hashtags: checked.hashtags,
+              headline: checked.headline,
+            };
+            const policyAccepted =
+              checked.hashtags.length === request.source.hashtags.length &&
+              checked.failures.length === 0 &&
+              outputSchema.safeParse(localization).success;
+            if (!policyAccepted) {
+              if (hasMoreSlots) {
+                slotValidationFailed = true;
+                return;
+              }
+              const failed = await failCopyVariantTranslationInTransaction(
+                tx,
+                input.workspaceId,
+                {
+                  claimFence: fence,
+                  failureCode: "VALIDATION_FAILED",
+                  operationAttemptId: allocated.attempt.id,
+                  operationId: input.operationId,
+                  outcome: "failed_terminal",
+                },
+              );
+              settlement = {
+                latestAttemptOutcome: "failed_terminal",
+                result: requireTerminalSettlement(failed),
+              };
+              return;
+            }
+
+            const completed = await completeCopyVariantTranslationInTransaction(
+              tx,
+              input.workspaceId,
+              {
+                claimFence: fence,
+                localization,
+                operationAttemptId: allocated.attempt.id,
+                operationId: input.operationId,
+              },
+            );
+            settlement = {
+              latestAttemptOutcome: "succeeded",
+              result: requireTerminalSettlement(completed),
+            };
+          },
+          prompt: copyVariantTranslationPrompt(
+            request.source,
+            request.contentLocale,
+            constraints,
+          ),
+          schema: outputSchema,
+          taskKey: "text-translation",
+          workspaceId: input.workspaceId,
+        });
+        if (slotValidationFailed) {
+          lastError = new ModelGatewayInvocationError(
+            "STRUCTURED_OUTPUT_INVALID",
             {
-              claimFence: input.claimFence,
-              failureCode: "VALIDATION_FAILED",
-              operationAttemptId: allocated.attempt.id,
-              operationId: input.operationId,
-              outcome: "failed_terminal",
+              reason: "structured-output-invalid",
             },
           );
-          settlement = {
-            latestAttemptOutcome: "failed_terminal",
-            result: requireTerminalSettlement(failed),
-          };
-          return;
+          continue;
         }
-
-        const completed = await completeCopyVariantTranslationInTransaction(
-          tx,
-          input.workspaceId,
+        if (settlement) {
+          lastError = null;
+          break;
+        }
+        lastError = new ModelGatewayInvocationError(
+          "STRUCTURED_OUTPUT_INVALID",
           {
-            claimFence: input.claimFence,
-            localization,
-            operationAttemptId: allocated.attempt.id,
-            operationId: input.operationId,
+            reason: "structured-output-invalid",
           },
         );
-        settlement = {
-          latestAttemptOutcome: "succeeded",
-          result: requireTerminalSettlement(completed),
-        };
-      },
-      prompt: copyVariantTranslationPrompt(
-        request.source,
-        request.contentLocale,
-        constraints,
-      ),
-      schema: outputSchema,
-      taskKey: "text-translation",
-      workspaceId: input.workspaceId,
-    });
+        if (hasMoreSlots) continue;
+        break;
+      } catch (error) {
+        if (!(error instanceof ModelGatewayInvocationError)) throw error;
+        if (error.ambiguous) throw error;
+        lastError = error;
+        if (hasMoreSlots) continue;
+      }
+    }
+    if (lastError) throw lastError;
     if (settlement === undefined) {
       throw new Error("copy variant translation result was not persisted");
     }

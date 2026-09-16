@@ -381,6 +381,7 @@ export class OutboxRelay {
         this.workspaceId,
         followUp.operationId,
         attemptedAt,
+        followUp.publishOperationUpdatedAt,
       );
       return;
     }
@@ -389,6 +390,7 @@ export class OutboxRelay {
       this.workspaceId,
       followUp.operationId,
       attemptedAt,
+      followUp.publishOperationUpdatedAt,
     );
   }
 

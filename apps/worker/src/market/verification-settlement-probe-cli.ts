@@ -35,9 +35,11 @@ import {
   normalizeMarketChartSpec,
 } from "@rz-chain-reporter/market-chart";
 import { asc, eq, inArray, sql } from "drizzle-orm";
-import { RetryAfterError } from "inngest";
+import { Inngest, RetryAfterError } from "inngest";
 import { SafeHttpError } from "../fetch/safe-http";
+import { createMarketChartRenderFunctions } from "../inngest/market-chart-render";
 import {
+  createMarketVerificationFunctions,
   loadMarketVerificationRequest,
   persistMarketVerification,
   settleFetchAttempt,
@@ -1406,9 +1408,174 @@ async function executeRateLimitedTransaction() {
   });
 }
 
+function boundedStepProbe() {
+  const stepIds: string[] = [];
+  const realtimeIds: string[] = [];
+  const step = {
+    realtime: {
+      publish: async (id: string, _channel: unknown, message: unknown) => {
+        realtimeIds.push(id);
+        assert.ok(JSON.stringify(message).length < 1_024);
+      },
+    },
+    run: async (id: string, execute: () => Promise<unknown>) => {
+      stepIds.push(id);
+      const result = id.startsWith("claim-market-")
+        ? { operationVersion: 2, status: "claimed" as const }
+        : id.startsWith("notify-market-analysis-cache-")
+          ? "accepted"
+          : await execute();
+      const serialized = JSON.stringify(result);
+      assert.ok(serialized.length < 4_096, `${id} returned unbounded metadata`);
+      assert.doesNotMatch(
+        serialized,
+        /"(?:analysis|bytes|points|rows)"|base64/iu,
+      );
+      return result;
+    },
+    sleep: async (id: string) => {
+      stepIds.push(id);
+    },
+  };
+  return { realtimeIds, step, stepIds };
+}
+
+async function proveConsolidatedHandlerBoundaries() {
+  const client = new Inngest({ id: `market-boundary-${randomUUID()}` });
+  const eventTimestamp = new Date("2026-09-09T12:00:00.000Z").getTime();
+  const handlerEvent = {
+    data: {
+      marketAnalysisId: randomUUID(),
+      operationId: randomUUID(),
+      schemaVersion: 1 as const,
+      workspaceId: randomUUID(),
+    },
+    ts: eventTimestamp,
+  };
+
+  for (const scenario of [
+    {
+      expectedNotifications: 1,
+      result: {
+        detachedMediaAssetIds: [] as string[],
+        replay: false,
+        settled: true,
+        snapshotId: randomUUID(),
+        status: "verified" as const,
+      },
+    },
+    {
+      expectedNotifications: 0,
+      result: {
+        detachedMediaAssetIds: [] as string[],
+        replay: false,
+        settled: false,
+        snapshotId: null,
+        status: "superseded" as const,
+      },
+    },
+  ]) {
+    let observedTimestamp = 0;
+    const [registered] = createMarketVerificationFunctions(
+      client,
+      undefined as never,
+      async (_runtime, input) => {
+        observedTimestamp = input.eventTimestamp;
+        return scenario.result;
+      },
+    );
+    if (!registered) throw new Error("MARKET_VERIFICATION_HANDLER_MISSING");
+    const handler = (
+      registered as unknown as { fn: (input: never) => Promise<unknown> }
+    ).fn;
+    const probe = boundedStepProbe();
+    await handler({
+      attempt: 0,
+      event: handlerEvent,
+      maxAttempts: 4,
+      step: probe.step,
+    } as never);
+    assert.equal(observedTimestamp, eventTimestamp);
+    assert.equal(
+      probe.stepIds.filter((id) =>
+        id.startsWith("notify-market-analysis-cache-"),
+      ).length,
+      scenario.expectedNotifications,
+    );
+    assert.equal(
+      probe.stepIds.filter((id) => id === "verify-market-series-and-settle")
+        .length,
+      1,
+    );
+    assert.equal(
+      probe.stepIds.some((id) => id.startsWith("fetch-market-series-")),
+      false,
+    );
+  }
+
+  const chartScenarios = [
+    { expectedNotifications: 1, result: { status: "rendered" as const } },
+    { expectedNotifications: 1, result: { status: "replayed" as const } },
+    {
+      expectedNotifications: 1,
+      result: { settled: true, status: "superseded" as const },
+    },
+    {
+      expectedNotifications: 0,
+      result: { settled: false, status: "superseded" as const },
+    },
+    { expectedNotifications: 0, result: { status: "lost" as const } },
+  ];
+  for (const scenario of chartScenarios) {
+    const [registered] = createMarketChartRenderFunctions(
+      client,
+      undefined as never,
+      (async () => scenario.result) as never,
+    );
+    if (!registered) throw new Error("MARKET_CHART_HANDLER_MISSING");
+    const handler = (
+      registered as unknown as { fn: (input: never) => Promise<unknown> }
+    ).fn;
+    const probe = boundedStepProbe();
+    await handler({
+      event: {
+        data: {
+          ...handlerEvent.data,
+          marketChartRenderId: randomUUID(),
+        },
+      },
+      step: probe.step,
+    } as never);
+    assert.equal(
+      probe.stepIds.filter((id) =>
+        id.startsWith("notify-market-analysis-cache-"),
+      ).length,
+      scenario.expectedNotifications,
+    );
+    assert.equal(
+      probe.stepIds.filter(
+        (id) => id === "render-store-and-attach-market-chart",
+      ).length,
+      1,
+    );
+    assert.equal(
+      probe.stepIds.some((id) =>
+        [
+          "load-market-chart-render-input",
+          "render-market-chart-png",
+          "store-market-chart-png",
+          "cleanup-losing-market-chart-render",
+        ].includes(id),
+      ),
+      false,
+    );
+  }
+}
+
 const rollbackFixture = new Error("ROLLBACK_MARKET_SETTLEMENT_PROBE_FIXTURE");
 
 try {
+  await proveConsolidatedHandlerBoundaries();
   for (const scenario of [
     executeProbeTransaction,
     executeMixedGranularityTransaction,
@@ -1432,7 +1599,7 @@ try {
     0,
   );
   console.log(
-    "market verification settlement probe local-db=true fixture-rollback=true initial-unverified-not-current=true failed-refresh-preserves-current=true failed-refresh-evidence=true admission-preserves=true failure-preserves=true cancellation-preserves=true success-atomic=true chart-spec-and-output-format-preserved=true downstream-artifacts-cleared=true detached-media-postcommit=true cleanup-scheduled=3 replay-safe=true stale-lease-safe=true supersession-safe=true supersession-before-load-safe=true late-settlement-safe=true mixed-granularity-window-owns-points=true mixed-granularity-chart-renderable=true rate-limited-series-settled=true rate-limited-snapshot-persisted=true rate-limited-retry-after-bounded=true status=pass",
+    "market verification settlement probe handler-boundaries=bounded committed-notify=true chart-replay-supersession-cleanup-contained=true local-db=true fixture-rollback=true initial-unverified-not-current=true failed-refresh-preserves-current=true failed-refresh-evidence=true admission-preserves=true failure-preserves=true cancellation-preserves=true success-atomic=true chart-spec-and-output-format-preserved=true downstream-artifacts-cleared=true detached-media-postcommit=true cleanup-scheduled=3 replay-safe=true stale-lease-safe=true supersession-safe=true supersession-before-load-safe=true late-settlement-safe=true mixed-granularity-window-owns-points=true mixed-granularity-chart-renderable=true rate-limited-series-settled=true rate-limited-snapshot-persisted=true rate-limited-retry-after-bounded=true status=pass",
   );
 } finally {
   await database.close();

@@ -1,5 +1,6 @@
 import {
   MARKET_VERIFICATION_COMMAND_PREFIX,
+  marketVerificationRequestedPayloadSchema,
   type NormalizedMarketRequest,
 } from "@rz-chain-reporter/contracts";
 import type { Executor } from "@rz-chain-reporter/db/executor";
@@ -17,6 +18,8 @@ import {
 import { operation } from "@rz-chain-reporter/db/schema/operation";
 import { and, eq, gt, like, lte, sql } from "drizzle-orm";
 import { NonRetriableError, RetryAfterError } from "inngest";
+import { z } from "zod";
+import { workerLogger } from "../logging/logger";
 import { resolveMarketProviderBindings } from "../market/bindings";
 import { createMarketAdapters, fetchMarketSeries } from "../market/fetcher";
 import {
@@ -27,6 +30,7 @@ import { MarketProviderError, type MarketSeriesOutcome } from "../market/types";
 import { alignToCommonWindow } from "../market/window";
 import { workerEnv } from "../runtime/env";
 import { notifyMarketAnalysisChanged } from "../web-cache/market-analysis";
+import { publishOperationStatus } from "./channels";
 import type { WorkerInngestClient } from "./client";
 import { durableEvents } from "./events";
 import { scheduleDetachedMarketMediaCleanup } from "./media-storage";
@@ -37,6 +41,17 @@ const CLAIM_LEASE_MS = 5 * 60_000;
 const FUNCTION_RETRIES = 3;
 const RETRY_AFTER_HONOURED_ATTEMPTS = 2;
 const RETRY_AFTER_CAP_MS = 60_000;
+
+const cancelledIdsSchema = z.object({
+  data: z.object({ function_id: z.string(), run_id: z.string() }),
+});
+
+const cancelledEnvelopeSchema = z.object({
+  data: z.object({
+    event: z.object({ data: marketVerificationRequestedPayloadSchema }),
+    run_id: z.string(),
+  }),
+});
 
 function claimant(operationId: string) {
   return `${MARKET_VERIFICATION_COMMAND_PREFIX}${operationId}`;
@@ -90,9 +105,79 @@ export async function loadMarketVerificationRequest(
   return { status: "current" as const, analysis: current };
 }
 
+async function verifyMarketAnalysis(
+  runtime: WorkerRuntime,
+  input: {
+    attempt: number;
+    eventTimestamp: number;
+    marketAnalysisId: string;
+    maxAttempts: number;
+    operationId: string;
+    operationVersion: number;
+    workspaceId: string;
+  },
+) {
+  const claimedBy = claimant(input.operationId);
+  const loaded = await loadMarketVerificationRequest(
+    runtime.db,
+    input.workspaceId,
+    input.marketAnalysisId,
+    input.operationId,
+  );
+  if (loaded.status === "superseded") {
+    const settled = await settleOwnedMarketVerification(
+      runtime.db,
+      input.workspaceId,
+      input.operationId,
+      claimedBy,
+      "cancelled",
+    );
+    return {
+      detachedMediaAssetIds: [] as string[],
+      replay: false,
+      settled: settled !== null,
+      snapshotId: null,
+      status: "superseded" as const,
+    };
+  }
+  const analysis = loaded.analysis;
+  const adapters = createMarketAdapters(
+    resolveMarketProviderBindings(runtime.template, workerEnv),
+  ).adapters;
+  const outcomes = await Promise.all(
+    analysis.normalizedRequest.series.map(async (series) =>
+      settleFetchAttempt(
+        await fetchMarketSeries(
+          adapters,
+          series,
+          analysis.normalizedRequest.period,
+          new Date(input.eventTimestamp),
+        ),
+        input.attempt,
+        input.maxAttempts,
+      ),
+    ),
+  );
+  const persisted = await persistMarketVerification(runtime.db, {
+    workspaceId: input.workspaceId,
+    operationId: input.operationId,
+    marketAnalysisId: input.marketAnalysisId,
+    claimedBy,
+    operationVersion: input.operationVersion,
+    request: analysis.normalizedRequest,
+    requestFingerprint: analysis.requestFingerprint,
+    templateFingerprint: analysis.templateFingerprint,
+    verificationIntentId: input.operationId,
+    verificationIntentVersion: analysis.verificationIntentVersion,
+    outcomes,
+  });
+  return { ...persisted, settled: true };
+}
+
 export function createMarketVerificationFunctions(
   client: WorkerInngestClient,
   runtime: WorkerRuntime,
+  executeVerification = verifyMarketAnalysis,
 ) {
   const effect = client.createFunction(
     {
@@ -102,33 +187,76 @@ export function createMarketVerificationFunctions(
       triggers: [durableEvents.operationMarketVerificationRequested],
       onFailure: async ({ event, step }) => {
         const payload = event.data.event.data;
-        await step.run("settle-failed-market-verification", () =>
-          settleOwnedMarketVerification(
-            runtime.db,
+        const result = await step.run(
+          "settle-failed-market-verification",
+          async () => {
+            const settled = await settleOwnedMarketVerification(
+              runtime.db,
+              payload.workspaceId,
+              payload.operationId,
+              claimant(payload.operationId),
+              "failed",
+            );
+            return settled
+              ? {
+                  settled: true as const,
+                  actor: settled.actor,
+                  operationVersion: settled.version,
+                }
+              : { settled: false as const };
+          },
+        );
+        if (result.settled) {
+          await notifyMarketAnalysisChanged(
+            step,
             payload.workspaceId,
-            payload.operationId,
-            claimant(payload.operationId),
-            "failed",
-          ),
-        );
-        await notifyMarketAnalysisChanged(
-          step,
-          payload.workspaceId,
-          payload.marketAnalysisId,
-          "failure",
-        );
+            payload.marketAnalysisId,
+            "failure",
+          );
+          await publishOperationStatus(
+            step,
+            payload.workspaceId,
+            {
+              actorId: result.actor,
+              lifecycle: "failed",
+              operationId: payload.operationId,
+              operationVersion: result.operationVersion,
+              sharedImport: false,
+            },
+            "worker.market-verification.realtime-unavailable",
+          );
+        }
       },
     },
     async ({ attempt, event, maxAttempts, step }) => {
       const owner = claimant(event.data.operationId);
       const claimed = await step.run("claim-market-verification", async () => {
         await assertWorkspace(runtime, event.data.workspaceId);
-        return claimOperationExecution(runtime.db, event.data.workspaceId, {
-          id: event.data.operationId,
-          claimedBy: owner,
-          now: new Date(),
-          leaseExpiresAt: new Date(Date.now() + CLAIM_LEASE_MS),
-        });
+        const result = await claimOperationExecution(
+          runtime.db,
+          event.data.workspaceId,
+          {
+            id: event.data.operationId,
+            claimedBy: owner,
+            now: new Date(),
+            leaseExpiresAt: new Date(Date.now() + CLAIM_LEASE_MS),
+          },
+        );
+        if (result.status !== "claimed") return { status: result.status };
+        if (
+          !result.operation.commandType.startsWith(
+            MARKET_VERIFICATION_COMMAND_PREFIX,
+          )
+        ) {
+          throw new NonRetriableError(
+            "market verification command type mismatch",
+          );
+        }
+        return {
+          status: "claimed" as const,
+          actor: result.operation.actor,
+          operationVersion: result.operation.version,
+        };
       });
       if (claimed.status !== "claimed") {
         if (claimed.status === "terminal") {
@@ -141,94 +269,64 @@ export function createMarketVerificationFunctions(
         }
         return { status: claimed.status };
       }
-      if (
-        !claimed.operation.commandType.startsWith(
-          MARKET_VERIFICATION_COMMAND_PREFIX,
-        )
-      ) {
+      await publishOperationStatus(
+        step,
+        event.data.workspaceId,
+        {
+          actorId: claimed.actor,
+          lifecycle: "running",
+          operationId: event.data.operationId,
+          operationVersion: claimed.operationVersion,
+          sharedImport: false,
+        },
+        "worker.market-verification.realtime-unavailable",
+      );
+      const eventTimestamp = event.ts;
+      if (eventTimestamp === undefined) {
         throw new NonRetriableError(
-          "market verification command type mismatch",
+          "market verification event timestamp missing",
         );
       }
-      const loaded = await step.run("load-market-verification-request", () =>
-        loadMarketVerificationRequest(
-          runtime.db,
-          event.data.workspaceId,
-          event.data.marketAnalysisId,
-          event.data.operationId,
-        ),
+      const verified = await step.run("verify-market-series-and-settle", () =>
+        executeVerification(runtime, {
+          attempt,
+          eventTimestamp,
+          marketAnalysisId: event.data.marketAnalysisId,
+          maxAttempts: maxAttempts ?? FUNCTION_RETRIES + 1,
+          operationId: event.data.operationId,
+          operationVersion: claimed.operationVersion,
+          workspaceId: event.data.workspaceId,
+        }),
       );
-      if (loaded.status === "superseded") {
-        const settled = await step.run(
-          "settle-superseded-market-verification",
-          () =>
-            settleOwnedMarketVerification(
-              runtime.db,
-              event.data.workspaceId,
-              event.data.operationId,
-              owner,
-              "cancelled",
-            ),
-        );
-        if (settled)
+      if (verified.status === "superseded") {
+        if (verified.settled) {
           await notifyMarketAnalysisChanged(
             step,
             event.data.workspaceId,
             event.data.marketAnalysisId,
             "superseded",
           );
-        return loaded;
+          await publishOperationStatus(
+            step,
+            event.data.workspaceId,
+            {
+              actorId: claimed.actor,
+              lifecycle: "cancelled",
+              operationId: event.data.operationId,
+              operationVersion: claimed.operationVersion + 1,
+              sharedImport: false,
+            },
+            "worker.market-verification.realtime-unavailable",
+          );
+        }
+        return { status: verified.status };
       }
-      const analysis = loaded.analysis;
-      const adapters = createMarketAdapters(
-        resolveMarketProviderBindings(runtime.template, workerEnv),
-      ).adapters;
-      const outcomes = await Promise.all(
-        analysis.normalizedRequest.series.map((series, index) =>
-          step.run(`fetch-market-series-${index + 1}`, async () =>
-            settleFetchAttempt(
-              await fetchMarketSeries(
-                adapters,
-                series,
-                analysis.normalizedRequest.period,
-                new Date(),
-              ),
-              attempt,
-              maxAttempts,
-            ),
-          ),
-        ),
-      );
-      const hydratedOutcomes: MarketSeriesOutcome[] = outcomes.map((outcome) =>
-        outcome.outcome === "succeeded"
-          ? {
-              ...outcome,
-              coverageEnd: new Date(outcome.coverageEnd),
-              coverageStart: new Date(outcome.coverageStart),
-            }
-          : outcome,
-      );
-      const settled = await step.run("persist-market-snapshot-and-settle", () =>
-        persistMarketVerification(runtime.db, {
-          workspaceId: event.data.workspaceId,
-          operationId: event.data.operationId,
-          marketAnalysisId: event.data.marketAnalysisId,
-          claimedBy: owner,
-          operationVersion: claimed.operation.version,
-          request: analysis.normalizedRequest,
-          requestFingerprint: analysis.requestFingerprint,
-          templateFingerprint: analysis.templateFingerprint,
-          verificationIntentId: event.data.operationId,
-          verificationIntentVersion: analysis.verificationIntentVersion,
-          outcomes: hydratedOutcomes,
-        }),
-      );
-      if (settled.detachedMediaAssetIds.length > 0) {
+      if (verified.detachedMediaAssetIds.length > 0) {
         await step.run("schedule-detached-market-media-cleanup", () =>
           scheduleDetachedMarketMediaCleanup(
             runtime.db,
             event.data.workspaceId,
-            settled.detachedMediaAssetIds,
+            verified.detachedMediaAssetIds,
           ),
         );
       }
@@ -236,9 +334,21 @@ export function createMarketVerificationFunctions(
         step,
         event.data.workspaceId,
         event.data.marketAnalysisId,
-        settled.status,
+        verified.status,
       );
-      return settled;
+      await publishOperationStatus(
+        step,
+        event.data.workspaceId,
+        {
+          actorId: claimed.actor,
+          lifecycle: verified.status === "unverified" ? "failed" : "succeeded",
+          operationId: event.data.operationId,
+          operationVersion: claimed.operationVersion + 1,
+          sharedImport: false,
+        },
+        "worker.market-verification.realtime-unavailable",
+      );
+      return verified;
     },
   );
   const cancelled = client.createFunction(
@@ -253,39 +363,64 @@ export function createMarketVerificationFunctions(
       ],
     },
     async ({ event, step }) => {
-      const envelope = event.data.event as
-        | {
-            data?: {
-              operationId?: string;
-              workspaceId?: string;
-              marketAnalysisId?: string;
-            };
-          }
-        | undefined;
-      const payload = envelope?.data;
-      if (
-        !payload?.operationId ||
-        !payload.workspaceId ||
-        !payload.marketAnalysisId
-      )
-        return { status: "ignored" };
+      const envelope = cancelledEnvelopeSchema.safeParse(event);
+      if (!envelope.success) {
+        const ids = cancelledIdsSchema.safeParse(event);
+        await step.run("report-cancelled-market-verification-invalid", () => {
+          workerLogger.error(
+            "worker.market-verification.cancelled-event-invalid",
+            {
+              errorCode: "VALIDATION_FAILED",
+              functionId: ids.success ? ids.data.data.function_id : undefined,
+              runId: ids.success ? ids.data.data.run_id : undefined,
+            },
+          );
+          return { parsed: false };
+        });
+        return { status: "invalid" };
+      }
+      const payload = envelope.data.data.event.data;
       const { marketAnalysisId, operationId, workspaceId } = payload;
-      await step.run("settle-cancelled-market-verification", () =>
-        settleOwnedMarketVerification(
-          runtime.db,
+      const result = await step.run(
+        "settle-cancelled-market-verification",
+        async () => {
+          const settled = await settleOwnedMarketVerification(
+            runtime.db,
+            workspaceId,
+            operationId,
+            claimant(operationId),
+            "cancelled",
+          );
+          return settled
+            ? {
+                settled: true as const,
+                actor: settled.actor,
+                operationVersion: settled.version,
+              }
+            : { settled: false as const };
+        },
+      );
+      if (result.settled) {
+        await notifyMarketAnalysisChanged(
+          step,
           workspaceId,
-          operationId,
-          claimant(operationId),
+          marketAnalysisId,
           "cancelled",
-        ),
-      );
-      await notifyMarketAnalysisChanged(
-        step,
-        workspaceId,
-        marketAnalysisId,
-        "cancelled",
-      );
-      return { status: "cancelled" };
+        );
+        await publishOperationStatus(
+          step,
+          workspaceId,
+          {
+            actorId: result.actor,
+            lifecycle: "cancelled",
+            operationId,
+            operationVersion: result.operationVersion,
+            sharedImport: false,
+          },
+          "worker.market-verification.realtime-unavailable",
+        );
+      }
+      return { status: result.settled ? "cancelled" : "ignored" };
     },
   );
   return [effect, cancelled];
@@ -538,7 +673,13 @@ export async function reconcileStaleMarketVerifications(
       ),
     )
     .limit(10);
-  const settled: { marketAnalysisId: string; operationId: string }[] = [];
+  const settled: {
+    actorId: string;
+    lifecycle: "failed";
+    marketAnalysisId: string;
+    operationId: string;
+    operationVersion: number;
+  }[] = [];
   for (const candidate of stale) {
     const [analysis] = await runtime.db
       .select({ id: marketAnalysis.id })
@@ -570,8 +711,11 @@ export async function reconcileStaleMarketVerifications(
       .returning();
     if (updated && analysis)
       settled.push({
+        actorId: updated.actor,
+        lifecycle: "failed",
         marketAnalysisId: analysis.id,
         operationId: candidate.id,
+        operationVersion: updated.version,
       });
   }
   return settled;

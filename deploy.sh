@@ -187,7 +187,6 @@ assert_env_files() {
     refuse_env_key "$ENV_DIR/$target" MIGRATION_DATABASE_URL
   done
 
-  assert_env_key "$ENV_DIR/web.env" OPENROUTER_API_KEY
   assert_env_key "$ENV_DIR/web.env" BETTER_AUTH_SECRET
   assert_env_key "$ENV_DIR/web.env" CACHE_INVALIDATION_WEBHOOK_SECRET
   assert_env_key "$ENV_DIR/web.env" CORS_ORIGIN
@@ -200,7 +199,6 @@ assert_env_files() {
   refuse_env_key "$ENV_DIR/web.env" INNGEST_DEV
   refuse_env_key "$ENV_DIR/web.env" SENTRY_AUTH_TOKEN
   refuse_env_key "$ENV_DIR/worker.env" SENTRY_AUTH_TOKEN
-  refuse_env_key "$ENV_DIR/web.env" OLLAMA_BASE_URL
 
   local configured_template configured_version
   for target in web.env worker.env; do
@@ -247,7 +245,22 @@ assert_env_files() {
   assert_matching_env_values cache-invalidation "$ENV_DIR/web.env" CACHE_INVALIDATION_WEBHOOK_SECRET "$ENV_DIR/worker.env" CACHE_INVALIDATION_WEBHOOK_SECRET
   assert_matching_env_values cache-invalidation "$ENV_DIR/web.env" CACHE_INVALIDATION_WEBHOOK_SECRET "$ENV_DIR/reconcile.env" CACHE_INVALIDATION_WEBHOOK_SECRET
   assert_matching_env_values inngest-signing "$ENV_DIR/web.env" INNGEST_SIGNING_KEY "$ENV_DIR/worker.env" INNGEST_SIGNING_KEY
-  assert_matching_env_values openrouter "$ENV_DIR/web.env" OPENROUTER_API_KEY "$ENV_DIR/worker.env" OPENROUTER_API_KEY
+  # Model provider keys are conditionally required per template. The worker prestart
+  # refuses an unbound backend with EXIT_UNBOUND; this layer only checks agreement.
+  local web_openrouter worker_openrouter
+  web_openrouter="$(env_value "$ENV_DIR/web.env" OPENROUTER_API_KEY)"
+  worker_openrouter="$(env_value "$ENV_DIR/worker.env" OPENROUTER_API_KEY)"
+  if [ -n "$web_openrouter" ] || [ -n "$worker_openrouter" ]; then
+    [ -n "$web_openrouter" ] && [ -n "$worker_openrouter" ] || fail MISSING_ENV_KEY "OPENROUTER_API_KEY must be present in both web.env and worker.env when either binds remote"
+    [ "$web_openrouter" = "$worker_openrouter" ] || fail ENV_VALUE_MISMATCH "OPENROUTER_API_KEY differs between runtime env files"
+  fi
+  local web_ollama worker_ollama
+  web_ollama="$(env_value "$ENV_DIR/web.env" OLLAMA_BASE_URL)"
+  worker_ollama="$(env_value "$ENV_DIR/worker.env" OLLAMA_BASE_URL)"
+  if [ -n "$web_ollama" ] || [ -n "$worker_ollama" ]; then
+    [ -n "$web_ollama" ] && [ -n "$worker_ollama" ] || fail MISSING_ENV_KEY "OLLAMA_BASE_URL must be present in both web.env and worker.env when any task selects the local backend"
+    [ "$web_ollama" = "$worker_ollama" ] || fail ENV_VALUE_MISMATCH "OLLAMA_BASE_URL differs between runtime env files"
+  fi
   # Server actions are encrypted at build and decrypted at runtime. A divergence
   # here builds and starts cleanly, then fails every form submission with an
   # opaque "failed to find server action".

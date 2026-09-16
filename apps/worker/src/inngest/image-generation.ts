@@ -5,6 +5,7 @@ import {
   CONTENT_LOCALES,
   closestSupportedAspectRatio,
   creativeImageBriefSchema,
+  IMAGE_GENERATION_COMMAND_PREFIX,
   type InvocationKey,
   imageGenerationRequestedPayloadSchema,
   imageOptionCapabilityKeySchema,
@@ -148,6 +149,7 @@ export function nextImageInvocation(
 
 const stageInvokeSchema = z.object({
   operationId: z.uuid(),
+  operationVersion: z.int().nonnegative().optional(),
   token: z.string().min(1).max(200),
   workspaceId: z.uuid(),
 });
@@ -1837,7 +1839,11 @@ export function createImageGenerationFunctions(
     },
     ({ event, step }) =>
       step.run("execute-image-template-selection", () =>
-        executeImageSelection(runtime, gatewayFactory(), event.data),
+        executeImageSelection(
+          runtime,
+          gatewayFactory(),
+          stageInvokeSchema.parse(event.data),
+        ),
       ),
   );
   const creative = client.createFunction(
@@ -1848,7 +1854,11 @@ export function createImageGenerationFunctions(
     },
     ({ event, step }) =>
       step.run("execute-image-creative-brief", () =>
-        executeImageCreativeBrief(runtime, gatewayFactory(), event.data),
+        executeImageCreativeBrief(
+          runtime,
+          gatewayFactory(),
+          stageInvokeSchema.parse(event.data),
+        ),
       ),
   );
   const provider = client.createFunction(
@@ -1859,7 +1869,11 @@ export function createImageGenerationFunctions(
     },
     ({ event, step }) =>
       step.run("execute-image-provider-original", () =>
-        executeImageProvider(runtime, gatewayFactory(), event.data),
+        executeImageProvider(
+          runtime,
+          gatewayFactory(),
+          stageInvokeSchema.parse(event.data),
+        ),
       ),
   );
   const final = client.createFunction(
@@ -1870,7 +1884,7 @@ export function createImageGenerationFunctions(
     },
     ({ event, step }) =>
       step.run("execute-image-branded-final", () =>
-        executeImageBrandedFinal(runtime, event.data),
+        executeImageBrandedFinal(runtime, stageInvokeSchema.parse(event.data)),
       ),
   );
   const parent = client.createFunction(
@@ -1892,9 +1906,6 @@ export function createImageGenerationFunctions(
     },
     async ({ event, runId, step }) => {
       const { operationId, workspaceId } = event.data;
-      await step.run("assert-image-workspace", () =>
-        assertWorkspace(runtime, workspaceId),
-      );
       let context = await step.run("load-image-context", () =>
         findImageExecutionContext(runtime.db, workspaceId, operationId),
       );
@@ -1921,14 +1932,29 @@ export function createImageGenerationFunctions(
         return { operationId, status: "waiting_for_attempt" as const };
       }
       const token = `inngest:${runId}`;
-      const claim = await step.run("claim-image-operation", () =>
-        claimOperationExecution(runtime.db, workspaceId, {
+      const claim = await step.run("claim-image-operation", async () => {
+        await assertWorkspace(runtime, workspaceId);
+        const now = new Date();
+        const result = await claimOperationExecution(runtime.db, workspaceId, {
           claimedBy: token,
           id: operationId,
-          leaseExpiresAt: new Date(Date.now() + 120_000),
-          now: new Date(),
-        }),
-      );
+          leaseExpiresAt: new Date(now.getTime() + 120_000),
+          now,
+        });
+        if (result.status !== "claimed") return result;
+        if (
+          !result.operation.commandType.startsWith(
+            IMAGE_GENERATION_COMMAND_PREFIX,
+          )
+        ) {
+          throw new NonRetriableError("COMMAND_TYPE_MISMATCH");
+        }
+        return {
+          status: "claimed" as const,
+          operation: result.operation,
+          operationVersion: result.operation.version,
+        };
+      });
       if (claim.status !== "claimed")
         return { operationId, status: "waiting" as const };
       await publishImageTransition(
@@ -1949,7 +1975,12 @@ export function createImageGenerationFunctions(
       ] as const) {
         const result = stageResultSchema.parse(
           await step.invoke(`image-stage-${id}`, {
-            data: { operationId, token, workspaceId },
+            data: {
+              operationId,
+              operationVersion: claim.operationVersion,
+              token,
+              workspaceId,
+            },
             function: fn,
             timeout: IMAGE_STAGE_INVOKE_TIMEOUT,
           }),

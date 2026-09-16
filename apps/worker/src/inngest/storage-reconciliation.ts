@@ -78,6 +78,13 @@ type SettledDraftNotification =
       marketAnalysisId: string;
     });
 
+type SettledOperationNotification = {
+  actorId: string;
+  lifecycle: "cancelled" | "failed" | "succeeded" | "unknown";
+  operationId: string;
+  operationVersion: number;
+};
+
 async function notifySettledDraftChange(
   step: Parameters<typeof notifyDraftsChanged>[0],
   workspaceId: string,
@@ -161,7 +168,15 @@ async function cleanupTerminal(
     asset.lifecycle !== "expired"
   )
     return;
-  await cleanupMediaAsset(executor, storage, workspaceId, asset);
+  const cleanup = await cleanupMediaAsset(
+    executor,
+    storage,
+    workspaceId,
+    asset,
+  );
+  if (cleanup.status === "delete_failed") {
+    throw new Error("media object deletion failed");
+  }
 }
 
 export async function reconcileStorage(
@@ -293,8 +308,8 @@ export async function reconcileStorage(
           cursor: cursor.objects,
           limit: RECONCILIATION_BATCH_SIZE,
         });
-  let orphanObjectsRemoved = 0;
   let failedObjects = 0;
+  let orphanObjectsRemoved = 0;
   for (const object of objectPage.items) {
     try {
       const existing = await getMediaAssetByObjectKey(
@@ -359,6 +374,7 @@ export async function reconcileStaleImageOperations(
     now,
   });
   const changes: SettledDraftNotification[] = [];
+  const operations: SettledOperationNotification[] = [];
   let settled = 0;
   for (const candidate of candidates) {
     const admitted =
@@ -377,16 +393,25 @@ export async function reconcileStaleImageOperations(
     });
     if (!outcome) continue;
     settled += 1;
+    const lifecycle =
+      outcome.operation.lifecycle === "unknown" ? "unknown" : "failed";
     changes.push(
       await loadSettledDraftChange(
         executor,
         workspaceId,
         candidate.operationId,
-        outcome.operation.lifecycle === "unknown" ? "unknown" : "failed",
+        lifecycle,
       ),
     );
+    operations.push({
+      actorId: outcome.operation.actor,
+      lifecycle,
+      operationId: candidate.operationId,
+      operationVersion: outcome.operation.version,
+    });
   }
   return {
+    settledOperations: operations,
     settledDraftChanges: changes,
     staleImageOperationsObserved: candidates.length,
     staleImageOperationsSettled: settled,
@@ -403,6 +428,7 @@ export async function reconcileStaleCopyOperations(
     now,
   });
   const changes: SettledDraftNotification[] = [];
+  const operations: SettledOperationNotification[] = [];
   for (const candidate of candidates) {
     const settled = await settleStaleCopyOperation(executor, workspaceId, {
       expectedVersion: candidate.operationVersion,
@@ -410,15 +436,21 @@ export async function reconcileStaleCopyOperations(
       operationId: candidate.operationId,
     });
     if (!settled) continue;
-    changes.push(
-      await loadSettledCopyDraftChange(
-        executor,
-        workspaceId,
-        candidate.operationId,
-      ),
+    const loaded = await loadSettledCopyDraftChange(
+      executor,
+      workspaceId,
+      candidate.operationId,
     );
+    changes.push(loaded.change);
+    operations.push({
+      actorId: loaded.actorId,
+      lifecycle: settled.lifecycle === "unknown" ? "unknown" : "failed",
+      operationId: candidate.operationId,
+      operationVersion: settled.version,
+    });
   }
   return {
+    settledOperations: operations,
     settledDraftChanges: changes,
     staleCopyOperationsObserved: candidates.length,
     staleCopyOperationsSettled: changes.length,
@@ -429,28 +461,30 @@ async function loadSettledCopyDraftChange(
   executor: Executor,
   workspaceId: string,
   operationId: string,
-): Promise<SettledDraftNotification> {
+) {
   const copy = await findCopyExecutionContext(
     executor,
     workspaceId,
     operationId,
   );
   if (!copy) throw new NonRetriableError("NOT_FOUND");
-  return copy.executionScope.kind === "market_analysis"
-    ? {
-        code: "failed",
-        kind: "market",
-        marketAnalysisId: copy.executionScope.marketAnalysisId,
-        operationId,
-        platformDraftId: copy.platformDraftId,
-      }
-    : {
-        analysisRunId: copy.executionScope.analysisRunId,
-        code: "failed",
-        kind: "draft",
-        operationId,
-        platformDraftId: copy.platformDraftId,
-      };
+  const change: SettledDraftNotification =
+    copy.executionScope.kind === "market_analysis"
+      ? {
+          code: "failed",
+          kind: "market",
+          marketAnalysisId: copy.executionScope.marketAnalysisId,
+          operationId,
+          platformDraftId: copy.platformDraftId,
+        }
+      : {
+          analysisRunId: copy.executionScope.analysisRunId,
+          code: "failed",
+          kind: "draft",
+          operationId,
+          platformDraftId: copy.platformDraftId,
+        };
+  return { actorId: copy.actor, change };
 }
 
 async function loadSettledDraftChange(
@@ -503,62 +537,69 @@ export function createStorageReconciliationFunction(
       ],
     },
     async ({ event, step }) => {
-      const result = await step.run("reconcile-storage-page", async () => {
-        const installation = await assertWorkspace(
-          runtime,
-          "workspaceId" in event.data ? event.data.workspaceId : undefined,
-        );
-        const workspaceId = installation.workspaceId;
-        const reconciliation = await reconcileStorage(
-          runtime.db,
-          workerStorage(),
-          workspaceId,
-          {
-            cursor: "cursor" in event.data ? event.data.cursor : undefined,
-            now: new Date(event.ts),
-          },
-        );
-        return { ...reconciliation, workspaceId };
-      });
+      const installation = await step.run(
+        "resolve-storage-reconciliation-workspace",
+        () =>
+          assertWorkspace(
+            runtime,
+            "workspaceId" in event.data ? event.data.workspaceId : undefined,
+          ),
+      );
+      const workspaceId = installation.workspaceId;
       if (!("cursor" in event.data && event.data.cursor)) {
         const now = new Date(event.ts);
         const staleCopy = await step.run("settle-stale-copy-operations", () =>
-          reconcileStaleCopyOperations(runtime.db, result.workspaceId, now),
+          reconcileStaleCopyOperations(runtime.db, workspaceId, now),
         );
         for (const notification of staleCopy.settledDraftChanges) {
           await notifySettledDraftChange(
             step,
-            result.workspaceId,
+            workspaceId,
             notification,
             "stale-copy",
           );
         }
+        for (const terminal of staleCopy.settledOperations) {
+          await publishOperationStatus(
+            step,
+            workspaceId,
+            { ...terminal, sharedImport: false },
+            "worker.copy-generation.realtime-unavailable",
+          );
+        }
         const stale = await step.run("settle-stale-image-operations", () =>
-          reconcileStaleImageOperations(runtime.db, result.workspaceId, now),
+          reconcileStaleImageOperations(runtime.db, workspaceId, now),
         );
         for (const notification of stale.settledDraftChanges) {
           await notifySettledDraftChange(
             step,
-            result.workspaceId,
+            workspaceId,
             notification,
             "stale-image",
           );
         }
+        for (const terminal of stale.settledOperations) {
+          await publishOperationStatus(
+            step,
+            workspaceId,
+            { ...terminal, sharedImport: false },
+            "worker.image-generation.realtime-unavailable",
+          );
+        }
         const staleSourceImports = await step.run(
           "settle-stale-source-imports",
-          () =>
-            reconcileStaleSourceImports(runtime.db, result.workspaceId, now),
+          () => reconcileStaleSourceImports(runtime.db, workspaceId, now),
         );
         for (const terminal of staleSourceImports.staleSourceImportsSettled) {
           await notifySourcesAndUsageChanged(
             step,
-            result.workspaceId,
-            "settled",
+            workspaceId,
+            `settled-${terminal.operationId}`,
             terminal.actorId,
           );
           await publishOperationStatus(
             step,
-            result.workspaceId,
+            workspaceId,
             {
               actorId: terminal.actorId,
               lifecycle: terminal.lifecycle,
@@ -572,79 +613,19 @@ export function createStorageReconciliationFunction(
         const staleCopyTranslations = await step.run(
           "settle-stale-copy-variant-translations",
           () =>
-            reconcileStaleCopyVariantTranslations(
-              runtime.db,
-              result.workspaceId,
-              now,
-            ),
+            reconcileStaleCopyVariantTranslations(runtime.db, workspaceId, now),
         );
-        const staleMarketVerifications = await step.run(
-          "settle-stale-market-verifications",
-          () =>
-            reconcileStaleMarketVerifications(runtime, result.workspaceId, now),
-        );
-        for (const terminal of staleMarketVerifications) {
-          await notifyMarketAnalysisChanged(
-            step,
-            result.workspaceId,
-            terminal.marketAnalysisId,
-            `stale-${terminal.operationId}`,
-          );
-        }
-        const staleMarketChartRenders = await step.run(
-          "settle-stale-market-chart-renders",
-          () =>
-            reconcileStaleMarketChartRenders(runtime, result.workspaceId, now),
-        );
-        for (const terminal of staleMarketChartRenders) {
-          await notifyMarketAnalysisChanged(
-            step,
-            result.workspaceId,
-            terminal.marketAnalysisId,
-            `stale-chart-${terminal.operationId}`,
-          );
-        }
-        const staleMarketGenerations = await step.run(
-          "settle-stale-market-generations",
-          () =>
-            reconcileStaleMarketGenerations(
-              runtime.db,
-              result.workspaceId,
-              now,
-            ),
-        );
-        for (const terminal of staleMarketGenerations) {
-          await notifyMarketAnalysisAndUsageChanged(
-            step,
-            result.workspaceId,
-            terminal.marketAnalysisId,
-            `stale-generation-${terminal.operationId}`,
-            terminal.actorId,
-          );
-        }
-        const staleMarketCatalog = await step.run(
-          "settle-stale-market-catalog-refreshes",
-          () =>
-            reconcileStaleMarketCatalogRefreshes(
-              runtime,
-              result.workspaceId,
-              now,
-            ),
-        );
-        if (staleMarketCatalog.settled > 0) {
-          await notifyMarketCatalogChanged(step, result.workspaceId, "stale");
-        }
         for (const terminal of staleCopyTranslations.staleCopyVariantTranslationsSettled) {
           await notifyDraftsAndUsageChanged(
             step,
-            result.workspaceId,
+            workspaceId,
             translationChange(terminal, terminal.operationId),
             `stale-copy-variant-translation-${terminal.operationId}`,
             terminal.actorId,
           );
           await publishOperationStatus(
             step,
-            result.workspaceId,
+            workspaceId,
             {
               actorId: terminal.actorId,
               lifecycle: terminal.lifecycle,
@@ -655,19 +636,107 @@ export function createStorageReconciliationFunction(
             "worker.copy-variant-translation.realtime-unavailable",
           );
         }
+        const staleMarketVerifications = await step.run(
+          "settle-stale-market-verifications",
+          () => reconcileStaleMarketVerifications(runtime, workspaceId, now),
+        );
+        for (const terminal of staleMarketVerifications) {
+          await notifyMarketAnalysisChanged(
+            step,
+            workspaceId,
+            terminal.marketAnalysisId,
+            `stale-${terminal.operationId}`,
+          );
+          await publishOperationStatus(
+            step,
+            workspaceId,
+            {
+              actorId: terminal.actorId,
+              lifecycle: terminal.lifecycle,
+              operationId: terminal.operationId,
+              operationVersion: terminal.operationVersion,
+              sharedImport: false,
+            },
+            "worker.market-verification.realtime-unavailable",
+          );
+        }
+        const staleMarketChartRenders = await step.run(
+          "settle-stale-market-chart-renders",
+          () => reconcileStaleMarketChartRenders(runtime, workspaceId, now),
+        );
+        for (const terminal of staleMarketChartRenders) {
+          await notifyMarketAnalysisChanged(
+            step,
+            workspaceId,
+            terminal.marketAnalysisId,
+            `stale-chart-${terminal.operationId}`,
+          );
+          await publishOperationStatus(
+            step,
+            workspaceId,
+            {
+              actorId: terminal.actorId,
+              lifecycle: terminal.lifecycle,
+              operationId: terminal.operationId,
+              operationVersion: terminal.operationVersion,
+              sharedImport: false,
+            },
+            "worker.market-chart.realtime-unavailable",
+          );
+        }
+        const staleMarketGenerations = await step.run(
+          "settle-stale-market-generations",
+          () => reconcileStaleMarketGenerations(runtime.db, workspaceId, now),
+        );
+        for (const terminal of staleMarketGenerations) {
+          await notifyMarketAnalysisAndUsageChanged(
+            step,
+            workspaceId,
+            terminal.marketAnalysisId,
+            `stale-generation-${terminal.operationId}`,
+            terminal.actorId,
+          );
+          await publishOperationStatus(
+            step,
+            workspaceId,
+            {
+              actorId: terminal.actorId,
+              lifecycle: terminal.lifecycle,
+              operationId: terminal.operationId,
+              operationVersion: terminal.operationVersion,
+              sharedImport: false,
+            },
+            "worker.market-generation.realtime-unavailable",
+          );
+        }
+        const staleMarketCatalog = await step.run(
+          "settle-stale-market-catalog-refreshes",
+          () => reconcileStaleMarketCatalogRefreshes(runtime, workspaceId, now),
+        );
+        if (staleMarketCatalog.settled > 0) {
+          await notifyMarketCatalogChanged(step, workspaceId, "stale");
+        }
+        for (const terminal of staleMarketCatalog.settledOperations) {
+          await publishOperationStatus(
+            step,
+            workspaceId,
+            { ...terminal, sharedImport: false },
+            "worker.market-catalog.realtime-unavailable",
+          );
+        }
         const stalePresentationTranslations = await step.run(
           "settle-stale-presentation-translations",
           () =>
             reconcileStalePresentationTranslations(
               runtime.db,
-              result.workspaceId,
+              workspaceId,
               now,
             ),
         );
         for (const terminal of stalePresentationTranslations.stalePresentationTranslationsSettled) {
           await notifyEditorialPresentationTranslationChanged(
             step,
-            result.workspaceId,
+            workspaceId,
             {
               analysisRunId: terminal.analysisRunId,
               code: presentationTranslationChangeCode(terminal.lifecycle),
@@ -678,7 +747,7 @@ export function createStorageReconciliationFunction(
           );
           await publishOperationStatus(
             step,
-            result.workspaceId,
+            workspaceId,
             {
               actorId: terminal.actorId,
               lifecycle: terminal.lifecycle,
@@ -690,11 +759,23 @@ export function createStorageReconciliationFunction(
           );
         }
       }
+      const result = await step.run("reconcile-storage-page", async () => {
+        const reconciliation = await reconcileStorage(
+          runtime.db,
+          workerStorage(),
+          workspaceId,
+          {
+            cursor: "cursor" in event.data ? event.data.cursor : undefined,
+            now: new Date(event.ts),
+          },
+        );
+        return { ...reconciliation, workspaceId };
+      });
       if (result.nextCursor) {
         const continuation =
           durableEvents.storageReconciliationRequested.create({
             schemaVersion: DURABLE_EVENT_SCHEMA_VERSION,
-            workspaceId: result.workspaceId,
+            workspaceId,
             cursor: result.nextCursor,
           });
         await continuation.validate();

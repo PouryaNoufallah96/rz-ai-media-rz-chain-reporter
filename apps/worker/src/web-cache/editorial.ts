@@ -129,7 +129,7 @@ async function notifyEditorial(
     publishEditorialChanged(step, workspaceId, analysisRunId, callSite),
     publishDraftChanges(step, workspaceId, draftChanges, callSite),
     withUsage
-      ? publishUsageLedgerChanged(step, workspaceId, usageActorId)
+      ? publishUsageLedgerChanged(step, workspaceId, usageActorId, callSite)
       : false,
   ]);
 

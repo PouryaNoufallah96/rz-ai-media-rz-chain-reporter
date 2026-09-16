@@ -35,6 +35,7 @@ import {
   persistCopyStructuredFailure,
   persistCopyVariantResult,
   prepareCopyGenerationSource,
+  scheduleCopyGenerationRecovery,
   settleCopyGeneration,
   settleCopyGenerationUnit,
 } from "@rz-chain-reporter/db/repositories/copy-generation";
@@ -90,6 +91,7 @@ const unitInvokeSchema = z.object({
   actorId: z.string().optional(),
   operationId: z.uuid(),
   operationVersion: z.int().nonnegative(),
+  recovered: z.boolean().default(false),
   token: z.string().min(1),
   unitId: z.uuid(),
   workspaceId: z.uuid(),
@@ -718,6 +720,23 @@ function copyLocaleInstruction(locale: ContentLocale) {
     : "Output language is mandatory: write the complete headline and body in English (en), using Latin script.";
 }
 
+function copyClaimStepResult(
+  result: Awaited<ReturnType<typeof claimCopyGeneration>>,
+) {
+  if (result.status === "claimed") {
+    return {
+      actor: result.operation.actor,
+      operationVersion: result.operation.version,
+      recovered: result.recovered,
+      status: result.status,
+    } as const;
+  }
+  if (result.status === "busy") {
+    return { status: result.status } as const;
+  }
+  return { status: result.status } as const;
+}
+
 export async function executeCopyGenerationUnit(
   runtime: WorkerRuntime,
   gateway: ModelGateway,
@@ -826,6 +845,17 @@ export async function executeCopyGenerationUnit(
   for (const [index, invocationKey] of keys.entries()) {
     const status = usageStatus(recorded, invocationKey);
     if (status === "pending" || status === "unknown") {
+      if (input.recovered) {
+        await settleCopyGenerationUnit(runtime.db, input.workspaceId, {
+          failureCode: "MODEL_INVOCATION_FAILED",
+          operationAttemptId,
+          operationId: input.operationId,
+          outcome: "ambiguous",
+          status: "failed",
+          unitId: input.unitId,
+        });
+        return { status: "failed", unitId: input.unitId } as const;
+      }
       return { status: "waiting", unitId: input.unitId } as const;
     }
     if (status === "failed" || status === "succeeded") continue;
@@ -984,7 +1014,11 @@ export function createCopyGenerationFunctions(
     },
     async ({ event, step }) => {
       const result = await step.run("execute-unit", () =>
-        executeCopyGenerationUnit(runtime, gatewayFactory(), event.data),
+        executeCopyGenerationUnit(
+          runtime,
+          gatewayFactory(),
+          unitInvokeSchema.parse(event.data),
+        ),
       );
       const context = await step.run("reload-unit-context", () =>
         findCopyExecutionContext(
@@ -994,6 +1028,15 @@ export function createCopyGenerationFunctions(
         ),
       );
       const actorId = event.data.actorId ?? null;
+      if (result.status === "waiting") {
+        await notifyUsageLedgerChanged(
+          step,
+          event.data.workspaceId,
+          actorId,
+          `unit-${event.data.unitId}`,
+        );
+        return unitResultSchema.parse(result);
+      }
       if (context) {
         await notifyCopyChanged(
           step,
@@ -1040,11 +1083,20 @@ export function createCopyGenerationFunctions(
         const running = await step.run("reload-failed-copy-running", () =>
           copyGenerationHasRunningUnit(runtime.db, workspaceId, operationId),
         );
-        if (!running) {
-          await step.run("settle-failed-copy", () =>
-            settleCopyGeneration(runtime.db, workspaceId, operationId, true),
+        if (running) {
+          await step.run("schedule-failed-copy-recovery", () =>
+            scheduleCopyGenerationRecovery(
+              runtime.db,
+              workspaceId,
+              operationId,
+            ),
           );
+          return;
         }
+        const settled = await step.run("settle-failed-copy", () =>
+          settleCopyGeneration(runtime.db, workspaceId, operationId, true),
+        );
+        if (!settled || "waiting" in settled) return;
         await notifyCopyChanged(
           step,
           workspaceId,
@@ -1052,6 +1104,18 @@ export function createCopyGenerationFunctions(
           "failed",
           "failure",
           null,
+        );
+        await publishOperationStatus(
+          step,
+          workspaceId,
+          {
+            actorId: context.actor,
+            lifecycle: settled.lifecycle,
+            operationId,
+            operationVersion: settled.version,
+            sharedImport: false,
+          },
+          "worker.copy-generation.realtime-unavailable",
         );
       },
     },
@@ -1061,13 +1125,21 @@ export function createCopyGenerationFunctions(
       const claimed = await step.run("claim-copy-generation", async () => {
         await assertWorkspace(runtime, workspaceId);
         const now = new Date();
-        return claimCopyGeneration(runtime.db, workspaceId, {
-          claimedBy: token,
-          leaseExpiresAt: new Date(now.getTime() + COPY_OPERATION_LEASE_MS),
-          now,
-          operationId,
-        });
+        return copyClaimStepResult(
+          await claimCopyGeneration(runtime.db, workspaceId, {
+            claimedBy: token,
+            leaseExpiresAt: new Date(now.getTime() + COPY_OPERATION_LEASE_MS),
+            now,
+            operationId,
+          }),
+        );
       });
+      if (claimed.status === "busy") {
+        await step.run("schedule-busy-copy-recovery", () =>
+          scheduleCopyGenerationRecovery(runtime.db, workspaceId, operationId),
+        );
+        return { operationId, replayed: true };
+      }
       if (claimed.status !== "claimed") {
         return { operationId, replayed: true };
       }
@@ -1094,16 +1166,19 @@ export function createCopyGenerationFunctions(
         findCopyExecutionContext(runtime.db, workspaceId, operationId),
       );
       if (!current) throw new NonRetriableError("NOT_FOUND");
-      const pending = current.units.filter((unit) => unit.status === "pending");
+      const pending = current.units.filter(
+        (unit) => unit.status === "pending" || unit.status === "running",
+      );
       const invoked = await Promise.allSettled(
         pending.map((unit) =>
           step
             .invoke(`copy-unit-${unit.id}`, {
               function: unitFunction,
               data: {
-                actorId: claimed.operation.actor,
+                actorId: claimed.actor,
                 operationId,
-                operationVersion: claimed.operation.version,
+                operationVersion: claimed.operationVersion,
+                recovered: claimed.recovered ?? false,
                 token,
                 unitId: unit.id,
                 workspaceId,
@@ -1146,7 +1221,13 @@ export function createCopyGenerationFunctions(
       const terminal = await step.run("reload-settled-copy", () =>
         findCopyExecutionContext(runtime.db, workspaceId, operationId),
       );
-      if (!settled || !terminal || "waiting" in settled) {
+      if (!settled || !terminal) {
+        return { operationId, status: "waiting_for_unit" as const };
+      }
+      if ("waiting" in settled) {
+        await step.run("schedule-copy-recovery", () =>
+          scheduleCopyGenerationRecovery(runtime.db, workspaceId, operationId),
+        );
         return { operationId, status: "waiting_for_unit" as const };
       }
       const successCount = terminal.units.filter(
@@ -1168,13 +1249,13 @@ export function createCopyGenerationFunctions(
         terminal,
         code,
         "terminal",
-        claimed.operation.actor,
+        claimed.actor,
       );
       await publishOperationStatus(
         step,
         workspaceId,
         {
-          actorId: claimed.operation.actor,
+          actorId: claimed.actor,
           lifecycle: settled.lifecycle,
           operationId,
           operationVersion: settled.version,
@@ -1244,9 +1325,21 @@ export function createCopyGenerationFunctions(
         step,
         workspaceId,
         context,
+        settled.lifecycle === "unknown" ? "unknown" : "cancelled",
         "cancelled",
-        "cancelled",
-        null,
+        context.actor,
+      );
+      await publishOperationStatus(
+        step,
+        workspaceId,
+        {
+          actorId: context.actor,
+          lifecycle: settled.lifecycle,
+          operationId,
+          operationVersion: settled.version,
+          sharedImport: false,
+        },
+        "worker.copy-generation.realtime-unavailable",
       );
       return { lifecycle: settled.lifecycle, settled: true };
     },

@@ -4,6 +4,10 @@ import { resolveAnalysisTopicGroups } from "../editorial/pipeline";
 import { SCORING_VERSION, scoreLexicalTopic } from "../editorial/scoring";
 import { rankFromVectors, semanticTopicValues } from "../editorial/semantic";
 import {
+  ANALYSIS_UNIT_QUIESCENCE_INTERVAL,
+  ANALYSIS_UNIT_QUIESCENCE_INTERVAL_MS,
+  ANALYSIS_UNIT_QUIESCENCE_PASSES,
+  ANALYSIS_UNIT_QUIESCENCE_RELOAD_PASSES,
   decideNewsModelRecovery,
   decideRecordedNewsModelRecovery,
   importCovers,
@@ -637,6 +641,17 @@ assert.deepEqual(
   ],
 );
 assert.equal(SCORING_VERSION, "5");
+assert.equal(ANALYSIS_UNIT_QUIESCENCE_INTERVAL, "5s");
+assert.equal(ANALYSIS_UNIT_QUIESCENCE_INTERVAL_MS, 5000);
+assert.equal(ANALYSIS_UNIT_QUIESCENCE_PASSES, 18);
+assert.deepEqual(
+  ANALYSIS_UNIT_QUIESCENCE_RELOAD_PASSES,
+  Array.from({ length: 19 }, (_, pass) => pass),
+);
+assert.ok(
+  ANALYSIS_UNIT_QUIESCENCE_INTERVAL_MS * ANALYSIS_UNIT_QUIESCENCE_PASSES >=
+    UNIT_TOTAL_DEADLINE_MS,
+);
 process.stdout.write(
   "analysis run probe passed: topic groups, lexical max scoring, semantic slicing, original indexes, model recovery, semantic attempts, partial import readiness and unit deadline\n",
 );

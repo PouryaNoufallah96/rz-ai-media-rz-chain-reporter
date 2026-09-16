@@ -8,7 +8,10 @@ import {
   MAX_EMBEDDING_VALUES,
   MODEL_PROMPT_MAX_LENGTH,
 } from "@rz-chain-reporter/contracts/editorial";
-import type { CustomerTemplate } from "@rz-chain-reporter/customer-template/schema";
+import type {
+  CustomerTemplate,
+  ModelTaskKey,
+} from "@rz-chain-reporter/customer-template/schema";
 import { IMAGE_GENERATION_TASK_PREFIX } from "@rz-chain-reporter/customer-template/schema";
 import type { Executor } from "@rz-chain-reporter/db/executor";
 import {
@@ -52,6 +55,24 @@ const MAX_INSTRUCTIONS_LENGTH = 24_000;
 const MAX_IMAGE_PROMPT_LENGTH = 48_000;
 export const MAX_OUTPUT_TOKENS = 8_192;
 const MAX_SYNTHESIS_STEPS = 3;
+
+const LOCAL_NO_THINK_TASKS = new Set<ModelTaskKey>([
+  "assistant-synthesis",
+  "image-template-selection",
+  "text-translation",
+]);
+
+const LOCAL_PROMPT_MAX_CHARS = 6_000;
+
+function truncateLocalPrompt(prompt: string): string {
+  if (prompt.length <= LOCAL_PROMPT_MAX_CHARS) return prompt;
+  const questionStart = prompt.lastIndexOf("<QUESTION>");
+  if (questionStart === -1) return prompt.slice(0, LOCAL_PROMPT_MAX_CHARS);
+  const questionBlock = prompt.slice(questionStart);
+  const budget = LOCAL_PROMPT_MAX_CHARS - questionBlock.length - 200;
+  if (budget <= 0) return questionBlock.slice(0, LOCAL_PROMPT_MAX_CHARS);
+  return `${prompt.slice(0, budget)}\n${questionBlock}`;
+}
 
 export type TextStreamModelResult<UI_MESSAGE extends UIMessage> = {
   uiStream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>;
@@ -489,6 +510,8 @@ export function createModelGateway(options: {
 
       let generated: StructuredAdapterResult<TOutput>;
       try {
+        const disableThinking =
+          route.backend === "local" && LOCAL_NO_THINK_TASKS.has(taskKey);
         generated = await adapter.generateStructured({
           abortSignal: input.abortSignal,
           deadlineMs: input.deadlineMs,
@@ -497,6 +520,9 @@ export function createModelGateway(options: {
           model: route.model,
           outputName: input.outputName,
           prompt: input.prompt,
+          ...(disableThinking
+            ? { providerOptions: { ollama: { think: false } } }
+            : {}),
           schema: input.schema,
           telemetry: {
             operationAttemptId: input.operationAttemptId,
@@ -593,22 +619,33 @@ export function createModelGateway(options: {
 
       await assertTemplateCurrent(options, input.workspaceId);
 
-      if (route.backend !== "remote") {
-        throw new ModelBindingError(
-          "streaming synthesis requires a remote backend",
-        );
+      let adapter: ModelAdapter;
+      if (route.backend === "remote") {
+        remoteAdapter ??= createBoundRemoteAdapter(options.bindings);
+        adapter = remoteAdapter;
+      } else {
+        localAdapter ??= createBoundLocalAdapter(options.bindings);
+        adapter = localAdapter;
       }
 
-      remoteAdapter ??= createBoundRemoteAdapter(options.bindings);
-
-      if (!remoteAdapter.streamText) {
+      if (!adapter.streamText) {
         throw new ModelBindingError(
           `model task "${taskKey}" selects a backend without a streaming adapter`,
         );
       }
 
+      const streamText = adapter.streamText.bind(adapter);
+      const providerGateway: UsageProviderGateway =
+        route.backend === "remote" ? "openrouter" : "ollama";
+
       const attempts = new Map<number, { id: string; settled: boolean }>();
-      const streamed = await remoteAdapter.streamText<TOOLS, UI_MESSAGE>({
+      const disableThinking =
+        route.backend === "local" && LOCAL_NO_THINK_TASKS.has(taskKey);
+      const prompt =
+        route.backend === "local"
+          ? truncateLocalPrompt(input.prompt)
+          : input.prompt;
+      const streamed = await streamText<TOOLS, UI_MESSAGE>({
         activeTools: input.activeTools,
         bindAgentTools: input.bindAgentTools,
         abortSignal: input.abortSignal,
@@ -616,6 +653,10 @@ export function createModelGateway(options: {
         instructions: input.instructions,
         maxOutputTokens: input.maxOutputTokens,
         model: route.model,
+        ...(disableThinking
+          ? { providerOptions: { ollama: { think: false } } }
+          : {}),
+        prompt,
         onStepEnd: async (stepNumber, observation) => {
           const attempt = attempts.get(stepNumber);
           if (!attempt) {
@@ -657,7 +698,7 @@ export function createModelGateway(options: {
               invocationKey: input.invocationKey,
               operationAttemptId: input.operationAttemptId,
               operationId: input.operationId,
-              providerGateway: "openrouter",
+              providerGateway,
               requestedModel: route.model,
               taskKey,
             },
@@ -671,7 +712,6 @@ export function createModelGateway(options: {
           attempts.set(stepNumber, { id: pending.event.id, settled: false });
         },
         prepareStep: input.prepareStep,
-        prompt: input.prompt,
         stopWhen: input.stopWhen,
         toolApproval: input.toolApproval,
         toolApprovalSecret: input.toolApprovalSecret,
